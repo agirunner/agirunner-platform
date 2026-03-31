@@ -1,103 +1,120 @@
-# Contributing to agirunner-platform
+# Contributing to Agirunner Platform
 
-This repo contains the Platform API, Dashboard, and Container Manager.
+Thanks for contributing.
 
-For the overall project contribution guide, see
-[agirunner/CONTRIBUTING.md](https://github.com/agirunner/agirunner/blob/main/CONTRIBUTING.md).
+This repository owns the Agirunner control plane: the platform API, the
+dashboard, workflow activation and routing, approval and assessment
+records, artifact and memory surfaces, and runtime fleet coordination
+through the container manager.
+
+If your change is primarily about agent execution, tool transport,
+workspace setup, execution-container behavior, or runtime-side capture,
+it probably belongs in
+[`agirunner-runtime`](https://github.com/agirunner/agirunner-runtime),
+not here.
+
+For the broader multi-repo contribution overview, see
+[`agirunner/CONTRIBUTING.md`](https://github.com/agirunner/agirunner/blob/main/CONTRIBUTING.md).
 
 ## Prerequisites
 
 - Node.js 22+
-- Docker and Docker Compose (for PostgreSQL)
-- pnpm (vendored at `.bin/pnpm` — do NOT install globally)
+- Docker
+- `corepack` with `pnpm`
+- Go 1.24+ if you need to work on `services/container-manager`
 
 ## Development Setup
 
 ```bash
-# Clone
 git clone https://github.com/YOUR-USERNAME/agirunner-platform
 cd agirunner-platform
 
-# Install dependencies
-PATH=".bin:$PATH" pnpm install
-
-# Start PostgreSQL and supporting services
+corepack pnpm install
+cp .env.example .env
 docker compose up -d postgres socket-proxy
 
-# Start Platform API (port 8080)
-PATH=".bin:$PATH" pnpm --filter platform-api dev
-
-# Start Dashboard (port 5173 in dev, 3000 in production)
-PATH=".bin:$PATH" pnpm --filter dashboard dev
+corepack pnpm dev
 ```
 
-## Project Structure
+Useful commands:
 
-```
-apps/
-  platform-api/          — Fastify API server
-    src/
-      api/routes/        — HTTP route handlers
-      services/          — Business logic
-      db/schema/         — Drizzle ORM schema
-      db/migrations/     — SQL migrations (run automatically on startup)
-      orchestration/     — Playbook model, state machines
-      catalogs/          — Built-in roles, playbooks, prompts
-  dashboard/             — React SPA (Vite + Tailwind v4 + Radix UI)
-    src/
-      pages/             — Page components by section
-      components/        — Shared UI components
-      lib/               — API client, utilities
+- `corepack pnpm test` runs the workspace test lanes
+- `corepack pnpm test:v2-contract` runs the deterministic contract lane
+- `corepack pnpm test:integration:dashboard` runs dashboard integration coverage
+- `corepack pnpm lint` runs the lint lanes
+- `corepack pnpm build` runs the build lanes
+- `cd services/container-manager && go test ./...` runs the container-manager tests
 
-packages/
-  sdk/                   — TypeScript SDK (@agirunner/sdk)
+## Repository Map
 
-services/
-  container-manager/     — Go service for Docker container lifecycle
+```text
+apps/platform-api/         Fastify API, orchestration services, persistence
+apps/dashboard/            operator UI for workflows, approvals, logs, config
+packages/sdk/              shared TypeScript SDK surface
+services/container-manager/ Go service for runtime and worker lifecycle
+tests/integration/         dashboard-backed integration coverage
+tests/live/                live workflow verification harness
 ```
 
-## Running Tests
+## Architectural Boundary
+
+When deciding where a change belongs, start with this split:
+
+- The platform owns workflow meaning: playbooks, workflow and work-item state, routing, approvals, assessments, continuity, and operator-visible records.
+- The runtime owns execution mechanics: claiming work, preparing the environment, running the loop, executing tools, and packaging results.
+
+That boundary matters. Platform code should own the meaning of workflow actions and control-plane records instead of pushing that logic down into the runtime.
+
+## Testing
+
+Every feature or fix needs tests.
+
+Common lanes:
 
 ```bash
-# All tests
-PATH=".bin:$PATH" pnpm test
-
-# Platform API tests only
-PATH=".bin:$PATH" pnpm --filter platform-api test
-
-# Dashboard tests only
-PATH=".bin:$PATH" pnpm --filter dashboard test
-
-# Watch mode
-PATH=".bin:$PATH" pnpm --filter platform-api test -- --watch
+corepack pnpm test
+corepack pnpm test:v2-contract
+corepack pnpm test:integration:dashboard
+cd services/container-manager && go test ./...
 ```
 
-Test runner: **vitest** (not jest).
+If you change:
 
-## Container Manager (Go)
+- platform API contracts, add or update API-level coverage
+- dashboard behavior, prefer deterministic browser or integration coverage for user-visible regressions
+- orchestration or workflow legality, add regression coverage around the affected decision point
+- container-manager behavior, add Go regression coverage in `services/container-manager`
 
-The container manager is a Go service at `services/container-manager/`.
+## Working Norms
 
-```bash
-cd services/container-manager
-go build -o container-manager ./cmd/container-manager
-go test ./...
+- Keep product language and directory structure aligned.
+- Prefer explicit contracts and structured outcomes over hidden recovery logic.
+- Do not hardcode secrets or machine-specific paths.
+- Update docs, examples, and config templates when behavior changes.
+- Keep the public repo understandable for outside contributors.
+
+## Commit Style
+
+Use conventional commits:
+
+```text
+type(scope): summary
 ```
 
-## Database Migrations
+Examples:
 
-Migrations are SQL files in `apps/platform-api/src/db/migrations/`.
-They run automatically on platform API startup. To add a new migration:
+- `fix(platform-api): reject stale activation completion writes`
+- `refactor(dashboard): split approval queue filters`
+- `docs(platform): refresh public contribution guide`
 
-1. Create `NNNN_description.sql` (next number in sequence)
-2. Write idempotent SQL
-3. Restart the platform API — migration runs on startup
+## Security Issues
 
-## Key Conventions
+For vulnerability reports or security-sensitive findings, see
+[`SECURITY.md`](./SECURITY.md). Do not open public issues for security
+problems.
 
-- **pnpm is vendored** at `.bin/pnpm` — always use `PATH=".bin:$PATH" pnpm`
-- **Zod** for all API input validation
-- **Drizzle ORM** for database queries (no raw SQL in route handlers)
-- **TanStack Query** for all dashboard data fetching
-- **Tailwind v4** for styling (no CSS modules, no styled-components)
-- **Conventional commits**: `type(scope): description`
+## Questions
+
+If you are unsure whether a change belongs here or in
+`agirunner-runtime`, open the issue with the boundary question called
+out directly. That is usually the key design decision in the change.
