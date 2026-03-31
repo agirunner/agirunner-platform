@@ -1,5 +1,5 @@
-import { createPool } from '../src/db/client.js';
-import { PlaybookRedesignResetService } from '../src/services/redesign-reset-service.js';
+import { createPool } from '../../src/db/client.js';
+import { PlaybookRedesignResetService } from '../../src/services/redesign-reset-service.js';
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
