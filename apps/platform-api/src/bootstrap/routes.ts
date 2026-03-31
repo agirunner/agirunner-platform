@@ -39,6 +39,7 @@ import { circuitBreakerRoutes } from '../api/routes/circuit-breaker/circuit-brea
 import { containerRoutes } from '../api/routes/fleet/containers.routes.js';
 import { oauthRoutes } from '../api/routes/auth/oauth.routes.js';
 import { playbookRoutes } from '../api/routes/playbooks/playbooks.routes.js';
+import { communityCatalogRoutes } from '../api/routes/community-catalog/routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control/routes.js';
 import { remoteMcpServerRoutes } from '../api/routes/remote-mcp/servers.routes.js';
 import { remoteMcpOAuthClientProfileRoutes } from '../api/routes/remote-mcp/oauth-client-profiles.routes.js';
@@ -67,6 +68,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(orchestratorConfigRoutes);
   await app.register(platformInstructionRoutes);
   await app.register(playbookRoutes);
+  await app.register(communityCatalogRoutes);
   await app.register(orchestratorControlRoutes);
   await app.register(workflowRoutes);
   await app.register(workflowActivationRoutes);

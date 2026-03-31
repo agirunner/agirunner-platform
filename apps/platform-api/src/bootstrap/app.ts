@@ -59,6 +59,11 @@ import { RemoteMcpHttpVerifier } from '../services/remote-mcp/verification/remot
 import { RemoteMcpOAuthService } from '../services/remote-mcp/oauth/remote-mcp-oauth-service.js';
 import { RemoteMcpVerificationService } from '../services/remote-mcp/verification/remote-mcp-verification-service.js';
 import { SpecialistSkillService } from '../services/specialist/specialist-skill-service.js';
+import { CommunityCatalogSourceService } from '../services/community-catalog/community-catalog-source.js';
+import { CommunityCatalogPersistence } from '../services/community-catalog/community-catalog-persistence.js';
+import { CommunityCatalogImportService } from '../services/community-catalog/community-catalog-import-service.js';
+import { CommunityCatalogPreviewService } from '../services/community-catalog/community-catalog-preview-service.js';
+import { CommunityCatalogOriginService } from '../services/community-catalog/community-catalog-origin-service.js';
 import { WorkspaceArtifactFileService } from '../services/workspace/artifacts/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace/workspace-service.js';
 import { PlaybookService } from '../services/playbook/playbook-service.js';
@@ -327,6 +332,25 @@ export async function buildApp() {
     remoteMcpOAuthService,
   );
   const specialistSkillService = new SpecialistSkillService(pool);
+  const communityCatalogSourceService = new CommunityCatalogSourceService({
+    repository: appConfig.COMMUNITY_CATALOG_REPOSITORY,
+    ref: appConfig.COMMUNITY_CATALOG_REF,
+    rawBaseUrl: appConfig.COMMUNITY_CATALOG_RAW_BASE_URL,
+  });
+  const communityCatalogPersistence = new CommunityCatalogPersistence(pool);
+  const communityCatalogImportService = new CommunityCatalogImportService({
+    sourceService: communityCatalogSourceService,
+    persistence: communityCatalogPersistence,
+    playbookService,
+    specialistSkillService,
+    roleDefinitionService,
+  });
+  const communityCatalogPreviewService = new CommunityCatalogPreviewService(
+    communityCatalogImportService,
+  );
+  const communityCatalogOriginService = new CommunityCatalogOriginService(
+    communityCatalogPersistence,
+  );
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
   const toolTagService = new ToolTagService(pool);
   const agentService = new AgentService(pool, eventService);
@@ -460,6 +484,22 @@ export async function buildApp() {
   app.decorate('remoteMcpOAuthService', createLoggedService(remoteMcpOAuthService, 'RemoteMcpOAuthService', logService));
   app.decorate('remoteMcpVerificationService', createLoggedService(remoteMcpVerificationService, 'RemoteMcpVerificationService', logService));
   app.decorate('specialistSkillService', createLoggedService(specialistSkillService, 'SpecialistSkillService', logService));
+  app.decorate(
+    'communityCatalogSourceService',
+    createLoggedService(communityCatalogSourceService, 'CommunityCatalogSourceService', logService),
+  );
+  app.decorate(
+    'communityCatalogPreviewService',
+    createLoggedService(communityCatalogPreviewService, 'CommunityCatalogPreviewService', logService),
+  );
+  app.decorate(
+    'communityCatalogImportService',
+    createLoggedService(communityCatalogImportService, 'CommunityCatalogImportService', logService),
+  );
+  app.decorate(
+    'communityCatalogOriginService',
+    createLoggedService(communityCatalogOriginService, 'CommunityCatalogOriginService', logService),
+  );
   app.decorate('orchestratorGrantService', createLoggedService(orchestratorGrantService, 'OrchestratorGrantService', logService));
   app.decorate('acpSessionService', createLoggedService(acpSessionService, 'AcpSessionService', logService));
   app.decorate('toolTagService', createLoggedService(toolTagService, 'ToolTagService', logService));

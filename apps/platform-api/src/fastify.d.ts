@@ -45,6 +45,10 @@ import type { RemoteMcpOAuthService } from './services/remote-mcp/oauth/remote-m
 import type { RemoteMcpVerificationService } from './services/remote-mcp/verification/remote-mcp-verification-service.js';
 import type { SpecialistSkillService } from './services/specialist/specialist-skill-service.js';
 import type { ToolTagService } from './services/tool-tag-service.js';
+import type { CommunityCatalogSourceService } from './services/community-catalog/community-catalog-source.js';
+import type { CommunityCatalogPreviewService } from './services/community-catalog/community-catalog-preview-service.js';
+import type { CommunityCatalogImportService } from './services/community-catalog/community-catalog-import-service.js';
+import type { CommunityCatalogOriginService } from './services/community-catalog/community-catalog-origin-service.js';
 import type { WorkflowService } from './services/workflow-service/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation/workflow-activation-service.js';
 import type { WorkflowDeliverableService } from './services/workflow-deliverables/workflow-deliverable-service.js';
@@ -109,6 +113,10 @@ declare module 'fastify' {
     remoteMcpOAuthService: RemoteMcpOAuthService;
     remoteMcpVerificationService: RemoteMcpVerificationService;
     specialistSkillService: SpecialistSkillService;
+    communityCatalogSourceService: CommunityCatalogSourceService;
+    communityCatalogPreviewService: CommunityCatalogPreviewService;
+    communityCatalogImportService: CommunityCatalogImportService;
+    communityCatalogOriginService: CommunityCatalogOriginService;
     orchestratorConfigService: OrchestratorConfigService;
     orchestratorGrantService: OrchestratorGrantService;
     acpSessionService: AcpSessionService;

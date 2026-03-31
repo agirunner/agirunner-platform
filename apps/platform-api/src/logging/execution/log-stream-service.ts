@@ -69,13 +69,17 @@ export class LogStreamService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (!this.listenerClient) {
+    const client = this.listenerClient;
+    if (!client) {
       return;
     }
-
-    await this.listenerClient.query('UNLISTEN agirunner_execution_logs');
-    this.listenerClient.release();
     this.listenerClient = null;
+    client.removeAllListeners('notification');
+    client.removeAllListeners('error');
+    client.removeAllListeners('end');
+
+    await client.query('UNLISTEN agirunner_execution_logs');
+    client.release();
     this.subscribers.clear();
   }
 

@@ -52,13 +52,17 @@ export class EventStreamService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (!this.listenerClient) {
+    const client = this.listenerClient;
+    if (!client) {
       return;
     }
-
-    await this.listenerClient.query('UNLISTEN agirunner_events');
-    this.listenerClient.release();
     this.listenerClient = null;
+    client.removeAllListeners('notification');
+    client.removeAllListeners('error');
+    client.removeAllListeners('end');
+
+    await client.query('UNLISTEN agirunner_events');
+    client.release();
     this.subscribers.clear();
   }
 
