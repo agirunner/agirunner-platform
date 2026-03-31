@@ -77,6 +77,48 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
   await expect(workbench.getByRole('button', { name: 'Stakeholder share link' })).toHaveCount(0);
 });
 
+test('keeps large deliverable payloads usable across artifact catalogs and inline summaries', async ({ page }) => {
+  const scenario = await seedWorkflowDeliverablesScenario();
+  await loginToWorkflows(page);
+  await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery', {
+    artifactCount: 100,
+    inlineSummaryRepeatCount: 80,
+  });
+
+  await page.goto(`/workflows/${scenario.needsActionWorkflow.id}`);
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
+
+  const architectureCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
+  await expect(architectureCard.getByRole('button', { name: 'Download' })).toHaveCount(100);
+
+  const oversizedRow = architectureCard.locator('tr').filter({ hasText: 'release-audit-100.txt' }).first();
+  await oversizedRow.scrollIntoViewIfNeeded();
+  await expect(oversizedRow).toContainText('700.0 KB');
+  await oversizedRow.getByRole('button', { name: 'Preview' }).click();
+
+  const previewLimitNotice = workbench.getByText(
+    /Inline preview is limited to .*Download this file to inspect the full payload\./,
+  );
+  await previewLimitNotice.scrollIntoViewIfNeeded();
+  await expect(previewLimitNotice).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await oversizedRow.getByRole('button', { name: 'Download' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('release-audit-100.txt');
+
+  const inlineCard = workbench.locator('article').filter({ hasText: 'Inline decision summary' }).first();
+  await inlineCard.getByRole('button', { name: 'Read' }).click();
+  await expect(inlineCard.getByText('operator checkpoint 80')).toBeVisible();
+  await expect(inlineCard.getByText('Tail marker: INLINE-END')).toBeVisible();
+});
+
+interface DeliverablesRouteOptions {
+  artifactCount?: number;
+  inlineSummaryRepeatCount?: number;
+}
+
 interface RoutedArtifactRecord {
   id: string;
   taskId: string;
@@ -87,7 +129,11 @@ interface RoutedArtifactRecord {
   sizeBytes: number;
 }
 
-async function routeDeliverablesWorkspace(page: Page, workflowName: string): Promise<void> {
+async function routeDeliverablesWorkspace(
+  page: Page,
+  workflowName: string,
+  options: DeliverablesRouteOptions = {},
+): Promise<void> {
   const artifactCatalog = new Map<string, RoutedArtifactRecord[]>();
 
   await page.route(/\/api\/v1\/operations\/workflows\/[^/]+\/workspace(?:\?.*)?$/, async (route) => {
@@ -101,7 +147,7 @@ async function routeDeliverablesWorkspace(page: Page, workflowName: string): Pro
       return;
     }
 
-    const patchedArtifacts = patchDeliverablesPayload(packet);
+    const patchedArtifacts = patchDeliverablesPayload(packet, options);
     for (const [taskId, artifacts] of patchedArtifacts.entries()) {
       artifactCatalog.set(taskId, artifacts);
     }
@@ -159,7 +205,10 @@ async function routeDeliverablesWorkspace(page: Page, workflowName: string): Pro
   });
 }
 
-function patchDeliverablesPayload(packet: Record<string, unknown>): Map<string, RoutedArtifactRecord[]> {
+function patchDeliverablesPayload(
+  packet: Record<string, unknown>,
+  options: DeliverablesRouteOptions,
+): Map<string, RoutedArtifactRecord[]> {
   const deliverables = asRecord(packet.deliverables);
   const finalDeliverables = asArray(deliverables.final_deliverables);
   const inProgressDeliverables = asArray(deliverables.in_progress_deliverables);
@@ -173,6 +222,7 @@ function patchDeliverablesPayload(packet: Record<string, unknown>): Map<string, 
   const artifactCatalog = new Map<string, RoutedArtifactRecord[]>();
 
   if (architectureDeliverable) {
+    ensureArtifactCatalogSize(asRecord(architectureDeliverable), options.artifactCount);
     const artifactRows = buildArtifactCatalogEntry(asRecord(architectureDeliverable));
     if (artifactRows.length > 0) {
       artifactCatalog.set(artifactRows[0]!.taskId, artifactRows);
@@ -184,7 +234,12 @@ function patchDeliverablesPayload(packet: Record<string, unknown>): Map<string, 
   const createdAtBase = '2026-03-31T07:05:26.640Z';
   const missingInProgressDeliverables = [
     buildHostDirectoryDeliverable(workflowId, workItemId, createdAtBase),
-    buildInlineSummaryDeliverable(workflowId, workItemId, createdAtBase),
+    buildInlineSummaryDeliverable(
+      workflowId,
+      workItemId,
+      createdAtBase,
+      options.inlineSummaryRepeatCount,
+    ),
   ];
 
   for (const deliverable of missingInProgressDeliverables) {
@@ -222,6 +277,42 @@ function patchDeliverablesPayload(packet: Record<string, unknown>): Map<string, 
   return artifactCatalog;
 }
 
+function ensureArtifactCatalogSize(
+  deliverable: Record<string, unknown>,
+  artifactCount: number | undefined,
+): void {
+  if (!artifactCount || artifactCount < 1) {
+    return;
+  }
+
+  const primaryTarget = asRecord(deliverable.primary_target);
+  const secondaryTargets = asArray(deliverable.secondary_targets);
+  const artifactTargets = [primaryTarget, ...secondaryTargets].filter(
+    (target) => readOptionalString(target.target_kind) === 'artifact',
+  );
+  const baseTarget = artifactTargets[0];
+  const baseTaskId = readTaskIdFromTarget(baseTarget);
+  if (!baseTarget || !baseTaskId) {
+    return;
+  }
+
+  for (let index = artifactTargets.length + 1; index <= artifactCount; index += 1) {
+    const fileName = `release-audit-${String(index).padStart(3, '0')}.txt`;
+    const artifactId = `seeded-architecture-artifact-${index}`;
+    secondaryTargets.push({
+      target_kind: 'artifact',
+      label: fileName,
+      artifact_id: artifactId,
+      url: `/api/v1/tasks/${baseTaskId}/artifacts/${artifactId}`,
+      path: `deliverables/${fileName}`,
+      size_bytes: index === artifactCount ? 700 * 1024 : 1536 + index,
+      content_type: 'text/plain',
+    });
+  }
+
+  deliverable.secondary_targets = secondaryTargets;
+}
+
 function buildArtifactCatalogEntry(deliverable: Record<string, unknown>): RoutedArtifactRecord[] {
   const targets = [asRecord(deliverable.primary_target), ...asArray(deliverable.secondary_targets).map(asRecord)];
   const records: RoutedArtifactRecord[] = [];
@@ -239,10 +330,7 @@ function buildArtifactCatalogEntry(deliverable: Record<string, unknown>): Routed
     if (!taskId || !artifactId) {
       continue;
     }
-    const contentText = fileName.endsWith('.md')
-      ? '# Architecture brief\n\nThis packet captures the release architecture.'
-      : '{\n  "ready": true,\n  "owner": "release"\n}';
-    const contentType = fileName.endsWith('.md') ? 'text/markdown' : 'application/json';
+    const { contentText, contentType } = buildArtifactContent(fileName);
     records.push({
       id: artifactId,
       taskId,
@@ -255,6 +343,37 @@ function buildArtifactCatalogEntry(deliverable: Record<string, unknown>): Routed
   }
 
   return records;
+}
+
+function buildArtifactContent(fileName: string): {
+  contentText: string;
+  contentType: string;
+} {
+  if (fileName.endsWith('.md')) {
+    return {
+      contentText: '# Architecture brief\n\nThis packet captures the release architecture.',
+      contentType: 'text/markdown',
+    };
+  }
+  if (fileName.endsWith('.json')) {
+    return {
+      contentText: '{\n  "ready": true,\n  "owner": "release"\n}',
+      contentType: 'application/json',
+    };
+  }
+  if (fileName.endsWith('100.txt')) {
+    return {
+      contentText: Array.from(
+        { length: 9000 },
+        (_, index) => `artifact line ${index + 1}: expanded release evidence for preview fallback coverage.`,
+      ).join('\n'),
+      contentType: 'text/plain',
+    };
+  }
+  return {
+    contentText: `artifact payload for ${fileName}\nrelease evidence retained for deterministic UX coverage.`,
+    contentType: 'text/plain',
+  };
 }
 
 function buildHostDirectoryDeliverable(
@@ -295,7 +414,14 @@ function buildInlineSummaryDeliverable(
   workflowId: string | null,
   workItemId: string | null,
   createdAt: string,
+  repeatCount = 3,
 ): Record<string, unknown> {
+  const inlineText = repeatCount <= 3
+    ? 'Operator summary:\n- rollback note added\n- release checklist verified\n- ready for final approval'
+    : `Operator summary:\n${Array.from(
+      { length: repeatCount },
+      (_, index) => `- operator checkpoint ${index + 1}: keep release packet and approval notes aligned.`,
+    ).join('\n')}\nTail marker: INLINE-END`;
   return {
     descriptor_id: 'seeded-inline-summary',
     workflow_id: workflowId,
@@ -316,12 +442,20 @@ function buildInlineSummaryDeliverable(
     },
     secondary_targets: [],
     content_preview: {
-      text: 'Operator summary:\n- rollback note added\n- release checklist verified\n- ready for final approval',
+      text: inlineText,
     },
     source_brief_id: null,
     created_at: createdAt,
     updated_at: createdAt,
   };
+}
+
+function readTaskIdFromTarget(target: Record<string, unknown> | undefined): string | null {
+  if (!target) {
+    return null;
+  }
+  const href = readOptionalString(target.url);
+  return href?.match(/\/api\/v1\/tasks\/([^/]+)\/artifacts\/[^/?]+/)?.[1] ?? null;
 }
 
 function sortDeliverablesByRecency(
