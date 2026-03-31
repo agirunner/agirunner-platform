@@ -29,7 +29,7 @@ import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/execution-environment/container-manager-verifier.js';
-import { listWorkflowDocuments } from '../services/document-reference-service.js';
+import { listWorkflowDocuments } from '../services/document-reference/document-reference-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { ExecutionEnvironmentCatalogService } from '../services/execution-environment/catalog-service.js';
@@ -48,7 +48,7 @@ import { WorkflowLiveConsoleService } from '../services/workflow-operations/work
 import { WorkflowOperationsStreamService } from '../services/workflow-operations/workflow-operations-stream-service.js';
 import { WorkflowRailService } from '../services/workflow-operations/workflow-rail-service.js';
 import { WorkflowWorkspaceService } from '../services/workflow-operations/workflow-workspace-service.js';
-import { OAuthService } from '../services/oauth-service.js';
+import { OAuthService } from '../services/oauth/oauth-service.js';
 import { OrchestratorConfigService } from '../services/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';

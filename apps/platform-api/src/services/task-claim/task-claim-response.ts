@@ -3,7 +3,7 @@ import { logTaskGovernanceTransition } from '../../logging/task-governance-log.j
 import { flattenInstructionLayers } from '../task-context-service.js';
 import { resolveWorkspaceStorageBinding } from '../workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist-capability-service.js';
-import { OAuthService } from '../oauth-service.js';
+import { OAuthService } from '../oauth/oauth-service.js';
 import { buildRuntimeTaskCapabilities, buildToolOwnerContract, hydrateClaimGitCredentials, mergeClaimRuntimeBindings, readTaskExecutionBackend, sanitizeClaimRoleTools, stripClaimSecretEchoes, attachClaimCredentials } from './task-claim-task-payload.js';
 import { buildClaimLLMFields, buildExecutionContractLogPayload, buildRemoteMcpServerContracts } from './task-claim-llm-contracts.js';
 import { buildMissingTaskModelConfigError, logAssembledPromptWarningIfNeeded, mergeSystemPrompt, readAssembledPromptWarningThreshold } from './task-claim-common.js';

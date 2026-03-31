@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
-import { OAuthService } from '../../../src/services/oauth-service.js';
+import { OAuthService } from '../../../src/services/oauth/oauth-service.js';
 
 describe('OAuthService', () => {
   it('imports an existing authorized oauth session and seeds static models', async () => {

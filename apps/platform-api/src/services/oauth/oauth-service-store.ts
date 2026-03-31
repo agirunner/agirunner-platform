@@ -1,6 +1,6 @@
-import type { DatabasePool } from '../db/database.js';
-import { type OAuthProviderProfile } from '../catalogs/oauth-profiles.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import type { DatabasePool } from '../../db/database.js';
+import { type OAuthProviderProfile } from '../../catalogs/oauth-profiles.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import type { OAuthConfig, OAuthCredentials, ProviderRow, StateRow } from './oauth-service-types.js';
 
 type QueryClient = {

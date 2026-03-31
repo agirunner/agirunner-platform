@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey, storeOAuthToken } from '../../../src/lib/oauth-crypto.js';
-import { OAuthService } from '../../../src/services/oauth-service.js';
+import { OAuthService } from '../../../src/services/oauth/oauth-service.js';
 
 describe('OAuthService', () => {
   it('persists refreshed oauth credentials when a valid refresh-backed session rotates tokens', async () => {

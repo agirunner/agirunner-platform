@@ -1,4 +1,4 @@
-import { ServiceUnavailableError, ValidationError } from '../errors/domain-errors.js';
+import { ServiceUnavailableError, ValidationError } from '../../errors/domain-errors.js';
 
 const PROVIDER_ERROR_MAX_LENGTH = 160;
 const PROVIDER_REFRESH_REAUTH_PATTERNS = [

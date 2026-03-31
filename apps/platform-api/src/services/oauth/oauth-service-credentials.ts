@@ -1,8 +1,8 @@
 import {
   normalizeStoredProviderSecret,
   storeProviderSecret,
-} from '../lib/oauth-crypto.js';
-import { ValidationError } from '../errors/domain-errors.js';
+} from '../../lib/oauth-crypto.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 import type {
   OAuthConfig,
   OAuthCredentials,

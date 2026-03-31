@@ -1,14 +1,14 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 import { z } from 'zod';
-import { getOAuthProfile } from '../catalogs/oauth-profiles.js';
+import { getOAuthProfile } from '../../catalogs/oauth-profiles.js';
 import {
   storeOAuthToken,
   readOAuthToken,
   ProviderSecretDecryptionError,
-} from '../lib/oauth-crypto.js';
-import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
-import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+} from '../../lib/oauth-crypto.js';
+import { generateCodeVerifier, generateCodeChallenge, generateState } from '../../lib/pkce.js';
+import { extractChatGptAccountId, extractEmailFromJwt } from '../../lib/jwt-decode.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import {
   buildImportedCredentials,
   buildResolvedToken,

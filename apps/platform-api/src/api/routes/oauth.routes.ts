@@ -5,7 +5,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { listOAuthProfiles } from '../../catalogs/oauth-profiles.js';
 import { ValidationError } from '../../errors/domain-errors.js';
-import type { ImportOAuthSessionInput } from '../../services/oauth-service.js';
+import type { ImportOAuthSessionInput } from '../../services/oauth/oauth-service.js';
 
 const OAUTH_CALLBACK_PORT = 1455;
 const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';

@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { configureProviderSecretEncryptionKey, storeOAuthToken } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey, storeOAuthToken } from '../../../src/lib/oauth-crypto.js';
 import {
   buildImportedCredentials,
   buildResolvedToken,
   isCredentialAccessTokenUsable,
   normalizeOAuthCredentials,
-} from '../../src/services/oauth-service-credentials.js';
-import { buildOAuthTokenExchangeErrorMessage } from '../../src/services/oauth-service-errors.js';
-import type { OAuthConfig } from '../../src/services/oauth-service-types.js';
+} from '../../../src/services/oauth/oauth-service-credentials.js';
+import { buildOAuthTokenExchangeErrorMessage } from '../../../src/services/oauth/oauth-service-errors.js';
+import type { OAuthConfig } from '../../../src/services/oauth/oauth-service-types.js';
 
 describe('oauth service helpers', () => {
   beforeEach(() => {
