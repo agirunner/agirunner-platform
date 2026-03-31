@@ -12,7 +12,7 @@ import { reconcilePlannedWorkflowStages } from '../workflow-stage/workflow-stage
 import {
   loadOpenWorkItemEscalation,
   resolveWorkItemEscalation,
-} from '../work-item-escalations.js';
+} from '../work-item-service/work-item-escalations.js';
 import type {
   CompleteWorkflowWorkItemInput,
   ResolveWorkflowWorkItemEscalationInput,

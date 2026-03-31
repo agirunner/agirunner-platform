@@ -2,7 +2,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { blockedColumnId, type PlaybookDefinition } from '../../orchestration/playbook-model.js';
-import { blockWorkflowStageItems } from '../work-item-blocking.js';
+import { blockWorkflowStageItems } from '../work-item-service/work-item-blocking.js';
 import type {
   StageGateDecisionInput,
   WorkflowStageGateRow,

@@ -4,8 +4,8 @@ import type { LogService } from '../../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
 import { blockedColumnId } from '../../orchestration/playbook-model.js';
 import type { EventService } from '../event/event-service.js';
-import { blockWorkflowWorkItem } from '../work-item-blocking.js';
-import { openWorkItemEscalation } from '../work-item-escalations.js';
+import { blockWorkflowWorkItem } from '../work-item-service/work-item-blocking.js';
+import { openWorkItemEscalation } from '../work-item-service/work-item-escalations.js';
 import { terminateWorkflowBranch } from '../workflow-operations/workflow-branch-service.js';
 import { resolveAssessmentOutcomeAction } from '../playbook/playbook-governance-policy.js';
 import {

@@ -4,7 +4,11 @@ import { readPositiveInteger, readRequiredPositiveIntegerRuntimeDefault } from '
 import type { EventService } from '../event/event-service.js';
 import type { ImmediateWorkflowActivationDispatcher } from '../workflow-activation/workflow-immediate-activation.js';
 import { enqueueAndDispatchImmediatePlaybookActivation } from '../workflow-activation/workflow-immediate-activation.js';
-import { loadOpenWorkItemEscalation, openWorkItemEscalation, resolveWorkItemEscalation } from '../work-item-escalations.js';
+import {
+  loadOpenWorkItemEscalation,
+  openWorkItemEscalation,
+  resolveWorkItemEscalation,
+} from '../work-item-service/work-item-escalations.js';
 import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
 import { readOptionalText } from './task-lifecycle-service-helpers.js';
 
