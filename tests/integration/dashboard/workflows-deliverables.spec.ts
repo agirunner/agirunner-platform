@@ -25,6 +25,7 @@ test('renders supported deliverable types and artifact actions at workflow scope
   await expect(workbench.getByRole('button', { name: 'Stakeholder share link' }).first()).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Inline decision summary' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Inline decision summary' })).toHaveCount(1);
   await expect(workbench.getByText('Workflow document').first()).toBeVisible();
   await expect(workbench.getByText('Repository').first()).toBeVisible();
   await expect(workbench.getByText('External URL').first()).toBeVisible();

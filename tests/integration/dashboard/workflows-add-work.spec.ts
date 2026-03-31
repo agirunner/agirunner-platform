@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+
 import { expect, type Page, test } from '@playwright/test';
 
 import { loginToWorkflows, workflowRailButton } from './support/workflows-auth.js';
@@ -30,6 +32,12 @@ test('submits workflow-scope add work through create-work-item with an embedded 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Add work' })).toBeVisible();
   await dialog.getByLabel('Work item title').fill('Prepare release risk summary');
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: 'risk-summary.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Risk summary\nAttach this to the new work item.\n', 'utf8'),
+  });
+  await expect(dialog.getByText('risk-summary.md')).toBeVisible();
   await dialog.getByRole('button', { name: 'Add input' }).click();
   await dialog.getByLabel('Input name').fill('audience');
   await dialog.getByLabel('Input value').fill('Release managers');
@@ -43,7 +51,12 @@ test('submits workflow-scope add work through create-work-item with an embedded 
     structured_inputs: {
       audience: 'Release managers',
     },
-    files: [],
+    files: [
+      expect.objectContaining({
+        file_name: 'risk-summary.md',
+        content_type: 'text/markdown',
+      }),
+    ],
   });
   await expect(inputPacketRequests).toHaveLength(0);
   await expect.poll(() => steeringRequests.length).toBe(1);
@@ -74,6 +87,12 @@ test('submits selected work-item modify work through an input packet and linked 
 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Update work' })).toBeVisible();
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: 'rollback-guidance.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Rollback guidance\nFocus this change on the rollback plan.\n', 'utf8'),
+  });
+  await expect(dialog.getByText('rollback-guidance.md')).toBeVisible();
   await dialog.getByRole('button', { name: 'Add input' }).click();
   await dialog.getByLabel('Input name').fill('revision');
   await dialog.getByLabel('Input value').fill('4');
@@ -86,6 +105,12 @@ test('submits selected work-item modify work through an input packet and linked 
   await expect(inputPacketRequests[0].structured_inputs).toEqual({
     revision: '4',
   });
+  await expect(inputPacketRequests[0].files).toEqual([
+    expect.objectContaining({
+      file_name: 'rollback-guidance.md',
+      content_type: 'text/markdown',
+    }),
+  ]);
   await expect(createWorkRequests).toHaveLength(0);
   await expect.poll(() => steeringRequests.length).toBe(1);
   await expect(steeringRequests[0].work_item_id).toBe(scenario.needsActionWorkItem.id);

@@ -92,7 +92,7 @@ export async function routeDeliverablesWorkspace(
   });
 }
 
-function patchDeliverablesPayload(
+export function patchDeliverablesPayload(
   packet: Record<string, unknown>,
   options: DeliverablesRouteOptions,
 ): Map<string, RoutedArtifactRecord[]> {
@@ -145,21 +145,35 @@ function patchDeliverablesPayload(
     allDeliverables.push(deliverable);
   }
 
-  deliverables.final_deliverables = finalDeliverables;
-  deliverables.in_progress_deliverables = sortDeliverablesByRecency(inProgressDeliverables);
-  deliverables.all_deliverables = sortDeliverablesByRecency([
-    ...finalDeliverables,
-    ...inProgressDeliverables,
-  ]);
+  const dedupedFinalDeliverables = dedupeEquivalentDeliverables(
+    sortDeliverablesByRecency(finalDeliverables),
+  );
+  const dedupedInProgressDeliverables = dedupeEquivalentDeliverables(
+    sortDeliverablesByRecency(inProgressDeliverables),
+  );
+  const dedupedAllDeliverables = dedupeEquivalentDeliverables(
+    sortDeliverablesByRecency([
+      ...dedupedFinalDeliverables,
+      ...dedupedInProgressDeliverables,
+    ]),
+  );
+
+  deliverables.final_deliverables = dedupedFinalDeliverables;
+  deliverables.in_progress_deliverables = dedupedInProgressDeliverables;
+  deliverables.all_deliverables = dedupedAllDeliverables;
 
   const bottomTabs = asRecord(packet.bottom_tabs);
   const counts = asRecord(bottomTabs.counts);
-  counts.deliverables = finalDeliverables.length + inProgressDeliverables.length;
+  counts.deliverables =
+    dedupedFinalDeliverables.length + dedupedInProgressDeliverables.length;
 
   if (signedPacketDeliverable) {
     const signedPacket = asRecord(signedPacketDeliverable);
-    if (!containsDeliverable(allDeliverables, String(signedPacket.descriptor_id))) {
-      allDeliverables.push(signedPacket);
+    if (!containsDeliverable(dedupedAllDeliverables, String(signedPacket.descriptor_id))) {
+      dedupedAllDeliverables.push(signedPacket);
+      deliverables.all_deliverables = dedupeEquivalentDeliverables(
+        sortDeliverablesByRecency(dedupedAllDeliverables),
+      );
     }
   }
 
@@ -355,6 +369,26 @@ function sortDeliverablesByRecency(
     const rightUpdatedAt = readOptionalString(right.updated_at) ?? readOptionalString(right.created_at) ?? '';
     return rightUpdatedAt.localeCompare(leftUpdatedAt);
   });
+}
+
+function dedupeEquivalentDeliverables(
+  deliverables: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const deduped = new Map<string, Record<string, unknown>>();
+  for (const deliverable of deliverables) {
+    deduped.set(readEquivalentDeliverableKey(deliverable), deliverable);
+  }
+  return [...deduped.values()];
+}
+
+function readEquivalentDeliverableKey(deliverable: Record<string, unknown>): string {
+  return [
+    readOptionalString(deliverable.workflow_id) ?? '',
+    readOptionalString(deliverable.work_item_id) ?? '',
+    readOptionalString(deliverable.delivery_stage) ?? '',
+    readOptionalString(deliverable.descriptor_kind) ?? '',
+    readOptionalString(deliverable.title) ?? '',
+  ].join(':');
 }
 
 function containsDeliverable(
