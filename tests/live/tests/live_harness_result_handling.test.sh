@@ -111,6 +111,8 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["harness_failure"] is True, payload
 assert payload["verification"]["passed"] is False, payload
 assert any("missing required evidence payload" in failure for failure in payload["verification"]["failures"]), payload
+assert not any("workflow-run.json not found" in failure for failure in payload["verification"]["failures"]), payload
+assert payload["harness"]["invalid_result_file"].endswith("workflow-run.incomplete.json"), payload
 PY
 }
 
