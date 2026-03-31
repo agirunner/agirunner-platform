@@ -1,11 +1,34 @@
 # Agirunner Platform
 
-Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
+Control plane for Agirunner. TypeScript/Node/Fastify/PostgreSQL.
+
+The Agirunner Platform is the control plane for Agirunner. It owns
+playbooks, workflows, routing, operator-facing state, the dashboard,
+the public API, and runtime fleet coordination.
+
+Builders are welcome here.
+
+If you care about workflow orchestration, operator UX, approvals and
+assessments, API design, or the platform/runtime boundary, this is the
+repository where those product surfaces live.
 
 ## Related Repos
 
 - [agirunner](https://github.com/agirunner/agirunner) — Specs, requirements, design docs
 - [agirunner-runtime](https://github.com/agirunner/agirunner-runtime) — Agentic Runtime (Go/Docker)
+
+## Documentation
+
+Product and operator documentation lives at
+[`docs.agirunner.dev`](https://docs.agirunner.dev).
+
+Useful platform entry points:
+
+- [Getting Started](https://docs.agirunner.dev/getting-started/introduction/)
+- [Dashboard Overview](https://docs.agirunner.dev/dashboard/overview/)
+- [Platform Overview](https://docs.agirunner.dev/platform/overview/)
+- [API Overview](https://docs.agirunner.dev/api/)
+- [Architecture Overview](https://docs.agirunner.dev/architecture/overview/)
 
 ## V2 Operator References
 
@@ -27,9 +50,9 @@ Primary operator routes:
 
 Reference docs:
 
-- `../agirunner-docs/designv2/orchestrated-workflow-architecture.md`
-- `../agirunner-docs/design/v2-migration-guide.md`
-- `../agirunner-docs/design/v2-release-notes.md`
+- [`docs.agirunner.dev/architecture/overview/`](https://docs.agirunner.dev/architecture/overview/)
+- [`docs.agirunner.dev/dashboard/overview/`](https://docs.agirunner.dev/dashboard/overview/)
+- [`docs.agirunner.dev/api/`](https://docs.agirunner.dev/api/)
 
 ## Testing Documentation (Canonical in Repo)
 
