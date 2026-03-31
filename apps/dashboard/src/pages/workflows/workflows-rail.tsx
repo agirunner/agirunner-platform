@@ -7,7 +7,6 @@ import { cn } from '../../lib/utils.js';
 import type { WorkflowPageMode } from './workflows-page.support.js';
 import { WorkflowRailRowCard } from './workflows-rail-row.js';
 
-const ONGOING_PREVIEW_LIMIT = 5;
 const THEMED_SCROLL_STYLE = {
   scrollbarWidth: 'thin',
   scrollbarColor: 'rgba(148, 163, 184, 0.5) transparent',
@@ -19,7 +18,8 @@ export function WorkflowsRail(props: {
   mode: WorkflowPageMode;
   search: string;
   needsActionOnly: boolean;
-  ongoingOnly: boolean;
+  lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+  ongoingOnly?: boolean;
   visibleCount?: number;
   totalCount?: number;
   rows: DashboardWorkflowRailRow[];
@@ -29,10 +29,11 @@ export function WorkflowsRail(props: {
   hasNextPage: boolean;
   isLoading: boolean;
   onModeChange(mode: WorkflowPageMode): void;
+  onLifecycleFilterChange(filter: 'all' | 'ongoing' | 'planned'): void;
   onSearchChange(value: string): void;
   onNeedsActionOnlyChange(nextValue: boolean): void;
-  onShowAllOngoing(): void;
-  onClearOngoingFilter(): void;
+  onShowAllOngoing?(): void;
+  onClearOngoingFilter?(): void;
   onSelectWorkflow(workflowId: string): void;
   onLoadMore(): void;
   onCreateWorkflow(): void;
@@ -47,39 +48,45 @@ export function WorkflowsRail(props: {
     }
     props.onSelectWorkflow(workflowId);
   };
-  const ongoingPreviewRows = useMemo(
-    () => props.ongoingRows.slice(0, ONGOING_PREVIEW_LIMIT),
-    [props.ongoingRows],
+  const lifecycleFilter = props.lifecycleFilter ?? (props.ongoingOnly ? 'ongoing' : 'all');
+  const unifiedRows = useMemo(
+    () => sortRailRows([...props.ongoingRows, ...props.rows]),
+    [props.ongoingRows, props.rows],
   );
   const visibleRows = useMemo(
     () => {
-      if (props.mode !== 'live') {
-        return props.rows;
+      switch (lifecycleFilter) {
+        case 'ongoing':
+          return unifiedRows.filter((row) => row.lifecycle === 'ongoing');
+        case 'planned':
+          return unifiedRows.filter((row) => row.lifecycle === 'planned');
+        case 'all':
+        default:
+          return unifiedRows;
       }
-      if (props.ongoingOnly) {
-        return props.ongoingRows;
-      }
-      return props.rows.filter((row) => row.lifecycle !== 'ongoing');
     },
-    [props.mode, props.ongoingOnly, props.ongoingRows, props.rows],
+    [lifecycleFilter, unifiedRows],
   );
   const selectedVisible = useMemo(
     () =>
       props.selectedWorkflowId
-        ? ongoingPreviewRows.some((row) => row.workflow_id === props.selectedWorkflowId)
-          || visibleRows.some((row) => row.workflow_id === props.selectedWorkflowId)
+        ? visibleRows.some((row) => row.workflow_id === props.selectedWorkflowId)
         : true,
-    [ongoingPreviewRows, props.selectedWorkflowId, visibleRows],
+    [props.selectedWorkflowId, visibleRows],
   );
-  const shouldShowMainEmptyState =
-    visibleRows.length === 0 && (props.mode !== 'live' || ongoingPreviewRows.length === 0);
+  const hiddenSelectedRow =
+    props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible
+      ? props.selectedWorkflowRow
+      : null;
+  const displayRows = hiddenSelectedRow ? [hiddenSelectedRow, ...visibleRows] : visibleRows;
+  const shouldShowMainEmptyState = displayRows.length === 0;
   const shouldShowLoadingState = props.isLoading && shouldShowMainEmptyState;
   const visibleCount = props.visibleCount ?? countVisibleRows(props.rows, props.ongoingRows);
   const totalCount = props.totalCount ?? visibleCount;
   const activeFilterSummary = buildActiveFilterSummary({
     search: props.search,
     needsActionOnly: props.needsActionOnly,
-    ongoingOnly: props.ongoingOnly,
+    lifecycleFilter,
   });
 
   useIsomorphicLayoutEffect(() => {
@@ -164,31 +171,26 @@ export function WorkflowsRail(props: {
             placeholder="Search workflows"
           />
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <ModeButton
-              isActive={props.mode === 'live'}
-              label="Live"
-              onClick={() => props.onModeChange('live')}
+            <LifecycleButton
+              isActive={lifecycleFilter === 'all'}
+              label="All"
+              onClick={() => props.onLifecycleFilterChange('all')}
             />
-            <ModeButton
-              isActive={props.mode === 'recent'}
-              label="Recent"
-              onClick={() => props.onModeChange('recent')}
+            <LifecycleButton
+              isActive={lifecycleFilter === 'ongoing'}
+              label="Ongoing"
+              onClick={() => props.onLifecycleFilterChange('ongoing')}
+            />
+            <LifecycleButton
+              isActive={lifecycleFilter === 'planned'}
+              label="Planned"
+              onClick={() => props.onLifecycleFilterChange('planned')}
             />
             <FilterToggleButton
               label="Needs Action Only"
               isActive={props.needsActionOnly}
               onClick={() => props.onNeedsActionOnlyChange(!props.needsActionOnly)}
             />
-            {props.ongoingOnly ? (
-              <Button
-                size="sm"
-                type="button"
-                variant="ghost"
-                onClick={props.onClearOngoingFilter}
-              >
-                Clear Ongoing
-              </Button>
-            ) : null}
           </div>
           <div className="grid gap-1">
             <p className="text-xs text-muted-foreground">{visibleCount} shown · {totalCount} total</p>
@@ -198,44 +200,6 @@ export function WorkflowsRail(props: {
           </div>
         </div>
       </div>
-
-      {props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible ? (
-        <section className="border-b border-border/70 px-4 py-3">
-          <div className="grid gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Selected workflow
-            </p>
-            <WorkflowRailRowCard
-              row={props.selectedWorkflowRow}
-              isSelected
-              onSelect={handleSelectWorkflow}
-            />
-          </div>
-        </section>
-      ) : null}
-
-      {props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0 ? (
-        <section className="space-y-3 border-b border-border/70 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">Ongoing</p>
-            {props.ongoingRows.length > ONGOING_PREVIEW_LIMIT ? (
-              <Button size="sm" type="button" variant="ghost" onClick={props.onShowAllOngoing}>
-                Show all
-              </Button>
-            ) : null}
-          </div>
-          <div className="grid gap-2">
-            {ongoingPreviewRows.map((row) => (
-              <WorkflowRailRowCard
-                key={`ongoing:${row.workflow_id}`}
-                row={row}
-                isSelected={row.workflow_id === props.selectedWorkflowId}
-                onSelect={handleSelectWorkflow}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <div
         ref={scrollRef}
@@ -264,8 +228,8 @@ export function WorkflowsRail(props: {
             <div className="px-1 py-2 text-sm text-muted-foreground">
               No workflows match the current filters.
             </div>
-          ) : visibleRows.length > 0 ? (
-            visibleRows.map((row) => (
+          ) : displayRows.length > 0 ? (
+            displayRows.map((row) => (
               <WorkflowRailRowCard
                 key={row.workflow_id}
                 row={row}
@@ -295,7 +259,7 @@ function countVisibleRows(rows: DashboardWorkflowRailRow[], ongoingRows: Dashboa
 function buildActiveFilterSummary(input: {
   search: string;
   needsActionOnly: boolean;
-  ongoingOnly: boolean;
+  lifecycleFilter: 'all' | 'ongoing' | 'planned';
 }): string | null {
   const parts: string[] = [];
   const search = input.search.trim();
@@ -305,13 +269,16 @@ function buildActiveFilterSummary(input: {
   if (input.needsActionOnly) {
     parts.push('Needs Action');
   }
-  if (input.ongoingOnly) {
+  if (input.lifecycleFilter === 'ongoing') {
     parts.push('Ongoing');
+  }
+  if (input.lifecycleFilter === 'planned') {
+    parts.push('Planned');
   }
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
-function ModeButton(props: {
+function LifecycleButton(props: {
   isActive: boolean;
   label: string;
   onClick(): void;
@@ -343,4 +310,13 @@ function FilterToggleButton(props: {
       {props.label}
     </button>
   );
+}
+
+function sortRailRows(rows: DashboardWorkflowRailRow[]): DashboardWorkflowRailRow[] {
+  return [...rows].sort((left, right) => readRailTimestamp(right) - readRailTimestamp(left));
+}
+
+function readRailTimestamp(row: DashboardWorkflowRailRow): number {
+  const millis = row.last_changed_at ? Date.parse(row.last_changed_at) : 0;
+  return Number.isFinite(millis) ? millis : 0;
 }

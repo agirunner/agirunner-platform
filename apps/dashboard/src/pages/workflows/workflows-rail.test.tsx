@@ -62,8 +62,8 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('Selected workflow');
     expect(html).toContain('Hidden workflow');
+    expect(extractRailScrollRegion(html)).toContain('Hidden workflow');
     expect(html).not.toContain('outside the current rail view');
     expect(html).not.toContain('stays pinned while you browse other rail results');
   });
@@ -311,7 +311,6 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('Selected workflow');
     expect(html).toContain('Workflow Selected');
   });
 
@@ -383,4 +382,13 @@ function createRailRow(
     },
     ...rest,
   };
+}
+
+function extractRailScrollRegion(html: string): string {
+  const marker = 'data-workflows-rail-scroll-region="true"';
+  const startIndex = html.indexOf(marker);
+  if (startIndex < 0) {
+    return '';
+  }
+  return html.slice(startIndex);
 }
