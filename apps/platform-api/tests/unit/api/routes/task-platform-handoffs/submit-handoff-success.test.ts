@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkflowActivationDispatchService } from '../../../src/services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../../../../../src/services/workflow-activation-dispatch-service.js';
 import { buildTaskPlatformHandoffsApp, matchDeliverablePromotionQuery, registerTaskPlatformHandoffsRoutes } from './support.js';
 
 describe('task platform handoff routes', () => {

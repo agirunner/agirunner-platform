@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',

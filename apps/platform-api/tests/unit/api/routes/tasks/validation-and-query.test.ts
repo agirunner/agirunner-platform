@@ -18,7 +18,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('accepts canonical task state filters and translates them for task queries', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
 
     app = buildTaskRouteApp({ listTasks });
@@ -38,7 +38,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('passes escalation task filters through the public task query route', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
 
     app = buildTaskRouteApp({ listTasks });
@@ -61,7 +61,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects invalid task ids on the task status route before calling the service', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const getTask = vi.fn();
 
     app = buildTaskRouteApp({ getTask });
@@ -79,7 +79,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects invalid work item filters on task listing before calling the service', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn();
 
     app = buildTaskRouteApp({ listTasks });
@@ -97,7 +97,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects legacy capabilities_required on task creation', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
 
     app = buildTaskRouteApp({ createTask });
@@ -119,7 +119,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects runtime_only execution backend on specialist task creation', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
 
     app = buildTaskRouteApp({ createTask });
@@ -147,7 +147,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects legacy review task types on task creation', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
 
     app = buildTaskRouteApp({ createTask });
@@ -168,7 +168,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects runtime_only execution backend on non-orchestrator task creation', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
 
     app = buildTaskRouteApp({ createTask });
@@ -191,7 +191,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects legacy governance flags on task creation', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
 
     app = buildTaskRouteApp({ createTask });
@@ -214,7 +214,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects legacy task state aliases at the query boundary', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
 
     app = buildTaskRouteApp({ listTasks });
@@ -237,7 +237,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects running at the public query boundary', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
 
     app = buildTaskRouteApp({ listTasks });
@@ -260,7 +260,7 @@ describe('tasks routes validation and query boundaries', () => {
   });
 
   it('rejects invalid task state filters', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
 
     app = buildTaskRouteApp({ listTasks: vi.fn() });
     await app.register(taskRoutes);

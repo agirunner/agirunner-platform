@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -34,7 +34,7 @@ describe('runtime config routes', () => {
   });
 
   it('redacts secret-bearing defaults from worker runtime-config responses', async () => {
-    const { runtimeConfigRoutes } = await import('../../../src/api/routes/platform-config/runtime-config.routes.js');
+    const { runtimeConfigRoutes } = await import('../../../../../src/api/routes/platform-config/runtime-config.routes.js');
 
     pool.query
       .mockResolvedValueOnce({
@@ -92,7 +92,7 @@ describe('runtime config routes', () => {
   });
 
   it('returns runtime config for a specialist runtime target before worker registration', async () => {
-    const { runtimeConfigRoutes } = await import('../../../src/api/routes/platform-config/runtime-config.routes.js');
+    const { runtimeConfigRoutes } = await import('../../../../../src/api/routes/platform-config/runtime-config.routes.js');
 
     pool.query
       .mockResolvedValueOnce({

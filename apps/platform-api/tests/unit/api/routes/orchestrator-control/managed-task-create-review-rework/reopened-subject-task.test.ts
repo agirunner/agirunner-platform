@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createOrchestratorControlApp, createTaskService } from './support.js';
-import { orchestratorControlRoutes } from '../../../../src/api/routes/orchestrator-control.routes.js';
+import { orchestratorControlRoutes } from '../../../../../../src/api/routes/orchestrator-control.routes.js';
 
 describe('orchestratorControlRoutes', () => {
   let app: ReturnType<typeof createOrchestratorControlApp> | undefined;

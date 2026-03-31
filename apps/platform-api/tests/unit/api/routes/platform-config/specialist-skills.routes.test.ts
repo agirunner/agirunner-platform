@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -34,7 +34,7 @@ describe('specialist skill routes', () => {
 
   it('lists specialist skills', async () => {
     const { specialistSkillRoutes } = await import(
-      '../../../src/api/routes/platform-config/specialist-skills.routes.js'
+      '../../../../../src/api/routes/platform-config/specialist-skills.routes.js'
     );
     const listSkills = vi.fn(async () => [
       {
@@ -71,7 +71,7 @@ describe('specialist skill routes', () => {
 
   it('creates and deletes specialist skills', async () => {
     const { specialistSkillRoutes } = await import(
-      '../../../src/api/routes/platform-config/specialist-skills.routes.js'
+      '../../../../../src/api/routes/platform-config/specialist-skills.routes.js'
     );
     const createSkill = vi.fn(async () => ({
       id: 'skill-1',

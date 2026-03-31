@@ -1,15 +1,15 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { taskPlatformRoutes } from '../../../src/api/routes/task-platform/routes.js';
+import { ValidationError } from '../../../../../src/errors/domain-errors.js';
+import { taskPlatformRoutes } from '../../../../../src/api/routes/task-platform/routes.js';
 import { createTaskPlatformApp, createWorkflowReplayPool, VALID_ARTIFACT_ID } from './support.js';
 
 const downloadArtifactForTaskScope = vi.fn();
 const listArtifactsForTaskScope = vi.fn();
 const previewArtifactForTaskScope = vi.fn();
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -23,7 +23,7 @@ vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
-vi.mock('../../../src/services/artifact-catalog-service.js', () => ({
+vi.mock('../../../../../src/services/artifact-catalog-service.js', () => ({
   ArtifactCatalogService: vi.fn().mockImplementation(() => ({
     listArtifactsForTaskScope,
     downloadArtifactForTaskScope,

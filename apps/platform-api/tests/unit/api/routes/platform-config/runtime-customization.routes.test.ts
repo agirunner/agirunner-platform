@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -46,7 +46,7 @@ describe('runtime customization routes', () => {
   }
 
   it('redacts secret-bearing fields from successful customization proxy responses', async () => {
-    const { runtimeCustomizationRoutes } = await import('../../../src/api/routes/platform-config/runtime-customization.routes.js');
+    const { runtimeCustomizationRoutes } = await import('../../../../../src/api/routes/platform-config/runtime-customization.routes.js');
 
     fetchMock.mockResolvedValueOnce(
       new Response(
@@ -90,7 +90,7 @@ describe('runtime customization routes', () => {
   });
 
   it('redacts secret-bearing fields from customization proxy error details', async () => {
-    const { runtimeCustomizationRoutes } = await import('../../../src/api/routes/platform-config/runtime-customization.routes.js');
+    const { runtimeCustomizationRoutes } = await import('../../../../../src/api/routes/platform-config/runtime-customization.routes.js');
 
     fetchMock.mockResolvedValueOnce(
       new Response(

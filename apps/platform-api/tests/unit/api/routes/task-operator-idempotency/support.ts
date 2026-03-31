@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { expect, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export function buildTaskRouteApp(
   overrides: Record<string, unknown>,

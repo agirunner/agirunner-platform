@@ -18,7 +18,7 @@ describe('tasks routes idempotency', () => {
   });
 
   it('deduplicates repeated patch requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const updateTask = vi.fn(async () => ({
       id: '11111111-1111-4111-8111-111111111111',
       workflow_id: '22222222-2222-4222-8222-222222222222',
@@ -62,7 +62,7 @@ describe('tasks routes idempotency', () => {
   });
 
   it('deduplicates repeated complete requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const completeTask = vi.fn(async () => ({
       id: '44444444-4444-4444-8444-444444444444',
       workflow_id: '55555555-5555-4555-8555-555555555555',
@@ -107,7 +107,7 @@ describe('tasks routes idempotency', () => {
   });
 
   it('deduplicates repeated fail requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const failTask = vi.fn(async () => ({
       id: '66666666-6666-4666-8666-666666666666',
       workflow_id: '77777777-7777-4777-8777-777777777777',
@@ -151,7 +151,7 @@ describe('tasks routes idempotency', () => {
   });
 
   it('deduplicates repeated complete requests by request_id for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const completeTask = vi.fn(async () => ({
       id: 'task-standalone-complete-1',
       workflow_id: null,

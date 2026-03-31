@@ -1,12 +1,12 @@
 import fastify from 'fastify';
 import { expect, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});
 export const mockWithScope = vi.fn((_scope: string) => async () => {});
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',

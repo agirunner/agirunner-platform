@@ -1,15 +1,15 @@
 import fastify from 'fastify';
 import { expect, vi } from 'vitest';
 
-import { workflowRoutes as workflowRoutesModule } from '../../../src/api/routes/workflows.routes.js';
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { workflowRoutes as workflowRoutesModule } from '../../../../../src/api/routes/workflows.routes.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export const handoffRouteMocks = {
   listWorkItemHandoffs: vi.fn(async () => [{ id: 'handoff-1', summary: 'ready' }]),
   getLatestWorkItemHandoff: vi.fn(async () => ({ id: 'handoff-1', summary: 'ready' })),
 };
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -24,7 +24,7 @@ vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../src/services/handoff-service.js', () => ({
+vi.mock('../../../../../src/services/handoff-service.js', () => ({
   HandoffService: class {
     listWorkItemHandoffs = handoffRouteMocks.listWorkItemHandoffs;
     getLatestWorkItemHandoff = handoffRouteMocks.getLatestWorkItemHandoff;

@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export interface ExecutionLogsRouteLogService {
   insertBatch: ReturnType<typeof vi.fn>;

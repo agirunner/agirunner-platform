@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { resolve } from 'node:path';
 import { vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export const artifactLocalRoot = resolve('tmp/artifacts');
 export const VALID_ARTIFACT_ID = '11111111-1111-4111-8111-111111111111';

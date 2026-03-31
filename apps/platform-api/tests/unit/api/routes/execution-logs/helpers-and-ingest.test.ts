@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -15,11 +15,11 @@ vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
-vi.mock('../../../src/auth/rbac.js', () => ({
+vi.mock('../../../../../src/auth/rbac.js', () => ({
   withRole: () => async () => {},
 }));
 
-import { ingestSchema } from '../../../src/api/routes/execution-logs.routes.js';
+import { ingestSchema } from '../../../../../src/api/routes/execution-logs.routes.js';
 
 describe('execution-logs route helpers', () => {
   beforeEach(() => {

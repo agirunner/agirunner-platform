@@ -18,7 +18,7 @@ describe('tasks routes claim credentials', () => {
   });
 
   it('resolves claim credential handles through the agent task route', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const resolveClaimCredentials = vi.fn(async () => ({ llm_api_key: 'resolved-api-key' }));
 
     app = buildTaskRouteApp({ resolveClaimCredentials });
@@ -42,7 +42,7 @@ describe('tasks routes claim credentials', () => {
   });
 
   it('accepts remote MCP claim handles through the agent task route', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const resolveClaimCredentials = vi.fn(async () => ({ mcp_claim_values: { 'claim:v1:mcp-1': 'resolved-remote-secret' } }));
 
     app = buildTaskRouteApp({ resolveClaimCredentials });
@@ -66,7 +66,7 @@ describe('tasks routes claim credentials', () => {
   });
 
   it('registers PATCH /api/v1/tasks/:id using withAllowedScopes with worker and admin', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
 
     app = buildTaskRouteApp({});
     await app.register(taskRoutes);

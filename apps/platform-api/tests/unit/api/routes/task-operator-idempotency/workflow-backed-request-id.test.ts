@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('workflow-linked task operator idempotency', () => {
   });
 
   it('rejects repeated resolve-escalation requests for workflow-linked tasks before replay', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const resolveEscalation = vi.fn(async () => ({
       id: 'task-resolve-1',
       workflow_id: 'workflow-resolve-1',
@@ -81,7 +81,7 @@ describe('workflow-linked task operator idempotency', () => {
   });
 
   it('deduplicates repeated start requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const startTask = vi.fn(async () => ({
       id: 'task-start-1',
       workflow_id: 'workflow-start-1',

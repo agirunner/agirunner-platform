@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -15,11 +15,11 @@ vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
-vi.mock('../../../src/auth/rbac.js', () => ({
+vi.mock('../../../../../src/auth/rbac.js', () => ({
   withRole: () => async () => {},
 }));
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 import { createExecutionLogsLogService } from './support.js';
 
 describe('execution-logs route helpers', () => {
@@ -42,7 +42,7 @@ describe('execution-logs route helpers', () => {
     actors?: ReturnType<typeof vi.fn>;
     stats?: ReturnType<typeof vi.fn>;
   } = {}) {
-    const { executionLogRoutes } = await import('../../../src/api/routes/execution-logs.routes.js');
+    const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

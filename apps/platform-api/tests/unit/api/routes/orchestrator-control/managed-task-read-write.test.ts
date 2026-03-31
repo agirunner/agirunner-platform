@@ -2,19 +2,19 @@ import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
-import { ConflictError, NotFoundError, ValidationError } from '../../../src/errors/domain-errors.js';
-import { ArtifactService } from '../../../src/services/artifact-service.js';
-import { GuidedClosureRecoveryHelpersService } from '../../../src/services/guided-closure/recovery-helpers.js';
-import { PlaybookWorkflowControlService } from '../../../src/services/playbook-workflow-control-service.js';
-import { TaskAgentScopeService } from '../../../src/services/task-agent-scope-service.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../../../../src/errors/domain-errors.js';
+import { ArtifactService } from '../../../../../src/services/artifact-service.js';
+import { GuidedClosureRecoveryHelpersService } from '../../../../../src/services/guided-closure/recovery-helpers.js';
+import { PlaybookWorkflowControlService } from '../../../../../src/services/playbook-workflow-control-service.js';
+import { TaskAgentScopeService } from '../../../../../src/services/task-agent-scope-service.js';
 import {
   normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
-} from '../../../src/api/routes/orchestrator-control.routes.js';
+} from '../../../../../src/api/routes/orchestrator-control.routes.js';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',

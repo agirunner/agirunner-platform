@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated retry requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const retryTask = vi.fn(async () => ({
       id: 'task-retry-1',
       workflow_id: null,
@@ -68,7 +68,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated reject requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const rejectTask = vi.fn(async () => ({
       id: 'task-reject-1',
       workflow_id: null,
@@ -105,7 +105,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates request-changes aliases across rework and request-changes routes', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const requestTaskChanges = vi.fn(async () => ({
       id: 'task-rework-1',
       workflow_id: null,
@@ -150,7 +150,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated skip requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const skipTask = vi.fn(async () => ({
       id: 'task-skip-1',
       workflow_id: null,
@@ -187,7 +187,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated reassign requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const reassignTask = vi.fn(async () => ({
       id: 'task-reassign-1',
       workflow_id: null,
@@ -232,7 +232,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated escalate requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const escalateTask = vi.fn(async () => ({
       id: 'task-escalate-1',
       workflow_id: null,
@@ -269,7 +269,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated escalation-response requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const respondToEscalation = vi.fn(async () => ({
       id: 'task-response-1',
       workflow_id: null,
@@ -313,7 +313,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated output-override requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const overrideTaskOutput = vi.fn(async () => ({
       id: 'task-output-1',
       workflow_id: null,
@@ -358,7 +358,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated agent-escalate requests by request_id', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const agentEscalate = vi.fn(async () => ({
       id: 'task-agent-escalate-1',
       workflow_id: null,
@@ -405,7 +405,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated start requests by request_id for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
     const startTask = vi.fn(async () => ({
       id: 'task-start-standalone-1',
       workflow_id: null,
