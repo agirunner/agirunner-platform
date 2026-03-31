@@ -4,7 +4,7 @@ import {
   buildA2ATaskResponse,
   buildA2AStreamEvent,
   mapA2ATaskToCreateInput,
-} from '../../src/services/a2a-service.js';
+} from '../../../../src/services/a2a-service.js';
 
 describe('a2a service mapping', () => {
   it('maps inbound A2A task payloads onto the standard create-task input', () => {

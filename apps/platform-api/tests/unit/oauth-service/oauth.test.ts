@@ -2,16 +2,16 @@ import { createHash } from 'node:crypto';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { generateCodeVerifier, generateCodeChallenge, generateState } from '../../src/lib/pkce.js';
-import { decodeJwtPayload, extractChatGptAccountId, extractEmailFromJwt } from '../../src/lib/jwt-decode.js';
+import { generateCodeVerifier, generateCodeChallenge, generateState } from '../../../src/lib/pkce.js';
+import { decodeJwtPayload, extractChatGptAccountId, extractEmailFromJwt } from '../../../src/lib/jwt-decode.js';
 import {
   configureProviderSecretEncryptionKey,
   storeOAuthToken,
   readOAuthToken,
   storeProviderSecret,
   readProviderSecret,
-} from '../../src/lib/oauth-crypto.js';
-import { getOAuthProfile, listOAuthProfiles, OPENAI_CODEX_PROFILE } from '../../src/catalogs/oauth-profiles.js';
+} from '../../../src/lib/oauth-crypto.js';
+import { getOAuthProfile, listOAuthProfiles, OPENAI_CODEX_PROFILE } from '../../../src/catalogs/oauth-profiles.js';
 
 /* ─── PKCE ──────────────────────────────────────────────────────────────── */
 

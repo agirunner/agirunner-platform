@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createApiKey, verifyApiKey } from '../../src/auth/api-key.js';
-import { deriveApiKeyLookupHash } from '../../src/auth/api-key-derivation.js';
-import { resetPersistedApiKeyLastUsedForTests } from '../../src/auth/api-key-last-used-cache.js';
+import { createApiKey, verifyApiKey } from '../../../../src/auth/api-key.js';
+import { deriveApiKeyLookupHash } from '../../../../src/auth/api-key-derivation.js';
+import { resetPersistedApiKeyLastUsedForTests } from '../../../../src/auth/api-key-last-used-cache.js';
 
 function makePool(queryImpl: ReturnType<typeof vi.fn>) {
   return {

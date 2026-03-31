@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/auth/api-key.js', () => ({
+vi.mock('../../../../src/auth/api-key.js', () => ({
   createApiKey: vi.fn(),
 }));
 
-import { createApiKey } from '../../src/auth/api-key.js';
-import { AgentService } from '../../src/services/agent-service.js';
+import { createApiKey } from '../../../../src/auth/api-key.js';
+import { AgentService } from '../../../../src/services/agent-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
 const DEFAULT_AGENT_RUNTIME_DEFAULTS = {

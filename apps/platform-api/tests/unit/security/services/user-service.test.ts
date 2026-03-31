@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { UserService } from '../../src/services/user-service.js';
+import { UserService } from '../../../../src/services/user-service.js';
 
 function createMockPool() {
   return { query: vi.fn() };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasRequiredRole, scopeToRole, roleToScope, type RbacRole } from '../../src/auth/rbac.js';
+import { hasRequiredRole, scopeToRole, roleToScope, type RbacRole } from '../../../../src/auth/rbac.js';
 
 describe('RBAC', () => {
   describe('hasRequiredRole', () => {

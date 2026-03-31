@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AcpSessionService } from '../../src/services/acp-session-service.js';
+import { AcpSessionService } from '../../../../src/services/acp-session-service.js';
 
 function createPool() {
   return {
