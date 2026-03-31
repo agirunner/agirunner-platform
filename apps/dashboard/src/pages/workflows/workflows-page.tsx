@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
   dashboardApi,
-  type DashboardPlaybookRecord,
   type DashboardTaskRecord,
   type DashboardWorkflowInputPacketRecord,
   type DashboardWorkflowWorkItemRecord,
@@ -39,6 +38,7 @@ import {
   patchPageState,
   useWorkflowRailSelectionSync,
 } from './workflows-page.controller.js';
+import { useWorkflowsRailPlaybooks } from './workflows-page.playbooks.js';
 import { useWorkflowRailData } from './workflows-rail-query.js';
 import { buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
@@ -146,11 +146,7 @@ export function WorkflowsPage(): JSX.Element {
   };
 
   const { railPacket, railQuery } = useWorkflowRailData(pageState);
-  const playbooksQuery = useQuery({
-    queryKey: ['playbooks', 'workflows-rail'],
-    queryFn: () => dashboardApi.listPlaybooks(),
-    staleTime: 30_000,
-  });
+  const railPlaybooks = useWorkflowsRailPlaybooks();
   const workspaceQuery = useQuery({
     queryKey: pageState.workflowId
       ? buildWorkflowWorkspaceQueryKey({
@@ -345,7 +341,7 @@ export function WorkflowsPage(): JSX.Element {
       pageState={pageState}
       railLoading={railQuery.isLoading || railQuery.isFetchingNextPage}
       railOngoingRows={railPacket?.ongoing_rows ?? []}
-      railPlaybooks={(playbooksQuery.data ?? []) as DashboardPlaybookRecord[]}
+      railPlaybooks={railPlaybooks}
       railRows={railPacket?.rows ?? []}
       railTotalCount={railPacket?.total_count}
       railVisibleCount={railPacket?.visible_count}
