@@ -6,9 +6,19 @@ function readSource(filename: string) {
   return readFileSync(resolve(import.meta.dirname, filename), 'utf8');
 }
 
+function readWorkspaceSettingsSource() {
+  return [
+    './workspace-settings-tab.tsx',
+    './workspace-settings-tab.controls.tsx',
+    './workspace-settings-storage-summary.ts',
+  ]
+    .map((path) => readSource(path))
+    .join('\n');
+}
+
 describe('workspace settings tab source', () => {
   it('keeps basics and storage always open while leaving danger as the only collapsible section', () => {
-    const tabSource = readSource('./workspace-settings-tab.tsx');
+    const tabSource = readWorkspaceSettingsSource();
     const shellSource = readSource('./workspace-settings-shell.tsx');
 
     expect(tabSource).toContain("import { Badge } from '../../components/ui/badge.js';");
@@ -16,7 +26,9 @@ describe('workspace settings tab source', () => {
     expect(shellSource).toContain('props.overview.summary');
     expect(shellSource).toContain('>Settings<');
     expect(shellSource).not.toContain('Settings Control Plane');
-    expect(tabSource).toContain('headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}');
+    expect(tabSource).toContain(
+      'headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}',
+    );
     expect(tabSource).not.toContain('Resolve Before Saving');
     expect(tabSource).toContain('aria-label="Workspace active"');
     expect(tabSource).toContain('Workspace Basics');
@@ -72,7 +84,7 @@ describe('workspace settings tab source', () => {
   });
 
   it('gives operators explicit secret posture choices instead of silent secret loss', () => {
-    const source = readSource('./workspace-settings-tab.tsx');
+    const source = readWorkspaceSettingsSource();
     const supportSource = readSource('./workspace-settings-support.ts');
 
     expect(source).toContain('Git token');
@@ -90,7 +102,7 @@ describe('workspace settings tab source', () => {
   });
 
   it('keeps workspace settings limited to operator-facing basics and storage configuration', () => {
-    const source = readSource('./workspace-settings-tab.tsx');
+    const source = readWorkspaceSettingsSource();
 
     expect(source).toContain(
       'Rename the workspace, adjust its URL slug, and control whether it can receive new work.',
@@ -114,7 +126,7 @@ describe('workspace settings tab source', () => {
   });
 
   it('verifies changed git remotes before patching workspace settings', () => {
-    const source = readSource('./workspace-settings-tab.tsx');
+    const source = readWorkspaceSettingsSource();
     const supportSource = readSource('./workspace-settings-support.ts');
 
     expect(source).toContain('dashboardApi.verifyWorkspaceGitAccess');
@@ -134,7 +146,7 @@ describe('workspace settings tab source', () => {
   });
 
   it('describes workspace artifacts as built-in platform storage for specialist materials', () => {
-    const source = readSource('./workspace-settings-tab.tsx');
+    const source = readWorkspaceSettingsSource();
 
     expect(source).toContain('Workspace artifacts is storage that is built into the platform.');
     expect(source).toContain('Knowledge tab to upload artifacts');
