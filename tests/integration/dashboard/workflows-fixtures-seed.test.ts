@@ -10,7 +10,7 @@ import {
   PLATFORM_API_URL,
 } from './support/platform-env.js';
 import { resetWorkflowsState } from './support/workflows-fixture-reset.js';
-import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
+import { seedLaunchDialogScenario, seedWorkflowsScenario } from './support/workflows-fixtures.js';
 
 describe('seedWorkflowsScenario', () => {
   afterEach(async () => {
@@ -74,6 +74,27 @@ describe('seedWorkflowsScenario', () => {
         }),
       ]),
     );
+  });
+
+  it('creates seeded playbooks with active supported specialist roles', async () => {
+    const launchScenario = await seedLaunchDialogScenario({ playbookCount: 4, workspaceCount: 2 });
+    const seedPlaybookIds = launchScenario.playbooks.map((playbook) => playbook.id);
+
+    const playbooks = await Promise.all(seedPlaybookIds.map((playbookId) => fetchJson<{
+      data: {
+        definition?: { roles?: string[] };
+      };
+    }>(`${PLATFORM_API_URL}/api/v1/playbooks/${playbookId}`)));
+    const rolesPayload = await fetchJson<{ data: Array<{ name: string }> }>(
+      `${PLATFORM_API_URL}/api/v1/config/roles?activeOnly=true`,
+    );
+    const activeRoleNames = new Set(rolesPayload.data.map((role) => role.name));
+
+    for (const playbook of playbooks) {
+      const roles = playbook.data.definition?.roles ?? [];
+      expect(roles.length).toBeGreaterThan(0);
+      expect(roles.every((role) => activeRoleNames.has(role))).toBe(true);
+    }
   });
 });
 

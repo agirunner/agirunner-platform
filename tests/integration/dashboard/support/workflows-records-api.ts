@@ -168,7 +168,19 @@ export async function listWorkflows(): Promise<Array<Record<string, unknown>>> {
   return apiRequest('/api/v1/workflows');
 }
 
-export async function createPlaybook(input: { name: string; slug: string; lifecycle: 'planned' | 'ongoing' }): Promise<ApiRecord> {
+const DEFAULT_SEED_PLAYBOOK_ROLES = {
+  planned: ['developer', 'reviewer', 'publisher'],
+  ongoing: ['intake-analyst'],
+} as const;
+
+export async function createPlaybook(input: {
+  name: string;
+  slug: string;
+  lifecycle: 'planned' | 'ongoing';
+  roles?: string[];
+}): Promise<ApiRecord> {
+  const roles = normalizeSeedPlaybookRoles(input.roles ?? DEFAULT_SEED_PLAYBOOK_ROLES[input.lifecycle]);
+  ensureSeedRolesExist(roles);
   return apiRequest('/api/v1/playbooks', {
     method: 'POST',
     body: {
@@ -180,6 +192,7 @@ export async function createPlaybook(input: { name: string; slug: string; lifecy
       definition: {
         process_instructions: 'Capture work, produce outputs, and preserve operator recovery paths.',
         lifecycle: input.lifecycle,
+        roles,
         board: {
           columns: [
             { id: 'planned', label: 'Planned' },
@@ -188,9 +201,75 @@ export async function createPlaybook(input: { name: string; slug: string; lifecy
             { id: 'done', label: 'Done', is_terminal: true },
           ],
         },
-        stages: SEED_STAGE_DEFINITIONS.map((stage) => ({ name: stage.name, goal: stage.goal })),
+        stages: SEED_STAGE_DEFINITIONS.map((stage) => ({
+          name: stage.name,
+          goal: stage.goal,
+          involves: stage.name === 'intake' ? [roles[0]] : roles,
+        })),
         parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
       },
     },
   });
+}
+
+function normalizeSeedPlaybookRoles(roles: readonly string[]): string[] {
+  return Array.from(
+    new Set(
+      roles
+        .map((role) => role.trim())
+        .filter((role) => role.length > 0),
+    ),
+  );
+}
+
+function ensureSeedRolesExist(roleNames: readonly string[]): void {
+  if (roleNames.length === 0) {
+    return;
+  }
+
+  const valuesSql = roleNames
+    .map(
+      (roleName) => `(
+        ${sqlUuid(randomUUID())},
+        ${sqlUuid(DEFAULT_TENANT_ID)},
+        ${sqlText(roleName)},
+        ${sqlText(`Seeded role definition for ${roleName}.`)},
+        ${sqlText(`You are the ${roleName} for deterministic dashboard workflow fixtures.`)},
+        ARRAY[]::text[],
+        NULL,
+        NULL,
+        NULL,
+        5,
+        true,
+        1,
+        NOW(),
+        NOW()
+      )`,
+    )
+    .join(',\n      ');
+
+  runPsql(`
+    INSERT INTO public.role_definitions (
+      id,
+      tenant_id,
+      name,
+      description,
+      system_prompt,
+      allowed_tools,
+      model_preference,
+      verification_strategy,
+      escalation_target,
+      max_escalation_depth,
+      is_active,
+      version,
+      created_at,
+      updated_at
+    )
+    VALUES
+      ${valuesSql}
+    ON CONFLICT (tenant_id, name)
+    DO UPDATE SET
+      is_active = true,
+      updated_at = NOW();
+  `);
 }
