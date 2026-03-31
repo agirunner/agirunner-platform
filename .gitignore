@@ -39,6 +39,10 @@ tests/live/reports/
 
 # Local working scratch
 tasks/
+!apps/platform-api/src/api/routes/tasks/
+!apps/platform-api/src/api/routes/tasks/**
+!apps/platform-api/tests/unit/tasks/
+!apps/platform-api/tests/unit/tasks/**
 .bin/
 .secrets/
 .cache/
