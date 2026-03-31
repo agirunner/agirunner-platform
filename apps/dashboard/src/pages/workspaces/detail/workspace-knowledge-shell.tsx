@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { BrainCircuit, PackageSearch } from 'lucide-react';
 
-import { Card, CardContent } from '../../components/ui/card.js';
+import { Card, CardContent } from '../../../components/ui/card.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 
 interface WorkspaceKnowledgeShellProps {

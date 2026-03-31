@@ -1,4 +1,4 @@
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
 
 export const WORKSPACE_DETAIL_TAB_OPTIONS = [
   {

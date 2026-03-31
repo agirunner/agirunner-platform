@@ -2,25 +2,25 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { Button } from '../../components/ui/button.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { Button } from '../../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
-} from '../../components/forms/form-feedback.js';
+} from '../../../components/forms/form-feedback.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { Switch } from '../../components/ui/switch.js';
-import { ToggleCard } from '../../components/ui/toggle-card.js';
-import { dashboardApi } from '../../lib/api.js';
-import { toast } from '../../lib/toast.js';
-import { DeleteWorkspaceDialog } from '../workspace-list/workspace-list-page.dialogs.js';
+} from '../../../components/ui/select.js';
+import { Switch } from '../../../components/ui/switch.js';
+import { ToggleCard } from '../../../components/ui/toggle-card.js';
+import { dashboardApi } from '../../../lib/api.js';
+import { toast } from '../../../lib/toast.js';
+import { DeleteWorkspaceDialog } from '../list/workspace-list-page.dialogs.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 import { WorkspaceSettingsShell } from './workspace-settings-shell.js';
 import { buildStorageSummary } from './workspace-settings-storage-summary.js';

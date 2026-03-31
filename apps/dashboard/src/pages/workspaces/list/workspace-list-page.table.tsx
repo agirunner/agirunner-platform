@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent } from '../../components/ui/card.js';
-import { IconActionButton } from '../../components/ui/icon-action-button.js';
-import { Switch } from '../../components/ui/switch.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
+import { Card, CardContent } from '../../../components/ui/card.js';
+import { IconActionButton } from '../../../components/ui/icon-action-button.js';
+import { Switch } from '../../../components/ui/switch.js';
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../components/ui/table.js';
+} from '../../../components/ui/table.js';
 import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
   buildWorkspaceActivityLabel,
@@ -24,7 +24,7 @@ import {
   buildWorkspaceStorageSummary,
   type WorkspaceListSortField,
 } from './workspace-list-page.support.js';
-import { readWorkspaceStorageLabel } from '../workspace-detail/workspace-detail-support.js';
+import { readWorkspaceStorageLabel } from '../detail/workspace-detail-support.js';
 
 export function WorkspaceListTable(props: {
   workspaces: DashboardWorkspaceRecord[];

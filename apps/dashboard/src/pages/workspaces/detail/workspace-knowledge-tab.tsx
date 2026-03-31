@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 
-import { dashboardApi } from '../../lib/api.js';
-import { Button } from '../../components/ui/button.js';
+import { dashboardApi } from '../../../lib/api.js';
+import { Button } from '../../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
-} from '../../components/forms/form-feedback.js';
+} from '../../../components/forms/form-feedback.js';
 import {
   buildStructuredObject,
   objectToStructuredDrafts,

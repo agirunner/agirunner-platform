@@ -7,15 +7,15 @@ import {
   dashboardApi,
   type DashboardDeleteImpactSummary,
   type DashboardWorkspaceRecord,
-} from '../../lib/api.js';
-import { toast } from '../../lib/toast.js';
-import { Button } from '../../components/ui/button.js';
+} from '../../../lib/api.js';
+import { toast } from '../../../lib/toast.js';
+import { Button } from '../../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
   FieldErrorText,
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
-} from '../../components/forms/form-feedback.js';
+} from '../../../components/forms/form-feedback.js';
 import {
   Dialog,
   DialogContent,
@@ -23,8 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
+} from '../../../components/ui/dialog.js';
+import { Input } from '../../../components/ui/input.js';
 
 interface WorkspaceFormData {
   name: string;

@@ -2,21 +2,21 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
-import { ListPagination } from '../../components/list-pagination/list-pagination.js';
-import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
-import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
-import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
-import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
+import { ListPagination } from '../../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../../lib/pagination/list-pagination.js';
+import { DashboardPageHeader } from '../../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../../components/layout/dashboard-section-card.js';
+import { Button } from '../../../components/ui/button.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { dashboardApi } from '../../lib/api.js';
-import { toast } from '../../lib/toast.js';
+} from '../../../components/ui/select.js';
+import { dashboardApi } from '../../../lib/api.js';
+import { toast } from '../../../lib/toast.js';
 import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
   WorkspaceListEmptyState,

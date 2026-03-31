@@ -1,4 +1,4 @@
-import type { DashboardWorkspaceStorageType } from '../../lib/api.js';
+import type { DashboardWorkspaceStorageType } from '../../../lib/api.js';
 import type {
   WorkspaceSecretDraft,
   WorkspaceSettingsDraft,

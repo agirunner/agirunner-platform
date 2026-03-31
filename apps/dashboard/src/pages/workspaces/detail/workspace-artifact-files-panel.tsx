@@ -2,10 +2,10 @@ import { useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp, Trash2 } from 'lucide-react';
 
-import { dashboardApi, type DashboardWorkspaceArtifactFileRecord } from '../../lib/api.js';
-import { fileToBase64 } from '../../lib/file-upload.js';
-import { Button } from '../../components/ui/button.js';
-import { toast } from '../../lib/toast.js';
+import { dashboardApi, type DashboardWorkspaceArtifactFileRecord } from '../../../lib/api.js';
+import { fileToBase64 } from '../../../lib/file-upload.js';
+import { Button } from '../../../components/ui/button.js';
+import { toast } from '../../../lib/toast.js';
 
 export function WorkspaceArtifactFilesPanel(props: { workspaceId: string }): JSX.Element {
   const queryClient = useQueryClient();

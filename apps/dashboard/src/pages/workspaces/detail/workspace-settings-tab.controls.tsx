@@ -1,19 +1,19 @@
 import type { ChangeEvent, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-import { Badge } from '../../components/ui/badge.js';
-import { FieldErrorText } from '../../components/forms/form-feedback.js';
-import { Card, CardContent } from '../../components/ui/card.js';
-import { Input } from '../../components/ui/input.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { FieldErrorText } from '../../../components/forms/form-feedback.js';
+import { Card, CardContent } from '../../../components/ui/card.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { Textarea } from '../../components/ui/textarea.js';
-import { cn } from '../../lib/utils.js';
+} from '../../../components/ui/select.js';
+import { Textarea } from '../../../components/ui/textarea.js';
+import { cn } from '../../../lib/utils.js';
 import {
   buildWorkspaceSecretPostureSummary,
   type WorkspaceSecretDraft,
