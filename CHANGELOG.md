@@ -19,5 +19,5 @@ This file currently captures the capability snapshot for the current `0.1.0` rel
 - Role, prompt, tool, and model contracts delivered to connected runtimes at task-claim time.
 - Artifact storage, preview, and workflow, work-item, and workspace memory surfaces.
 - Execution-log ingest, streaming, filtering, and operator inspection paths.
-- Container manager reconciliation for runtime pools, warm and cold scaling, and worker lifecycle management.
+- Container-manager reconciliation for runtime pools, warm and cold scaling, and worker lifecycle management.
 - Deterministic contract, dashboard integration, and live workflow verification lanes.

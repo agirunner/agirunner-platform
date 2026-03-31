@@ -16,6 +16,18 @@ not here.
 For the broader multi-repo contribution overview, see
 [`agirunner/CONTRIBUTING.md`](https://github.com/agirunner/agirunner/blob/main/CONTRIBUTING.md).
 
+## Documentation
+
+The product-level docs for this repository live at
+[`docs.agirunner.dev`](https://docs.agirunner.dev).
+
+Useful platform entry points:
+
+- [Dashboard Overview](https://docs.agirunner.dev/dashboard/overview/)
+- [Platform Overview](https://docs.agirunner.dev/platform/overview/)
+- [API Overview](https://docs.agirunner.dev/api/)
+- [Architecture Overview](https://docs.agirunner.dev/architecture/overview/)
+
 ## Prerequisites
 
 - Node.js 22+
@@ -31,29 +43,28 @@ cd agirunner-platform
 
 corepack pnpm install
 cp .env.example .env
-docker compose up -d postgres socket-proxy
-
+docker compose up -d
 corepack pnpm dev
 ```
 
-Useful commands:
+After startup:
 
-- `corepack pnpm test` runs the workspace test lanes
-- `corepack pnpm test:v2-contract` runs the deterministic contract lane
-- `corepack pnpm test:integration:dashboard` runs dashboard integration coverage
-- `corepack pnpm lint` runs the lint lanes
-- `corepack pnpm build` runs the build lanes
-- `cd services/container-manager && go test ./...` runs the container-manager tests
+- dashboard: `http://localhost:3000`
+- platform API: `http://localhost:8080`
+- dashboard login key: `DEFAULT_ADMIN_API_KEY` from `.env`
+
+The platform API applies migrations and seed/bootstrap work during
+startup, so there is no separate root-level migration command to run.
 
 ## Repository Map
 
 ```text
-apps/platform-api/         Fastify API, orchestration services, persistence
-apps/dashboard/            operator UI for workflows, approvals, logs, config
-packages/sdk/              shared TypeScript SDK surface
+apps/platform-api/          Fastify API, orchestration services, persistence
+apps/dashboard/             operator UI for workflows, approvals, logs, and config
+packages/sdk/               shared TypeScript SDK surface
 services/container-manager/ Go service for runtime and worker lifecycle
-tests/integration/         dashboard-backed integration coverage
-tests/live/                live workflow verification harness
+tests/integration/          dashboard-backed integration coverage
+tests/live/                 live workflow verification harness
 ```
 
 ## Architectural Boundary
@@ -63,7 +74,9 @@ When deciding where a change belongs, start with this split:
 - The platform owns workflow meaning: playbooks, workflow and work-item state, routing, approvals, assessments, continuity, and operator-visible records.
 - The runtime owns execution mechanics: claiming work, preparing the environment, running the loop, executing tools, and packaging results.
 
-That boundary matters. Platform code should own the meaning of workflow actions and control-plane records instead of pushing that logic down into the runtime.
+That boundary matters. Platform code should own the meaning of workflow
+actions and control-plane records instead of pushing that logic down
+into the runtime.
 
 ## Testing
 

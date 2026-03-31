@@ -38,22 +38,14 @@ Agirunner repositories, see
 
 During the initial public rollout:
 
-- Until `0.1.0` is released, `main` is the supported pre-release line
-  and receives fixes.
-- After `0.1.0` is released, the latest public platform release line is
-  supported.
-- Older release lines are out of scope unless explicitly noted in
-  release notes.
+- Until `0.1.0` is released, `main` is the supported pre-release line and receives fixes.
+- After `0.1.0` is released, the latest public platform release line is supported.
+- Older release lines are out of scope unless explicitly noted in release notes.
 
 ## Platform Operator Guidance
 
-- Keep the platform API, dashboard image, Postgres, container manager,
-  and base images updated.
-- Use strong admin, JWT, webhook, storage, and provider credentials, and
-  rotate them when ownership or exposure changes.
-- Put TLS, authentication, and network controls in front of platform
-  endpoints.
-- Restrict database, socket-proxy, and container-manager access to
-  trusted hosts and operators only.
-- Review artifact-storage permissions and log-retention settings with
-  the same care as other production data surfaces.
+- Keep the platform API image, dashboard build, Postgres, container manager, and base images updated.
+- Use strong admin, JWT, webhook, storage, and provider credentials, and rotate them when ownership or exposure changes.
+- Put TLS, authentication, and network controls in front of platform endpoints.
+- Restrict database, socket-proxy, and container-manager access to trusted hosts and operators only.
+- Review artifact-storage permissions and log-retention settings with the same care as other production data surfaces.

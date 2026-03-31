@@ -1,0 +1,82 @@
+name: Platform Manual Publish
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: GHCR tag to publish for the platform API image, for example 0.1.0-rc.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Run test suite
+        run: corepack pnpm test
+
+  publish_image:
+    name: Publish Image
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image reference
+        id: image
+        run: |
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          repo="$(basename "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "image_ref=ghcr.io/${owner}/${repo}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push platform API image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/platform-api/Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.image_ref }}
+          provenance: false
+          sbom: false
+
+      - name: Show published image
+        run: |
+          echo "Published ${{ steps.image.outputs.image_ref }}"
+          echo "Digest: ${{ steps.build.outputs.digest }}"
