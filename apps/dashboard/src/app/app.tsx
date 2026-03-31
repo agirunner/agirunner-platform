@@ -26,24 +26,24 @@ import {
 import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
 
 import {
+  AgenticSettingsPage,
   ApiKeyPage,
   ArtifactPreviewPage,
-  ContainersPage,
   ExecutionEnvironmentsPage,
   isChunkLoadError,
+  LiveContainersPage,
   LoginPage,
   LogsPage,
-  LlmProvidersPage,
   McpPage,
+  ModelsPage,
   OrchestratorPage,
   PageFallback,
   PlatformInstructionsPage,
   PlatformSettingsPage,
   PlaybookDetailPage,
   PlaybookListPage,
-  RoleDefinitionsPage,
-  RuntimesPage,
   SettingsPage,
+  SpecialistsPage,
   SkillsPage,
   TaskDetailPage,
   ToolsPage,
@@ -189,14 +189,14 @@ export function App(): JSX.Element {
               <Route path="/design/playbooks/:id/launch" element={<LegacyPlaybookLaunchRedirect />} />
               <Route path="/design/playbooks/launch" element={<LegacyPlaybookLaunchRedirect />} />
               <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
-              <Route path="/design/specialists" element={<RoleDefinitionsPage />} />
+              <Route path="/design/specialists" element={<SpecialistsPage />} />
               <Route path="/design/specialists/skills" element={<SkillsPage />} />
               <Route path="/design/roles" element={<LegacySpecialistsRouteRedirect />} />
               <Route path="/config/roles" element={<Navigate to="/design/specialists" replace />} />
 
               {/* Platform */}
               <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
-              <Route path="/platform/models" element={<LlmProvidersPage />} />
+              <Route path="/platform/models" element={<ModelsPage />} />
               <Route
                 path="/platform/runtimes"
                 element={<Navigate to="/admin/agentic-settings" replace />}
@@ -258,7 +258,7 @@ export function App(): JSX.Element {
 
               {/* Diagnostics */}
               <Route path="/diagnostics/live-logs" element={<LogsPage />} />
-              <Route path="/diagnostics/live-containers" element={<ContainersPage />} />
+              <Route path="/diagnostics/live-containers" element={<LiveContainersPage />} />
               <Route path="/diagnostics/logs" element={<LegacyLiveLogsRedirect />} />
               <Route path="/diagnostics/containers" element={<LegacyLiveContainersRedirect />} />
               <Route path="/logs" element={<LegacyLiveLogsRedirect />} />
@@ -271,7 +271,7 @@ export function App(): JSX.Element {
                 element={<Navigate to="/admin/general-settings" replace />}
               />
               <Route path="/admin/api-keys" element={<ApiKeyPage />} />
-              <Route path="/admin/agentic-settings" element={<RuntimesPage />} />
+              <Route path="/admin/agentic-settings" element={<AgenticSettingsPage />} />
               <Route
                 path="/admin/agent-settings"
                 element={<Navigate to="/admin/agentic-settings" replace />}

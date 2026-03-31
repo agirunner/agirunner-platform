@@ -6,7 +6,7 @@ import {
   getProviderTypeDefaults,
   reasoningBadgeVariant,
   reasoningLabel,
-} from './llm-providers-page.js';
+} from './models-page.js';
 
 describe('getProviderTypeDefaults auto-fill mapping', () => {
   it('returns correct defaults for openai', () => {

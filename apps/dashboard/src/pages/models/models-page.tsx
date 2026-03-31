@@ -39,7 +39,7 @@ export {
   reasoningLabel,
 };
 
-export function LlmProvidersPage(): JSX.Element {
+export function ModelsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [discoveringId, setDiscoveringId] = useState<string | null>(null);

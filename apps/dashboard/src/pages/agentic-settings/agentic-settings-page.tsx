@@ -1,5 +1,5 @@
 import { RuntimeDefaultsPage } from './runtime-defaults-page.js';
 
-export function RuntimesPage(): JSX.Element {
+export function AgenticSettingsPage(): JSX.Element {
   return <RuntimeDefaultsPage />;
 }

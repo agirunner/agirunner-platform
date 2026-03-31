@@ -65,9 +65,9 @@ export const WorkspaceDetailPage = lazyWithRetry(() =>
   })),
 );
 
-export const RoleDefinitionsPage = lazyWithRetry(() =>
-  import('../pages/role-definitions/role-definitions-page.js').then((m) => ({
-    default: m.RoleDefinitionsPage,
+export const SpecialistsPage = lazyWithRetry(() =>
+  import('../pages/specialists/specialists-page.js').then((m) => ({
+    default: m.SpecialistsPage,
   })),
 );
 
@@ -81,14 +81,16 @@ export const OrchestratorPage = lazyWithRetry(() =>
   })),
 );
 
-export const LlmProvidersPage = lazyWithRetry(() =>
-  import('../pages/llm-providers/llm-providers-page.js').then((m) => ({
-    default: m.LlmProvidersPage,
+export const ModelsPage = lazyWithRetry(() =>
+  import('../pages/models/models-page.js').then((m) => ({
+    default: m.ModelsPage,
   })),
 );
 
-export const RuntimesPage = lazyWithRetry(() =>
-  import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })),
+export const AgenticSettingsPage = lazyWithRetry(() =>
+  import('../pages/agentic-settings/agentic-settings-page.js').then((m) => ({
+    default: m.AgenticSettingsPage,
+  })),
 );
 
 export const ExecutionEnvironmentsPage = lazyWithRetry(() =>
@@ -139,8 +141,10 @@ export const McpPage = lazyWithRetry(() =>
   import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })),
 );
 
-export const ContainersPage = lazyWithRetry(() =>
-  import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })),
+export const LiveContainersPage = lazyWithRetry(() =>
+  import('../pages/live-containers/live-containers-page.js').then((m) => ({
+    default: m.LiveContainersPage,
+  })),
 );
 
 export const ApiKeyPage = lazyWithRetry(() =>

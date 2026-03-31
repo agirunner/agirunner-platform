@@ -13,7 +13,7 @@ import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
 import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
-import { MetricCard } from '../role-definitions/role-definitions-list.js';
+import { MetricCard } from '../specialists/role-definitions-list.js';
 import {
   archiveExecutionEnvironment,
   ExecutionEnvironmentAutoVerifyError,

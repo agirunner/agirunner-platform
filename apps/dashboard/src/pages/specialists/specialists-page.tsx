@@ -39,7 +39,7 @@ import {
 import { RoleDialog } from './role-definitions-dialog.js';
 import { MetricCard, RoleRow } from './role-definitions-list.js';
 
-export function RoleDefinitionsPage(): JSX.Element {
+export function SpecialistsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
   const [isCreating, setIsCreating] = useState(false);

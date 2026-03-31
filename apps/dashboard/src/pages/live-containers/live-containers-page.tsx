@@ -15,7 +15,7 @@ import {
 const LIVE_CONTAINERS_REFETCH_INTERVAL_MS = 5000;
 const SESSION_TRANSITION_TICK_MS = 250;
 
-export function ContainersPage(): JSX.Element {
+export function LiveContainersPage(): JSX.Element {
   const [sessionRows, setSessionRows] = useState<SessionContainerRow[]>([]);
   const [hasObservedSnapshot, setHasObservedSnapshot] = useState(false);
 
