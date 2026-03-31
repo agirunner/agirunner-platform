@@ -1,0 +1,27 @@
+services:
+  live-test-remote-mcp-fixture:
+    profiles: ['live-test']
+    build:
+      context: ./tests/live/fixtures/remote-mcp-fixture
+      dockerfile: Dockerfile
+    environment:
+      FIXTURE_PORT: 18080
+      FIXTURE_BASE_URL: http://live-test-remote-mcp-fixture:18080
+      FIXTURE_CLIENT_ID: ${LIVE_TEST_REMOTE_MCP_FIXTURE_CLIENT_ID:-live-test-client}
+      FIXTURE_CLIENT_SECRET: ${LIVE_TEST_REMOTE_MCP_FIXTURE_CLIENT_SECRET:-live-test-secret}
+      FIXTURE_ACCESS_TOKEN: ${LIVE_TEST_REMOTE_MCP_FIXTURE_ACCESS_TOKEN:-live-test-access-token}
+      FIXTURE_PARAMETERIZED_SECRET: ${LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET:-live-test-parameterized-secret}
+    ports:
+      - '127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}:18080'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:18080/health | grep -q "ok"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - platform_net
+
+networks:
+  platform_net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-agirunner-platform}_platform_net

@@ -1,0 +1,141 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agirunner}
+      POSTGRES_USER: ${POSTGRES_USER:-agirunner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agirunner}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-agirunner} -d ${POSTGRES_DB:-agirunner}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - platform_net
+
+  platform-api:
+    build:
+      context: .
+      dockerfile: apps/platform-api/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agirunner}:${POSTGRES_PASSWORD:-agirunner}@postgres:5432/${POSTGRES_DB:-agirunner}
+      ARTIFACT_STORAGE_BACKEND: ${ARTIFACT_STORAGE_BACKEND:-local}
+      ARTIFACT_LOCAL_ROOT: ${ARTIFACT_LOCAL_ROOT:-/artifacts}
+      JWT_SECRET: ${JWT_SECRET}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY}
+      GIT_WEBHOOK_GITHUB_SECRET: ${GIT_WEBHOOK_GITHUB_SECRET:-}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      DEFAULT_ADMIN_API_KEY: ${DEFAULT_ADMIN_API_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      EVENT_STREAM_PATH: /api/v1/events/stream
+      WORKER_WEBSOCKET_PATH: /api/v1/events
+      RATE_LIMIT_MAX_PER_MINUTE: ${RATE_LIMIT_MAX_PER_MINUTE:-1000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${PLATFORM_API_PORT:-8080}:8080'
+      - '127.0.0.1:1455:1455'
+    volumes:
+      - ./.artifacts:/artifacts
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8080/health | grep -q "ok"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - platform_net
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      EXEC: 1
+      LOGS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      VOLUMES: 1
+      POST: 1
+      DELETE: 1
+      INFO: 1
+      VERSION: 1
+      PING: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - runtime_internal
+
+  container-manager:
+    build:
+      context: ./services/container-manager
+      dockerfile: Dockerfile
+    image: ${CONTAINER_MANAGER_IMAGE:-agirunner/container-manager:latest}
+    environment:
+      PLATFORM_API_URL: http://platform-api:8080
+      PLATFORM_API_KEY: ${DEFAULT_ADMIN_API_KEY}
+      PLATFORM_ADMIN_API_KEY: ${DEFAULT_ADMIN_API_KEY}
+      DOCKER_HOST: tcp://socket-proxy:2375
+      RECONCILE_INTERVAL_SECONDS: ${RECONCILE_INTERVAL_SECONDS:-5}
+      AGIRUNNER_GLOBAL_MAX_RUNTIMES: ${AGIRUNNER_GLOBAL_MAX_RUNTIMES:-${GLOBAL_MAX_RUNTIMES:-10}}
+      AGIRUNNER_DEFAULT_RUNTIME_IMAGE: ${AGIRUNNER_DEFAULT_RUNTIME_IMAGE:-${RUNTIME_IMAGE:-agirunner-runtime:local}}
+      RUNTIME_NETWORK: ${COMPOSE_PROJECT_NAME:-agirunner-platform}_platform_net
+      RUNTIME_INTERNAL_NETWORK: ${COMPOSE_PROJECT_NAME:-agirunner-platform}_runtime_internal
+    depends_on:
+      platform-api:
+        condition: service_healthy
+      socket-proxy:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - platform_net
+      - runtime_internal
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        VITE_PLATFORM_API_URL: ${VITE_PLATFORM_API_URL:-http://127.0.0.1:8080}
+        VITE_DASHBOARD_LOGIN_PREFILL_KEY: ${DEFAULT_ADMIN_API_KEY}
+    depends_on:
+      platform-api:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${DASHBOARD_PORT:-3000}:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - platform_net
+
+volumes:
+  postgres_data:
+
+networks:
+  platform_net:
+    driver: bridge
+  runtime_internal:
+    driver: bridge
