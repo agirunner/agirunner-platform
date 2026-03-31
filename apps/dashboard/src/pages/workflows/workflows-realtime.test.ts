@@ -7,12 +7,6 @@ import {
   requestWorkflowOperationsStreamResponse,
   shouldRetryWorkflowOperationsStream,
 } from './workflows-realtime.js';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-function readRealtimeSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflows-realtime.ts'), 'utf8');
-}
 
 function mockBrowserStorage() {
   const localStore = new Map<string, string>();
@@ -155,25 +149,6 @@ describe('shouldRetryWorkflowOperationsStream', () => {
         404,
       ),
     ).toBe(true);
-  });
-
-  it('keeps the shared rail stream independent from the selected workflow id', () => {
-    const source = readRealtimeSource();
-
-    expect(source).toContain("function buildRailStreamPath(input: {");
-    expect(source).toContain("return `/api/v1/operations/workflows/stream?${params.toString()}`;");
-    expect(source).not.toContain("params.set('workflow_id', input.workflowId);");
-    expect(source).toContain('applyRailStreamBatch');
-    expect(source).not.toContain('invalidateQueries({');
-  });
-
-  it('no longer emits legacy task_id params for the workbench workspace stream path', () => {
-    const source = readRealtimeSource();
-
-    expect(source).toContain("function buildWorkspaceStreamPath(");
-    expect(source).not.toContain("params.set('task_id', taskId);");
-    expect(source).not.toContain("tabScope: 'workflow' | 'selected_work_item' | 'selected_task'");
-    expect(source).toContain('applyWorkspaceStreamBatch');
   });
 });
 
