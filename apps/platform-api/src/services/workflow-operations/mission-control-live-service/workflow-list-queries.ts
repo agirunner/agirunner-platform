@@ -35,7 +35,7 @@ export async function loadWorkflowRows(
   const perPage = input.perPage ?? 100;
   const offset = (page - 1) * perPage;
   const filterQuery = buildWorkflowListQuery(tenantId, input, {
-    selectSql: ({ limitPlaceholder, needsActionWhereClause, offsetPlaceholder }) => `SELECT workflow_scope.id,
+    selectSql: ({ limitPlaceholder, needsActionWhereClause, offsetPlaceholder, joinsSql }) => `SELECT workflow_scope.id,
                            workflow_scope.name,
                            workflow_scope.state,
                            workflow_scope.lifecycle,
@@ -49,14 +49,7 @@ export async function loadWorkflowRows(
                            workflow_scope.context,
                            workflow_scope.updated_at
                       FROM workflow_scope
-                 LEFT JOIN task_summary
-                        ON task_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN stage_summary
-                        ON stage_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN work_item_summary
-                        ON work_item_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN recovery_summary
-                        ON recovery_summary.workflow_id = workflow_scope.id::text
+                 ${joinsSql}
                      ${needsActionWhereClause}
                   ORDER BY workflow_scope.updated_at DESC
                      LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
@@ -79,16 +72,9 @@ export async function countWorkflowRows(
   },
 ): Promise<number> {
   const query = buildWorkflowListQuery(tenantId, input, {
-    selectSql: ({ needsActionWhereClause }) => `SELECT COUNT(*)::int AS total_count
+    selectSql: ({ needsActionWhereClause, joinsSql }) => `SELECT COUNT(*)::int AS total_count
                       FROM workflow_scope
-                 LEFT JOIN task_summary
-                        ON task_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN stage_summary
-                        ON stage_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN work_item_summary
-                        ON work_item_summary.workflow_id = workflow_scope.id::text
-                 LEFT JOIN recovery_summary
-                        ON recovery_summary.workflow_id = workflow_scope.id::text
+                 ${joinsSql}
                      ${needsActionWhereClause}`,
   });
   const result = await pool.query<{ total_count: number | string }>(query.sql, query.params);
@@ -112,6 +98,7 @@ function buildWorkflowListQuery(
       limitPlaceholder: string | null;
       needsActionWhereClause: string;
       offsetPlaceholder: string | null;
+      joinsSql: string;
     }): string;
     perPage?: number;
     offset?: number;
@@ -122,6 +109,7 @@ function buildWorkflowListQuery(
   const limitPlaceholder = options.perPage ? builder.add(options.perPage) : null;
   const offsetPlaceholder = options.offset !== undefined ? builder.add(options.offset) : null;
   const needsActionWhereClause = readNeedsActionWhereClause(input.needsActionOnly);
+  const needsActionSql = input.needsActionOnly ? buildNeedsActionSql() : { ctes: '', joins: '' };
 
   const sql = `
     WITH workflow_scope AS (
@@ -146,7 +134,63 @@ function buildWorkflowListQuery(
           ON pb.tenant_id = w.tenant_id
          AND pb.id = w.playbook_id
        WHERE ${whereClauses.join('\n         AND ')}
-    ),
+    )${needsActionSql.ctes}
+    ${options.selectSql({
+      limitPlaceholder,
+      needsActionWhereClause,
+      offsetPlaceholder,
+      joinsSql: needsActionSql.joins,
+    })}
+  `;
+
+  return { sql, params: builder.params };
+}
+
+function buildWorkflowScopeWhereClauses(
+  builder: ReturnType<typeof createSqlParamBuilder>,
+  input: WorkflowListFilterInput,
+): string[] {
+  const whereClauses = ['w.tenant_id = $1'];
+  const lifecycleFilter = input.lifecycleFilter ?? 'all';
+  if (lifecycleFilter !== 'all') {
+    whereClauses.push(`w.lifecycle = ${builder.add(lifecycleFilter)}`);
+  }
+  if (input.playbookId) {
+    whereClauses.push(`w.playbook_id = ${builder.add(input.playbookId)}`);
+  }
+  const updatedWithinWhereClause = readUpdatedWithinWhereClause(input.updatedWithin);
+  if (updatedWithinWhereClause) {
+    whereClauses.push(updatedWithinWhereClause);
+  }
+  const searchText = readSearchText(input.search);
+  if (searchText) {
+    const placeholder = builder.add(`%${searchText}%`);
+    whereClauses.push(
+      `(w.name ILIKE ${placeholder}
+           OR COALESCE(ws.name, '') ILIKE ${placeholder}
+           OR COALESCE(pb.name, '') ILIKE ${placeholder}
+           OR w.id::text ILIKE ${placeholder})`,
+    );
+  }
+  return whereClauses;
+}
+
+function readNeedsActionWhereClause(needsActionOnly: boolean | undefined): string {
+  if (!needsActionOnly) {
+    return '';
+  }
+  return `WHERE (
+    (COALESCE(task_summary.waiting_for_decision_count, 0) + COALESCE(stage_summary.waiting_for_decision_count, 0)) > 0
+    OR COALESCE(work_item_summary.open_escalation_count, 0) > 0
+    OR (COALESCE(work_item_summary.blocked_work_item_count, 0) + COALESCE(stage_summary.blocked_stage_count, 0)) > 0
+    OR COALESCE(task_summary.failed_task_count, 0) > 0
+    OR COALESCE(recovery_summary.recoverable_issue_count, 0) > 0
+  )`;
+}
+
+function buildNeedsActionSql(): { ctes: string; joins: string } {
+  return {
+    ctes: `,
     task_summary AS (
       SELECT workflow_id::text AS workflow_id,
              COUNT(*) FILTER (WHERE state IN ('awaiting_approval', 'output_pending_assessment'))::int AS waiting_for_decision_count,
@@ -225,59 +269,18 @@ function buildWorkflowListQuery(
                WHERE type IN ('workflow.activation_requeued', 'workflow.activation_stale_detected')
                   OR COALESCE(data->>'mutation_outcome', '') = 'recoverable_not_applied'
              )::int AS recoverable_issue_count
-       FROM recovery_events
+        FROM recovery_events
        GROUP BY workflow_id
-    )
-    ${options.selectSql({
-      limitPlaceholder,
-      needsActionWhereClause,
-      offsetPlaceholder,
-    })}
-  `;
-
-  return { sql, params: builder.params };
-}
-
-function buildWorkflowScopeWhereClauses(
-  builder: ReturnType<typeof createSqlParamBuilder>,
-  input: WorkflowListFilterInput,
-): string[] {
-  const whereClauses = ['w.tenant_id = $1'];
-  const lifecycleFilter = input.lifecycleFilter ?? 'all';
-  if (lifecycleFilter !== 'all') {
-    whereClauses.push(`w.lifecycle = ${builder.add(lifecycleFilter)}`);
-  }
-  if (input.playbookId) {
-    whereClauses.push(`w.playbook_id = ${builder.add(input.playbookId)}`);
-  }
-  const updatedWithinWhereClause = readUpdatedWithinWhereClause(input.updatedWithin);
-  if (updatedWithinWhereClause) {
-    whereClauses.push(updatedWithinWhereClause);
-  }
-  const searchText = readSearchText(input.search);
-  if (searchText) {
-    const placeholder = builder.add(`%${searchText}%`);
-    whereClauses.push(
-      `(w.name ILIKE ${placeholder}
-           OR COALESCE(ws.name, '') ILIKE ${placeholder}
-           OR COALESCE(pb.name, '') ILIKE ${placeholder}
-           OR w.id::text ILIKE ${placeholder})`,
-    );
-  }
-  return whereClauses;
-}
-
-function readNeedsActionWhereClause(needsActionOnly: boolean | undefined): string {
-  if (!needsActionOnly) {
-    return '';
-  }
-  return `WHERE (
-    (COALESCE(task_summary.waiting_for_decision_count, 0) + COALESCE(stage_summary.waiting_for_decision_count, 0)) > 0
-    OR COALESCE(work_item_summary.open_escalation_count, 0) > 0
-    OR (COALESCE(work_item_summary.blocked_work_item_count, 0) + COALESCE(stage_summary.blocked_stage_count, 0)) > 0
-    OR COALESCE(task_summary.failed_task_count, 0) > 0
-    OR COALESCE(recovery_summary.recoverable_issue_count, 0) > 0
-  )`;
+    )`,
+    joins: `LEFT JOIN task_summary
+                        ON task_summary.workflow_id = workflow_scope.id::text
+                 LEFT JOIN stage_summary
+                        ON stage_summary.workflow_id = workflow_scope.id::text
+                 LEFT JOIN work_item_summary
+                        ON work_item_summary.workflow_id = workflow_scope.id::text
+                 LEFT JOIN recovery_summary
+                        ON recovery_summary.workflow_id = workflow_scope.id::text`,
+  };
 }
 
 function createSqlParamBuilder(tenantId: string) {
