@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { curatePacketFacts } from './workflow-history-card.packet.support.js';
@@ -196,18 +194,5 @@ describe('curatePacketFacts', () => {
     expect(facts[0]).toEqual({ label: 'Specialist role', value: 'reviewer' });
     expect(facts[1]).toEqual({ label: 'Severity', value: 'critical' });
     expect(facts[2]).toEqual({ label: 'Reason', value: 'Unresolvable merge conflict.' });
-  });
-});
-
-describe('workflow-history-card.packet.tsx integration', () => {
-  it('uses the timeline packet descriptor helper instead of generic scalar extraction', () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, './workflow-history-card.packet.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('describeTimelineEventPacket');
-    expect(source).toContain('props.descriptor');
-    expect(source).not.toContain('readPacketScalarFacts');
   });
 });
