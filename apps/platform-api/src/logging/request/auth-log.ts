@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { LogService } from '../log-service.js';
+import type { LogService } from '../execution/log-service.js';
 
 export type AuthEventType =
   | 'login' | 'login_failed'

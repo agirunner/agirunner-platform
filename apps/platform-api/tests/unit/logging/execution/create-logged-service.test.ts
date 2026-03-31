@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createLoggedService, methodToAction } from '../../../src/logging/create-logged-service.js';
+import { createLoggedService, methodToAction } from '../../../../src/logging/execution/create-logged-service.js';
 
 describe('methodToAction', () => {
   it('convertsCreatePrefix', () => {
@@ -384,7 +384,7 @@ describe('createLoggedService', () => {
 
   it('labels orchestrator execution rows under orchestrator instead of specialist execution', async () => {
     vi.resetModules();
-    vi.doMock('../../../src/observability/request-context.js', () => ({
+    vi.doMock('../../../../src/observability/request-context.js', () => ({
       getRequestContext: () => ({
         requestId: 'req-1',
         sourceIp: '127.0.0.1',
@@ -399,7 +399,7 @@ describe('createLoggedService', () => {
 
     try {
       const { createLoggedService: createLoggedServiceWithContext } = await import(
-        '../../../src/logging/create-logged-service.js'
+        '../../../../src/logging/execution/create-logged-service.js'
       );
 
       const service = {
@@ -434,7 +434,7 @@ describe('createLoggedService', () => {
         }),
       );
     } finally {
-      vi.doUnmock('../../../src/observability/request-context.js');
+      vi.doUnmock('../../../../src/observability/request-context.js');
       vi.resetModules();
     }
   });

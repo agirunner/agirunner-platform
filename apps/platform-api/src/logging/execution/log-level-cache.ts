@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 import { LEVEL_ORDER } from './log-levels.js';
 
 const DEFAULT_LOG_LEVEL = 'debug';

@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 import { applyDefaultTimeBounds, applyLogFilters, omitLogFilters } from './log-service-filters.js';
 import { ACTOR_KIND_SQL, LOG_FROM_SQL } from './log-service-sql.js';
 import type {

@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 import {
   DEFAULT_PER_PAGE,
   MAX_PER_PAGE,

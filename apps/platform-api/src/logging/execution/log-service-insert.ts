@@ -1,4 +1,4 @@
-import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
+import type { DatabasePool, DatabaseQueryable } from '../../db/database.js';
 import {
   MAX_BATCH_SIZE,
   MAX_REJECTION_DETAILS,

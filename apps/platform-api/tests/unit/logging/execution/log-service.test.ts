@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeCursor, encodeCursor } from '../../../src/logging/log-service.js';
+import { decodeCursor, encodeCursor } from '../../../../src/logging/execution/log-service.js';
 
 describe('LogService', () => {
   describe('cursor encoding', () => {

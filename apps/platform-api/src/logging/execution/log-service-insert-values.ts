@@ -1,4 +1,4 @@
-import { sanitizeSecretLikeValue } from '../services/secret-redaction.js';
+import { sanitizeSecretLikeValue } from '../../services/secret-redaction.js';
 import { LOG_SECRET_REDACTION } from './log-service-constants.js';
 import type { ExecutionLogEntry } from './log-service-types.js';
 

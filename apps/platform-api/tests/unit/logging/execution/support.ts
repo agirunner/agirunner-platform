@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
-import { LogService } from '../../../src/logging/log-service.js';
-import type { ExecutionLogEntry } from '../../../src/logging/log-service.js';
+import { LogService } from '../../../../src/logging/execution/log-service.js';
+import type { ExecutionLogEntry } from '../../../../src/logging/execution/log-service.js';
 
 export function createMockPool() {
   return { query: vi.fn().mockResolvedValue({ rowCount: 1, rows: [] }) };

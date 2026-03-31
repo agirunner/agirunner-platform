@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { LogLevelCache } from '../../../src/logging/log-level-cache.js';
+import { LogLevelCache } from '../../../../src/logging/execution/log-level-cache.js';
 
 function createPool(result: { rowCount?: number; rows?: Array<{ level: string | null }> } = {}) {
   return {

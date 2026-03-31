@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { LogService } from '../../../src/logging/log-service.js';
+import { LogService } from '../../../../src/logging/execution/log-service.js';
 import {
   createLogServiceHarness,
   createMockPool,
