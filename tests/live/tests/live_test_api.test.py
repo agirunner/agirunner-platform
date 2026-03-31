@@ -20,12 +20,9 @@ COMPOSE_FILE = str(Path("tmp") / "docker-compose.yml")
 from live_test_api import (  # noqa: E402
     ApiClient,
     ApiError,
-    CommandError,
     TraceRecorder,
-    docker_compose_psql_json,
-    docker_exec_text,
-    docker_inspect_json,
 )
+from live_shell import CommandError, docker_compose_psql_json, docker_exec_text, docker_inspect_json  # noqa: E402
 
 
 class FakeResponse:

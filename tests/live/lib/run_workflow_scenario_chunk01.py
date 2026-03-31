@@ -16,12 +16,10 @@ from urllib.request import urlopen
 from live_test_api import (
     ApiClient,
     TraceRecorder,
-    docker_compose_psql_json,
-    docker_exec_text,
-    docker_inspect_json,
     read_json,
     write_json,
 )
+from live_shell import docker_compose_psql_json, docker_exec_text, docker_inspect_json
 from scenario_config import load_scenario
 from specialist_capability_proof import (
     build_capability_proof,
