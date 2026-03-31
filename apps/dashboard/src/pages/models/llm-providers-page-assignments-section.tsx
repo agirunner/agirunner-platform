@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
@@ -10,12 +10,10 @@ import {
 } from '../../components/forms/form-feedback.js';
 import {
   DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
   paginateListItems,
 } from '../../components/list-pagination/list-pagination.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   Select,
   SelectContent,
@@ -23,35 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { buildAssignmentRoleRows } from './llm-providers-page.defaults.js';
 import {
   DIALOG_ALERT_CLASS_NAME,
-  ELEVATED_SURFACE_CLASS_NAME,
   panelToneStyle,
-  renderOverridesSummaryChip,
-  renderRoleStatusBadge,
   SubsectionPanel,
 } from './llm-providers-page.chrome.js';
 import {
-  ModelReasoningSelect,
-  normalizeReasoningConfig,
   ReasoningControl,
-  summarizeRoleDescription,
-  summarizeStaleRoleBadgeLabel,
-  truncateRoleDescription,
   type RoleState,
-  type RoleStateSetter,
 } from './llm-providers-page-assignment-controls.js';
+import {
+  buildRoleStateMap,
+  readHasUnsavedChanges,
+  RoleAssignmentsOverridesPanel,
+} from './llm-providers-page-assignments-overrides.js';
 import type { AssignmentSurfaceSummaryCard } from './llm-providers-page.support.js';
 import {
   summarizeAssignmentSurface,
@@ -251,153 +237,21 @@ export function RoleAssignmentsSection(props: {
           </p>
         ) : null}
       </SubsectionPanel>
-      <SubsectionPanel
-        title="Orchestrator and specialist agent model overrides"
-        description="Use the shared system default unless the orchestrator or a specific role needs a different model or reasoning policy."
-        headerAction={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsOverridesExpanded((open) => !open)}
-            aria-expanded={isOverridesExpanded}
-          >
-            {isOverridesExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted" />
-            )}
-            {isOverridesExpanded ? 'Hide overrides' : 'Show overrides'}
-          </Button>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
-          {renderOverridesSummaryChip(`${explicitOverrideCount} explicit overrides`)}
-          {staleRoleCount > 0
-            ? renderOverridesSummaryChip(
-                summarizeStaleRoleBadgeLabel({
-                  missingAssignmentCount,
-                }),
-                'warning',
-              )
-            : null}
-        </div>
-        {isOverridesExpanded ? (
-          <div className="space-y-4 border-t border-border/70 pt-4">
-            <p className="text-xs text-muted">
-              Choose explicit models only where the default is not enough.
-            </p>
-            <div className="grid gap-3 md:hidden">
-              {pagination.items.map((role) => {
-                const state = roleStates[role.name] ?? {
-                  modelId: '__none__',
-                  reasoningConfig: null,
-                };
-                return (
-                  <Card key={role.name} className={ELEVATED_SURFACE_CLASS_NAME}>
-                    <CardHeader className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-base">{role.name}</CardTitle>
-                        {renderRoleStatusBadge(role)}
-                      </div>
-                      <p className="text-sm leading-6 text-muted">
-                        {summarizeRoleDescription(role)}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <ModelReasoningSelect
-                        layout="stack"
-                        modelId={state.modelId}
-                        reasoningConfig={state.reasoningConfig}
-                        enabledModels={props.enabledModels}
-                        modelError={undefined}
-                        onModelChange={(id) =>
-                          updateRoleState(setRoleStates, role.name, {
-                            modelId: id,
-                            reasoningConfig: null,
-                          })
-                        }
-                        onReasoningChange={(config) =>
-                          updateRoleState(setRoleStates, role.name, { reasoningConfig: config })
-                        }
-                      />
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-            <div className="hidden md:block">
-              <div className="overflow-x-auto border-y border-border/70">
-                <Table className="table-fixed">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-1/5">Role</TableHead>
-                      <TableHead className="w-1/5">Description</TableHead>
-                      <TableHead className="w-1/5 text-center">Status</TableHead>
-                      <TableHead className="w-1/5 text-center">Provider Selection</TableHead>
-                      <TableHead className="w-1/5 text-center">Reasoning</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagination.items.map((role) => {
-                      const state = roleStates[role.name] ?? {
-                        modelId: '__none__',
-                        reasoningConfig: null,
-                      };
-                      const description = truncateRoleDescription(summarizeRoleDescription(role));
-                      return (
-                        <TableRow key={role.name} className="align-middle [&>td]:py-4">
-                          <TableCell className="align-middle text-sm font-medium whitespace-nowrap">
-                            {role.name}
-                          </TableCell>
-                          <TableCell className="align-middle text-sm text-foreground">
-                            <span className="block truncate" title={summarizeRoleDescription(role)}>
-                              {description}
-                            </span>
-                          </TableCell>
-                          <TableCell className="align-middle whitespace-nowrap">
-                            <div className="flex justify-center">{renderRoleStatusBadge(role)}</div>
-                          </TableCell>
-                          <ModelReasoningSelect
-                            modelId={state.modelId}
-                            reasoningConfig={state.reasoningConfig}
-                            enabledModels={props.enabledModels}
-                            modelError={undefined}
-                            onModelChange={(id) =>
-                              updateRoleState(setRoleStates, role.name, {
-                                modelId: id,
-                                reasoningConfig: null,
-                              })
-                            }
-                            onReasoningChange={(config) =>
-                              updateRoleState(setRoleStates, role.name, { reasoningConfig: config })
-                            }
-                          />
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-            <ListPagination
-              page={pagination.page}
-              pageSize={pageSize}
-              totalItems={pagination.totalItems}
-              totalPages={pagination.totalPages}
-              start={pagination.start}
-              end={pagination.end}
-              itemLabel="overrides"
-              onPageChange={setPage}
-              onPageSizeChange={(value) => {
-                setPageSize(value);
-                setPage(1);
-              }}
-            />
-          </div>
-        ) : null}
-      </SubsectionPanel>
+      <RoleAssignmentsOverridesPanel
+        activeRoleCount={activeRoleCount}
+        enabledModels={props.enabledModels}
+        explicitOverrideCount={explicitOverrideCount}
+        isOverridesExpanded={isOverridesExpanded}
+        missingAssignmentCount={missingAssignmentCount}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onToggleExpanded={() => setIsOverridesExpanded((open) => !open)}
+        pageSize={pageSize}
+        pagination={pagination}
+        roleStates={roleStates}
+        setRoleStates={setRoleStates}
+        staleRoleCount={staleRoleCount}
+      />
       <div className="space-y-3">
         <FormFeedbackMessage message={assignmentFormFeedbackMessage} />
         <div className="flex justify-end">
@@ -418,64 +272,4 @@ export function RoleAssignmentsSection(props: {
       </div>
     </DashboardSectionCard>
   );
-}
-
-function buildRoleStateMap(
-  roleRows: Array<{ name: string }>,
-  assignments: RoleAssignment[],
-): Record<string, RoleState> {
-  const initial: Record<string, RoleState> = {};
-  for (const role of roleRows) {
-    const assignment = assignments.find((entry) => entry.role_name === role.name);
-    initial[role.name] = {
-      modelId: assignment?.primary_model_id ?? '__none__',
-      reasoningConfig: assignment?.reasoning_config ?? null,
-    };
-  }
-  return initial;
-}
-
-function updateRoleState(
-  setRoleStates: RoleStateSetter,
-  role: string,
-  patch: Partial<RoleState>,
-): void {
-  setRoleStates((prev) => ({
-    ...prev,
-    [role]: { ...prev[role], ...patch },
-  }));
-}
-
-function readHasUnsavedChanges(input: {
-  defaultModelId: string;
-  defaultReasoning: Record<string, unknown> | null;
-  roleRows: Array<{ name: string }>;
-  roleStates: Record<string, RoleState>;
-  assignments: RoleAssignment[];
-  systemDefault: SystemDefault;
-}): boolean {
-  if (input.defaultModelId !== (input.systemDefault.modelId ?? '__none__')) {
-    return true;
-  }
-  if (
-    normalizeReasoningConfig(input.defaultReasoning) !==
-    normalizeReasoningConfig(input.systemDefault.reasoningConfig)
-  ) {
-    return true;
-  }
-
-  return input.roleRows.some((role) => {
-    const assignment = input.assignments.find((entry) => entry.role_name === role.name);
-    const currentState = input.roleStates[role.name] ?? {
-      modelId: '__none__',
-      reasoningConfig: null,
-    };
-    const persistedModelId = assignment?.primary_model_id ?? '__none__';
-    const persistedReasoning = assignment?.reasoning_config ?? null;
-    return (
-      currentState.modelId !== persistedModelId ||
-      normalizeReasoningConfig(currentState.reasoningConfig) !==
-        normalizeReasoningConfig(persistedReasoning)
-    );
-  });
 }
