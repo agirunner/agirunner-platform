@@ -16,7 +16,7 @@ import { claimTaskForWorker, acknowledgeTaskAssignment } from '../../src/service
 import { registerWorker } from '../../src/services/worker-registration-service.js';
 import { WorkflowCancellationService } from '../../src/services/workflow-cancellation-service.js';
 import { mapErrorToHttpStatus } from '../../src/errors/http-errors.js';
-import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../src/api/pagination.js';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../src/lib/pagination.js';
 import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../../src/errors/domain-errors.js';
 
 describe('requirements structural backfill', () => {
@@ -54,7 +54,7 @@ describe('requirements structural backfill', () => {
   it('covers FR-299/FR-420/FR-423/FR-425/FR-426/FR-427/FR-428 API route registrations are live Fastify plugins', async () => {
     // Verify route handler modules export callable Fastify plugins — not just string presence
     const { workerRoutes } = await import('../../src/api/routes/workers.routes.js');
-    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../src/api/routes/workflows/routes.js');
 
     expect(typeof workerRoutes).toBe('function');
     expect(typeof workflowRoutes).toBe('function');
