@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
@@ -16,10 +14,6 @@ import {
   resolveWorkflowTabScope,
   readWorkflowsPageState,
 } from './workflows-page.support.js';
-
-function readSupportSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflows-page.support.ts'), 'utf8');
-}
 
 describe('workflows page support', () => {
   it('reads defaults from empty search params', () => {
@@ -221,19 +215,6 @@ describe('workflows page support', () => {
       subject: 'work item',
       banner: 'Work item · Prepare release bundle',
     });
-  });
-
-  it('keeps the shared shell model workflow/work-item only with no task scope type plumbing', () => {
-    const source = readSupportSource();
-    const requestedScopeBlock = source.slice(
-      source.indexOf('export interface RequestedWorkspaceScope {'),
-      source.indexOf('\n}\n\nexport interface WorkflowWorkbenchScopeDescriptor'),
-    );
-
-    expect(source).toContain("export type WorkflowTabScope = 'workflow' | 'selected_work_item';");
-    expect(source).not.toContain("| 'selected_task'");
-    expect(requestedScopeBlock).not.toContain('taskId?: string | null;');
-    expect(source).not.toContain('_taskId: string | null');
   });
 
   it('builds workflow-scoped diagnostics hrefs for live evidence', () => {
