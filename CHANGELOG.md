@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project aims to follow [Semantic Versioning](https://semver.org/).
 
-This file currently captures the capability snapshot for the current `0.1.0` release target. The release has not closed yet.
+This file captures the pre-release capability snapshot for the current
+`0.1.0` release target. The release is still open.
 
 ## [Unreleased]
 
