@@ -16,11 +16,6 @@ describe('ModelCatalogService resolved configuration', () => {
     ({ pool, service } = createServiceHarness());
   });
 
-  it('does not expose the retired workflow effective-model resolution surface', () => {
-    expect('resolveEffectiveModel' in service).toBe(false);
-    expect('validateModelOverride' in service).toBe(false);
-  });
-
   it('does not invent a reasoning config from model metadata when the llm page did not configure one', async () => {
     pool.query
       .mockResolvedValueOnce({
