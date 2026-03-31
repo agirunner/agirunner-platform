@@ -1,5 +1,5 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError } from '../errors/domain-errors.js';
+import type { DatabaseClient, DatabasePool } from '../../../db/database.js';
+import { ConflictError } from '../../../errors/domain-errors.js';
 import { loadWorkflowSummarySnapshots } from './workspace-timeline-summary-loader.js';
 import {
   buildWorkflowSummary,

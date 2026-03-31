@@ -1,5 +1,5 @@
 import type { DatabaseQueryable } from '../../db/database.js';
-import { WorkspaceMemoryScopeService } from '../workspace-memory-scope-service.js';
+import { WorkspaceMemoryScopeService } from '../workspace/memory/workspace-memory-scope-service.js';
 import { asOptionalString, asRecord, formatDateValue, asOptionalNumber } from './task-context-utils.js';
 import {
   TASK_CONTEXT_ARTIFACT_INDEX_LIMIT,

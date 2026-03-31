@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkerConnectionHub } from '../../../src/services/worker-connection-hub.js';
-import { dispatchReadyTasks } from '../../../src/services/worker-dispatch-service.js';
+import { WorkerConnectionHub } from '../../../../src/services/workers/worker-connection-hub.js';
+import { dispatchReadyTasks } from '../../../../src/services/workers/worker-dispatch-service.js';
 
 describe('dispatchReadyTasks', () => {
   it('short-circuits before querying ready tasks when no workers are connected', async () => {

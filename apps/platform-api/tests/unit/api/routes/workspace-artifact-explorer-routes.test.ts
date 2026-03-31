@@ -20,7 +20,7 @@ vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../../src/services/workspace-artifact-explorer-service.js', () => ({
+vi.mock('../../../../src/services/workspace-artifact-explorer/workspace-artifact-explorer-service.js', () => ({
   WorkspaceArtifactExplorerService: vi.fn().mockImplementation(() => ({
     listWorkspaceArtifacts,
   })),

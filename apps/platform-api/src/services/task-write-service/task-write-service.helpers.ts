@@ -1,6 +1,6 @@
 import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
 import { areJsonValuesEquivalent } from '../json-equivalence.js';
-import { resolveWorkspaceStorageBinding, buildGitRemoteResourceBindings } from '../workspace-storage.js';
+import { resolveWorkspaceStorageBinding, buildGitRemoteResourceBindings } from '../workspace/workspace-storage.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,

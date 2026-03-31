@@ -1,6 +1,6 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { ConflictError, ForbiddenError } from '../../errors/domain-errors.js';
 import {
   acknowledgeTaskAssignment,
   claimTaskForWorker,
@@ -11,7 +11,7 @@ import {
   resetTaskClaim,
   type DispatchWorkerCandidate,
 } from './worker-dispatch-repository.js';
-import { resolveDispatchRoutingRequirements } from './task-routing-contract.js';
+import { resolveDispatchRoutingRequirements } from '../task-routing-contract.js';
 import type { WorkerServiceContext } from './worker-service.js';
 
 interface DispatchCandidate {

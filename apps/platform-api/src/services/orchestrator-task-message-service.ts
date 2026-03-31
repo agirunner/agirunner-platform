@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
-import type { WorkerConnectionHub } from './worker-connection-hub.js';
+import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,

@@ -1,4 +1,4 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { WorkerSignalInput, WorkerServiceContext } from './worker-service.js';
 import { getWorker } from './worker-registration-service.js';
 import { ensureWorkerAccess } from './worker-heartbeat-service.js';

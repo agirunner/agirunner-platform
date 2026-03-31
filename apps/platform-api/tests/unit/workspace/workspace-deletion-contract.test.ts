@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConflictError } from '../../../src/errors/domain-errors.js';
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 import {
   createEventService,
   createIdentity,

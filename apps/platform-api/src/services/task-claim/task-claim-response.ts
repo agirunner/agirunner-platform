@@ -1,7 +1,7 @@
 import { isExternalSecretReference } from '../../lib/oauth-crypto.js';
 import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
 import { flattenInstructionLayers } from '../task-context-service.js';
-import { resolveWorkspaceStorageBinding } from '../workspace-storage.js';
+import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist-capability-service.js';
 import { OAuthService } from '../oauth/oauth-service.js';
 import { buildRuntimeTaskCapabilities, buildToolOwnerContract, hydrateClaimGitCredentials, mergeClaimRuntimeBindings, readTaskExecutionBackend, sanitizeClaimRoleTools, stripClaimSecretEchoes, attachClaimCredentials } from './task-claim-task-payload.js';

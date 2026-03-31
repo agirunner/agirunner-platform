@@ -6,7 +6,7 @@ import {
   encryptWebhookSecret,
   isWebhookSecretEncrypted,
 } from '../webhook-secret-crypto.js';
-import { normalizeWorkspaceSettings } from '../workspace-settings.js';
+import { normalizeWorkspaceSettings } from './workspace-settings.js';
 import { normalizeRecord } from './workspace-records.js';
 import type { GitWebhookProvider, WorkspaceRow } from './workspace-types.js';
 

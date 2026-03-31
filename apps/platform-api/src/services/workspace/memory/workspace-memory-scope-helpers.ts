@@ -1,5 +1,5 @@
-import type { DatabaseQueryable } from '../db/database.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import type { DatabaseQueryable } from '../../../db/database.js';
+import { sanitizeSecretLikeRecord } from '../../secret-redaction.js';
 
 const WORKSPACE_MEMORY_EVENT_TYPES = ['workspace.memory_updated', 'workspace.memory_deleted'] as const;
 const WORKSPACE_MEMORY_SECRET_REDACTION = 'redacted://workspace-memory-secret';

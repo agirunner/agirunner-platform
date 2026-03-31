@@ -3,7 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { EventService } from '../event-service.js';
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch-service.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
-import type { WorkspaceMemoryScopeService } from '../workspace-memory-scope-service.js';
+import type { WorkspaceMemoryScopeService } from '../workspace/memory/workspace-memory-scope-service.js';
 
 export interface CreateWorkItemInput {
   request_id?: string;

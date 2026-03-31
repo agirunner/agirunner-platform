@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { WorkflowService } from './workflow-service.js';
-import { WorkspaceTimelineService } from './workspace-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace/timeline/workspace-timeline-service.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,

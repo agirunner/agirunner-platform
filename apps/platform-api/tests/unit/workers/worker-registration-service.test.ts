@@ -5,7 +5,7 @@ vi.mock('../../../src/auth/api-key.js', () => ({
 }));
 
 import { createApiKey } from '../../../src/auth/api-key.js';
-import { deleteWorker, getWorker, listWorkers, registerWorker } from '../../../src/services/worker-registration-service.js';
+import { deleteWorker, getWorker, listWorkers, registerWorker } from '../../../src/services/workers/worker-registration-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
 

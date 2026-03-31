@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceService } from '../../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../../src/services/workspace/workspace-service.js';
 import { ArtifactService } from '../../../../src/services/artifact-service.js';
 
 function createIdentity() {

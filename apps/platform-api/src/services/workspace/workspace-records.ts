@@ -1,5 +1,5 @@
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
-import { serializeWorkspaceSettings } from '../workspace-settings.js';
+import { serializeWorkspaceSettings } from './workspace-settings.js';
 import type {
   WorkspaceListSummary,
   WorkspaceRow,

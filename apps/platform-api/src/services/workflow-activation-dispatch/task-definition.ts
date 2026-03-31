@@ -1,4 +1,4 @@
-import { buildGitRemoteResourceBindings, resolveWorkspaceStorageBinding } from '../workspace-storage.js';
+import { buildGitRemoteResourceBindings, resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 
 import { DEFAULT_REPOSITORY_TASK_TEMPLATE, type ActivationTaskDefinition, type QueuedActivationRow, type WorkflowDispatchRow } from './types.js';
 import {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { ValidationError } from '../errors/domain-errors.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
 
 const execFile = promisify(execFileCallback);
 const DEFAULT_GIT_VERIFY_TIMEOUT_SECONDS = 15;

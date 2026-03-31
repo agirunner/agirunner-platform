@@ -18,7 +18,7 @@ const {
   resetTaskClaimMock: vi.fn(),
 }));
 
-vi.mock('../../../src/services/worker-dispatch-repository.js', () => ({
+vi.mock('../../../../src/services/workers/worker-dispatch-repository.js', () => ({
   acknowledgeTaskAssignment: acknowledgeTaskAssignmentMock,
   claimTaskForWorker: claimTaskForWorkerMock,
   findDispatchCandidateWorkers: findDispatchCandidateWorkersMock,
@@ -28,8 +28,8 @@ vi.mock('../../../src/services/worker-dispatch-repository.js', () => ({
   resetTaskClaim: resetTaskClaimMock,
 }));
 
-import { WorkerConnectionHub } from '../../../src/services/worker-connection-hub.js';
-import { dispatchReadyTasks } from '../../../src/services/worker-dispatch-service.js';
+import { WorkerConnectionHub } from '../../../../src/services/workers/worker-connection-hub.js';
+import { dispatchReadyTasks } from '../../../../src/services/workers/worker-dispatch-service.js';
 
 describe('dispatchReadyTasks role-first routing', () => {
   beforeEach(() => {

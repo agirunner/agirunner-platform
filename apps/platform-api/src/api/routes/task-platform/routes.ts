@@ -19,8 +19,8 @@ import {
   guidedClosureSuggestedActionSchema,
   guidedClosureWaivedStepSchema,
 } from '../../../services/guided-closure/types.js';
-import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../services/workspace-memory-write-guard.js';
-import { WorkspaceMemoryScopeService } from '../../../services/workspace-memory-scope-service.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../services/workspace/memory/workspace-memory-write-guard.js';
+import { WorkspaceMemoryScopeService } from '../../../services/workspace/memory/workspace-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';

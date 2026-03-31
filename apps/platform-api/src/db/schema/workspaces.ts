@@ -1,7 +1,7 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
-import type { StoredWorkspaceSettings } from '../../services/workspace-settings.js';
+import type { StoredWorkspaceSettings } from '../../services/workspace/workspace-settings.js';
 
 export const workspaces = pgTable(
   'workspaces',

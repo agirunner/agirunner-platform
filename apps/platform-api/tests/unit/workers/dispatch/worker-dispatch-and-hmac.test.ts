@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createWebhookSignature, selectLeastLoadedWorker, verifyWebhookSignature } from '../../../src/services/worker-service.js';
+import {
+  createWebhookSignature,
+  selectLeastLoadedWorker,
+  verifyWebhookSignature,
+} from '../../../../src/services/workers/worker-service.js';
 
 describe('worker dispatch and webhook hmac', () => {
   it('picks least-loaded worker with matching routing tags', () => {

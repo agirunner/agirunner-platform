@@ -1,10 +1,10 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
-import { WorkerConnectionHub } from '../../../src/services/worker-connection-hub.js';
-import * as workerDispatchModule from '../../../src/services/worker-dispatch-service.js';
-import * as workerHeartbeatModule from '../../../src/services/worker-heartbeat-service.js';
-import * as workerRegistrationModule from '../../../src/services/worker-registration-service.js';
-import { WorkerService } from '../../../src/services/worker-service.js';
+import { WorkerConnectionHub } from '../../../src/services/workers/worker-connection-hub.js';
+import * as workerDispatchModule from '../../../src/services/workers/worker-dispatch-service.js';
+import * as workerHeartbeatModule from '../../../src/services/workers/worker-heartbeat-service.js';
+import * as workerRegistrationModule from '../../../src/services/workers/worker-registration-service.js';
+import { WorkerService } from '../../../src/services/workers/worker-service.js';
 
 function buildRuntimeDefaultPool(overrides: Record<string, string>) {
   const values: Record<string, string> = {

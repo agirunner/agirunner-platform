@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { ForbiddenError, SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { ensureWorkerAccess } from '../../services/worker-heartbeat-service.js';
+import { ensureWorkerAccess } from '../../services/workers/worker-heartbeat-service.js';
 
 const registerSchema = z.object({
   name: z.string().min(1).max(200),

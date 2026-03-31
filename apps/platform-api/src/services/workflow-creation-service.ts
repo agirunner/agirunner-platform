@@ -15,7 +15,7 @@ import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator/workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
-import { readWorkspaceSettingsExtras } from './workspace-settings.js';
+import { readWorkspaceSettingsExtras } from './workspace/workspace-settings.js';
 import type { WorkflowAttemptInput } from './workflow-service.types.js';
 import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceArtifactExplorerService } from '../../../src/services/workspace-artifact-explorer-service.js';
+import { WorkspaceArtifactExplorerService } from '../../../src/services/workspace-artifact-explorer/workspace-artifact-explorer-service.js';
 
 describe('WorkspaceArtifactExplorerService', () => {
   it('returns bounded workspace artifact rows with summary and filter options', async () => {

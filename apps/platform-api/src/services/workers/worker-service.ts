@@ -1,13 +1,13 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { AppEnv } from '../config/schema.js';
-import { EventService } from './event-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { AppEnv } from '../../config/schema.js';
+import { EventService } from '../event-service.js';
 import {
   readAgentSupervisionTimingDefaults,
   readWorkerSupervisionTimingDefaults,
-} from './platform-timing-defaults.js';
-import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
+} from '../platform-timing-defaults.js';
+import type { PlatformTransportTimingDefaults } from '../platform-timing-defaults.js';
 import { WorkerConnectionHub } from './worker-connection-hub.js';
 import {
   acknowledgeTask,
@@ -18,7 +18,7 @@ import {
 import { enforceHeartbeatTimeouts, heartbeat } from './worker-heartbeat-service.js';
 import { deleteWorker, getWorker, listWorkers, registerWorker } from './worker-registration-service.js';
 import { acknowledgeSignal, sendSignal } from './worker-signal-service.js';
-import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature } from './webhook-delivery.js';
+import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature } from '../webhook-delivery.js';
 
 export interface WorkerAgentInput {
   name: string;

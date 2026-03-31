@@ -17,7 +17,7 @@ import {
 } from './task-write-service.helpers.js';
 import type { CreateTaskInput } from '../task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
-import { resolveWorkspaceStorageBinding } from '../workspace-storage.js';
+import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 
 export class TaskWriteCreateDefaults {
   constructor(private readonly deps: TaskWriteDependencies) {}

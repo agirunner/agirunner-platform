@@ -1,4 +1,4 @@
-import type { DatabaseQueryable } from '../db/database.js';
+import type { DatabaseQueryable } from '../../../db/database.js';
 import {
   listVisibleTaskMemoryEntries,
   memoryEntryMatchesQuery,

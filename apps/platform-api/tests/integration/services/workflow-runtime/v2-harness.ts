@@ -10,8 +10,8 @@ import type { PlatformTransportTimingDefaults } from '../../../../src/services/p
 import { PlaybookService } from '../../../../src/services/playbook-service.js';
 import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
 import { TaskService } from '../../../../src/services/task-service.js';
-import { WorkerConnectionHub } from '../../../../src/services/worker-connection-hub.js';
-import { WorkerService } from '../../../../src/services/worker-service.js';
+import { WorkerConnectionHub } from '../../../../src/services/workers/worker-connection-hub.js';
+import { WorkerService } from '../../../../src/services/workers/worker-service.js';
 import { WorkflowActivationDispatchService } from '../../../../src/services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../../src/services/workflow-activation/workflow-activation-service.js';
 import { WorkflowService } from '../../../../src/services/workflow-service.js';

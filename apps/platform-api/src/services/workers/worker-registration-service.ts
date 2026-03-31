@@ -1,7 +1,7 @@
-import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import { createApiKey, type ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import type { WorkerServiceContext, RegisterWorkerInput } from './worker-service.js';
 
 const WORKER_SECRET_REDACTION = 'redacted://worker-secret';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../src/services/workspace-memory-write-guard.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../src/services/workspace/memory/workspace-memory-write-guard.js';
 
 describe('assertWorkspaceMemoryWritesAreDurableKnowledge', () => {
   it('allows durable knowledge entries', () => {

@@ -1,10 +1,10 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 import {
   buildFilterSql,
   buildOrderBySql,
   buildPageQuery,
   buildSummaryQuery,
-} from './workspace-artifact-explorer/workspace-artifact-explorer-sql.js';
+} from './workspace-artifact-explorer-sql.js';
 import {
   mapArtifactRow,
   readInteger,
@@ -12,19 +12,19 @@ import {
   readTaskOptions,
   readWorkflowOptions,
   readWorkItemOptions,
-} from './workspace-artifact-explorer/workspace-artifact-explorer-records.js';
+} from './workspace-artifact-explorer-records.js';
 import type {
   WorkspaceArtifactExplorerListInput,
   WorkspaceArtifactExplorerListResult,
   WorkspaceArtifactExplorerRow,
   WorkspaceArtifactExplorerSummaryRow,
-} from './workspace-artifact-explorer/workspace-artifact-explorer-types.js';
+} from './workspace-artifact-explorer-types.js';
 export type {
   WorkspaceArtifactExplorerListInput,
   WorkspaceArtifactExplorerListResult,
   WorkspaceArtifactExplorerRecord,
   WorkspaceArtifactExplorerSort,
-} from './workspace-artifact-explorer/workspace-artifact-explorer-types.js';
+} from './workspace-artifact-explorer-types.js';
 
 const MAX_FILTER_OPTIONS = 100;
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { storeProviderSecret } from '../../../src/lib/oauth-crypto.js';
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 import {
   createEventService,
   createIdentity,

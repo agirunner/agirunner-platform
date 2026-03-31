@@ -1,34 +1,34 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { AppEnv } from '../config/schema.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { AppEnv } from '../../config/schema.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import {
   DestructiveDeleteService,
   type DeleteImpactSummary,
-} from './destructive-delete-service.js';
-import { EventService } from './event-service.js';
-import type { WorkspaceMemoryMutationContext } from './workspace-memory-scope-service.js';
+} from '../destructive-delete-service.js';
+import { EventService } from '../event-service.js';
+import type { WorkspaceMemoryMutationContext } from './memory/workspace-memory-scope-service.js';
 import {
   parseWorkspaceSettingsInput,
 } from './workspace-settings.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
-import { encryptWebhookSecret } from './webhook-secret-crypto.js';
+import { encryptWebhookSecret } from '../webhook-secret-crypto.js';
 import {
   WorkspaceGitAccessVerifier,
   type VerifyWorkspaceGitAccessResult,
-} from './workspace-git-access-verifier.js';
-import { resolveWorkspaceGitVerificationToken } from './workspace/workspace-git-verification.js';
+} from './git/workspace-git-access-verifier.js';
+import { resolveWorkspaceGitVerificationToken } from './git/workspace-git-verification.js';
 import {
   byteLengthJson,
   emptyWorkspaceListSummary,
   normalizeRecord,
   redactWorkspaceSecrets,
   sanitizeMemoryForPersistence,
-} from './workspace/workspace-records.js';
-import { WorkspaceMemoryService } from './workspace/workspace-memory-service.js';
-import { WorkspaceRecordStore } from './workspace/workspace-record-store.js';
-import { WorkspaceSecretStore } from './workspace/workspace-secret-store.js';
+} from './workspace-records.js';
+import { WorkspaceMemoryService } from './memory/workspace-memory-service.js';
+import { WorkspaceRecordStore } from './workspace-record-store.js';
+import { WorkspaceSecretStore } from './workspace-secret-store.js';
 import type {
   CreateWorkspaceInput,
   GitWebhookConfig,
@@ -37,7 +37,7 @@ import type {
   WorkspaceRow,
   UpdateWorkspaceInput,
   VerifyWorkspaceGitAccessInput,
-} from './workspace/workspace-types.js';
+} from './workspace-types.js';
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {
   if (!error || typeof error !== 'object') {

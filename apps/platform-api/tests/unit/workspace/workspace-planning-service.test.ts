@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { NotFoundError } from '../../../src/errors/domain-errors.js';
-import { WorkspacePlanningService } from '../../../src/services/workspace-planning-service.js';
+import { WorkspacePlanningService } from '../../../src/services/workspace/workspace-planning-service.js';
 
 describe('WorkspacePlanningService', () => {
   it('uses the workspace-configured planning playbook id when creating a planning workflow', async () => {

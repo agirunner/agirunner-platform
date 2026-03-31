@@ -1,17 +1,17 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../../db/database.js';
-import { ValidationError } from '../../errors/domain-errors.js';
-import type { EventService } from '../event-service.js';
-import type { WorkspaceMemoryMutationContext } from '../workspace-memory-scope-service.js';
+import type { DatabaseClient, DatabasePool } from '../../../db/database.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
+import type { EventService } from '../../event-service.js';
+import type { WorkspaceMemoryMutationContext } from './workspace-memory-scope-service.js';
 import {
   byteLengthJson,
   normalizeRecord,
   redactWorkspaceSecrets,
   sanitizeMemoryEventValue,
   sanitizeMemoryValueForPersistence,
-} from './workspace-records.js';
-import { WorkspaceRecordStore } from './workspace-record-store.js';
-import type { WorkspaceMemoryPatch } from './workspace-types.js';
+} from '../workspace-records.js';
+import { WorkspaceRecordStore } from '../workspace-record-store.js';
+import type { WorkspaceMemoryPatch } from '../workspace-types.js';
 
 export class WorkspaceMemoryService {
   constructor(

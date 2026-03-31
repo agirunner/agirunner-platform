@@ -1,8 +1,8 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import { isOperatorScope } from '../auth/scope.js';
-import { ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
-import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
-import { assertValidWorkerTransition, type WorkerState } from '../orchestration/worker-state-machine.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import { isOperatorScope } from '../../auth/scope.js';
+import { ForbiddenError, NotFoundError } from '../../errors/domain-errors.js';
+import { toStoredTaskState, type TaskState } from '../../orchestration/task-state-machine.js';
+import { assertValidWorkerTransition, type WorkerState } from '../../orchestration/worker-state-machine.js';
 import type { WorkerHeartbeatInput, WorkerServiceContext } from './worker-service.js';
 
 const ACTIVE_EXECUTION_STATES: TaskState[] = ['claimed', 'in_progress'];

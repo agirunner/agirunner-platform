@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import { extractRepositoryUrl } from '../../../src/services/git-platform-adapter.js';
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 import { encryptWebhookSecret } from '../../../src/services/webhook-secret-crypto.js';
 
 const ENCRYPTION_KEY = 'a]n;.2xN!@#superSecretEncKey1234567890';

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 
 describe('WorkspaceService memory scope events', () => {
   it('applies batched memory updates atomically and emits one scoped event per entry', async () => {

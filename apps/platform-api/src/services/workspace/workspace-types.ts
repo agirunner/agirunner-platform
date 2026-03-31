@@ -1,5 +1,5 @@
 import type { TenantRow } from '../../db/tenant-scoped-repository.js';
-import type { WorkspaceMemoryMutationContext } from '../workspace-memory-scope-service.js';
+import type { WorkspaceMemoryMutationContext } from './memory/workspace-memory-scope-service.js';
 
 export interface WorkspaceListQuery {
   page: number;

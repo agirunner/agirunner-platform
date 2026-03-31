@@ -4,7 +4,7 @@ import {
   configureProviderSecretEncryptionKey,
   storeProviderSecret,
 } from '../../../src/lib/oauth-crypto.js';
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 
 configureProviderSecretEncryptionKey('test-encryption-key');
 

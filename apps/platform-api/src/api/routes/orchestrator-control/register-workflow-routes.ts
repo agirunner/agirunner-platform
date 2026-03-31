@@ -1,6 +1,6 @@
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import { ValidationError } from '../../../errors/domain-errors.js';
-import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../services/workspace-memory-write-guard.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../services/workspace/memory/workspace-memory-write-guard.js';
 
 import {
   isWorkflowCreateRequestConflict,

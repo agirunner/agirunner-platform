@@ -37,7 +37,7 @@ import {
 import { WorkflowStageService } from './workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { WorkflowWorkItemControlService } from './workflow-work-item-control-service.js';
-import { WorkspaceTimelineService } from './workspace-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace/timeline/workspace-timeline-service.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import { deleteWorkflow as deleteWorkflowRecord } from './workflow-service/workflow-delete-service.js';
 import {
@@ -47,7 +47,7 @@ import {
   type WorkflowQueryDependencies,
 } from './workflow-service/workflow-query-service.js';
 import type { LogService } from '../logging/log-service.js';
-import type { WorkerConnectionHub } from './worker-connection-hub.js';
+import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
 import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
 import type {
   CreateWorkflowInput,

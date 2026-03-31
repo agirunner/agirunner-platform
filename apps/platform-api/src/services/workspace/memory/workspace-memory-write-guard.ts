@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/domain-errors.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
 
 interface WorkspaceMemoryWriteEntry {
   key: string;

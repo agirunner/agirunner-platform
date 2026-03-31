@@ -5,11 +5,11 @@ import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fas
 import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../lib/pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { WorkspacePlanningService } from '../../services/workspace-planning-service.js';
-import { WorkspaceArtifactExplorerService } from '../../services/workspace-artifact-explorer-service.js';
-import { deriveWorkspaceArtifactKey } from '../../services/workspace-artifact-file-service.js';
-import { parseWorkspaceSettingsInput } from '../../services/workspace-settings.js';
-import { WorkspaceSpecService } from '../../services/workspace-spec-service.js';
+import { WorkspacePlanningService } from '../../services/workspace/workspace-planning-service.js';
+import { WorkspaceArtifactExplorerService } from '../../services/workspace-artifact-explorer/workspace-artifact-explorer-service.js';
+import { deriveWorkspaceArtifactKey } from '../../services/workspace/artifacts/workspace-artifact-file-service.js';
+import { parseWorkspaceSettingsInput } from '../../services/workspace/workspace-settings.js';
+import { WorkspaceSpecService } from '../../services/workspace/workspace-spec-service.js';
 
 const workspaceCreateSchema = z.object({
   name: z.string().min(1).max(255),

@@ -1,10 +1,10 @@
-import { isExternalSecretReference, readProviderSecret } from '../../lib/oauth-crypto.js';
-import { ValidationError } from '../../errors/domain-errors.js';
+import { isExternalSecretReference, readProviderSecret } from '../../../lib/oauth-crypto.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
 import { normalizeWorkspaceSettings } from '../workspace-settings.js';
 import type {
   VerifyWorkspaceGitAccessInput,
   WorkspaceRow,
-} from './workspace-types.js';
+} from '../workspace-types.js';
 
 export function resolveWorkspaceGitVerificationToken(
   workspace: WorkspaceRow,

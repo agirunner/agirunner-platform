@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceService } from '../../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 
 describe('WorkspaceService model overrides', () => {
   it('rejects retired legacy model overrides during workspace updates', async () => {

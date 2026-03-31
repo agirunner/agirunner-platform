@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import { ValidationError } from '../../../errors/domain-errors.js';
-import { WorkspaceMemoryScopeService } from '../../../services/workspace-memory-scope-service.js';
+import { WorkspaceMemoryScopeService } from '../../../services/workspace/memory/workspace-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
 
 export function registerTaskPlatformMemoryReadRoutes(
