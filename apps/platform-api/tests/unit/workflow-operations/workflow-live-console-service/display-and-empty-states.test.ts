@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowLiveConsoleService } from '../../../src/services/workflow-operations/workflow-live-console-service.js';
+import { WorkflowLiveConsoleService } from '../../../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
   it('stays empty until operator headlines or briefs exist', async () => {

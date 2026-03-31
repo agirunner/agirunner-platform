@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterLiveConsoleItemsForSelectedScope } from '../../src/services/workflow-operations/workflow-live-console-scope.js';
+import { filterLiveConsoleItemsForSelectedScope } from '../../../src/services/workflow-operations/workflow-live-console-scope.js';
 
 describe('workflow live console scope', () => {
   it('excludes rows that also target a sibling task from selected-task scope', () => {

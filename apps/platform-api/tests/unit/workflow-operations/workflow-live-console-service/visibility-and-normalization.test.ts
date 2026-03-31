@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowLiveConsoleService } from '../../../src/services/workflow-operations/workflow-live-console-service.js';
+import { WorkflowLiveConsoleService } from '../../../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
   it('normalizes Date-backed execution timestamps before sorting enhanced live-console rows', async () => {

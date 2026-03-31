@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowLiveConsoleService } from '../../../src/services/workflow-operations/workflow-live-console-service.js';
+import { WorkflowLiveConsoleService } from '../../../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
   it('queries the full meaningful agent-loop phase set for enhanced live visibility', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowBriefsService } from '../../src/services/workflow-operations/workflow-briefs-service.js';
+import { WorkflowBriefsService } from '../../../src/services/workflow-operations/workflow-briefs-service.js';
 
 describe('WorkflowBriefsService', () => {
   it('builds newest-first briefs packets from persisted workflow operator briefs', async () => {

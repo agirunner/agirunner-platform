@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowLiveConsoleService } from '../../../src/services/workflow-operations/workflow-live-console-service.js';
+import { WorkflowLiveConsoleService } from '../../../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
   it('keeps uuid task-target execution turns in selected work-item scope when the board maps that task back to the work item', async () => {

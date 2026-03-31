@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowOperationsStreamService } from '../../src/services/workflow-operations/workflow-operations-stream-service.js';
+import { WorkflowOperationsStreamService } from '../../../src/services/workflow-operations/workflow-operations-stream-service.js';
 
 describe('WorkflowOperationsStreamService', () => {
   it('emits typed workspace delta packets instead of replaying legacy snapshot fragments', async () => {
