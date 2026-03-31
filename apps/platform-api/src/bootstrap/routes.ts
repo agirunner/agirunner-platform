@@ -38,7 +38,7 @@ import { workflowOperationsRoutes } from '../api/routes/workflows/operations.rou
 import { circuitBreakerRoutes } from '../api/routes/circuit-breaker.routes.js';
 import { containerRoutes } from '../api/routes/containers.routes.js';
 import { oauthRoutes } from '../api/routes/auth/oauth.routes.js';
-import { playbookRoutes } from '../api/routes/playbooks.routes.js';
+import { playbookRoutes } from '../api/routes/playbooks/playbooks.routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control/routes.js';
 import { remoteMcpServerRoutes } from '../api/routes/remote-mcp/servers.routes.js';
 import { remoteMcpOAuthClientProfileRoutes } from '../api/routes/remote-mcp/oauth-client-profiles.routes.js';
