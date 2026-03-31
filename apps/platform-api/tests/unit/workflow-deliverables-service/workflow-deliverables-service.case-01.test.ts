@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('keeps workflow scope limited to workflow-level deliverables while preserving selected work-item finals elsewhere', async () => {
+  it('keeps workflow scope inclusive of current work-item deliverables while preserving their stage', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -205,9 +205,17 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1', work_item_id: null }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-2',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+        state: 'draft',
+      }),
+    ]);
     expect(result.all_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1', work_item_id: null }),
+      expect.objectContaining({ descriptor_id: 'deliverable-2', work_item_id: 'work-item-1' }),
     ]);
     expect(result.working_handoffs).toEqual([
       expect.objectContaining({ id: 'brief-1' }),
@@ -314,4 +322,3 @@ describe('WorkflowDeliverablesService', () => {
   });
 
 });
-

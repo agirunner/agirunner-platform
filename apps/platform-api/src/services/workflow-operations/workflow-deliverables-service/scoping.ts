@@ -5,6 +5,7 @@ import {
   isDeliverableBrief,
   isDeliverableOutcomeStatus,
   isFinalDeliverable,
+  isSupersededDeliverable,
   isWorkflowScopedOrchestratorBriefLinkedToChildScope,
 } from './classification.js';
 import {
@@ -134,7 +135,11 @@ export function shouldRollUpChildScopeDeliverable(
   finalizedBriefIds: Set<string>,
   finalizedDescriptorIds: Set<string>,
 ): boolean {
-  return isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds);
+  return !isSupersededDeliverable(deliverable)
+    && (
+      readOptionalString(deliverable.work_item_id) !== null
+      || isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds)
+    );
 }
 
 export function resolveDeliverableWorkItemId(
