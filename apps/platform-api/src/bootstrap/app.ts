@@ -28,13 +28,13 @@ import { AgenticSettingsService } from '../services/agentic-settings-service.js'
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
-import { ContainerManagerExecutionEnvironmentVerifier } from '../services/container-manager-execution-environment-verifier.js';
+import { ContainerManagerExecutionEnvironmentVerifier } from '../services/execution-environment/container-manager-verifier.js';
 import { listWorkflowDocuments } from '../services/document-reference-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
-import { ExecutionEnvironmentCatalogService } from '../services/execution-environment-catalog-service.js';
-import { ExecutionEnvironmentService } from '../services/execution-environment-service.js';
-import { ExecutionEnvironmentVerificationService } from '../services/execution-environment-verification-service.js';
+import { ExecutionEnvironmentCatalogService } from '../services/execution-environment/catalog-service.js';
+import { ExecutionEnvironmentService } from '../services/execution-environment/service.js';
+import { ExecutionEnvironmentVerificationService } from '../services/execution-environment/verification-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { ApprovalQueueService } from '../services/approval-queue-service.js';

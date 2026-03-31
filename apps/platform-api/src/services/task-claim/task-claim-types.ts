@@ -8,7 +8,7 @@ import type { ExecutionContainerLeaseService } from '../execution-container-leas
 import type {
   ExecutionContainerContract,
   ExecutionEnvironmentSummary,
-} from '../execution-environment-contract.js';
+} from '../execution-environment/contract.js';
 import { EventService } from '../event-service.js';
 import type { ToolOwner } from '../tool-tag-service.js';
 

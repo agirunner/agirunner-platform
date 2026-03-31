@@ -5,7 +5,7 @@ import {
   isRecord,
   normalizeStringArray,
   type ExecutionEnvironmentSummary,
-} from '../execution-environment-contract.js';
+} from '../execution-environment/contract.js';
 import type {
   ExecutionEnvironmentJoinRow,
   RoleDefinitionQueryRow,

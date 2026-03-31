@@ -1,4 +1,4 @@
-import type { ExecutionEnvironmentSummary } from '../execution-environment-contract.js';
+import type { ExecutionEnvironmentSummary } from '../execution-environment/contract.js';
 
 export interface RoleDefinitionDbRow {
   id: string;

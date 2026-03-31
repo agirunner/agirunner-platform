@@ -6,7 +6,7 @@ import {
   buildExecutionEnvironmentAgentHint,
   normalizeStringArray,
   type ExecutionEnvironmentSummary,
-} from '../execution-environment-contract.js';
+} from '../execution-environment/contract.js';
 import {
   taskAllowsHandoffResolution,
   taskHandoffSatisfiesCompletion,

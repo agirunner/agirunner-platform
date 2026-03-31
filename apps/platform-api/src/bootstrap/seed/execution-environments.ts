@@ -1,10 +1,10 @@
 import type { DatabaseQueryable } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
-import { buildCatalogSeedVerification } from '../../services/execution-environment-baseline.js';
+import { buildCatalogSeedVerification } from '../../services/execution-environment/baseline.js';
 import {
   BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG,
   DEFAULT_EXECUTION_ENVIRONMENT_CATALOG_KEY,
-} from '../../services/execution-environment-starters.js';
+} from '../../services/execution-environment/starters.js';
 
 export async function seedExecutionEnvironmentCatalogAndDefaults(
   db: DatabaseQueryable,
