@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 
-import { agentRoutes } from '../api/routes/agents.routes.js';
+import { agentRoutes } from '../api/routes/agents/agents.routes.js';
 import { agenticSettingsRoutes } from '../api/routes/platform-config/agentic-settings.routes.js';
-import { a2aRoutes } from '../api/routes/a2a.routes.js';
-import { acpRoutes } from '../api/routes/acp.routes.js';
+import { a2aRoutes } from '../api/routes/agents/a2a.routes.js';
+import { acpRoutes } from '../api/routes/agents/acp.routes.js';
 import { approvalQueueRoutes } from '../api/routes/approval-queue.routes.js';
 import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth.routes.js';

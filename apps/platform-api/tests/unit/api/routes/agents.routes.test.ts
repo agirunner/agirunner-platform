@@ -32,7 +32,7 @@ describe('agents routes', () => {
   });
 
   it('rejects legacy capabilities on agent registration', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents.routes.js');
+    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn();
 
     app = fastify();
@@ -60,7 +60,7 @@ describe('agents routes', () => {
   });
 
   it('accepts explicit suppression of agent api key issuance', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents.routes.js');
+    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
 
     app = fastify();
@@ -93,7 +93,7 @@ describe('agents routes', () => {
   });
 
   it('accepts playbook scope on agent registration', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents.routes.js');
+    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
 
     app = fastify();

@@ -1,14 +1,14 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
 import {
   buildA2ATaskResponse,
   buildA2AStreamEvent,
   buildAgentCard,
   mapA2ATaskToCreateInput,
-} from '../../services/a2a-service.js';
+} from '../../../services/a2a-service.js';
 
 const a2aTaskSchema = z.object({
   task: z.object({
