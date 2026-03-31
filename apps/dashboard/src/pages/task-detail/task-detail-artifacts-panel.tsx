@@ -6,7 +6,7 @@ import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js
 import {
   describeArtifactPreview,
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
-} from '../../components/artifact-preview/artifact-preview-support.js';
+} from '../artifact-preview/artifact-preview-support.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 

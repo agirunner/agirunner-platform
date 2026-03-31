@@ -48,7 +48,7 @@ export const TaskDetailPage = lazyWithRetry(() =>
 );
 
 export const ArtifactPreviewPage = lazyWithRetry(() =>
-  import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({
+  import('../pages/artifact-preview/artifact-preview-page.js').then((m) => ({
     default: m.ArtifactPreviewPage,
   })),
 );

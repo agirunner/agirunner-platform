@@ -6,10 +6,10 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { dashboardApi } from '../../lib/api.js';
 import { readArtifactPreviewReturnState } from '../../lib/artifact-navigation.js';
 import { toast } from '../../lib/toast.js';
-import { Badge } from '../ui/badge.js';
-import { Button } from '../ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import {
   buildArtifactPermalink,
   describeArtifactPreview,

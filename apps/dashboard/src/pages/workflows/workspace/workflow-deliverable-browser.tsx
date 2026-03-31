@@ -7,7 +7,7 @@ import {
   formatArtifactPreviewText,
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
   renderArtifactPreviewMarkup,
-} from '../../../components/artifact-preview/artifact-preview-support.js';
+} from '../../artifact-preview/artifact-preview-support.js';
 import { dashboardApi } from '../../../lib/api.js';
 import type {
   DashboardTaskArtifactContent,
