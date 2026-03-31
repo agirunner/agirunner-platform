@@ -4,7 +4,10 @@ import {
   loginToWorkflows,
   workflowRailButton,
 } from './support/workflows-auth.js';
-import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
+import {
+  seedWorkflowsScenario,
+  setWorkflowState,
+} from './support/workflows-fixtures.js';
 
 test('restores workflow scope, selected work item, and tab state across refresh and live console', async ({ page }) => {
   await seedWorkflowsScenario();
@@ -100,4 +103,64 @@ test('humanizes orchestrator-only in-flight workflows in the rail and workspace 
 
   const stateStrip = page.locator('[data-workflows-top-strip="true"]');
   await expect(stateStrip.getByText('Orchestrating workflow setup')).toBeVisible();
+});
+
+test('keeps a selected workflow reachable when it becomes terminal under the ongoing rail filter', async ({ page }) => {
+  const scenario = await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await page.goto(`/workflows/${scenario.ongoingWorkflow.id}?lifecycle=ongoing`);
+  await expect(page).toHaveURL(new RegExp(`/workflows/${scenario.ongoingWorkflow.id}\\?lifecycle=ongoing`));
+  await expect(page.locator('h2').filter({ hasText: 'E2E Ongoing Intake' }).first()).toBeVisible();
+
+  await setWorkflowState(scenario.ongoingWorkflow.id, 'completed');
+  await page.reload();
+
+  await expect(page).toHaveURL(new RegExp(`/workflows/${scenario.ongoingWorkflow.id}\\?lifecycle=ongoing`));
+  await expect(page.locator('h2').filter({ hasText: 'E2E Ongoing Intake' }).first()).toBeVisible();
+  await expect(workflowRailButton(page, 'E2E Ongoing Intake')).toBeVisible();
+});
+
+test('restores selected work-item details after one transient workspace failure on reload', async ({ page }) => {
+  const scenario = await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await page.goto(
+    `/workflows/${scenario.needsActionWorkflow.id}?work_item_id=${scenario.needsActionWorkItem.id}&tab=details`,
+  );
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText(/what was asked/i)).toBeVisible();
+
+  const workspacePattern = new RegExp(
+    `/api/v1/operations/workflows/${scenario.needsActionWorkflow.id}/workspace(?:\\?.*)?$`,
+  );
+  let failedOnce = false;
+  await page.route(workspacePattern, async (route) => {
+    if (!failedOnce) {
+      failedOnce = true;
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: {
+            message: 'Temporary restart window',
+          },
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.reload();
+  await expect(page).toHaveURL(
+    new RegExp(
+      `/workflows/${scenario.needsActionWorkflow.id}\\?work_item_id=${scenario.needsActionWorkItem.id}&tab=details`,
+    ),
+  );
+
+  await page.reload();
+  await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText(/what was asked/i)).toBeVisible();
 });
