@@ -8,7 +8,7 @@ vi.mock('../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
-import { WorkflowActivationService } from '../../../src/services/workflow-activation-service.js';
+import { WorkflowActivationService } from '../../../src/services/workflow-activation/workflow-activation-service.js';
 
 const identity = {
   id: 'key-1',

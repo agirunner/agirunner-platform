@@ -1,11 +1,11 @@
-import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { EventService } from './event-service.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { EventService } from '../event-service.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
+} from '../safetynet/registry.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
 
 const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,

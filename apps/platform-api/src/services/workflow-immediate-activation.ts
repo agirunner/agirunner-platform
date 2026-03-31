@@ -5,7 +5,7 @@ import {
   enqueueWorkflowActivationRecord,
   isPlaybookWorkflow,
   type WorkflowActivationEventRow,
-} from './workflow-activation-record.js';
+} from './workflow-activation/workflow-activation-record.js';
 
 export interface ImmediateWorkflowActivationDispatcher {
   dispatchActivation(

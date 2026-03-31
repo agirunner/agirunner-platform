@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
-import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
+import { enqueueWorkflowActivationRecord } from './workflow-activation/workflow-activation-record.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import {
   clearStoppedRuntimeHeartbeatTasks,

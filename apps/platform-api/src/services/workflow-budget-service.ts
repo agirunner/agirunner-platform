@@ -2,7 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
-import { WorkflowActivationService } from './workflow-activation-service.js';
+import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import type { WorkflowBudgetSnapshot } from './workflow-service.types.js';
 
 type BudgetDimension = 'tokens' | 'cost' | 'duration';

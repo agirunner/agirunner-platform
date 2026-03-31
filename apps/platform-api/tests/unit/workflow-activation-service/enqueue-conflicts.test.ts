@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConflictError } from '../../../src/errors/domain-errors.js';
-import { WorkflowActivationService } from '../../../src/services/workflow-activation-service.js';
+import { WorkflowActivationService } from '../../../src/services/workflow-activation/workflow-activation-service.js';
 
 const identity = {
   id: 'key-1',

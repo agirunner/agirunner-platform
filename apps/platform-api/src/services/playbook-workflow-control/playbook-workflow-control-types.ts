@@ -4,7 +4,7 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { EventService } from '../event-service.js';
 import type { WorkflowDeliverableService } from '../workflow-deliverable-service.js';
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch-service.js';
-import type { WorkflowActivationService } from '../workflow-activation-service.js';
+import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import type { WorkflowStateService } from '../workflow-state-service.js';
 import type { WorkflowStageGateRecord } from '../workflow-stage-gate-service.js';
 import type { CompletionCallouts } from '../guided-closure/types.js';

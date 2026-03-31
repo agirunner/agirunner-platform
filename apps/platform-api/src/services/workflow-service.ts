@@ -5,7 +5,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { DestructiveDeleteService } from './destructive-delete-service.js';
-import { WorkflowActivationService } from './workflow-activation-service.js';
+import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { WorkflowCancellationService } from './workflow-cancellation-service.js';

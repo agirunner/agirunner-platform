@@ -70,7 +70,7 @@ import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
-import { WorkflowActivationService } from '../services/workflow-activation-service.js';
+import { WorkflowActivationService } from '../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
 import { WorkflowDeliverableService } from '../services/workflow-deliverable-service.js';
 import { WorkflowDeliverableHandoffService } from '../services/workflow-deliverable-handoff-service.js';

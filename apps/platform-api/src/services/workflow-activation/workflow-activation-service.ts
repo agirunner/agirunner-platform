@@ -1,9 +1,9 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { EventService } from './event-service.js';
-import { areJsonValuesEquivalent } from './json-equivalence.js';
-import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
+import { EventService } from '../event-service.js';
+import { areJsonValuesEquivalent } from '../json-equivalence.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from '../secret-redaction.js';
 import {
   enqueueWorkflowActivationRecord,
   type WorkflowActivationEventRow,

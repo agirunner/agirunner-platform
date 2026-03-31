@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
-import type { WorkflowActivationService } from './workflow-activation-service.js';
+import type { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import type { CreateWorkItemInput, WorkItemReadModel, WorkItemService } from './work-item-service.js';
 import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
 import type { WorkflowOperatorFileUploadInput } from './workflow-operator/workflow-operator-file-support.js';

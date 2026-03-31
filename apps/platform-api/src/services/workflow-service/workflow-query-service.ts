@@ -2,7 +2,7 @@ import type { DatabasePool } from '../../db/database.js';
 import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 import { activeColumnId, parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
-import type { WorkflowActivationService } from '../workflow-activation-service.js';
+import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import { buildWorkflowReadColumns } from '../workflow-read-columns.js';
 import type { ListWorkflowQuery } from '../workflow-service.types.js';
 import { deriveWorkflowStageProjection } from '../workflow-stage-projection.js';

@@ -8,7 +8,7 @@ import type { LogService } from '../logging/log-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 import { WorkspaceTimelineService } from './workspace-timeline-service.js';
-import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
+import { enqueueWorkflowActivationRecord } from './workflow-activation/workflow-activation-record.js';
 
 export class WorkflowStateService {
   constructor(
