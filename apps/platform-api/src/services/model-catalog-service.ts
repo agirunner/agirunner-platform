@@ -1,136 +1,51 @@
-import { z } from 'zod';
-
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { normalizeStoredProviderSecret, readProviderSecret } from '../lib/oauth-crypto.js';
+import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { readProviderSecret } from '../lib/oauth-crypto.js';
 import {
   type DiscoveredModel,
   isDefaultEnabledModel,
   readNativeSearchCapability,
-  type NativeSearchCapability,
 } from './llm-discovery-service.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import {
+  attachNativeSearchCapability,
+  normalizeSecretValue,
+  parseNullableCost,
+  type AssignmentRow,
+  type ModelRow,
+  type ProviderRecord,
+  type ProviderRow,
+  type ResolvedRoleConfig,
+  readProviderTypeOrThrow,
+  sanitizeProvider,
+} from './model-catalog/model-catalog-records.js';
+import {
+  createModelSchema,
+  createProviderSchema,
+  type CreateModelInput,
+  type CreateProviderInput,
+  type UpdateModelInput,
+  type UpdateProviderInput,
+  updateModelSchema,
+  updateProviderSchema,
+} from './model-catalog/model-catalog-schemas.js';
+import {
+  findDefaultModelId,
+  findDefaultReasoningConfig,
+  upsertRuntimeDefault,
+} from './model-catalog/model-catalog-runtime-defaults.js';
 
-const createProviderSchema = z.object({
-  name: z.string().min(1).max(100),
-  baseUrl: z.string().url(),
-  apiKeySecretRef: z.string().optional(),
-  isEnabled: z.boolean().default(true),
-  rateLimitRpm: z.number().int().positive().optional(),
-  metadata: z.record(z.unknown()).default({}),
-});
-
-const updateProviderSchema = createProviderSchema.partial();
-
-const reasoningConfigSchema = z.object({
-  type: z.enum(['reasoning_effort', 'effort', 'thinking_level', 'thinking_budget']),
-  options: z.array(z.string()).optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
-  default: z.union([z.string(), z.number()]),
-}).nullable().default(null);
-
-const createModelSchema = z.object({
-  providerId: z.string().uuid(),
-  modelId: z.string().min(1).max(200),
-  contextWindow: z.number().int().positive().optional(),
-  maxOutputTokens: z.number().int().positive().optional(),
-  supportsToolUse: z.boolean().default(true),
-  supportsVision: z.boolean().default(false),
-  inputCostPerMillionUsd: z.number().nonnegative().optional(),
-  outputCostPerMillionUsd: z.number().nonnegative().optional(),
-  isEnabled: z.boolean().default(true),
-  endpointType: z.string().optional(),
-  reasoningConfig: reasoningConfigSchema,
-});
-
-const updateModelSchema = createModelSchema.partial().omit({ providerId: true });
-
-export type CreateProviderInput = z.infer<typeof createProviderSchema>;
-export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;
-export type CreateModelInput = z.infer<typeof createModelSchema>;
-export type UpdateModelInput = z.infer<typeof updateModelSchema>;
-
-interface ProviderRow {
-  [key: string]: unknown;
-  id: string;
-  tenant_id: string;
-  name: string;
-  base_url: string;
-  api_key_secret_ref: string | null;
-  is_enabled: boolean;
-  rate_limit_rpm: number | null;
-  metadata: Record<string, unknown>;
-  auth_mode: string | null;
-  oauth_config?: Record<string, unknown> | null;
-  oauth_credentials?: Record<string, unknown> | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface ProviderRecord {
-  id: string;
-  tenant_id: string;
-  name: string;
-  base_url: string;
-  auth_mode: string;
-  is_enabled: boolean;
-  rate_limit_rpm: number | null;
-  metadata: Record<string, unknown>;
-  credentials_configured: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface ModelRow {
-  [key: string]: unknown;
-  id: string;
-  tenant_id: string;
-  provider_id: string;
-  model_id: string;
-  context_window: number | null;
-  max_output_tokens: number | null;
-  supports_tool_use: boolean;
-  supports_vision: boolean;
-  input_cost_per_million_usd: string | null;
-  output_cost_per_million_usd: string | null;
-  is_enabled: boolean;
-  endpoint_type: string | null;
-  reasoning_config: Record<string, unknown> | null;
-  native_search?: NativeSearchCapability | null;
-  created_at: Date;
-  provider_name: string | null;
-  auth_mode: string | null;
-}
-
-interface AssignmentRow {
-  [key: string]: unknown;
-  id: string;
-  tenant_id: string;
-  role_name: string;
-  primary_model_id: string | null;
-  reasoning_config: Record<string, unknown> | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-interface ResolvedCatalogModel {
-  id: string;
-  modelId: string;
-  providerId: string;
-  providerName: string;
-  providerBaseUrl: string;
-  contextWindow: number | null;
-  maxOutputTokens: number | null;
-  supportsToolUse: boolean;
-  supportsVision: boolean;
-  endpointType: string | null;
-  reasoningConfig: Record<string, unknown> | null;
-  inputCostPerMillionUsd?: number | null;
-  outputCostPerMillionUsd?: number | null;
-  nativeSearch?: NativeSearchCapability | null;
-}
+export type {
+  AssignmentRow,
+  CreateModelInput,
+  CreateProviderInput,
+  ModelRow,
+  ProviderRecord,
+  ProviderRow,
+  ResolvedRoleConfig,
+  UpdateModelInput,
+  UpdateProviderInput,
+};
 
 export class ModelCatalogService {
   constructor(private readonly pool: DatabasePool) {}
@@ -338,8 +253,8 @@ export class ModelCatalogService {
   async getSystemDefault(
     tenantId: string,
   ): Promise<{ modelId: string | null; reasoningConfig: Record<string, unknown> | null }> {
-    const modelId = await this.findDefaultModelId(tenantId);
-    const reasoningConfig = await this.findDefaultReasoningConfig(tenantId);
+    const modelId = await findDefaultModelId(this.pool, tenantId);
+    const reasoningConfig = await findDefaultReasoningConfig(this.pool, tenantId);
     return { modelId, reasoningConfig };
   }
 
@@ -348,8 +263,9 @@ export class ModelCatalogService {
     modelId: string | null,
     reasoningConfig: Record<string, unknown> | null,
   ): Promise<void> {
-    await this.upsertRuntimeDefault(tenantId, 'default_model_id', modelId);
-    await this.upsertRuntimeDefault(
+    await upsertRuntimeDefault(this.pool, tenantId, 'default_model_id', modelId);
+    await upsertRuntimeDefault(
+      this.pool,
       tenantId,
       'default_reasoning_config',
       reasoningConfig ? JSON.stringify(reasoningConfig) : null,
@@ -454,7 +370,7 @@ export class ModelCatalogService {
     const assignment = await this.findAssignment(tenantId, roleName);
     if (assignment?.primary_model_id) return assignment.primary_model_id;
 
-    return this.findDefaultModelId(tenantId);
+    return findDefaultModelId(this.pool, tenantId);
   }
 
   private async findAssignment(
@@ -469,61 +385,6 @@ export class ModelCatalogService {
       [roleName],
     );
     return rows[0] ?? null;
-  }
-
-  private async findDefaultModelId(tenantId: string): Promise<string | null> {
-    return this.getRuntimeDefault(tenantId, 'default_model_id');
-  }
-
-  private async findDefaultReasoningConfig(
-    tenantId: string,
-  ): Promise<Record<string, unknown> | null> {
-    const raw = await this.getRuntimeDefault(tenantId, 'default_reasoning_config');
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-        throw new ValidationError('Runtime default "default_reasoning_config" must be valid JSON object');
-      }
-      return parsed as Record<string, unknown>;
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError('Runtime default "default_reasoning_config" must be valid JSON object');
-    }
-  }
-
-  private async getRuntimeDefault(tenantId: string, key: string): Promise<string | null> {
-    const repo = new TenantScopedRepository(this.pool, tenantId);
-    const rows = await repo.findAll<{ config_value: string; [key: string]: unknown; tenant_id: string }>(
-      'runtime_defaults',
-      'config_value',
-      ['config_key = $2'],
-      [key],
-    );
-    return rows[0]?.config_value ?? null;
-  }
-
-  private async upsertRuntimeDefault(
-    tenantId: string,
-    key: string,
-    value: string | null,
-  ): Promise<void> {
-    if (value === null) {
-      await this.pool.query(
-        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2',
-        [tenantId, key],
-      );
-    } else {
-      await this.pool.query(
-        `INSERT INTO runtime_defaults (tenant_id, config_key, config_value, config_type)
-         VALUES ($1, $2, $3, 'string')
-         ON CONFLICT (tenant_id, config_key)
-         DO UPDATE SET config_value = $3, updated_at = NOW()`,
-        [tenantId, key, value],
-      );
-    }
   }
 
   private async clearDeletedModelReferences(tenantId: string, modelIds: string[]): Promise<void> {
@@ -558,7 +419,7 @@ export class ModelCatalogService {
     const provider = await this.getStoredProvider(tenantId, model.provider_id);
     const assignment = await this.findAssignment(tenantId, roleName);
 
-    const systemDefaultReasoning = await this.findDefaultReasoningConfig(tenantId);
+    const systemDefaultReasoning = await findDefaultReasoningConfig(this.pool, tenantId);
     const reasoningConfig = assignment?.reasoning_config
       ?? systemDefaultReasoning
       ?? null;
@@ -607,147 +468,4 @@ export class ModelCatalogService {
     return row;
   }
 
-  private async getModelWithProvider(
-    tenantId: string,
-    modelId: string,
-  ): Promise<ResolvedCatalogModel> {
-    const result = await this.pool.query<
-      ModelRow & {
-        provider_name: string;
-        provider_base_url: string;
-      }
-    >(
-      `SELECT m.*,
-              p.name AS provider_name,
-              p.base_url AS provider_base_url
-         FROM llm_models m
-         JOIN llm_providers p
-           ON p.id = m.provider_id
-        WHERE m.tenant_id = $1
-          AND m.id = $2
-          AND m.is_enabled = true
-          AND p.is_enabled = true
-        LIMIT 1`,
-      [tenantId, modelId],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('LLM model not found');
-    }
-
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      modelId: row.model_id,
-      providerId: row.provider_id,
-      providerName: row.provider_name,
-      providerBaseUrl: row.provider_base_url,
-      contextWindow: row.context_window,
-      maxOutputTokens: row.max_output_tokens,
-      supportsToolUse: row.supports_tool_use,
-      supportsVision: row.supports_vision,
-      endpointType: row.endpoint_type,
-      reasoningConfig: row.reasoning_config,
-      inputCostPerMillionUsd: parseNullableCost(row.input_cost_per_million_usd),
-      outputCostPerMillionUsd: parseNullableCost(row.output_cost_per_million_usd),
-      nativeSearch: readNativeSearchCapability(row.model_id),
-    };
-  }
-}
-
-export interface ResolvedRoleConfig {
-  provider: {
-    name: string;
-    providerType: string;
-    baseUrl: string;
-    apiKeySecretRef: string | null;
-    authMode: string;
-    providerId: string | null;
-  };
-  model: {
-    modelId: string;
-    contextWindow: number | null;
-    maxOutputTokens: number | null;
-    endpointType: string | null;
-    reasoningConfig: Record<string, unknown> | null;
-    inputCostPerMillionUsd?: number | null;
-    outputCostPerMillionUsd?: number | null;
-  };
-  reasoningConfig: Record<string, unknown> | null;
-  nativeSearch?: NativeSearchCapability | null;
-}
-
-function attachNativeSearchCapability(model: ModelRow): ModelRow {
-  return {
-    ...model,
-    native_search: readNativeSearchCapability(model.model_id),
-  };
-}
-
-function parseNullableCost(value: string | number | null | undefined): number | null {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
-  }
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return null;
-  }
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeSecretValue(value?: string | null) {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-  return normalizeStoredProviderSecret(trimmed);
-}
-
-function serializeProviderSecret(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-  return normalizeStoredProviderSecret(value);
-}
-
-function sanitizeProvider(provider: ProviderRow): ProviderRecord {
-  return {
-    id: provider.id,
-    tenant_id: provider.tenant_id,
-    name: provider.name,
-    base_url: provider.base_url,
-    auth_mode: provider.auth_mode ?? 'api_key',
-    is_enabled: provider.is_enabled,
-    rate_limit_rpm: provider.rate_limit_rpm,
-    metadata: sanitizeProviderMetadata(provider.metadata),
-    credentials_configured: Boolean(provider.api_key_secret_ref || provider.oauth_credentials),
-    created_at: provider.created_at,
-    updated_at: provider.updated_at,
-  };
-}
-
-function sanitizeProviderMetadata(value: unknown): Record<string, unknown> {
-  return sanitizeSecretLikeRecord(value, {
-    redactionValue: 'redacted://provider-metadata-secret',
-    allowSecretReferences: false,
-  });
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-  return value as Record<string, unknown>;
-}
-
-function readProviderTypeOrThrow(metadata: unknown, providerName: string): string {
-  const providerType = asRecord(metadata).providerType;
-  if (typeof providerType === 'string' && providerType.trim().length > 0) {
-    return providerType.trim();
-  }
-  throw new ValidationError(
-    `Provider "${providerName}" is missing providerType metadata. Re-save the provider on the LLM Providers page before using it for execution.`,
-    {
-      provider_name: providerName,
-    },
-  );
 }
