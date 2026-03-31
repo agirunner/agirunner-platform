@@ -244,6 +244,7 @@ export class WorkflowWorkspaceService {
       normalizedLiveConsole,
       selectedScope,
       readBoardWorkItemIds(board as Record<string, unknown>),
+      buildBoardTaskToWorkItemMap(board as Record<string, unknown>),
     );
     const bottomTabs = buildBottomTabs(
       needsAction.total_count,
@@ -825,6 +826,7 @@ function filterLiveConsoleForSelectedScope(
   packet: WorkflowWorkspacePacket['live_console'],
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
   workflowWorkItemIds: string[],
+  workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
 ): WorkflowWorkspacePacket['live_console'] {
   if (selectedScope.scope_kind === 'workflow') {
     return packet;
@@ -832,7 +834,12 @@ function filterLiveConsoleForSelectedScope(
   if (packet.scope_filtered) {
     return packet;
   }
-  const filteredItems = filterLiveConsoleItemsForSelectedScope(packet.items, selectedScope, workflowWorkItemIds);
+  const filteredItems = filterLiveConsoleItemsForSelectedScope(
+    packet.items,
+    selectedScope,
+    workflowWorkItemIds,
+    workflowTaskToWorkItemIds,
+  );
   const counts = buildWorkflowLiveConsoleCounts(filteredItems);
   if (
     filteredItems.length === packet.items.length
@@ -863,6 +870,26 @@ function normalizeLiveConsolePacketForVisibleRows(
     total_count: counts.all,
     counts,
   };
+}
+
+function buildBoardTaskToWorkItemMap(board: Record<string, unknown>): Map<string, string> {
+  const taskToWorkItemIds = new Map<string, string>();
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  for (const rawWorkItem of workItems) {
+    const workItem = asRecord(rawWorkItem);
+    const workItemId = readOptionalString(workItem.id);
+    if (!workItemId) {
+      continue;
+    }
+    const tasks = Array.isArray(workItem.tasks) ? workItem.tasks : [];
+    for (const rawTask of tasks) {
+      const taskId = readOptionalString(asRecord(rawTask).id);
+      if (taskId) {
+        taskToWorkItemIds.set(taskId, workItemId);
+      }
+    }
+  }
+  return taskToWorkItemIds;
 }
 
 function mergeSteeringMessagesIntoLiveConsole(

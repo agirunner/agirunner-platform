@@ -52,6 +52,56 @@ describe('workflow live console scope', () => {
     expect(result.map((item) => item.item_id)).toEqual(['cross-task-shared']);
   });
 
+  it('keeps task-bound rows visible at selected work-item scope when the task belongs to that work item', () => {
+    const items = [
+      createItem({
+        item_id: 'task-bound-row',
+        work_item_id: null,
+        task_id: 'task-1',
+        linked_target_ids: ['workflow-1', 'task-1'],
+        scope_binding: 'execution_context',
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_work_item',
+        work_item_id: 'work-item-1',
+        task_id: null,
+      },
+      ['work-item-1'],
+      new Map([['task-1', 'work-item-1']]),
+    );
+
+    expect(result.map((item) => item.item_id)).toEqual(['task-bound-row']);
+  });
+
+  it('excludes task-bound rows at selected work-item scope when the task belongs to a sibling work item', () => {
+    const items = [
+      createItem({
+        item_id: 'sibling-task-row',
+        work_item_id: null,
+        task_id: 'task-2',
+        linked_target_ids: ['workflow-1', 'task-2'],
+        scope_binding: 'execution_context',
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_work_item',
+        work_item_id: 'work-item-1',
+        task_id: null,
+      },
+      ['work-item-1', 'work-item-2'],
+      new Map([['task-2', 'work-item-2']]),
+    );
+
+    expect(result).toEqual([]);
+  });
+
   it('keeps milestone briefs that explicitly target the selected work item even when they also reference a predecessor work item', () => {
     const items = [
       createItem({
