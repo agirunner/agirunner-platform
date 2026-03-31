@@ -61,7 +61,10 @@ describe('playbook authoring support', () => {
           process_instructions: draft.process_instructions,
           parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
           stages: expect.arrayContaining([
-            expect.objectContaining({ name: 'plan', goal: 'Clarify the objective and execution path.' }),
+            expect.objectContaining({
+              name: 'plan',
+              goal: 'Clarify the objective and execution path.',
+            }),
             expect.objectContaining({
               name: 'deliver',
               guidance: 'Seek review and approval when the release packet is ready.',
@@ -81,7 +84,8 @@ describe('playbook authoring support', () => {
 
   it('hydrates authoring drafts from stages and process instructions', () => {
     const draft = hydratePlaybookAuthoringDraft('planned', {
-      process_instructions: 'Use the stages as milestones and request human approval before release.',
+      process_instructions:
+        'Use the stages as milestones and request human approval before release.',
       roles: ['architect', 'developer'],
       stages: [{ name: 'design', goal: 'Plan the solution.', guidance: 'Capture decisions.' }],
       board: {
@@ -124,9 +128,9 @@ describe('playbook authoring support', () => {
     expect(draft.columns.filter((column) => column.is_blocked).map((column) => column.id)).toEqual([
       'blocked_a',
     ]);
-    expect(draft.columns.filter((column) => column.is_terminal).map((column) => column.id)).toEqual([
-      'done',
-    ]);
+    expect(draft.columns.filter((column) => column.is_terminal).map((column) => column.id)).toEqual(
+      ['done'],
+    );
     expect(draft.entry_column_id).toBe('planned');
     expect(validateBoardColumnsDraft(draft.columns, draft.entry_column_id).isValid).toBe(true);
   });
@@ -209,7 +213,9 @@ describe('playbook authoring support', () => {
       expect.objectContaining({
         ok: true,
         value: expect.objectContaining({
-          process_instructions: expect.stringContaining('Mandatory: produce a publishable release packet'),
+          process_instructions: expect.stringContaining(
+            'Mandatory: produce a publishable release packet',
+          ),
         }),
       }),
     );
@@ -233,10 +239,13 @@ describe('playbook authoring support', () => {
 
   it('requires exactly one blocked lane and one terminal lane', () => {
     expect(
-      validateBoardColumnsDraft([
-        { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
-        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
-      ], 'inbox'),
+      validateBoardColumnsDraft(
+        [
+          { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
+          { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+        ],
+        'inbox',
+      ),
     ).toEqual(
       expect.objectContaining({
         isValid: false,
@@ -245,11 +254,20 @@ describe('playbook authoring support', () => {
     );
 
     expect(
-      validateBoardColumnsDraft([
-        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
-        { id: 'blocked', label: 'Blocked', description: '', is_blocked: true, is_terminal: false },
-        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
-      ], 'inbox'),
+      validateBoardColumnsDraft(
+        [
+          { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+          {
+            id: 'blocked',
+            label: 'Blocked',
+            description: '',
+            is_blocked: true,
+            is_terminal: false,
+          },
+          { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+        ],
+        'inbox',
+      ),
     ).toEqual(
       expect.objectContaining({
         isValid: false,
@@ -258,10 +276,13 @@ describe('playbook authoring support', () => {
     );
 
     expect(
-      validateBoardColumnsDraft([
-        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
-        { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
-      ], 'active'),
+      validateBoardColumnsDraft(
+        [
+          { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+          { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
+        ],
+        'active',
+      ),
     ).toEqual(
       expect.objectContaining({
         isValid: false,
@@ -272,26 +293,36 @@ describe('playbook authoring support', () => {
 
   it('rejects intake lanes that point at blocked or terminal columns', () => {
     expect(
-      validateBoardColumnsDraft([
-        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
-        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
-      ], 'inbox'),
+      validateBoardColumnsDraft(
+        [
+          { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+          { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+        ],
+        'inbox',
+      ),
     ).toEqual(
       expect.objectContaining({
         isValid: false,
-        blockingIssues: expect.arrayContaining(['Choose an intake lane that is not blocked or terminal.']),
+        blockingIssues: expect.arrayContaining([
+          'Choose an intake lane that is not blocked or terminal.',
+        ]),
       }),
     );
 
     expect(
-      validateBoardColumnsDraft([
-        { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
-        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
-      ], 'done'),
+      validateBoardColumnsDraft(
+        [
+          { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
+          { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+        ],
+        'done',
+      ),
     ).toEqual(
       expect.objectContaining({
         isValid: false,
-        blockingIssues: expect.arrayContaining(['Choose an intake lane that is not blocked or terminal.']),
+        blockingIssues: expect.arrayContaining([
+          'Choose an intake lane that is not blocked or terminal.',
+        ]),
       }),
     );
   });

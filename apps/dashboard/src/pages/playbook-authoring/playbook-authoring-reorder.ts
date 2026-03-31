@@ -29,11 +29,7 @@ export function moveDraftItem<T>(
   return next;
 }
 
-export function spliceDraftItem<T>(
-  items: readonly T[],
-  fromIndex: number,
-  toIndex: number,
-): T[] {
+export function spliceDraftItem<T>(items: readonly T[], fromIndex: number, toIndex: number): T[] {
   if (
     fromIndex < 0 ||
     toIndex < 0 ||

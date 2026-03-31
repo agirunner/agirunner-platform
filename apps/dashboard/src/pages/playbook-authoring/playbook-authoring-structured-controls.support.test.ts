@@ -58,8 +58,18 @@ describe('playbook authoring structured controls support', () => {
 
   it('validates duplicate keys and invalid typed values', () => {
     const duplicateObjectEntries = [
-      { ...createStructuredParameterEntry(), key: 'branch', valueType: 'string' as const, value: 'main' },
-      { ...createStructuredParameterEntry(), key: 'Branch', valueType: 'number' as const, value: 'NaN' },
+      {
+        ...createStructuredParameterEntry(),
+        key: 'branch',
+        valueType: 'string' as const,
+        value: 'main',
+      },
+      {
+        ...createStructuredParameterEntry(),
+        key: 'Branch',
+        valueType: 'number' as const,
+        value: 'NaN',
+      },
     ];
 
     expect(validateStructuredParameterEntries('object', duplicateObjectEntries)).toEqual({
@@ -77,13 +87,33 @@ describe('playbook authoring structured controls support', () => {
 
   it('serializes valid structured entries into persisted json defaults', () => {
     const objectEntries = [
-      { ...createStructuredParameterEntry(), key: 'branch', valueType: 'string' as const, value: 'main' },
-      { ...createStructuredParameterEntry(), key: 'attempts', valueType: 'number' as const, value: '3' },
-      { ...createStructuredParameterEntry(), key: 'enabled', valueType: 'boolean' as const, value: 'true' },
+      {
+        ...createStructuredParameterEntry(),
+        key: 'branch',
+        valueType: 'string' as const,
+        value: 'main',
+      },
+      {
+        ...createStructuredParameterEntry(),
+        key: 'attempts',
+        valueType: 'number' as const,
+        value: '3',
+      },
+      {
+        ...createStructuredParameterEntry(),
+        key: 'enabled',
+        valueType: 'boolean' as const,
+        value: 'true',
+      },
     ];
     const arrayEntries = [
       { ...createStructuredParameterEntry(), key: '', valueType: 'string' as const, value: 'main' },
-      { ...createStructuredParameterEntry(), key: '', valueType: 'json' as const, value: '{"branch":"release"}' },
+      {
+        ...createStructuredParameterEntry(),
+        key: '',
+        valueType: 'json' as const,
+        value: '{"branch":"release"}',
+      },
     ];
 
     expect(serializeStructuredParameterEntries('object', objectEntries)).toBe(

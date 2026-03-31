@@ -209,10 +209,7 @@ function shouldValidateStructuredEntry(
   return value.length > 0 || entry.valueType !== 'string';
 }
 
-function shouldIncludeStructuredEntry(
-  valueType: string,
-  entry: StructuredParameterEntry,
-): boolean {
+function shouldIncludeStructuredEntry(valueType: string, entry: StructuredParameterEntry): boolean {
   const key = entry.key.trim();
   const value = entry.value.trim();
   if (valueType === 'object') {
@@ -251,10 +248,7 @@ function readStructuredValueError(
   }
 }
 
-function parseStructuredValue(
-  valueType: StructuredParameterValueType,
-  value: string,
-): unknown {
+function parseStructuredValue(valueType: StructuredParameterValueType, value: string): unknown {
   if (valueType === 'number') {
     return Number(value);
   }
@@ -294,7 +288,5 @@ function findDuplicateKeys(entries: StructuredParameterEntry[]): Set<string> {
   const normalized = entries
     .map((entry) => entry.key.trim().toLowerCase())
     .filter((value) => value.length > 0);
-  return new Set(
-    normalized.filter((value, index) => normalized.indexOf(value) !== index),
-  );
+  return new Set(normalized.filter((value, index) => normalized.indexOf(value) !== index));
 }

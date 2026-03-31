@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './playbook-authoring-form-sections.tsx',
+    './playbook-authoring-form-sections.core.tsx',
+    './playbook-authoring-form-sections.advanced.tsx',
+    './playbook-authoring-form-sections.shared.tsx',
     './playbook-authoring-structured-controls.tsx',
+    './playbook-authoring-structured-choice-controls.tsx',
+    './playbook-authoring-structured-parameter-editor.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -32,8 +37,12 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('Add Role');
     expect(source).not.toContain('Remove Role');
     expect(source).not.toContain('Select a role definition');
-    expect(source).not.toContain('Playbooks use active role definitions from the shared workspace configuration.');
-    expect(source).toContain('Each launch input declares one workflow goal that operators can provide when the workflow starts.');
+    expect(source).not.toContain(
+      'Playbooks use active role definitions from the shared workspace configuration.',
+    );
+    expect(source).toContain(
+      'Each launch input declares one workflow goal that operators can provide when the workflow starts.',
+    );
     expect(source).toContain('Slug');
     expect(source).toContain('Title');
     expect(source).toContain('Required');
@@ -68,7 +77,9 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Max active tasks per work item');
     expect(source).toContain('placeholder="No cap"');
     expect(source).toContain('<SelectValue placeholder="Default (Enabled)" />');
-    expect(source).toContain('<SelectItem value={ORCHESTRATION_POLICY_UNSET}>Default (Enabled)</SelectItem>');
+    expect(source).toContain(
+      '<SelectItem value={ORCHESTRATION_POLICY_UNSET}>Default (Enabled)</SelectItem>',
+    );
     expect(source).toContain('<SelectItem value="true">Enabled</SelectItem>');
     expect(source).toContain('<SelectItem value="false">Disabled</SelectItem>');
     expect(source).toContain('Leave fields blank to inherit the defaults: rework iterations `10`');

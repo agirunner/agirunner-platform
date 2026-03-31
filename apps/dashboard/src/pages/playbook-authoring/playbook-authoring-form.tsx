@@ -49,7 +49,12 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
       ...workflowRuleValidation.blockingIssues,
       ...validateParameterDrafts(props.draft.parameters).blockingIssues,
     ]);
-  }, [props.draft.parameters, props.onValidationChange, roleValidation.blockingIssues, workflowRuleValidation.blockingIssues]);
+  }, [
+    props.draft.parameters,
+    props.onValidationChange,
+    roleValidation.blockingIssues,
+    workflowRuleValidation.blockingIssues,
+  ]);
 
   return (
     <div className="grid gap-5">
