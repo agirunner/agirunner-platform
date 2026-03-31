@@ -16,7 +16,7 @@ import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-s
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service/task-write-service.js';
-import { OrchestratorGrantService } from './orchestrator-grant-service.js';
+import { OrchestratorGrantService } from './orchestrator/orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition/role-definition-service.js';
 import { PlaybookTaskParallelismService } from './playbook/playbook-task-parallelism-service.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';

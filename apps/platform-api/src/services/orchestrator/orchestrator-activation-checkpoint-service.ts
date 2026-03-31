@@ -1,4 +1,4 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
 export interface OrchestratorActivationCheckpoint {
   activation_id?: string | null;

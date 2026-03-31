@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { OrchestratorActivationCheckpointService } from '../../../src/services/orchestrator-activation-checkpoint-service.js';
+import { OrchestratorActivationCheckpointService } from '../../../src/services/orchestrator/orchestrator-activation-checkpoint-service.js';
 
 describe('OrchestratorActivationCheckpointService', () => {
   it('persists the latest activation checkpoint without clobbering unrelated metadata', async () => {

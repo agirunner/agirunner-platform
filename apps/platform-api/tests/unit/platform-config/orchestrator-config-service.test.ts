@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { OrchestratorConfigService } from '../../../src/services/orchestrator-config-service.js';
+import { OrchestratorConfigService } from '../../../src/services/orchestrator/orchestrator-config-service.js';
 
 function createMockPool() {
   return { query: vi.fn() };

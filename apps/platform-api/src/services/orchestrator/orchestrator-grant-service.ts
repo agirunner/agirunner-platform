@@ -1,7 +1,7 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { EventService } from './event/event-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { EventService } from '../event/event-service.js';
 
 const SUBTASK_PERMISSION = 'create_subtasks';
 
