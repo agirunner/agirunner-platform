@@ -1,0 +1,156 @@
+import { lazy } from 'react';
+import type { ComponentType } from 'react';
+
+export function lazyWithRetry<T extends ComponentType<unknown>>(
+  factory: () => Promise<{ default: T }>,
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    factory().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isChunkLoadError(message)) throw error;
+
+      const reloadKey = 'chunk_reload_ts';
+      const lastReload = Number(sessionStorage.getItem(reloadKey) ?? '0');
+      if (Date.now() - lastReload < 10_000) throw error;
+
+      sessionStorage.setItem(reloadKey, String(Date.now()));
+      window.location.reload();
+      return new Promise<never>(() => {});
+    }),
+  );
+}
+
+export function isChunkLoadError(message: string): boolean {
+  return (
+    message.includes('Failed to fetch dynamically imported module') ||
+    message.includes('Loading chunk') ||
+    message.includes('Loading CSS chunk') ||
+    message.includes('error loading dynamically imported module')
+  );
+}
+
+export function PageFallback(): JSX.Element {
+  return <div className="flex items-center justify-center p-12 text-muted">Loading...</div>;
+}
+
+export const LoginPage = lazyWithRetry(() =>
+  import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })),
+);
+
+export const WorkflowsPage = lazyWithRetry(() =>
+  import('../pages/workflows/workflows-page.js').then((m) => ({
+    default: m.WorkflowsPage,
+  })),
+);
+
+export const TaskDetailPage = lazyWithRetry(() =>
+  import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })),
+);
+
+export const ArtifactPreviewPage = lazyWithRetry(() =>
+  import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({
+    default: m.ArtifactPreviewPage,
+  })),
+);
+
+export const WorkspaceListPage = lazyWithRetry(() =>
+  import('../pages/workspace-list/workspace-list-page.js').then((m) => ({
+    default: m.WorkspaceListPage,
+  })),
+);
+
+export const WorkspaceDetailPage = lazyWithRetry(() =>
+  import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({
+    default: m.WorkspaceDetailPage,
+  })),
+);
+
+export const RoleDefinitionsPage = lazyWithRetry(() =>
+  import('../pages/role-definitions/role-definitions-page.js').then((m) => ({
+    default: m.RoleDefinitionsPage,
+  })),
+);
+
+export const SkillsPage = lazyWithRetry(() =>
+  import('../pages/skills/skills-page.js').then((m) => ({ default: m.SkillsPage })),
+);
+
+export const OrchestratorPage = lazyWithRetry(() =>
+  import('../pages/orchestrator/orchestrator-page.js').then((m) => ({
+    default: m.OrchestratorPage,
+  })),
+);
+
+export const LlmProvidersPage = lazyWithRetry(() =>
+  import('../pages/llm-providers/llm-providers-page.js').then((m) => ({
+    default: m.LlmProvidersPage,
+  })),
+);
+
+export const RuntimesPage = lazyWithRetry(() =>
+  import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })),
+);
+
+export const ExecutionEnvironmentsPage = lazyWithRetry(() =>
+  import('../pages/execution-environments/execution-environments-page.js').then((m) => ({
+    default: m.ExecutionEnvironmentsPage,
+  })),
+);
+
+export const PlatformSettingsPage = lazyWithRetry(() =>
+  import('../pages/platform-settings/platform-settings-page.js').then((m) => ({
+    default: m.PlatformSettingsPage,
+  })),
+);
+
+export const PlatformInstructionsPage = lazyWithRetry(() =>
+  import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({
+    default: m.PlatformInstructionsPage,
+  })),
+);
+
+export const PlaybookListPage = lazyWithRetry(() =>
+  import('../pages/playbook-list/playbook-list-page.js').then((m) => ({
+    default: m.PlaybookListPage,
+  })),
+);
+
+export const PlaybookDetailPage = lazyWithRetry(() =>
+  import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({
+    default: m.PlaybookDetailPage,
+  })),
+);
+
+export const ToolsPage = lazyWithRetry(() =>
+  import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })),
+);
+
+export const WebhooksPage = lazyWithRetry(() =>
+  import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })),
+);
+
+export const WorkItemTriggersPage = lazyWithRetry(() =>
+  import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({
+    default: m.WorkItemTriggersPage,
+  })),
+);
+
+export const McpPage = lazyWithRetry(() =>
+  import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })),
+);
+
+export const ContainersPage = lazyWithRetry(() =>
+  import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })),
+);
+
+export const ApiKeyPage = lazyWithRetry(() =>
+  import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })),
+);
+
+export const SettingsPage = lazyWithRetry(() =>
+  import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })),
+);
+
+export const LogsPage = lazyWithRetry(() =>
+  import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })),
+);

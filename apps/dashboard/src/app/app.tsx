@@ -1,5 +1,5 @@
-import { Component, lazy, Suspense, useEffect } from 'react';
-import type { ComponentType, ErrorInfo, ReactNode } from 'react';
+import { Component, Suspense, useEffect } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import {
   Navigate,
   Outlet,
@@ -25,155 +25,37 @@ import {
 } from '../pages/workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
 
+import {
+  ApiKeyPage,
+  ArtifactPreviewPage,
+  ContainersPage,
+  ExecutionEnvironmentsPage,
+  isChunkLoadError,
+  LoginPage,
+  LogsPage,
+  LlmProvidersPage,
+  McpPage,
+  OrchestratorPage,
+  PageFallback,
+  PlatformInstructionsPage,
+  PlatformSettingsPage,
+  PlaybookDetailPage,
+  PlaybookListPage,
+  RoleDefinitionsPage,
+  RuntimesPage,
+  SettingsPage,
+  SkillsPage,
+  TaskDetailPage,
+  ToolsPage,
+  WebhooksPage,
+  WorkflowsPage,
+  WorkItemTriggersPage,
+  WorkspaceDetailPage,
+  WorkspaceListPage,
+} from './app-page-loaders.js';
 import { applyTheme, readTheme } from './theme.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-/* ── Chunk-resilient lazy loader ──────────────────────────────────────── */
-
-/**
- * Wraps React.lazy with automatic retry on chunk load failures.
- * When Vite rebuilds, old chunk hashes become stale. This catches the
- * resulting import error and reloads the page once to pick up the new manifest.
- */
-function lazyWithRetry<T extends ComponentType<unknown>>(
-  factory: () => Promise<{ default: T }>,
-): React.LazyExoticComponent<T> {
-  return lazy(() =>
-    factory().catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!isChunkLoadError(message)) throw error;
-
-      const reloadKey = 'chunk_reload_ts';
-      const lastReload = Number(sessionStorage.getItem(reloadKey) ?? '0');
-      if (Date.now() - lastReload < 10_000) throw error;
-
-      sessionStorage.setItem(reloadKey, String(Date.now()));
-      window.location.reload();
-      return new Promise<never>(() => {});
-    }),
-  );
-}
-
-function isChunkLoadError(message: string): boolean {
-  return (
-    message.includes('Failed to fetch dynamically imported module') ||
-    message.includes('Loading chunk') ||
-    message.includes('Loading CSS chunk') ||
-    message.includes('error loading dynamically imported module')
-  );
-}
-
-/* ── Lazy page imports ────────────────────────────────────────────────── */
-
-const LoginPage = lazyWithRetry(() =>
-  import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })),
-);
-
-const WorkflowsPage = lazyWithRetry(() =>
-  import('../pages/workflows/workflows-page.js').then((m) => ({
-    default: m.WorkflowsPage,
-  })),
-);
-
-const TaskDetailPage = lazyWithRetry(() =>
-  import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })),
-);
-const ArtifactPreviewPage = lazyWithRetry(() =>
-  import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({
-    default: m.ArtifactPreviewPage,
-  })),
-);
-
-const WorkspaceListPage = lazyWithRetry(() =>
-  import('../pages/workspace-list/workspace-list-page.js').then((m) => ({
-    default: m.WorkspaceListPage,
-  })),
-);
-const WorkspaceDetailPage = lazyWithRetry(() =>
-  import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({
-    default: m.WorkspaceDetailPage,
-  })),
-);
-
-const RoleDefinitionsPage = lazyWithRetry(() =>
-  import('../pages/role-definitions/role-definitions-page.js').then((m) => ({
-    default: m.RoleDefinitionsPage,
-  })),
-);
-const SkillsPage = lazyWithRetry(() =>
-  import('../pages/skills/skills-page.js').then((m) => ({ default: m.SkillsPage })),
-);
-const OrchestratorPage = lazyWithRetry(() =>
-  import('../pages/orchestrator/orchestrator-page.js').then((m) => ({
-    default: m.OrchestratorPage,
-  })),
-);
-const LlmProvidersPage = lazyWithRetry(() =>
-  import('../pages/llm-providers/llm-providers-page.js').then((m) => ({
-    default: m.LlmProvidersPage,
-  })),
-);
-const RuntimesPage = lazyWithRetry(() =>
-  import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })),
-);
-const ExecutionEnvironmentsPage = lazyWithRetry(() =>
-  import('../pages/execution-environments/execution-environments-page.js').then((m) => ({
-    default: m.ExecutionEnvironmentsPage,
-  })),
-);
-const PlatformSettingsPage = lazyWithRetry(() =>
-  import('../pages/platform-settings/platform-settings-page.js').then((m) => ({
-    default: m.PlatformSettingsPage,
-  })),
-);
-const PlatformInstructionsPage = lazyWithRetry(() =>
-  import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({
-    default: m.PlatformInstructionsPage,
-  })),
-);
-const PlaybookListPage = lazyWithRetry(() =>
-  import('../pages/playbook-list/playbook-list-page.js').then((m) => ({
-    default: m.PlaybookListPage,
-  })),
-);
-const PlaybookDetailPage = lazyWithRetry(() =>
-  import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({
-    default: m.PlaybookDetailPage,
-  })),
-);
-const ToolsPage = lazyWithRetry(() =>
-  import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })),
-);
-const WebhooksPage = lazyWithRetry(() =>
-  import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })),
-);
-const WorkItemTriggersPage = lazyWithRetry(() =>
-  import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({
-    default: m.WorkItemTriggersPage,
-  })),
-);
-const McpPage = lazyWithRetry(() =>
-  import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })),
-);
-
-const ContainersPage = lazyWithRetry(() =>
-  import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })),
-);
-
-const ApiKeyPage = lazyWithRetry(() =>
-  import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })),
-);
-const SettingsPage = lazyWithRetry(() =>
-  import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })),
-);
-const LogsPage = lazyWithRetry(() =>
-  import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })),
-);
-
-function PageFallback(): JSX.Element {
-  return <div className="flex items-center justify-center p-12 text-muted">Loading...</div>;
-}
 
 interface ErrorBoundaryState {
   hasError: boolean;
