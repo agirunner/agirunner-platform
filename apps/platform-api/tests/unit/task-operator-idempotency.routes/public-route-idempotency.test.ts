@@ -1,9 +1,6 @@
-import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
-
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -18,8 +15,10 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
+import { buildTaskRouteApp, createTaskReplayPool } from './support.js';
+
 describe('public task operator route idempotency', () => {
-  let app: ReturnType<typeof fastify> | undefined;
+  let app: Awaited<ReturnType<typeof buildTaskRouteApp>> | undefined;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -33,7 +32,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated retry requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const retryTask = vi.fn(async () => ({
       id: 'task-retry-1',
       workflow_id: null,
@@ -69,7 +68,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated reject requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const rejectTask = vi.fn(async () => ({
       id: 'task-reject-1',
       workflow_id: null,
@@ -106,7 +105,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates request-changes aliases across rework and request-changes routes', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const requestTaskChanges = vi.fn(async () => ({
       id: 'task-rework-1',
       workflow_id: null,
@@ -151,7 +150,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated skip requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const skipTask = vi.fn(async () => ({
       id: 'task-skip-1',
       workflow_id: null,
@@ -188,7 +187,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated reassign requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const reassignTask = vi.fn(async () => ({
       id: 'task-reassign-1',
       workflow_id: null,
@@ -233,7 +232,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated escalate requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const escalateTask = vi.fn(async () => ({
       id: 'task-escalate-1',
       workflow_id: null,
@@ -270,7 +269,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated escalation-response requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const respondToEscalation = vi.fn(async () => ({
       id: 'task-response-1',
       workflow_id: null,
@@ -314,7 +313,7 @@ describe('public task operator route idempotency', () => {
   });
 
   it('deduplicates repeated output-override requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const overrideTaskOutput = vi.fn(async () => ({
       id: 'task-output-1',
       workflow_id: null,
@@ -358,57 +357,8 @@ describe('public task operator route idempotency', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('rejects repeated resolve-escalation requests for workflow-linked tasks before replay', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
-    const resolveEscalation = vi.fn(async () => ({
-      id: 'task-resolve-1',
-      workflow_id: 'workflow-resolve-1',
-      state: 'ready',
-    }));
-
-    app = buildTaskRouteApp(
-      {
-        getTask: vi.fn(async () => ({ id: 'task-resolve-1', workflow_id: 'workflow-resolve-1' })),
-        resolveEscalation,
-      },
-      createWorkflowReplayPool(
-        'workflow-resolve-1',
-        'public_task_resolve_escalation',
-        'resolve-escalation-1',
-      ),
-    );
-    await app.register(taskRoutes);
-
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-resolve-1/resolve-escalation',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        request_id: 'resolve-escalation-1',
-        instructions: 'Resume with the updated risk controls.',
-        context: { approved_by: 'cto' },
-      },
-    });
-    const second = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-resolve-1/resolve-escalation',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        request_id: 'resolve-escalation-1',
-        instructions: 'Resume with the updated risk controls.',
-        context: { approved_by: 'cto' },
-      },
-    });
-
-    expect(first.statusCode).toBe(400);
-    expect(second.statusCode).toBe(400);
-    expect(resolveEscalation).not.toHaveBeenCalled();
-    expect(first.json().error?.code).toBe('VALIDATION_ERROR');
-    expect(second.json().error?.code).toBe('VALIDATION_ERROR');
-  });
-
   it('deduplicates repeated agent-escalate requests by request_id', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const agentEscalate = vi.fn(async () => ({
       id: 'task-agent-escalate-1',
       workflow_id: null,
@@ -454,50 +404,8 @@ describe('public task operator route idempotency', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('deduplicates repeated start requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
-    const startTask = vi.fn(async () => ({
-      id: 'task-start-1',
-      workflow_id: 'workflow-start-1',
-      state: 'in_progress',
-    }));
-
-    app = buildTaskRouteApp(
-      {
-        getTask: vi.fn(async () => ({ id: 'task-start-1', workflow_id: 'workflow-start-1' })),
-        startTask,
-      },
-      createWorkflowReplayPool('workflow-start-1', 'task_start', 'start-1'),
-    );
-    await app.register(taskRoutes);
-
-    const payload = {
-      request_id: 'start-1',
-      agent_id: '11111111-1111-1111-1111-111111111111',
-      started_at: '2026-03-12T22:00:00.000Z',
-    };
-
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-start-1/start',
-      headers: { authorization: 'Bearer test' },
-      payload,
-    });
-    const second = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-start-1/start',
-      headers: { authorization: 'Bearer test' },
-      payload,
-    });
-
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(startTask).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
-  });
-
   it('deduplicates repeated start requests by request_id for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../src/api/routes/tasks.routes.js');
     const startTask = vi.fn(async () => ({
       id: 'task-start-standalone-1',
       workflow_id: null,
@@ -537,180 +445,4 @@ describe('public task operator route idempotency', () => {
     expect(startTask).toHaveBeenCalledTimes(1);
     expect(second.json()).toEqual(first.json());
   });
-
-  it('deduplicates repeated skip requests by request_id for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
-    const skipTask = vi.fn(async () => ({
-      id: 'task-standalone-skip-1',
-      workflow_id: null,
-      state: 'completed',
-      output: { skipped: true, reason: 'Standalone task not applicable' },
-    }));
-
-    app = buildTaskRouteApp(
-      {
-        getTask: vi.fn(async () => ({ id: 'task-standalone-skip-1', workflow_id: null })),
-        skipTask,
-      },
-      createTaskReplayPool('task-standalone-skip-1', 'public_task_skip', 'standalone-skip-1'),
-    );
-    await app.register(taskRoutes);
-
-    const payload = {
-      request_id: 'standalone-skip-1',
-      reason: 'Standalone task not applicable',
-    };
-
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-standalone-skip-1/skip',
-      headers: { authorization: 'Bearer test' },
-      payload,
-    });
-    const second = await app.inject({
-      method: 'POST',
-      url: '/api/v1/tasks/task-standalone-skip-1/skip',
-      headers: { authorization: 'Bearer test' },
-      payload,
-    });
-
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(skipTask).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
-  });
 });
-
-function buildTaskRouteApp(
-  overrides: Record<string, unknown>,
-  pool: {
-    connect: ReturnType<typeof vi.fn>;
-    query: ReturnType<typeof vi.fn>;
-  },
-) {
-  const app = fastify();
-  registerErrorHandler(app);
-  app.decorate('pgPool', pool as never);
-  app.decorate('taskService', createTaskService(overrides) as never);
-  return app;
-}
-
-function createTaskService(overrides?: Record<string, unknown>) {
-  return {
-    listTasks: vi.fn(),
-    createTask: vi.fn(),
-    getTask: vi.fn(),
-    updateTask: vi.fn(),
-    getTaskContext: vi.fn(),
-    getTaskGitActivity: vi.fn(),
-    claimTask: vi.fn(),
-    resolveClaimCredentials: vi.fn(),
-    startTask: vi.fn(),
-    completeTask: vi.fn(),
-    failTask: vi.fn(),
-    approveTask: vi.fn(),
-    approveTaskOutput: vi.fn(),
-    retryTask: vi.fn(),
-    cancelTask: vi.fn(),
-    rejectTask: vi.fn(),
-    requestTaskChanges: vi.fn(),
-    skipTask: vi.fn(),
-    reassignTask: vi.fn(),
-    escalateTask: vi.fn(),
-    respondToEscalation: vi.fn(),
-    overrideTaskOutput: vi.fn(),
-    agentEscalate: vi.fn(),
-    resolveEscalation: vi.fn(),
-    ...(overrides ?? {}),
-  };
-}
-
-function createWorkflowReplayPool(
-  workflowId: string,
-  toolName: string,
-  requestId: string,
-) {
-  const storedResults = new Map<string, Record<string, unknown>>();
-  const client = {
-    query: vi.fn(async (sql: string, params?: unknown[]) => {
-      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
-        return { rowCount: 0, rows: [] };
-      }
-      if (sql.includes('pg_advisory_xact_lock')) {
-        return { rowCount: 1, rows: [] };
-      }
-      if (sql.includes('SELECT response') && sql.includes('FROM workflow_tool_results')) {
-        expect(params).toEqual(['tenant-1', workflowId, toolName, requestId]);
-        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
-        const response = storedResults.get(key);
-        return response
-          ? { rowCount: 1, rows: [{ response }] }
-          : { rowCount: 0, rows: [] };
-      }
-      if (sql.includes('INSERT INTO workflow_tool_results')) {
-        expect(params).toHaveLength(7);
-        expect(params?.slice(0, 4)).toEqual(['tenant-1', workflowId, toolName, requestId]);
-        expect(params?.[4]).toEqual(expect.any(Object));
-        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
-        const response = params?.[4] as Record<string, unknown>;
-        const existing = storedResults.get(key);
-        if (existing) {
-          return { rowCount: 0, rows: [] };
-        }
-        storedResults.set(key, response);
-        return { rowCount: 1, rows: [{ response }] };
-      }
-      throw new Error(`Unexpected SQL in replay pool: ${sql}`);
-    }),
-    release: vi.fn(),
-  };
-
-  return {
-    connect: vi.fn(async () => client),
-    query: vi.fn(),
-  };
-}
-
-function createTaskReplayPool(
-  taskId: string,
-  toolName: string,
-  requestId: string,
-) {
-  const storedResults = new Map<string, Record<string, unknown>>();
-  const client = {
-    query: vi.fn(async (sql: string, params?: unknown[]) => {
-      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
-        return { rowCount: 0, rows: [] };
-      }
-      if (sql.includes('pg_advisory_xact_lock')) {
-        return { rowCount: 1, rows: [] };
-      }
-      if (sql.includes('SELECT response') && sql.includes('FROM task_tool_results')) {
-        expect(params).toEqual(['tenant-1', taskId, toolName, requestId]);
-        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
-        const response = storedResults.get(key);
-        return response
-          ? { rowCount: 1, rows: [{ response }] }
-          : { rowCount: 0, rows: [] };
-      }
-      if (sql.includes('INSERT INTO task_tool_results')) {
-        expect(params).toEqual(['tenant-1', taskId, toolName, requestId, expect.any(Object)]);
-        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
-        const response = params?.[4] as Record<string, unknown>;
-        const existing = storedResults.get(key);
-        if (existing) {
-          return { rowCount: 0, rows: [] };
-        }
-        storedResults.set(key, response);
-        return { rowCount: 1, rows: [{ response }] };
-      }
-      throw new Error(`Unexpected SQL in task replay pool: ${sql}`);
-    }),
-    release: vi.fn(),
-  };
-
-  return {
-    connect: vi.fn(async () => client),
-    query: vi.fn(),
-  };
-}
