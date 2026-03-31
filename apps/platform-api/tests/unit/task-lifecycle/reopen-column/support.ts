@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { TaskLifecycleService } from '../../../src/services/task-lifecycle/task-lifecycle-service.js';
+import { TaskLifecycleService } from '../../../../src/services/task-lifecycle/task-lifecycle-service.js';
 
 export const identity = {
   id: 'admin',
