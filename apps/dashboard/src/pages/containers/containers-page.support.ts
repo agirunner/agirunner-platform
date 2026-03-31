@@ -1,4 +1,12 @@
 import type { DashboardLiveContainerRecord } from '../../lib/api.js';
+import {
+  diffVisibleFields,
+  hasMeaningfulPlaybookContext,
+  normalizePlaybookName,
+  normalizeText,
+  visibleFieldsForNewRow,
+  type ContainerDiffField,
+} from './containers-page.diff.js';
 
 const MAX_RECENT_INACTIVE_ROWS = 10;
 const INACTIVE_RETENTION_MS = 10 * 1000;
@@ -10,32 +18,7 @@ const KIND_ORDER: Record<DashboardLiveContainerRecord['kind'], number> = {
   task: 2,
 };
 
-const ALL_DIFF_FIELDS: ContainerDiffField[] = [
-  'status',
-  'kind',
-  'role',
-  'playbook',
-  'workflow',
-  'stage',
-  'task',
-  'image',
-  'cpu',
-  'memory',
-  'started',
-];
-
-export type ContainerDiffField =
-  | 'status'
-  | 'kind'
-  | 'role'
-  | 'playbook'
-  | 'workflow'
-  | 'stage'
-  | 'task'
-  | 'image'
-  | 'cpu'
-  | 'memory'
-  | 'started';
+export type { ContainerDiffField } from './containers-page.diff.js';
 
 interface PendingSessionState {
   record: DashboardLiveContainerRecord;
@@ -182,10 +165,15 @@ export function partitionSessionContainerRowsByFunction(rows: SessionContainerRo
 }
 
 function isOrchestratorFunctionRow(row: SessionContainerRow): boolean {
-  return row.kind === 'orchestrator' || normalizeText(row.role_name).toLowerCase() === 'orchestrator';
+  return (
+    row.kind === 'orchestrator' || normalizeText(row.role_name).toLowerCase() === 'orchestrator'
+  );
 }
 
-function compareSessionContainerRows(left: SessionContainerRow, right: SessionContainerRow): number {
+function compareSessionContainerRows(
+  left: SessionContainerRow,
+  right: SessionContainerRow,
+): number {
   if (left.presence !== right.presence) {
     return left.presence === 'running' ? -1 : 1;
   }
@@ -243,7 +231,12 @@ function buildRunningSessionRow(
     );
   }
 
-  const changedFields = diffVisibleFields(extractLiveRecord(prior), prior.presence, next, 'running');
+  const changedFields = diffVisibleFields(
+    extractLiveRecord(prior),
+    prior.presence,
+    next,
+    'running',
+  );
   if (changedFields.length === 0) {
     return {
       ...buildStableSessionRow(
@@ -357,7 +350,10 @@ function buildPendingState(
   };
 }
 
-function advancePendingSessionRow(row: SessionContainerRow, observedAt: string): SessionContainerRow {
+function advancePendingSessionRow(
+  row: SessionContainerRow,
+  observedAt: string,
+): SessionContainerRow {
   if (!row.pending_state || !row.pending_flip_at) {
     return row;
   }
@@ -374,101 +370,6 @@ function advancePendingSessionRow(row: SessionContainerRow, observedAt: string):
     row.pending_state.changed_fields,
     row.pending_state.remembered_context,
   );
-}
-
-function visibleFieldsForNewRow(row: DashboardLiveContainerRecord): ContainerDiffField[] {
-  const fields: ContainerDiffField[] = ['status', 'kind', 'image', 'cpu', 'memory', 'started'];
-  if (row.role_name?.trim()) {
-    fields.push('role');
-  }
-  if (hasMeaningfulPlaybookContext(row.playbook_id, row.playbook_name)) {
-    fields.push('playbook');
-  }
-  if (row.workflow_id || row.workflow_name?.trim()) {
-    fields.push('workflow');
-  }
-  if (row.stage_name?.trim()) {
-    fields.push('stage');
-  }
-  if (row.task_id || row.task_title?.trim()) {
-    fields.push('task');
-  }
-  return fields;
-}
-
-function diffVisibleFields(
-  left: DashboardLiveContainerRecord,
-  leftPresence: 'running' | 'inactive',
-  right: DashboardLiveContainerRecord,
-  rightPresence: 'running' | 'inactive',
-): ContainerDiffField[] {
-  const changed = new Set<ContainerDiffField>();
-
-  if (
-    leftPresence !== rightPresence
-    || normalizeText(left.state) !== normalizeText(right.state)
-    || normalizeText(left.activity_state) !== normalizeText(right.activity_state)
-  ) {
-    changed.add('status');
-  }
-  if (left.kind !== right.kind || normalizeText(left.name) !== normalizeText(right.name)) {
-    changed.add('kind');
-  }
-  if (normalizeText(left.role_name) !== normalizeText(right.role_name)) {
-    changed.add('role');
-  }
-  if (
-    normalizeText(left.playbook_id) !== normalizeText(right.playbook_id)
-    || normalizePlaybookName(left.playbook_name) !== normalizePlaybookName(right.playbook_name)
-  ) {
-    changed.add('playbook');
-  }
-  if (
-    normalizeText(left.workflow_id) !== normalizeText(right.workflow_id)
-    || normalizeText(left.workflow_name) !== normalizeText(right.workflow_name)
-  ) {
-    changed.add('workflow');
-  }
-  if (normalizeText(left.stage_name) !== normalizeText(right.stage_name)) {
-    changed.add('stage');
-  }
-  if (
-    normalizeText(left.task_id) !== normalizeText(right.task_id)
-    || normalizeText(left.task_title) !== normalizeText(right.task_title)
-  ) {
-    changed.add('task');
-  }
-  if (normalizeText(left.image) !== normalizeText(right.image)) {
-    changed.add('image');
-  }
-  if (normalizeText(left.cpu_limit) !== normalizeText(right.cpu_limit)) {
-    changed.add('cpu');
-  }
-  if (normalizeText(left.memory_limit) !== normalizeText(right.memory_limit)) {
-    changed.add('memory');
-  }
-  if (normalizeText(left.started_at) !== normalizeText(right.started_at)) {
-    changed.add('started');
-  }
-
-  return ALL_DIFF_FIELDS.filter((field) => changed.has(field));
-}
-
-function normalizeText(value: string | null | undefined): string {
-  return value?.trim() ?? '';
-}
-
-function normalizePlaybookName(value: string | null | undefined): string {
-  const normalized = normalizeText(value);
-  return isSyntheticContainerContextLabel(normalized) ? '' : normalized;
-}
-
-function hasMeaningfulPlaybookContext(id: string | null | undefined, name: string | null | undefined): boolean {
-  return normalizeText(id) !== '' || normalizePlaybookName(name) !== '';
-}
-
-function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {
-  return normalizeText(value).toLowerCase() === 'specialist agents';
 }
 
 function rememberContainerContext(
@@ -490,11 +391,13 @@ function rememberContainerContext(
     execution_environment_image:
       normalizeText(row.execution_environment_image) || prior?.execution_environment_image || null,
     execution_environment_distro:
-      normalizeText(row.execution_environment_distro) || prior?.execution_environment_distro || null,
+      normalizeText(row.execution_environment_distro) ||
+      prior?.execution_environment_distro ||
+      null,
     execution_environment_package_manager:
-      normalizeText(row.execution_environment_package_manager)
-      || prior?.execution_environment_package_manager
-      || null,
+      normalizeText(row.execution_environment_package_manager) ||
+      prior?.execution_environment_package_manager ||
+      null,
   };
 
   return Object.values(next).some((value) => value) ? next : null;
@@ -521,12 +424,14 @@ function applyRememberedContext(
     execution_environment_name:
       normalizeText(row.execution_environment_name) || rememberedContext.execution_environment_name,
     execution_environment_image:
-      normalizeText(row.execution_environment_image) || rememberedContext.execution_environment_image,
+      normalizeText(row.execution_environment_image) ||
+      rememberedContext.execution_environment_image,
     execution_environment_distro:
-      normalizeText(row.execution_environment_distro) || rememberedContext.execution_environment_distro,
+      normalizeText(row.execution_environment_distro) ||
+      rememberedContext.execution_environment_distro,
     execution_environment_package_manager:
-      normalizeText(row.execution_environment_package_manager)
-      || rememberedContext.execution_environment_package_manager,
+      normalizeText(row.execution_environment_package_manager) ||
+      rememberedContext.execution_environment_package_manager,
   };
 }
 
