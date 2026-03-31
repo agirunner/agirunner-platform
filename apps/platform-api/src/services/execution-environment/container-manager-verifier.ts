@@ -1,6 +1,6 @@
-import { ValidationError } from '../errors/domain-errors.js';
-import type { ExecutionEnvironmentVerificationResult } from './execution-environment-contract.js';
-import type { ExecutionEnvironmentVerifier } from './execution-environment-verification-service.js';
+import { ValidationError } from '../../errors/domain-errors.js';
+import type { ExecutionEnvironmentVerificationResult } from './contract.js';
+import type { ExecutionEnvironmentVerifier } from './verification-service.js';
 
 interface VerificationResponseBody extends ExecutionEnvironmentVerificationResult {}
 

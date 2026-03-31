@@ -2,7 +2,7 @@ import type {
   ExecutionEnvironmentCatalogRecord,
   ExecutionEnvironmentPullPolicy,
   ExecutionEnvironmentSupportStatus,
-} from './execution-environment-contract.js';
+} from './contract.js';
 
 type StarterRecord = Omit<ExecutionEnvironmentCatalogRecord, 'created_at'>;
 

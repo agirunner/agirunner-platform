@@ -1,7 +1,7 @@
-import type { DatabaseQueryable } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import type { ExecutionEnvironmentCatalogRecord } from './execution-environment-contract.js';
-import { isRecord, normalizeStringArray } from './execution-environment-contract.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import type { ExecutionEnvironmentCatalogRecord } from './contract.js';
+import { isRecord, normalizeStringArray } from './contract.js';
 
 interface CatalogRow {
   catalog_key: string;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ExecutionEnvironmentVerificationService } from '../../src/services/execution-environment-verification-service.js';
+import { ExecutionEnvironmentVerificationService } from '../../../src/services/execution-environment/verification-service.js';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const ENVIRONMENT_ID = '00000000-0000-0000-0000-000000000777';

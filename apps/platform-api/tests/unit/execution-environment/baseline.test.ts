@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BASELINE_EXECUTION_ENVIRONMENT_COMMANDS,
   buildCatalogSeedVerification,
-} from '../../src/services/execution-environment-baseline.js';
+} from '../../../src/services/execution-environment/baseline.js';
 
 describe('execution environment baseline', () => {
   it('matches the runtime post-bootstrap command contract for seeded catalog environments', () => {

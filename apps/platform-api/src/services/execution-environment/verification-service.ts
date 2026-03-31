@@ -1,7 +1,7 @@
-import { NotFoundError } from '../errors/domain-errors.js';
-import type { DatabaseQueryable } from '../db/database.js';
-import type { ExecutionEnvironmentVerificationResult } from './execution-environment-contract.js';
-import { ExecutionEnvironmentService } from './execution-environment-service.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import type { ExecutionEnvironmentVerificationResult } from './contract.js';
+import { ExecutionEnvironmentService } from './service.js';
 
 export interface ExecutionEnvironmentVerifier {
   verify(input: {

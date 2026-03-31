@@ -1,7 +1,7 @@
 import {
   EXECUTION_ENVIRONMENT_CONTRACT_VERSION,
   type ExecutionEnvironmentCatalogRecord,
-} from './execution-environment-contract.js';
+} from './contract.js';
 
 export const BASELINE_EXECUTION_ENVIRONMENT_COMMANDS = [
   'sleep',

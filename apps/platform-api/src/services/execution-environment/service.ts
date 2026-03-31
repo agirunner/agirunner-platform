@@ -1,13 +1,13 @@
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import type { DatabaseQueryable } from '../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 import {
   type ExecutionContainerContract,
   type ExecutionEnvironmentSnapshot,
   type ExecutionEnvironmentSummary,
   normalizeStringArray,
-} from './execution-environment-contract.js';
-import type { ExecutionEnvironmentCatalogService } from './execution-environment-catalog-service.js';
-import { buildCatalogSeedVerification } from './execution-environment-baseline.js';
+} from './contract.js';
+import type { ExecutionEnvironmentCatalogService } from './catalog-service.js';
+import { buildCatalogSeedVerification } from './baseline.js';
 import {
   handleEnvironmentWriteError,
   listEnvironmentsSql,
@@ -19,7 +19,7 @@ import {
   toExecutionEnvironmentRecord,
   toExecutionEnvironmentSummary,
   validateEnvironmentInput,
-} from './execution-environment-service-support.js';
+} from './support.js';
 import type {
   CreateExecutionEnvironmentFromCatalogInput,
   CreateExecutionEnvironmentInput,
@@ -27,7 +27,7 @@ import type {
   ExecutionEnvironmentRow,
   InsertExecutionEnvironmentInput,
   UpdateExecutionEnvironmentInput,
-} from './execution-environment-service.types.js';
+} from './types.js';
 
 export type {
   CreateExecutionEnvironmentFromCatalogInput,
@@ -35,7 +35,7 @@ export type {
   ExecutionEnvironmentRecord,
   ExecutionEnvironmentRow,
   UpdateExecutionEnvironmentInput,
-} from './execution-environment-service.types.js';
+} from './types.js';
 
 export class ExecutionEnvironmentService {
   constructor(

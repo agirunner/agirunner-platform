@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ValidationError } from '../../src/errors/domain-errors.js';
-import { ExecutionEnvironmentService } from '../../src/services/execution-environment-service.js';
-import type { ExecutionEnvironmentRow } from '../../src/services/execution-environment-service.types.js';
+import { ValidationError } from '../../../src/errors/domain-errors.js';
+import { ExecutionEnvironmentService } from '../../../src/services/execution-environment/service.js';
+import type { ExecutionEnvironmentRow } from '../../../src/services/execution-environment/types.js';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 

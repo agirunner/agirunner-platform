@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../../src/errors/domain-errors.js';
 import {
   handleEnvironmentWriteError,
   mergeEnvironmentUpdate,
@@ -9,11 +9,11 @@ import {
   toExecutionEnvironmentRecord,
   toExecutionEnvironmentSummary,
   validateEnvironmentInput,
-} from '../../src/services/execution-environment-service-support.js';
+} from '../../../src/services/execution-environment/support.js';
 import type {
   ExecutionEnvironmentRecord,
   ExecutionEnvironmentRow,
-} from '../../src/services/execution-environment-service.types.js';
+} from '../../../src/services/execution-environment/types.js';
 
 function buildRow(overrides: Partial<ExecutionEnvironmentRow> = {}): ExecutionEnvironmentRow {
   return {

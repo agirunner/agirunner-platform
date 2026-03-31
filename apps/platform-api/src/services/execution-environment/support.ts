@@ -1,23 +1,23 @@
-import { ConflictError, ValidationError } from '../errors/domain-errors.js';
-import type { DatabaseQueryable } from '../db/database.js';
+import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 import {
   assertValidContainerCpu,
   assertValidContainerImage,
   assertValidContainerMemory,
-} from './container-resource-validation.js';
+} from '../container-resource-validation.js';
 import {
   buildExecutionEnvironmentAgentHint,
   EXECUTION_ENVIRONMENT_CONTRACT_VERSION,
   type ExecutionEnvironmentSummary,
   isRecord,
   normalizeStringArray,
-} from './execution-environment-contract.js';
+} from './contract.js';
 import type {
   CreateExecutionEnvironmentInput,
   ExecutionEnvironmentRecord,
   ExecutionEnvironmentRow,
   UpdateExecutionEnvironmentInput,
-} from './execution-environment-service.types.js';
+} from './types.js';
 
 export function listEnvironmentsSql(): string {
   return `SELECT
