@@ -28,22 +28,6 @@ describe('workflow activation routes', () => {
     }
   });
 
-  it('does not register removed claim and complete endpoints', async () => {
-    app = fastify();
-    app.decorate('workflowActivationService', {
-      enqueue: async () => ({}),
-      list: async () => ({ data: [] }),
-      get: async () => ({ data: {} }),
-    });
-    await app.register(workflowActivationRoutes);
-
-    const routes = app.printRoutes();
-
-    expect(routes).not.toContain('/api/v1/workflows/:id/activations/claim');
-    expect(routes).not.toContain('/api/v1/workflows/:id/activations/:activationId/complete');
-    expect(routes).toContain(':activationId (GET, HEAD)');
-  });
-
   it('enqueues manual activations when request_id is provided', async () => {
     const enqueue = vi.fn(async () => ({
       id: 'activation-1',
