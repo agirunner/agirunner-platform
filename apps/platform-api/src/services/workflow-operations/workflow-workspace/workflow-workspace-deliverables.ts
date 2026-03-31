@@ -95,7 +95,7 @@ function filterWorkspaceDeliverablesForSelectedScope(
   deliverables: WorkspaceDeliverablesPacket,
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
 ): WorkspaceDeliverablesPacket {
-  if (selectedScope.scope_kind !== 'selected_work_item') {
+  if (selectedScope.scope_kind !== 'selected_work_item' && selectedScope.scope_kind !== 'selected_task') {
     return deliverables;
   }
   const selectedWorkItemId = selectedScope.work_item_id;
@@ -108,9 +108,7 @@ function filterWorkspaceDeliverablesForSelectedScope(
     };
   }
   const matchesSelectedWorkItem = (deliverable: WorkflowDeliverableRecord): boolean =>
-    deliverable.work_item_id === null
-      || deliverable.work_item_id === selectedWorkItemId
-      || readDeliverableRollupSourceWorkItemId(deliverable) === selectedWorkItemId;
+    deliverable.work_item_id === selectedWorkItemId;
   return {
     ...deliverables,
     final_deliverables: deliverables.final_deliverables.filter(matchesSelectedWorkItem),
@@ -126,14 +124,11 @@ function selectScopedOutputDescriptors(
   if (selectedScope.scope_kind === 'workflow') {
     return outputDescriptors;
   }
-  if (selectedScope.scope_kind === 'selected_task') {
-    return [];
-  }
   if (!selectedScope.work_item_id) {
     return [];
   }
   return outputDescriptors.filter(
-    (descriptor) => descriptor.workItemId === null || descriptor.workItemId === selectedScope.work_item_id,
+    (descriptor) => descriptor.workItemId === selectedScope.work_item_id,
   );
 }
 
@@ -329,8 +324,4 @@ function readDeliverableIdentityKey(deliverable: WorkflowDeliverableRecord): str
     return `path:${targetPath}`;
   }
   return null;
-}
-
-function readDeliverableRollupSourceWorkItemId(deliverable: WorkflowDeliverableRecord): string | null {
-  return readOptionalString(asRecord(deliverable.content_preview).rollup_source_work_item_id);
 }

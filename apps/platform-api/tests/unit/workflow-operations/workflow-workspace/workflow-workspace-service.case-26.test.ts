@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('keeps workflow-document fallback deliverables visible in selected work-item scope', async () => {
+  it('drops workflow-document fallback deliverables in selected work-item scope', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -137,15 +137,8 @@ describe('WorkflowWorkspaceService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'output:workflow-document:terminal-brief',
-        work_item_id: null,
-        descriptor_kind: 'workflow_document',
-        title: 'Terminal brief',
-      }),
-    ]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(1);
+    expect(result.deliverables.final_deliverables).toEqual([]);
+    expect(result.bottom_tabs.counts.deliverables).toBe(0);
   });
 
 });

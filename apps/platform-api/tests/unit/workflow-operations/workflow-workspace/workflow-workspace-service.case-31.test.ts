@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('keeps workflow-scoped deliverables visible in selected work-item scope before falling back to output descriptors', async () => {
+  it('filters workflow-scoped deliverables out of selected work-item scope before fallback', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -189,13 +189,13 @@ describe('WorkflowWorkspaceService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([
+    expect(result.deliverables.final_deliverables).toEqual([]);
+    expect(result.deliverables.in_progress_deliverables).toEqual([
       expect.objectContaining({
-        descriptor_id: 'workflow-deliverable',
-        work_item_id: null,
+        descriptor_id: 'output:artifact:matching',
+        work_item_id: 'work-item-1',
       }),
     ]);
-    expect(result.deliverables.in_progress_deliverables).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 

@@ -11,8 +11,8 @@ test.use({ viewport: { width: 1280, height: 1100 } });
 
 test('renders supported deliverable types and artifact actions at workflow scope', async ({ page }) => {
   await seedWorkflowDeliverablesScenario();
-  await loginToWorkflows(page);
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
+  await loginToWorkflows(page);
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
@@ -59,8 +59,8 @@ test('renders supported deliverable types and artifact actions at workflow scope
 
 test('narrows deliverables to the selected work item and keeps workflow-only rows out of scope', async ({ page }) => {
   await seedWorkflowDeliverablesScenario();
-  await loginToWorkflows(page);
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
+  await loginToWorkflows(page);
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
@@ -79,11 +79,11 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
 
 test('keeps large deliverable payloads usable across artifact catalogs and inline summaries', async ({ page }) => {
   const scenario = await seedWorkflowDeliverablesScenario();
-  await loginToWorkflows(page);
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery', {
     artifactCount: 100,
     inlineSummaryRepeatCount: 80,
   });
+  await loginToWorkflows(page);
 
   await page.goto(`/workflows/${scenario.needsActionWorkflow.id}`);
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');

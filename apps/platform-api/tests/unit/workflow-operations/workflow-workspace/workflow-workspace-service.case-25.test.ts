@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('keeps a workflow-scoped deliverable visible while still synthesizing the selected work-item fallback deliverable', async () => {
+  it('drops workflow-scoped deliverables while still synthesizing the selected work-item fallback deliverable', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -188,12 +188,7 @@ describe('WorkflowWorkspaceService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'workflow-deliverable',
-        work_item_id: null,
-      }),
-    ]);
+    expect(result.deliverables.final_deliverables).toEqual([]);
     expect(result.deliverables.in_progress_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'output:artifact:matching',
@@ -201,7 +196,7 @@ describe('WorkflowWorkspaceService', () => {
         title: 'artifact:workflow/release-packet.md',
       }),
     ]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(2);
+    expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 
 });

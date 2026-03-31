@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('keeps plain workflow-scoped rollup deliverables visible in selected work-item and task scopes', async () => {
+  it('keeps selected work-item and task scopes free of workflow-scoped rollup deliverables', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -187,11 +187,9 @@ describe('WorkflowWorkspaceService', () => {
     });
 
     expect(workItemScoped.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({ descriptor_id: 'workflow-rollup', work_item_id: null }),
       expect.objectContaining({ descriptor_id: 'work-item-output', work_item_id: 'work-item-1' }),
     ]);
     expect(taskScoped.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({ descriptor_id: 'workflow-rollup', work_item_id: null }),
       expect.objectContaining({ descriptor_id: 'work-item-output', work_item_id: 'work-item-1' }),
     ]);
   });
