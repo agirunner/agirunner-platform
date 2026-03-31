@@ -10,7 +10,7 @@ import {
   extractTaskIdFromGitPayload,
   mapGitEventType,
   normalizeGitEvent,
-} from '../../../services/git-platform-adapter.js';
+} from '../../../services/webhooks/git-platform-adapter.js';
 
 interface InboundWebhookIdentity {
   provider: 'github' | 'gitea' | 'gitlab';

@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
-import { extractRepositoryUrl } from '../../../src/services/git-platform-adapter.js';
+import { extractRepositoryUrl } from '../../../src/services/webhooks/git-platform-adapter.js';
 import { WorkspaceService } from '../../../src/services/workspace/workspace-service.js';
 import { encryptWebhookSecret } from '../../../src/services/webhooks/webhook-secret-crypto.js';
 
