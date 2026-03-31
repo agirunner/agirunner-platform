@@ -10,7 +10,14 @@ import {
 } from './layout.js';
 
 function readLayoutSource() {
-  return readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+  return [
+    './layout.tsx',
+    './layout-nav.tsx',
+    './layout-sidebar.tsx',
+    './layout-command-palette.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 function readDialogSource() {
@@ -51,11 +58,7 @@ describe('layout breadcrumbs', () => {
       },
       {
         label: 'Integrations',
-        hrefs: [
-          '/integrations/mcp-servers',
-          '/integrations/triggers',
-          '/integrations/webhooks',
-        ],
+        hrefs: ['/integrations/mcp-servers', '/integrations/triggers', '/integrations/webhooks'],
       },
       {
         label: 'Diagnostics',
@@ -223,7 +226,9 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('return SIDEBAR_ACTIVE_ITEM_CLASSES;');
     expect(source).not.toContain('SIDEBAR_CONTEXTUAL_ACTIVE_ITEM_CLASSES');
     expect(source).not.toContain("return sectionLabel === 'Mission Control'");
-    expect(source).toContain('isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES');
+    expect(source).toContain(
+      'isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES',
+    );
     expect(source).not.toContain('bg-amber');
     expect(source).not.toContain('bg-yellow');
   });
@@ -232,10 +237,16 @@ describe('layout breadcrumbs', () => {
     const source = readLayoutSource();
 
     expect(source).toContain('<div className="flex h-dvh min-h-screen overflow-hidden">');
-    expect(source).toContain('<main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">');
-    expect(source).toContain('<div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">');
+    expect(source).toContain(
+      '<main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">',
+    );
+    expect(source).toContain(
+      '<div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">',
+    );
     expect(source).toContain('<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">');
-    expect(source).not.toContain('<div className="flex min-h-full min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">');
+    expect(source).not.toContain(
+      '<div className="flex min-h-full min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">',
+    );
   });
 
   it('renders Mission Control like the other expandable nav groups instead of collapsing it into a single row', () => {
@@ -243,12 +254,16 @@ describe('layout breadcrumbs', () => {
 
     expect(source).toContain("label: 'Mission Control'");
     expect(source).toContain("label: 'Workflows'");
+    expect(source).toContain('const rendersAsSingleItem =');
+    expect(source).toContain('props.section.items.length === 1');
+    expect(source).toContain('props.section.items[0]?.label === props.section.label');
     expect(source).toContain(
-      'const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;',
+      'const singleItem = rendersAsSingleItem ? props.section.items[0] : null;',
     );
-    expect(source).toContain('const singleItem = rendersAsSingleItem ? section.items[0] : null;');
-    expect(source).toContain('<span className="flex-1 text-left">{section.label}</span>');
-    expect(source).toContain('<ChevronRight size={14} className={cn(\'transition-transform\', expanded && \'rotate-90\')} />');
+    expect(source).toContain('<span className="flex-1 text-left">{props.section.label}</span>');
+    expect(source).toContain(
+      "<ChevronRight size={14} className={cn('transition-transform', expanded && 'rotate-90')} />",
+    );
     expect(source).toContain('{item.label}');
     expect(source).not.toContain("label: 'Mission Control',\n        href: WORKFLOWS_NAV_HREF,");
   });
@@ -414,7 +429,7 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('FOCUS_RING_CLASSES');
     expect(source).toContain('focus-visible:ring-offset-surface');
     expect(source).toContain('aria-haspopup="dialog"');
-    expect(source).toContain('aria-expanded={searchOpen}');
+    expect(source).toContain('aria-expanded={props.searchOpen}');
   });
 
   it('uses recessed nav groups and high-contrast active states in the sidebar', () => {
@@ -435,14 +450,20 @@ describe('layout breadcrumbs', () => {
   it('supports a persisted collapsed desktop icon rail without changing the mobile menu dialog', () => {
     const source = readLayoutSource();
     expect(source).toContain('buildDesktopSidebarStorageKey(session?.tenantId ?? null)');
-    expect(source).toContain('readDesktopSidebarCollapsedState(localStorage, session?.tenantId ?? null)');
-    expect(source).toContain('localStorage.setItem(desktopSidebarStorageKey, nextCollapsed ? \'true\' : \'false\')');
+    expect(source).toContain(
+      'readDesktopSidebarCollapsedState(localStorage, session?.tenantId ?? null)',
+    );
+    expect(source).toContain(
+      "localStorage.setItem(desktopSidebarStorageKey, nextCollapsed ? 'true' : 'false')",
+    );
     expect(source).toContain('Desktop navigation');
     expect(source).toContain('Expand sidebar');
     expect(source).toContain('Collapse sidebar');
     expect(source).toContain('title={item.label}');
     expect(source).toContain('aria-label={item.label}');
-    expect(source).toContain("isMobile ? 'w-64' : isDesktopSidebarCollapsed ? 'w-20' : 'w-64'");
+    expect(source).toContain('const sidebarWidthClass = props.isMobile');
+    expect(source).toContain("? 'w-20'");
+    expect(source).toContain(": 'w-64';");
     expect(source).toContain('DialogTitle className="sr-only">Navigation menu');
   });
 

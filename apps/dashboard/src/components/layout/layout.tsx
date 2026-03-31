@@ -1,47 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Bot,
-  Package,
-  ChevronRight,
-  Cog,
-  Container,
-  FileText,
-  FolderOpen,
-  Gauge,
-  Key,
-  LayoutDashboard,
-  Link2,
-  LogOut,
-  Menu,
-  Moon,
-  ScrollText,
-  Search,
-  Send,
-  Server,
-  Settings2,
-  Shield,
-  Sun,
-  Users,
-  Wrench,
-  X,
-  Zap,
-} from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { dashboardApi, type DashboardSearchResult } from '../../lib/api.js';
-import { readSession, clearSession } from '../../lib/session.js';
 import { cn } from '../../lib/utils.js';
+import { clearSession, readSession } from '../../lib/session.js';
 import { readTheme } from '../../app/theme.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
+import { Dialog, DialogDescription, DialogContent, DialogTitle } from '../ui/dialog.js';
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '../ui/dialog.js';
+  CommandPaletteDialog,
+  readActiveElement,
+  restoreFocusToElement,
+} from './layout-command-palette.js';
 import {
   buildCommandPaletteSections,
   clearRecentCommandPaletteItems,
@@ -56,225 +28,17 @@ import {
   type CommandPaletteItem,
   type CommandPaletteStatus,
 } from './layout-search.js';
+import {
+  buildDesktopSidebarStorageKey,
+  COMMAND_PALETTE_QUICK_LINKS,
+  NAV_SECTIONS,
+  readDesktopSidebarCollapsedState,
+  SIDEBAR_SHELL_CLASSES,
+} from './layout-nav.js';
+import { MobileTopBar, SidebarPanel } from './layout-sidebar.js';
 
 interface LayoutProps {
   onToggleTheme: () => void;
-}
-
-export interface NavItem {
-  label: string;
-  href: string;
-  icon: ElementType;
-  keywords?: string[];
-}
-
-export interface NavSection {
-  label: string;
-  icon: ElementType;
-  items: NavItem[];
-}
-
-const WORKFLOWS_NAV_HREF = '/workflows';
-const DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY = 'agirunner.desktop-sidebar-collapsed';
-
-export const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'Mission Control',
-    icon: Gauge,
-    items: [
-      {
-        label: 'Workflows',
-        href: WORKFLOWS_NAV_HREF,
-        icon: LayoutDashboard,
-        keywords: [
-          'live operations',
-          'workflow canvas',
-          'attention rail',
-          'action queue',
-          'workflows',
-          'tasks',
-          'recent',
-          'history',
-        ],
-      },
-    ],
-  },
-  {
-    label: 'Work Design',
-    icon: FolderOpen,
-    items: [
-      { label: 'Playbooks', href: '/design/playbooks', icon: FileText },
-      { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
-      {
-        label: 'Specialists',
-        href: '/design/specialists',
-        icon: Users,
-        keywords: ['specialist', 'agent roles', 'role definitions'],
-      },
-      {
-        label: 'Skills',
-        href: '/design/specialists/skills',
-        icon: ScrollText,
-        keywords: ['specialist skills', 'shared skills', 'skill library'],
-      },
-    ],
-  },
-  {
-    label: 'Platform',
-    icon: Cog,
-    items: [
-      {
-        label: 'Models',
-        href: '/platform/models',
-        icon: Cog,
-        keywords: ['models', 'routing', 'model routing', 'llm'],
-      },
-      { label: 'Instructions', href: '/platform/instructions', icon: ScrollText },
-      {
-        label: 'Orchestrator',
-        href: '/platform/orchestrator',
-        icon: Bot,
-        keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'],
-      },
-      {
-        label: 'Environments',
-        href: '/platform/environments',
-        icon: Container,
-        keywords: ['execution environment', 'execution environments', 'byoi', 'container image'],
-      },
-      { label: 'Tools', href: '/platform/tools', icon: Wrench },
-    ],
-  },
-  {
-    label: 'Integrations',
-    icon: Link2,
-    items: [
-      { label: 'MCP Servers', href: '/integrations/mcp-servers', icon: Link2 },
-      { label: 'Triggers (soon)', href: '/integrations/triggers', icon: Zap },
-      { label: 'Webhooks (soon)', href: '/integrations/webhooks', icon: Send },
-    ],
-  },
-  {
-    label: 'Diagnostics',
-    icon: FileText,
-    items: [
-      { label: 'Live Logs', href: '/diagnostics/live-logs', icon: Search },
-      { label: 'Live Containers', href: '/diagnostics/live-containers', icon: Package },
-    ],
-  },
-  {
-    label: 'Admin',
-    icon: Shield,
-    items: [
-      { label: 'API Keys', href: '/admin/api-keys', icon: Key },
-      { label: 'General Settings', href: '/admin/general-settings', icon: Settings2 },
-      {
-        label: 'Agentic Settings',
-        href: '/admin/agentic-settings',
-        icon: Server,
-        keywords: ['specialist agent', 'specialist agents', 'runtime', 'runtimes'],
-      },
-      {
-        label: 'Platform settings',
-        href: '/admin/platform-settings',
-        icon: Settings2,
-        keywords: ['operations', 'timing', 'supervision', 'fleet', 'activation'],
-      },
-    ],
-  },
-];
-
-export function findNavigationItemByHref(href: string): NavItem | null {
-  for (const section of NAV_SECTIONS) {
-    const match = section.items.find((item) => item.href === href);
-    if (match) {
-      return match;
-    }
-  }
-  return null;
-}
-
-export function buildDesktopSidebarStorageKey(tenantId: string | null): string {
-  return tenantId
-    ? `${DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY}.${tenantId}`
-    : DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY;
-}
-
-export function readDesktopSidebarCollapsedState(
-  storage: Pick<Storage, 'getItem'> | undefined,
-  tenantId: string | null,
-): boolean {
-  if (!storage) {
-    return false;
-  }
-
-  const stored = storage.getItem(buildDesktopSidebarStorageKey(tenantId));
-  if (stored === 'true') {
-    return true;
-  }
-  if (stored === 'false') {
-    return false;
-  }
-  return false;
-}
-
-const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((section) =>
-  section.items.map((item) => ({
-    id: `nav:${item.href}`,
-    href: item.href,
-    label: item.label,
-    meta: section.label,
-    kind: 'navigation',
-    ...(item.keywords?.length ? { keywords: item.keywords } : {}),
-  })),
-);
-
-const FOCUS_RING_CLASSES =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
-
-const ICON_BUTTON_CLASSES = cn(
-  'rounded-md p-1.5 text-muted transition-colors hover:bg-border/50 hover:text-foreground',
-  FOCUS_RING_CLASSES,
-);
-
-const SIDEBAR_SHELL_CLASSES =
-  'border-r border-stone-200/90 bg-stone-100/95 shadow-[inset_-1px_0_0_rgba(255,255,255,0.72)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none';
-
-const SIDEBAR_SECTION_BUTTON_CLASSES =
-  'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-[background-color,color,box-shadow]';
-
-const SIDEBAR_SECTION_ACTIVE_CLASSES =
-  'bg-white/92 text-slate-950 shadow-sm ring-1 ring-stone-300/90 dark:bg-slate-900/80 dark:text-slate-100 dark:ring-slate-700';
-
-const SIDEBAR_SECTION_INACTIVE_CLASSES =
-  'text-slate-700 hover:bg-stone-50/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-slate-100';
-
-const SIDEBAR_SECTION_GROUP_CLASSES =
-  'mt-1 rounded-xl bg-stone-50/85 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
-
-const SIDEBAR_ACTIVE_ITEM_CLASSES =
-  'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-white dark:text-slate-950 dark:font-semibold';
-
-const SIDEBAR_INACTIVE_ITEM_CLASSES =
-  'text-slate-700 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';
-
-function readSidebarItemStateClasses(isActive: boolean): string {
-  if (!isActive) {
-    return SIDEBAR_INACTIVE_ITEM_CLASSES;
-  }
-  return SIDEBAR_ACTIVE_ITEM_CLASSES;
-}
-
-function readActiveElement(): HTMLElement | null {
-  return document.activeElement instanceof HTMLElement ? document.activeElement : null;
-}
-
-function restoreFocusToElement(element: HTMLElement | null): boolean {
-  if (!element || !element.isConnected || element.getClientRects().length === 0) {
-    return false;
-  }
-  element.focus();
-  return document.activeElement === element;
 }
 
 export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
@@ -616,160 +380,16 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     }
   }
 
-  function renderSidebarContent(isMobile: boolean): JSX.Element {
-    const isCollapsedDesktopRail = !isMobile && isDesktopSidebarCollapsed;
-    const desktopSidebarToggleLabel = isDesktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
-    const sidebarWidthClass = isMobile ? 'w-64' : isDesktopSidebarCollapsed ? 'w-20' : 'w-64';
-
-    return (
-      <div className={cn('flex h-full flex-col', sidebarWidthClass)}>
-        <div
-          className={cn(
-            'flex border-b border-stone-200/90 px-4 py-3 dark:border-slate-800',
-            isCollapsedDesktopRail ? 'relative items-center justify-center' : 'items-center justify-between',
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <img src="/logo.svg" alt="" className="h-7 w-7" />
-            {isCollapsedDesktopRail ? null : <span className="text-lg font-semibold">AGI Runner</span>}
-          </div>
-          <div
-            className={cn(
-              'flex items-center gap-1',
-              isCollapsedDesktopRail ? 'absolute right-2 top-3 flex-col' : '',
-            )}
-          >
-            {!isMobile ? (
-              <button
-                type="button"
-                onClick={toggleDesktopSidebar}
-                className={ICON_BUTTON_CLASSES}
-                aria-label={desktopSidebarToggleLabel}
-                title={desktopSidebarToggleLabel}
-              >
-                <ChevronRight
-                  size={16}
-                  className={cn('transition-transform', !isDesktopSidebarCollapsed && 'rotate-180')}
-                />
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              className={ICON_BUTTON_CLASSES}
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            {isMobile ? (
-              <button
-                ref={mobileMenuCloseButtonRef}
-                type="button"
-                onClick={closeMobileMenu}
-                className={ICON_BUTTON_CLASSES}
-                aria-label="Close navigation menu"
-              >
-                <X size={16} />
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="px-3 py-3">
-          <button
-            ref={isMobile ? undefined : desktopSearchButtonRef}
-            type="button"
-            onClick={openSearchPalette}
-            className={cn(
-              'flex w-full items-center rounded-xl border border-stone-200 bg-white/88 text-sm text-slate-700 shadow-sm transition-[background-color,color,box-shadow] hover:bg-white hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100',
-              isCollapsedDesktopRail ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2',
-              FOCUS_RING_CLASSES,
-            )}
-            aria-haspopup="dialog"
-            aria-expanded={searchOpen}
-            aria-label={isCollapsedDesktopRail ? 'Search the workspace' : undefined}
-            title={isCollapsedDesktopRail ? 'Search the workspace' : undefined}
-          >
-            <Search size={14} />
-            {isCollapsedDesktopRail ? null : <span>Search...</span>}
-            <kbd
-              className={cn(
-                'ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline',
-                isCollapsedDesktopRail && 'hidden',
-              )}
-            >
-              {'\u2318'}K
-            </kbd>
-          </button>
-        </div>
-
-        <nav
-          className={cn(
-            'flex-1 overflow-y-auto py-2',
-            isCollapsedDesktopRail ? 'px-2' : 'px-3',
-          )}
-          aria-label={isMobile ? 'Navigation menu' : 'Desktop navigation'}
-        >
-          {NAV_SECTIONS.map((section) => (
-            <NavSectionGroup
-              key={section.label}
-              section={section}
-              isActive={currentSection === section.label}
-              isSidebarCollapsed={isCollapsedDesktopRail}
-            />
-          ))}
-        </nav>
-
-        <div className="border-t border-stone-300/70 p-3 dark:border-slate-800">
-          <button
-            type="button"
-            className={cn(
-              'flex w-full items-center rounded-xl text-sm text-slate-700 transition-[background-color,color] hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100',
-              isCollapsedDesktopRail ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2',
-              FOCUS_RING_CLASSES,
-            )}
-            onClick={logout}
-            aria-label={isCollapsedDesktopRail ? 'Logout' : undefined}
-            title={isCollapsedDesktopRail ? 'Logout' : undefined}
-          >
-            <LogOut size={14} />
-            {isCollapsedDesktopRail ? null : 'Logout'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-dvh min-h-screen overflow-hidden">
-      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-stone-200/90 bg-stone-100/95 px-4 py-2 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
-        <button
-          ref={mobileMenuTriggerRef}
-          type="button"
-          onClick={openMobileMenu}
-          className={ICON_BUTTON_CLASSES}
-          aria-label="Open menu"
-          aria-haspopup="dialog"
-          aria-expanded={isMobileMenuOpen}
-        >
-          <Menu size={20} />
-        </button>
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="" className="h-5 w-5" />
-          <span className="text-sm font-semibold">AGI Runner</span>
-        </div>
-        <button
-          ref={mobileSearchButtonRef}
-          type="button"
-          onClick={openSearchPalette}
-          className={ICON_BUTTON_CLASSES}
-          aria-label="Open command palette"
-          aria-haspopup="dialog"
-          aria-expanded={searchOpen}
-        >
-          <Search size={18} />
-        </button>
-      </div>
+      <MobileTopBar
+        isMobileMenuOpen={isMobileMenuOpen}
+        searchOpen={searchOpen}
+        mobileMenuTriggerRef={mobileMenuTriggerRef}
+        mobileSearchButtonRef={mobileSearchButtonRef}
+        onOpenMobileMenu={openMobileMenu}
+        onOpenSearchPalette={openSearchPalette}
+      />
 
       <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <DialogContent
@@ -796,12 +416,38 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           <DialogDescription className="sr-only">
             Browse workspace sections and account actions.
           </DialogDescription>
-          {renderSidebarContent(true)}
+          <SidebarPanel
+            isMobile
+            currentSection={currentSection}
+            searchOpen={searchOpen}
+            isDark={isDark}
+            isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
+            desktopSearchButtonRef={desktopSearchButtonRef}
+            mobileMenuCloseButtonRef={mobileMenuCloseButtonRef}
+            onOpenSearchPalette={openSearchPalette}
+            onCloseMobileMenu={closeMobileMenu}
+            onToggleDesktopSidebar={toggleDesktopSidebar}
+            onToggleTheme={onToggleTheme}
+            onLogout={logout}
+          />
         </DialogContent>
       </Dialog>
 
       <aside className={cn('hidden flex-col lg:flex', SIDEBAR_SHELL_CLASSES)}>
-        {renderSidebarContent(false)}
+        <SidebarPanel
+          isMobile={false}
+          currentSection={currentSection}
+          searchOpen={searchOpen}
+          isDark={isDark}
+          isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
+          desktopSearchButtonRef={desktopSearchButtonRef}
+          mobileMenuCloseButtonRef={mobileMenuCloseButtonRef}
+          onOpenSearchPalette={openSearchPalette}
+          onCloseMobileMenu={closeMobileMenu}
+          onToggleDesktopSidebar={toggleDesktopSidebar}
+          onToggleTheme={onToggleTheme}
+          onLogout={logout}
+        />
       </aside>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">
@@ -813,8 +459,20 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </div>
       </main>
 
-      <Dialog
+      <CommandPaletteDialog
         open={searchOpen}
+        shouldSearchWorkspace={shouldSearchWorkspace}
+        searchQuery={searchQuery}
+        searchStatus={searchStatus}
+        activePaletteIndex={activePaletteIndex}
+        searchInputRef={searchInputRef}
+        desktopSearchButtonRef={desktopSearchButtonRef}
+        mobileSearchButtonRef={mobileSearchButtonRef}
+        searchRestoreFocusRef={searchRestoreFocusRef}
+        paletteItemRefs={paletteItemRefs}
+        visiblePaletteItems={visiblePaletteItems}
+        visiblePaletteRows={visiblePaletteRows}
+        paletteState={paletteState}
         onOpenChange={(nextOpen) => {
           if (nextOpen) {
             setSearchOpen(true);
@@ -822,296 +480,19 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           }
           closeSearchPalette();
         }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          closeLabel="Close command palette"
-          className="max-w-2xl gap-3 rounded-2xl border-border/80 bg-surface/95 p-4 backdrop-blur"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            searchInputRef.current?.focus();
-          }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            restoreFocusToElement(searchRestoreFocusRef.current) ||
-              restoreFocusToElement(mobileSearchButtonRef.current) ||
-              restoreFocusToElement(desktopSearchButtonRef.current);
-          }}
-        >
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <DialogTitle className="text-sm font-semibold text-foreground">
-                    Search the workspace
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted">
-                    Workflow boards, tasks, workspaces, playbooks, specialist agents, and specialist
-                    executions.
-                  </DialogDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <kbd className="rounded border border-border px-1.5 py-0.5 text-xs text-muted">
-                    Esc
-                  </kbd>
-                  <DialogClose asChild>
-                    <button
-                      type="button"
-                      className={ICON_BUTTON_CLASSES}
-                      aria-label="Close command palette"
-                    >
-                      <X size={16} />
-                    </button>
-                  </DialogClose>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/80 bg-background/70 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Search size={16} className="text-muted" />
-                <input
-                  ref={searchInputRef}
-                  className={cn(
-                    'flex-1 bg-transparent text-sm placeholder:text-muted',
-                    FOCUS_RING_CLASSES,
-                  )}
-                  placeholder="Type to search or jump to a quick link"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={handlePaletteInputKeyDown}
-                  role="combobox"
-                  aria-expanded={searchOpen}
-                  aria-controls="dashboard-command-palette-results"
-                  aria-activedescendant={
-                    activePaletteIndex >= 0
-                      ? `dashboard-command-palette-item-${activePaletteIndex}`
-                      : undefined
-                  }
-                  aria-label="Search the workspace"
-                />
-                {searchStatus === 'loading' ? (
-                  <span className="text-xs text-muted">Searching…</span>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                'rounded-xl border px-3 py-3 text-sm',
-                searchStatus === 'error'
-                  ? 'border-red-300/80 bg-red-50/80 text-red-900 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-100'
-                  : 'border-border/70 bg-muted/10 text-muted',
-              )}
-            >
-              <p className="font-medium text-foreground">{paletteState.title}</p>
-              <p className="mt-1 text-xs leading-5">{paletteState.detail}</p>
-            </div>
-
-            {visiblePaletteRows.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3 px-1">
-                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
-                    {shouldSearchWorkspace ? 'Commands and results' : 'Actions and shortcuts'}
-                  </p>
-                  <p className="text-xs text-muted">{`${visiblePaletteItems.length} items`}</p>
-                </div>
-                <div
-                  id="dashboard-command-palette-results"
-                  role="listbox"
-                  className="max-h-72 space-y-3 overflow-y-auto"
-                >
-                  {visiblePaletteRows.map((section) => (
-                    <div key={section.id} className="space-y-1">
-                      <div className="px-1 text-[11px] font-medium uppercase tracking-[0.2em] text-muted">
-                        {section.title}
-                      </div>
-                      <ul className="space-y-1">
-                        {section.rows.map(({ item, index }) => (
-                          <li key={item.id}>
-                            <button
-                              id={`dashboard-command-palette-item-${index}`}
-                              ref={(element) => {
-                                paletteItemRefs.current[index] = element;
-                              }}
-                              type="button"
-                              role="option"
-                              aria-selected={index === activePaletteIndex}
-                              className={cn(
-                                'flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors',
-                                FOCUS_RING_CLASSES,
-                                index === activePaletteIndex
-                                  ? 'bg-accent/10 text-foreground'
-                                  : 'hover:bg-border/30',
-                              )}
-                              onMouseEnter={() => setActivePaletteIndex(index)}
-                              onClick={() => navigateToPaletteItem(item)}
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-foreground">{item.label}</p>
-                                <p className="truncate text-xs text-muted">{item.meta}</p>
-                              </div>
-                              <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
-                                {item.kind}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {!shouldSearchWorkspace && visiblePaletteItems.length === 0 ? (
-              <p className="px-1 text-xs text-muted">
-                No quick links match that text yet. Keep typing to search the full workspace.
-              </p>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+        onSearchQueryChange={setSearchQuery}
+        onInputKeyDown={handlePaletteInputKeyDown}
+        onActivePaletteIndexChange={setActivePaletteIndex}
+        onNavigateToPaletteItem={navigateToPaletteItem}
+      />
     </div>
   );
 }
 
-function NavSectionGroup({
-  section,
-  isActive,
-  isSidebarCollapsed,
-}: {
-  section: NavSection;
-  isActive: boolean;
-  isSidebarCollapsed: boolean;
-}): JSX.Element {
-  const [expanded, setExpanded] = useState(true);
-  const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;
-  const singleItem = rendersAsSingleItem ? section.items[0] : null;
-
-  useEffect(() => {
-    if (isActive) {
-      setExpanded(true);
-    }
-  }, [isActive]);
-  const Icon = section.icon;
-
-  if (isSidebarCollapsed && rendersAsSingleItem && singleItem) {
-    return (
-      <div className="mb-3">
-        <div className="sr-only">{section.label}</div>
-        <NavLink
-          to={singleItem.href}
-          end
-          title={singleItem.label}
-          aria-label={singleItem.label}
-          className={({ isActive: active }) =>
-            cn(
-              'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
-              FOCUS_RING_CLASSES,
-              readSidebarItemStateClasses(active),
-            )
-          }
-        >
-          <singleItem.icon size={15} />
-          <span className="sr-only">{singleItem.label}</span>
-        </NavLink>
-      </div>
-    );
-  }
-
-  if (isSidebarCollapsed) {
-    return (
-      <div className="mb-3">
-        <div className="sr-only">{section.label}</div>
-        <div className={cn(SIDEBAR_SECTION_GROUP_CLASSES, 'space-y-1 px-1 py-1.5')}>
-          {section.items.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              end
-              title={item.label}
-              aria-label={item.label}
-              className={({ isActive: active }) =>
-                cn(
-                  'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
-                  FOCUS_RING_CLASSES,
-                  readSidebarItemStateClasses(active),
-                )
-              }
-            >
-              <item.icon size={15} />
-              <span className="sr-only">{item.label}</span>
-            </NavLink>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (rendersAsSingleItem && singleItem) {
-    return (
-      <div className="mb-1">
-        <NavLink
-          to={singleItem.href}
-          end
-          title={singleItem.label}
-          aria-label={singleItem.label}
-          className={({ isActive: active }) =>
-            cn(
-              'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
-              FOCUS_RING_CLASSES,
-              readSidebarItemStateClasses(active),
-            )
-          }
-        >
-          <singleItem.icon size={13} />
-          {singleItem.label}
-        </NavLink>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-1">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className={cn(
-          SIDEBAR_SECTION_BUTTON_CLASSES,
-          FOCUS_RING_CLASSES,
-          isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES,
-        )}
-      >
-        <Icon size={15} />
-        <span className="flex-1 text-left">{section.label}</span>
-        <ChevronRight size={14} className={cn('transition-transform', expanded && 'rotate-90')} />
-      </button>
-      {expanded && (
-        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
-          {section.items.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              end
-              title={item.label}
-              aria-label={item.label}
-              className={({ isActive: active }) =>
-                cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
-                  FOCUS_RING_CLASSES,
-                  readSidebarItemStateClasses(active),
-                )
-              }
-            >
-              <item.icon size={13} />
-              {item.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
+export {
+  buildDesktopSidebarStorageKey,
+  findNavigationItemByHref,
+  NAV_SECTIONS,
+  readDesktopSidebarCollapsedState,
+} from './layout-nav.js';
 export { buildBreadcrumbs } from './layout-breadcrumbs.js';
