@@ -7,6 +7,9 @@ coverage/
 # Env
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # IDE
 .idea/
@@ -27,6 +30,7 @@ tests/reports/**/*
 !tests/reports/results.v1.json
 !tests/reports/batch-results.v1.json
 !tests/reports/traceability*.json
+!tests/reports/README.md
 
 tests/artifacts/
 
@@ -35,8 +39,14 @@ tests/live/reports/
 
 # Local working scratch
 tasks/
+.bin/
 .secrets/
 .cache/
 .tmp/
+tmp/
 .artifacts/
+.superpowers/
+docs/superpowers/
+apps/dashboard/test-results/
+test-results/
 tests/live/env/local.env
