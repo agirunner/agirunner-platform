@@ -787,7 +787,7 @@ function buildHumanizedActionHeadline(payload: Record<string, unknown>): string 
   switch (actionName) {
     case 'submit_handoff': {
       const summary = readOperatorReadableText(readString(input.summary), 140);
-      return summary ? `Submitting the handoff: ${capitalizeSentence(summary)}` : null;
+      return summary ? `Submitting the brief: ${capitalizeSentence(summary)}` : null;
     }
     case 'request_rework': {
       const feedback = readOperatorReadableText(
@@ -1000,7 +1000,7 @@ function describeLogicalContextPath(path: string | null): string | null {
     case 'predecessor_handoff.json':
     case 'predecessor-handoff.json':
     case 'predecessor-handoff.md':
-      return 'predecessor handoff';
+      return 'predecessor brief';
     case 'orchestrator-context.json':
     case 'orchestrator-context.md':
       return 'orchestrator context';
@@ -1142,7 +1142,7 @@ function humanizeObservedToolName(toolName: string): string | null {
     case 'memory_read':
       return null;
     case 'read_latest_handoff':
-      return 'latest handoff';
+      return 'latest brief';
     case 'read_work_item_continuity':
       return 'work item continuity';
     case 'read_stage_status':

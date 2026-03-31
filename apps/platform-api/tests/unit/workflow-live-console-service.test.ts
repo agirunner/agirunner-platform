@@ -61,6 +61,7 @@ describe('WorkflowLiveConsoleService', () => {
       all: 12,
       turn_updates: 0,
       briefs: 12,
+      steering: 0,
     });
     expect(result.items).toHaveLength(5);
     expect(result.next_cursor).not.toBeNull();
@@ -211,6 +212,7 @@ describe('WorkflowLiveConsoleService', () => {
       all: 2,
       turn_updates: 1,
       briefs: 1,
+      steering: 0,
     });
   });
 
@@ -316,6 +318,7 @@ describe('WorkflowLiveConsoleService', () => {
       all: 1,
       turn_updates: 1,
       briefs: 0,
+      steering: 0,
     });
   });
 
@@ -1247,6 +1250,7 @@ describe('WorkflowLiveConsoleService', () => {
       all: 0,
       turn_updates: 0,
       briefs: 0,
+      steering: 0,
     });
   });
 
@@ -2014,6 +2018,7 @@ describe('WorkflowLiveConsoleService', () => {
       all: 2,
       turn_updates: 2,
       briefs: 0,
+      steering: 0,
     });
     expect(result.items).toHaveLength(1);
     expect(result.next_cursor).not.toBeNull();

@@ -186,7 +186,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
+      '[Act] Submitting the brief: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -207,7 +207,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
+      '[Act] Submitting the brief: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -462,7 +462,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Completed the intake-triage deliverable for workflows-intake-01.',
+      '[Act] Submitting the brief: Completed the intake-triage deliverable for workflows-intake-01.',
     );
     expect(item.headline).not.toContain('/tmp/workspace/');
     expect(item.headline).not.toContain('context/current-task.md');
@@ -988,10 +988,10 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Observe] Observed current results from latest handoff and work item continuity.',
+      '[Observe] Observed current results from latest brief and work item continuity.',
     );
     expect(item.summary).toBe(
-      'Observed current results from latest handoff and work item continuity.',
+      'Observed current results from latest brief and work item continuity.',
     );
   });
 
@@ -1246,7 +1246,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
+      '[Act] Submitting the brief: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -1273,10 +1273,10 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+      '[Act] Submitting the brief: The delivery task for the work item was rerouted and implementation can resume.',
     );
     expect(item.summary).toBe(
-      'Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+      'Submitting the brief: The delivery task for the work item was rerouted and implementation can resume.',
     );
   });
 
@@ -1407,10 +1407,10 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Plan] Submitting the handoff: Release package needs revision before release-pass can close.',
+      '[Plan] Submitting the brief: Release package needs revision before release-pass can close.',
     );
     expect(item.summary).toBe(
-      'Submitting the handoff: Release package needs revision before release-pass can close.',
+      'Submitting the brief: Release package needs revision before release-pass can close.',
     );
   });
 
@@ -1437,10 +1437,10 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Implementation revision 3 is approved and ready for release-readiness routing.',
+      '[Act] Submitting the brief: Implementation revision 3 is approved and ready for release-readiness routing.',
     );
     expect(item.summary).toBe(
-      'Submitting the handoff: Implementation revision 3 is approved and ready for release-readiness routing.',
+      'Submitting the brief: Implementation revision 3 is approved and ready for release-readiness routing.',
     );
   });
 
@@ -2132,7 +2132,7 @@ describe('workflow-execution-log-composer', () => {
         task_id: 'task-50',
         work_item_id: 'work-item-50',
         headline:
-          '[Act] Submitting the handoff: Delivered and verified a persisted technical design for the staged release-audit CLI.',
+          '[Act] Submitting the brief: Delivered and verified a persisted technical design for the staged release-audit CLI.',
       }),
     );
   });
