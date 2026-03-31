@@ -12,7 +12,7 @@ import {
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
-import { buildBulkWorkflowInsertSql } from '../../../../apps/dashboard/src/testing/workflows-bulk-seed.js';
+import { buildBulkWorkflowInsertSql } from './workflows-bulk-seed.js';
 import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
 interface ApiRecord {
@@ -421,13 +421,15 @@ export async function createWorkflowViaApi(input: {
   name: string;
   playbookId: string;
   workspaceId: string;
-  lifecycle: 'planned' | 'ongoing';
-  state: 'pending' | 'active' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  lifecycle?: 'planned' | 'ongoing';
+  state?: 'pending' | 'active' | 'paused' | 'completed' | 'failed' | 'cancelled';
   currentStage?: string;
   parameters: Record<string, unknown>;
   seedHeartbeatGuard?: boolean;
 }): Promise<ApiRecord> {
   const workflowId = randomUUID();
+  const lifecycle = input.lifecycle ?? 'planned';
+  const state = input.state ?? 'pending';
   runPsql(`
     INSERT INTO public.workflows (
       id,
@@ -451,8 +453,8 @@ export async function createWorkflowViaApi(input: {
       ${sqlUuid(input.playbookId)},
       1,
       ${sqlText(input.name)},
-      ${sqlText(input.state)}::workflow_state,
-      ${sqlText(input.lifecycle)},
+      ${sqlText(state)}::workflow_state,
+      ${sqlText(lifecycle)},
       ${input.currentStage ? sqlText(input.currentStage) : 'NULL'},
       ${sqlJsonValue(input.parameters)}::jsonb,
       '{}'::jsonb,
@@ -544,6 +546,11 @@ export async function createSeededWorkflowInputPacket(input: {
   packetKind: string;
   summary: string;
   structuredInputs: Record<string, unknown>;
+  files?: Array<{
+    fileName: string;
+    content: string;
+    contentType?: string;
+  }>;
 }): Promise<void> {
   return createWorkflowInputPacketRecord({
     workflowId: input.workflowId,
@@ -551,7 +558,11 @@ export async function createSeededWorkflowInputPacket(input: {
     packetKind: input.packetKind,
     summary: input.summary,
     structuredInputs: input.structuredInputs,
-    files: [],
+    files: (input.files ?? []).map((file) => ({
+      fileName: file.fileName,
+      content: file.content,
+      contentType: file.contentType ?? 'text/plain',
+    })),
   });
 }
 
