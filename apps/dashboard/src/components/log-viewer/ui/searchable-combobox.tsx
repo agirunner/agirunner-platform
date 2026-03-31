@@ -8,87 +8,25 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover.js';
+import { ChevronDown, Search, X } from 'lucide-react';
+
 import { cn } from '../../../lib/utils.js';
 import { Input } from '../../ui/input.js';
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover.js';
+import {
+  buildFlatRows,
+  collectSelectableItems,
+  MAX_LIST_HEIGHT_PX,
+  type SearchableComboboxProps,
+  VIRTUALIZE_AFTER_ROW_COUNT,
+} from './searchable-combobox.support.js';
+import { SearchableComboboxList } from './searchable-combobox.list.js';
 
-export interface ComboboxItem {
-  id: string;
-  label: string;
-  subtitle?: string;
-  status?: 'active' | 'completed' | 'failed' | 'pending';
-}
-
-export interface ComboboxGroup {
-  label: string;
-  items: ComboboxItem[];
-}
-
-export interface SearchableComboboxProps {
-  items: ComboboxItem[];
-  recentItems?: ComboboxItem[];
-  value: string | null;
-  onChange: (id: string | null) => void;
-  onOpenChange?: (open: boolean) => void;
-  placeholder?: string;
-  searchPlaceholder?: string;
-  allGroupLabel?: string;
-  onSearch?: (query: string) => void;
-  isLoading?: boolean;
-  className?: string;
-  disabled?: boolean;
-  multiSelect?: boolean;
-  selectedIds?: Set<string>;
-  onClearAll?: () => void;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-500',
-  completed: 'bg-blue-500',
-  failed: 'bg-red-500',
-  pending: 'bg-yellow-500',
-};
-
-const ITEM_HEIGHT_PX = 48;
-const GROUP_HEADER_HEIGHT_PX = 28;
-const MAX_LIST_HEIGHT_PX = 384;
-const VIRTUALIZE_AFTER_ROW_COUNT = 24;
-
-type FlatRow =
-  | { type: 'header'; label: string }
-  | { type: 'item'; item: ComboboxItem; flatIndex: number };
-
-function buildFlatRows(
-  recentItems: ComboboxItem[],
-  allItems: ComboboxItem[],
-  allGroupLabel: string,
-): FlatRow[] {
-  const rows: FlatRow[] = [];
-  let flatIndex = 0;
-
-  if (recentItems.length > 0) {
-    rows.push({ type: 'header', label: 'Recent' });
-    for (const item of recentItems) {
-      rows.push({ type: 'item', item, flatIndex });
-      flatIndex++;
-    }
-  }
-
-  if (allItems.length > 0) {
-    rows.push({ type: 'header', label: allGroupLabel });
-    for (const item of allItems) {
-      rows.push({ type: 'item', item, flatIndex });
-      flatIndex++;
-    }
-  }
-
-  return rows;
-}
-
-function collectSelectableItems(rows: FlatRow[]): ComboboxItem[] {
-  return rows.filter((r): r is FlatRow & { type: 'item' } => r.type === 'item').map((r) => r.item);
-}
+export type {
+  ComboboxGroup,
+  ComboboxItem,
+  SearchableComboboxProps,
+} from './searchable-combobox.support.js';
 
 export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableComboboxProps>(
   (
@@ -119,50 +57,54 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
     const filtered = useMemo(() => {
-      if (!query) return items;
+      if (!query) {
+        return items;
+      }
       const lower = query.toLowerCase();
       return items.filter(
         (item) =>
-          item.label.toLowerCase().includes(lower) ||
-          item.subtitle?.toLowerCase().includes(lower),
+          item.label.toLowerCase().includes(lower) || item.subtitle?.toLowerCase().includes(lower),
       );
     }, [items, query]);
 
     const filteredRecent = useMemo(() => {
-      if (!query) return recentItems;
+      if (!query) {
+        return recentItems;
+      }
       const lower = query.toLowerCase();
       return recentItems.filter(
         (item) =>
-          item.label.toLowerCase().includes(lower) ||
-          item.subtitle?.toLowerCase().includes(lower),
+          item.label.toLowerCase().includes(lower) || item.subtitle?.toLowerCase().includes(lower),
       );
-    }, [recentItems, query]);
+    }, [query, recentItems]);
 
-    const recentIds = useMemo(() => new Set(filteredRecent.map((i) => i.id)), [filteredRecent]);
-
+    const recentIds = useMemo(
+      () => new Set(filteredRecent.map((item) => item.id)),
+      [filteredRecent],
+    );
     const nonRecentItems = useMemo(
-      () => filtered.filter((i) => !recentIds.has(i.id)),
+      () => filtered.filter((item) => !recentIds.has(item.id)),
       [filtered, recentIds],
     );
-
     const flatRows = useMemo(
       () => buildFlatRows(filteredRecent, nonRecentItems, allGroupLabel),
-      [filteredRecent, nonRecentItems, allGroupLabel],
+      [allGroupLabel, filteredRecent, nonRecentItems],
     );
-
     const selectableItems = useMemo(() => collectSelectableItems(flatRows), [flatRows]);
     const shouldVirtualize = flatRows.length > VIRTUALIZE_AFTER_ROW_COUNT;
-
     const selectedItem = useMemo(
-      () => (value ? items.find((i) => i.id === value) ?? recentItems.find((i) => i.id === value) : null),
+      () =>
+        value
+          ? (items.find((item) => item.id === value) ??
+            recentItems.find((item) => item.id === value))
+          : null,
       [items, recentItems, value],
     );
 
     const virtualizer = useVirtualizer({
       count: flatRows.length,
       getScrollElement: () => scrollContainerRef.current,
-      estimateSize: (index) =>
-        flatRows[index].type === 'header' ? GROUP_HEADER_HEIGHT_PX : ITEM_HEIGHT_PX,
+      estimateSize: (index) => (flatRows[index].type === 'header' ? 28 : 48),
       overscan: 5,
     });
     const virtualRows = virtualizer.getVirtualItems();
@@ -187,7 +129,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
           setQuery('');
         }
       },
-      [onChange, multiSelect],
+      [multiSelect, onChange],
     );
 
     const handleClear = useCallback(() => {
@@ -199,7 +141,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     const scrollToHighlight = useCallback(
       (index: number) => {
         const rowIndex = flatRows.findIndex(
-          (r) => r.type === 'item' && r.flatIndex === index,
+          (row) => row.type === 'item' && row.flatIndex === index,
         );
         if (rowIndex >= 0) {
           virtualizer.scrollToIndex(rowIndex, { align: 'auto' });
@@ -209,37 +151,37 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     );
 
     const handleKeyDown = useCallback(
-      (e: KeyboardEvent) => {
-        switch (e.key) {
+      (event: KeyboardEvent) => {
+        switch (event.key) {
           case 'ArrowDown':
-            e.preventDefault();
-            setHighlightIndex((prev) => {
-              const next = Math.min(prev + 1, selectableItems.length - 1);
+            event.preventDefault();
+            setHighlightIndex((previous) => {
+              const next = Math.min(previous + 1, selectableItems.length - 1);
               scrollToHighlight(next);
               return next;
             });
             break;
           case 'ArrowUp':
-            e.preventDefault();
-            setHighlightIndex((prev) => {
-              const next = Math.max(prev - 1, 0);
+            event.preventDefault();
+            setHighlightIndex((previous) => {
+              const next = Math.max(previous - 1, 0);
               scrollToHighlight(next);
               return next;
             });
             break;
           case 'Enter':
-            e.preventDefault();
+            event.preventDefault();
             if (selectableItems[highlightIndex]) {
               handleSelect(selectableItems[highlightIndex].id);
             }
             break;
           case 'Escape':
-            e.preventDefault();
+            event.preventDefault();
             setOpen(false);
             break;
         }
       },
-      [selectableItems, highlightIndex, handleSelect, scrollToHighlight],
+      [handleSelect, highlightIndex, scrollToHighlight, selectableItems],
     );
 
     useEffect(() => {
@@ -259,9 +201,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
       return () => cancelAnimationFrame(frame);
     }, [open, shouldVirtualize, virtualizer]);
 
-    useEffect(() => {
-      return () => clearTimeout(debounceRef.current);
-    }, []);
+    useEffect(() => () => clearTimeout(debounceRef.current), []);
 
     const handleOpenChange = useCallback(
       (nextOpen: boolean) => {
@@ -283,29 +223,36 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
               className,
             )}
           >
-            <span className={cn('min-w-0 truncate', selectedItem || (multiSelect && selectedIds && selectedIds.size > 0) ? 'text-foreground' : 'text-muted')}>
+            <span
+              className={cn(
+                'min-w-0 truncate',
+                selectedItem || (multiSelect && selectedIds && selectedIds.size > 0)
+                  ? 'text-foreground'
+                  : 'text-muted',
+              )}
+            >
               {selectedItem?.label ?? placeholder}
             </span>
             <div className="flex shrink-0 items-center gap-1">
-              {multiSelect && selectedIds && selectedIds.size > 0 && onClearAll && (
+              {multiSelect && selectedIds && selectedIds.size > 0 && onClearAll ? (
                 <span
                   role="button"
                   tabIndex={-1}
                   className="rounded-sm p-0.5 hover:bg-border/50"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     onClearAll();
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.stopPropagation();
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.stopPropagation();
                       onClearAll();
                     }
                   }}
                 >
                   <X className="h-3.5 w-3.5 opacity-50 hover:opacity-100" />
                 </span>
-              )}
+              ) : null}
               <ChevronDown className="h-4 w-4 opacity-50" />
             </div>
           </button>
@@ -320,7 +267,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
             <Input
               ref={searchInputRef}
               value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
+              onChange={(event) => handleQueryChange(event.target.value)}
               placeholder={searchPlaceholder}
               className="h-9 border-0 shadow-none focus-visible:ring-0"
             />
@@ -332,159 +279,23 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
             className="overflow-y-auto"
             style={{ maxHeight: MAX_LIST_HEIGHT_PX }}
           >
-            {isLoading && (
-              <div className="py-4 text-center text-sm text-muted">Loading...</div>
-            )}
-
-            {!isLoading && selectableItems.length === 0 && (
-              <div className="py-4 text-center text-sm text-muted">No results found</div>
-            )}
-
-            {!isLoading && selectableItems.length > 0 && shouldVirtualize && virtualRows.length > 0 && (
-              <div
-                style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-              >
-                {virtualRows.map((virtualRow) => {
-                  const row = flatRows[virtualRow.index];
-                  if (row.type === 'header') {
-                    return (
-                      <div
-                        key={`header-${row.label}`}
-                        className="px-3 py-1 text-xs font-semibold text-muted"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: virtualRow.size,
-                          transform: `translateY(${virtualRow.start}px)`,
-                        }}
-                      >
-                        {row.label}
-                      </div>
-                    );
-                  }
-
-                  const { item, flatIndex } = row;
-                  const isItemSelected = multiSelect
-                    ? selectedIds?.has(item.id) ?? false
-                    : item.id === value;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="option"
-                      aria-selected={isItemSelected}
-                      className={cn(
-                        'flex w-full cursor-default select-none flex-col rounded-sm px-2 py-1.5 text-left text-sm outline-none',
-                        flatIndex === highlightIndex && 'bg-accent/10',
-                        isItemSelected && 'font-medium',
-                      )}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: virtualRow.size,
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                      onClick={() => handleSelect(item.id)}
-                      onMouseEnter={() => setHighlightIndex(flatIndex)}
-                    >
-                      <div className="flex items-center gap-2">
-                        {multiSelect && (
-                          <span
-                            className={cn(
-                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-border',
-                              isItemSelected && 'border-accent bg-accent text-accent-foreground',
-                            )}
-                          >
-                            {isItemSelected && <Check className="h-3 w-3" />}
-                          </span>
-                        )}
-                        {item.status && (
-                          <span
-                            className={cn(
-                              'inline-block h-2 w-2 shrink-0 rounded-full',
-                              STATUS_COLORS[item.status] ?? 'bg-border',
-                            )}
-                          />
-                        )}
-                        <span className="truncate text-foreground">{item.label}</span>
-                      </div>
-                      {item.subtitle && (
-                        <span className={cn('truncate text-xs text-muted', multiSelect ? 'pl-6' : 'pl-4')}>{item.subtitle}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {!isLoading && selectableItems.length > 0 && (!shouldVirtualize || virtualRows.length === 0) && (
-              <div className="py-1">
-                {flatRows.map((row) => {
-                  if (row.type === 'header') {
-                    return (
-                      <div
-                        key={`header-${row.label}`}
-                        className="px-3 py-1 text-xs font-semibold text-muted"
-                      >
-                        {row.label}
-                      </div>
-                    );
-                  }
-
-                  const { item, flatIndex } = row;
-                  const isItemSelected = multiSelect
-                    ? selectedIds?.has(item.id) ?? false
-                    : item.id === value;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="option"
-                      aria-selected={isItemSelected}
-                      className={cn(
-                        'flex w-full cursor-default select-none flex-col rounded-sm px-2 py-1.5 text-left text-sm outline-none',
-                        flatIndex === highlightIndex && 'bg-accent/10',
-                        isItemSelected && 'font-medium',
-                      )}
-                      onClick={() => handleSelect(item.id)}
-                      onMouseEnter={() => setHighlightIndex(flatIndex)}
-                    >
-                      <div className="flex items-center gap-2">
-                        {multiSelect && (
-                          <span
-                            className={cn(
-                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-border',
-                              isItemSelected && 'border-accent bg-accent text-accent-foreground',
-                            )}
-                          >
-                            {isItemSelected && <Check className="h-3 w-3" />}
-                          </span>
-                        )}
-                        {item.status && (
-                          <span
-                            className={cn(
-                              'inline-block h-2 w-2 shrink-0 rounded-full',
-                              STATUS_COLORS[item.status] ?? 'bg-border',
-                            )}
-                          />
-                        )}
-                        <span className="truncate text-foreground">{item.label}</span>
-                      </div>
-                      {item.subtitle && (
-                        <span className={cn('truncate text-xs text-muted', multiSelect ? 'pl-6' : 'pl-4')}>{item.subtitle}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <SearchableComboboxList
+              flatRows={flatRows}
+              highlightIndex={highlightIndex}
+              isLoading={Boolean(isLoading)}
+              multiSelect={multiSelect}
+              selectedIds={selectedIds}
+              selectableItems={selectableItems}
+              shouldVirtualize={shouldVirtualize}
+              value={value}
+              virtualRows={virtualRows}
+              virtualizer={virtualizer}
+              onSelect={handleSelect}
+              onHighlightChange={setHighlightIndex}
+            />
           </div>
 
-          {(value || (multiSelect && selectedIds && selectedIds.size > 0)) && (
+          {value || (multiSelect && selectedIds && selectedIds.size > 0) ? (
             <>
               <div className="border-t border-border" />
               <button
@@ -495,10 +306,11 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                 Clear {multiSelect ? 'all' : 'selection'}
               </button>
             </>
-          )}
+          ) : null}
         </PopoverContent>
       </Popover>
     );
   },
 );
+
 SearchableCombobox.displayName = 'SearchableCombobox';
