@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveSecretEnv } from '../../src/config/secret-env.js';
+import { resolveSecretEnv } from '../../../../src/config/secret-env.js';
 
 function writeSecretFile(contents: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-secret-env-'));

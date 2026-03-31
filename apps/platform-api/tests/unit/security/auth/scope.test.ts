@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { enforceScope, hasRequiredScope } from '../../src/auth/scope.js';
+import { enforceScope, hasRequiredScope } from '../../../../src/auth/scope.js';
 
 describe('scope authorization', () => {
   it('treats service keys as admin-equivalent for current protected endpoints', () => {

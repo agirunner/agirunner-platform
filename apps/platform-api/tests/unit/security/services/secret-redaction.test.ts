@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sanitizeSecretLikeValue } from '../../src/services/secret-redaction.js';
+import { sanitizeSecretLikeValue } from '../../../../src/services/secret-redaction.js';
 
 describe('sanitizeSecretLikeValue', () => {
   it('does not redact ordinary ids that only contain an sk- substring', () => {

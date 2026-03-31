@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { decryptWebhookSecret, encryptWebhookSecret, isWebhookSecretEncrypted } from '../../src/services/webhook-secret-crypto.js';
+import {
+  decryptWebhookSecret,
+  encryptWebhookSecret,
+  isWebhookSecretEncrypted,
+} from '../../../../src/services/webhook-secret-crypto.js';
 
 describe('webhook secret encryption', () => {
   const encryptionKey = 'k'.repeat(64);
