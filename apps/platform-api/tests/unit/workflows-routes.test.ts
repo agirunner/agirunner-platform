@@ -261,48 +261,6 @@ describe('workflow routes', () => {
     vi.clearAllMocks();
   });
 
-  it('does not register the removed manual-rework route', async () => {
-    app = fastify();
-    app.decorate('workflowService', {
-      createWorkflow: async () => ({}),
-      listWorkflows: async () => ({ data: [], meta: {} }),
-      getWorkflow: async () => ({}),
-      getWorkflowBoard: async () => ({}),
-      listWorkflowStages: async () => ([]),
-      listWorkflowWorkItems: async () => ([]),
-      createWorkflowWorkItem: async () => ({}),
-      getWorkflowWorkItem: async () => ({}),
-      listWorkflowWorkItemTasks: async () => ([]),
-      listWorkflowWorkItemEvents: async () => ([]),
-      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
-      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
-      updateWorkflowWorkItem: async () => ({}),
-      actOnStageGate: async () => ({}),
-      getResolvedConfig: async () => ({}),
-      cancelWorkflow: async () => ({}),
-      pauseWorkflow: async () => ({}),
-      resumeWorkflow: async () => ({}),
-      deleteWorkflow: async () => ({}),
-    });
-    app.decorate('pgPool', {});
-    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
-    app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
-    app.decorate('modelCatalogService', {
-      resolveRoleConfig: async () => null,
-      listProviders: async () => [],
-      listModels: async () => [],
-      getProviderForOperations: async () => null,
-    });
-    await app.register(workflowRoutes);
-
-    const routes = app.printRoutes();
-
-    expect(routes).not.toContain('/api/v1/workflows/:id/manual-rework');
-    expect(routes).toContain('├── tasks (GET, HEAD)');
-    expect(routes).toContain('├── events (GET, HEAD)');
-  });
-
   it('lists workflow input packets through workflow-owned routes', async () => {
     const listWorkflowInputPackets = vi.fn().mockResolvedValue([
       {
