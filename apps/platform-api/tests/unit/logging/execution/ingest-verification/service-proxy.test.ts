@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LogService } from '../../../src/logging/log-service.js';
-import { createLoggedService } from '../../../src/logging/create-logged-service.js';
+import { LogService } from '../../../../../src/logging/log-service.js';
+import { createLoggedService } from '../../../../../src/logging/create-logged-service.js';
 import { createMockPool } from './support.js';
 
 describe('Logging E2E Verification - service proxy', () => {

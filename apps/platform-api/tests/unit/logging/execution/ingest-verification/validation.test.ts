@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { LogService } from '../../../src/logging/log-service.js';
+import { LogService } from '../../../../../src/logging/log-service.js';
 import { createMockPool } from './support.js';
 
 describe('Logging E2E Verification - validation', () => {
