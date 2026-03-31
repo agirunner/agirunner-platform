@@ -1,4 +1,4 @@
-import type { DashboardPlaybookRecord } from '../../lib/api.js';
+import type { DashboardPlaybookRecord } from '../../../lib/api.js';
 
 export interface LaunchParameterSpec {
   slug: string;

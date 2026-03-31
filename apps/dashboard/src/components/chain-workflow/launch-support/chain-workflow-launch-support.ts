@@ -1,13 +1,13 @@
-import type { DashboardRoleModelOverride } from '../../lib/api.js';
+import type { DashboardRoleModelOverride } from '../../../lib/api.js';
 
 import {
   validateWorkflowBudgetDraft,
   type WorkflowBudgetDraft,
-} from './playbook-launch-budget.js';
+} from './chain-workflow-launch-budget.js';
 import {
   readRequiredParameterError,
   type LaunchParameterSpec,
-} from './playbook-launch-definition.js';
+} from './chain-workflow-launch-definition.js';
 
 export {
   buildWorkflowBudgetInput,
@@ -17,12 +17,12 @@ export {
   summarizeWorkflowBudgetDraft,
   type WorkflowBudgetDraft,
   type WorkflowBudgetMode,
-} from './playbook-launch-budget.js';
+} from './chain-workflow-launch-budget.js';
 export {
   readLaunchDefinition,
   type LaunchDefinitionSummary,
   type LaunchParameterSpec,
-} from './playbook-launch-definition.js';
+} from './chain-workflow-launch-definition.js';
 
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
 

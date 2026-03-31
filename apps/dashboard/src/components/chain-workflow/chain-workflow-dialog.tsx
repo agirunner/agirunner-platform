@@ -9,7 +9,7 @@ import { buildWorkflowsPageHref } from '../../pages/workflows/workflows-page.sup
 import {
   buildParametersFromDrafts,
   readLaunchDefinition,
-} from '../../pages/playbook-launch/playbook-launch-support.js';
+} from './launch-support/chain-workflow-launch-support.js';
 import { Button } from '../ui/button.js';
 import {
   Dialog,

@@ -4,8 +4,8 @@ import type {
   LaunchParameterSpec,
   StructuredEntryDraft,
   StructuredValueType,
-} from '../../pages/playbook-launch/playbook-launch-support.js';
-import { createStructuredEntryDraft } from '../../pages/playbook-launch/playbook-launch-support.js';
+} from './launch-support/chain-workflow-launch-support.js';
+import { createStructuredEntryDraft } from './launch-support/chain-workflow-launch-support.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import {

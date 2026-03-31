@@ -1,4 +1,4 @@
-import type { DashboardWorkflowBudgetInput } from '../../lib/api.js';
+import type { DashboardWorkflowBudgetInput } from '../../../lib/api.js';
 
 export interface WorkflowBudgetDraft {
   tokenBudget: string;

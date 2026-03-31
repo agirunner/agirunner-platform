@@ -11,9 +11,9 @@ import {
   readWorkflowBudgetMode,
   summarizeWorkflowBudgetDraft,
   validateLaunchDraft,
-} from './playbook-launch-support.js';
+} from './chain-workflow-launch-support.js';
 
-describe('playbook launch support', () => {
+describe('chain workflow launch support', () => {
   it('reads only the declared launch input contract from the playbook definition', () => {
     const summary = readLaunchDefinition({
       id: 'pb-1',
