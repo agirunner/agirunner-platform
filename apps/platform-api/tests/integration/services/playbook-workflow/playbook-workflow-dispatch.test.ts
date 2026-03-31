@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runWorkflowActivationDispatchTick } from '../../../../src/jobs/lifecycle-monitor.js';
 import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
-import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator-brief-service.js';
+import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator/workflow-operator-brief-service.js';
 import { TEST_IDENTITY as identity, agentIdentity } from '../workflow-runtime/v2-harness.js';
 import {
   setupPlaybookWorkflowIntegrationSuite,

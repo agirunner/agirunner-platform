@@ -98,7 +98,7 @@ export async function createOrchestratorControlTestApp(
   db: TestDatabase,
   harness: ReturnType<typeof createV2Harness>,
 ) {
-  const { orchestratorControlRoutes } = await import('../../../../src/api/routes/orchestrator-control.routes.js');
+  const { orchestratorControlRoutes } = await import('../../../../src/api/routes/orchestrator-control/routes.js');
   const app = fastify();
   registerErrorHandler(app);
   app.decorate('pgPool', db.pool as never);
