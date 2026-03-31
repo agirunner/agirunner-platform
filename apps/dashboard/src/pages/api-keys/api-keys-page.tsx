@@ -11,7 +11,7 @@ import {
   ApiKeyOverview,
 } from './api-key-page.sections.js';
 
-export function ApiKeyPage(): JSX.Element {
+export function ApiKeysPage(): JSX.Element {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<DashboardApiKeyRecord | null>(null);
 

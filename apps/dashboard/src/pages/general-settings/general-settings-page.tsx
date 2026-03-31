@@ -36,7 +36,7 @@ function isPositiveInteger(value: string): boolean {
   return !isNaN(parsed) && parsed > 0;
 }
 
-export function SettingsPage(): JSX.Element {
+export function GeneralSettingsPage(): JSX.Element {
   const queryClient = useQueryClient();
 
   const loggingQuery = useQuery({

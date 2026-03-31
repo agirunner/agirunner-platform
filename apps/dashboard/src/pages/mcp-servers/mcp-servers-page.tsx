@@ -28,7 +28,7 @@ import { McpPageOAuthClientProfilesSection } from './mcp-page.oauth-client-profi
 import { McpPageTable } from './mcp-page.table.js';
 import { McpPageToolsSheet } from './mcp-page.tools-sheet.js';
 
-export function McpPage(): JSX.Element {
+export function McpServersPage(): JSX.Element {
   const {
     busyServerId,
     closeOauthClientProfileDialog,

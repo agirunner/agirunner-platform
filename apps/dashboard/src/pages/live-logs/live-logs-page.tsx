@@ -21,16 +21,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { readLogsSurfaceView } from './logs-page-view.js';
 
-interface LogsPageProps {
+interface LiveLogsPageProps {
   scopedWorkflowId?: string;
   mode?: 'logs' | 'inspector';
 }
 
-export function LogsPage(): JSX.Element {
+export function LiveLogsPage(): JSX.Element {
   return <LogsSurface mode="logs" />;
 }
 
-export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
+export function LogsSurface(props: LiveLogsPageProps = {}): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
   const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');

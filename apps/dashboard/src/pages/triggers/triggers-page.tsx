@@ -1,6 +1,6 @@
 import { ConfigPlaceholderPage } from '../config-placeholder/config-placeholder-page.js';
 
-export function WorkItemTriggersPage(): JSX.Element {
+export function TriggersPage(): JSX.Element {
   return (
     <ConfigPlaceholderPage
       navHref="/integrations/triggers"

@@ -27,14 +27,14 @@ import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-
 
 import {
   AgenticSettingsPage,
-  ApiKeyPage,
+  ApiKeysPage,
   ArtifactPreviewPage,
   ExecutionEnvironmentsPage,
   isChunkLoadError,
   LiveContainersPage,
+  LiveLogsPage,
   LoginPage,
-  LogsPage,
-  McpPage,
+  McpServersPage,
   ModelsPage,
   OrchestratorPage,
   PageFallback,
@@ -42,14 +42,14 @@ import {
   PlatformSettingsPage,
   PlaybookDetailPage,
   PlaybookListPage,
-  SettingsPage,
+  GeneralSettingsPage,
   SpecialistsPage,
   SkillsPage,
   TaskDetailPage,
   ToolsPage,
+  TriggersPage,
   WebhooksPage,
   WorkflowsPage,
-  WorkItemTriggersPage,
   WorkspaceDetailPage,
   WorkspaceListPage,
 } from './app-page-loaders.js';
@@ -229,8 +229,8 @@ export function App(): JSX.Element {
 
               {/* Integrations */}
               <Route path="/integrations/webhooks" element={<WebhooksPage />} />
-              <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
-              <Route path="/integrations/mcp-servers" element={<McpPage />} />
+              <Route path="/integrations/triggers" element={<TriggersPage />} />
+              <Route path="/integrations/mcp-servers" element={<McpServersPage />} />
               <Route
                 path="/integrations/mcp"
                 element={<Navigate to="/integrations/mcp-servers" replace />}
@@ -257,7 +257,7 @@ export function App(): JSX.Element {
               />
 
               {/* Diagnostics */}
-              <Route path="/diagnostics/live-logs" element={<LogsPage />} />
+              <Route path="/diagnostics/live-logs" element={<LiveLogsPage />} />
               <Route path="/diagnostics/live-containers" element={<LiveContainersPage />} />
               <Route path="/diagnostics/logs" element={<LegacyLiveLogsRedirect />} />
               <Route path="/diagnostics/containers" element={<LegacyLiveContainersRedirect />} />
@@ -265,12 +265,12 @@ export function App(): JSX.Element {
               <Route path="/fleet/containers" element={<LegacyLiveContainersRedirect />} />
 
               {/* Admin */}
-              <Route path="/admin/general-settings" element={<SettingsPage />} />
+              <Route path="/admin/general-settings" element={<GeneralSettingsPage />} />
               <Route
                 path="/admin/settings"
                 element={<Navigate to="/admin/general-settings" replace />}
               />
-              <Route path="/admin/api-keys" element={<ApiKeyPage />} />
+              <Route path="/admin/api-keys" element={<ApiKeysPage />} />
               <Route path="/admin/agentic-settings" element={<AgenticSettingsPage />} />
               <Route
                 path="/admin/agent-settings"

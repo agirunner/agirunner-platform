@@ -131,14 +131,16 @@ export const WebhooksPage = lazyWithRetry(() =>
   import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })),
 );
 
-export const WorkItemTriggersPage = lazyWithRetry(() =>
+export const TriggersPage = lazyWithRetry(() =>
   import('../pages/triggers/triggers-page.js').then((m) => ({
-    default: m.WorkItemTriggersPage,
+    default: m.TriggersPage,
   })),
 );
 
-export const McpPage = lazyWithRetry(() =>
-  import('../pages/mcp-servers/mcp-servers-page.js').then((m) => ({ default: m.McpPage })),
+export const McpServersPage = lazyWithRetry(() =>
+  import('../pages/mcp-servers/mcp-servers-page.js').then((m) => ({
+    default: m.McpServersPage,
+  })),
 );
 
 export const LiveContainersPage = lazyWithRetry(() =>
@@ -147,16 +149,20 @@ export const LiveContainersPage = lazyWithRetry(() =>
   })),
 );
 
-export const ApiKeyPage = lazyWithRetry(() =>
-  import('../pages/api-keys/api-keys-page.js').then((m) => ({ default: m.ApiKeyPage })),
-);
-
-export const SettingsPage = lazyWithRetry(() =>
-  import('../pages/general-settings/general-settings-page.js').then((m) => ({
-    default: m.SettingsPage,
+export const ApiKeysPage = lazyWithRetry(() =>
+  import('../pages/api-keys/api-keys-page.js').then((m) => ({
+    default: m.ApiKeysPage,
   })),
 );
 
-export const LogsPage = lazyWithRetry(() =>
-  import('../pages/live-logs/live-logs-page.js').then((m) => ({ default: m.LogsPage })),
+export const GeneralSettingsPage = lazyWithRetry(() =>
+  import('../pages/general-settings/general-settings-page.js').then((m) => ({
+    default: m.GeneralSettingsPage,
+  })),
+);
+
+export const LiveLogsPage = lazyWithRetry(() =>
+  import('../pages/live-logs/live-logs-page.js').then((m) => ({
+    default: m.LiveLogsPage,
+  })),
 );
