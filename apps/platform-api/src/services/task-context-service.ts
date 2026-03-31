@@ -1,5 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
-import { listTaskDocuments } from './document-reference-service.js';
+import { listTaskDocuments } from './document-reference/document-reference-service.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { buildSpecialistExecutionBrief } from './specialist-execution-brief-service.js';

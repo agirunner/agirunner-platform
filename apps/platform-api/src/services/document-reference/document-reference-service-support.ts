@@ -1,5 +1,5 @@
-import { ValidationError } from '../errors/domain-errors.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import { ValidationError } from '../../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import type {
   ArtifactLookupRow,
   CreateWorkflowDocumentInput,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../src/services/document-reference-service.js', () => ({
+vi.mock('../../../src/services/document-reference/document-reference-service.js', () => ({
   listTaskDocuments: vi.fn(async () => []),
 }));
 

@@ -1,5 +1,5 @@
 import type { WorkflowDeliverableRecord } from '../../workflow-deliverable-service.js';
-import type { ResolvedDocumentReference } from '../../document-reference-service.js';
+import type { ResolvedDocumentReference } from '../../document-reference/document-reference-service.js';
 
 import {
   readDeliverableTargetIdentityKey,

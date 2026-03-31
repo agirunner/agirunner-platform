@@ -2,7 +2,7 @@ import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.
 import type { WorkflowDeliverableHandoffRecord } from '../workflow-deliverable-handoff-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator/workflow-operator-brief-service.js';
-import type { ResolvedDocumentReference } from '../document-reference-service.js';
+import type { ResolvedDocumentReference } from '../document-reference/document-reference-service.js';
 import type { WorkflowDeliverablesPacket } from './workflow-operations-types.js';
 
 import {

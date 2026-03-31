@@ -22,7 +22,7 @@ vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: (scopes: string[]) => mockWithAllowedScopes(scopes),
 }));
 
-vi.mock('../../../../src/services/document-reference-service.js', () => ({
+vi.mock('../../../../src/services/document-reference/document-reference-service.js', () => ({
   createWorkflowDocument: vi.fn(),
   deleteWorkflowDocument: vi.fn(),
   listWorkflowDocuments: vi.fn(async () => []),

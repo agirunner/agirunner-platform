@@ -4,8 +4,8 @@ import {
   buildWorkflowDocumentReference,
   mergeWorkflowDocumentUpdate,
   normalizeDocumentDefinition,
-} from '../../src/services/document-reference-service-support.js';
-import type { WorkflowDocumentRow } from '../../src/services/document-reference-service.types.js';
+} from '../../../src/services/document-reference/document-reference-service-support.js';
+import type { WorkflowDocumentRow } from '../../../src/services/document-reference/document-reference-service.types.js';
 
 function buildWorkflowDocumentRow(
   overrides: Partial<WorkflowDocumentRow> = {},

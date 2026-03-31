@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { expect, vi } from 'vitest';
 
-import * as documentReferenceService from '../../../../../src/services/document-reference-service.js';
+import * as documentReferenceService from '../../../../../src/services/document-reference/document-reference-service.js';
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 import * as workflowRoutesModule from '../../../../../src/api/routes/workflows/routes.js';
 
@@ -23,7 +23,7 @@ vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   withScope: (scope: string) => mockWithScope(scope),
 }));
 
-vi.mock('../../../../../src/services/document-reference-service.js', () => ({
+vi.mock('../../../../../src/services/document-reference/document-reference-service.js', () => ({
   createWorkflowDocument: vi.fn(),
   deleteWorkflowDocument: vi.fn(),
   listWorkflowDocuments: vi.fn(async () => []),

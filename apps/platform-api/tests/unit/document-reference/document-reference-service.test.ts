@@ -5,7 +5,7 @@ import {
   deleteWorkflowDocument,
   listWorkflowDocuments,
   updateWorkflowDocument,
-} from '../../src/services/document-reference-service.js';
+} from '../../../src/services/document-reference/document-reference-service.js';
 
 describe('document reference service', () => {
   it('redacts plaintext secrets from workflow and workspace document metadata', async () => {

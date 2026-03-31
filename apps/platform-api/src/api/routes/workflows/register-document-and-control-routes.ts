@@ -4,7 +4,7 @@ import {
   deleteWorkflowDocument,
   listWorkflowDocuments,
   updateWorkflowDocument,
-} from '../../../services/document-reference-service.js';
+} from '../../../services/document-reference/document-reference-service.js';
 import {
   parseOrThrow,
   runIdempotentTransactionalWorkflowAction,
