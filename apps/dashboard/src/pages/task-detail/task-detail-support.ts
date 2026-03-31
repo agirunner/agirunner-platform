@@ -1,5 +1,5 @@
 import type { Task } from '@agirunner/sdk';
-import { normalizeTaskState as normalizeDashboardTaskState } from '../../lib/task-state.js';
+import { normalizeTaskState as normalizeDashboardTaskState } from '../work-shared/task-state.js';
 
 type TaskWithStatus = Task & { status?: string | null };
 

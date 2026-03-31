@@ -13,7 +13,7 @@ import {
 } from '../../components/ui/dialog.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { cn } from '../../lib/utils.js';
-import { normalizeTaskState } from '../../lib/task-state.js';
+import { normalizeTaskState } from '../work-shared/task-state.js';
 import {
   buildWorkItemRecoveryBrief,
   sortTasksForOperatorReview,

@@ -5,7 +5,7 @@ import type {
   DashboardWorkItemMemoryHistoryEntry,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
-import { normalizeTaskState } from '../../lib/task-state.js';
+import { normalizeTaskState } from '../work-shared/task-state.js';
 
 export * from './workflow-work-item-detail-summary.js';
 
