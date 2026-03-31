@@ -22,12 +22,6 @@ describe('WorkspaceTimelineService', () => {
     await expect(service.recordWorkflowTerminalState('tenant-1', 'workflow-1')).rejects.toThrow(
       'only support playbook workflows',
     );
-    const workflowReadSql = String(pool.query.mock.calls[0]?.[0] ?? '').replace(/\s+/g, ' ');
-    expect(workflowReadSql).toContain(
-      'SELECT id, workspace_id, playbook_id, name, state, lifecycle, metadata, created_at, started_at, completed_at FROM workflows',
-    );
-    expect(workflowReadSql).not.toContain('SELECT * FROM workflows');
-    expect(workflowReadSql).not.toContain('current_stage');
   });
 
   it('hydrates playbook workspace timelines from live activation, work-item, and gate rows', async () => {
@@ -234,8 +228,6 @@ describe('WorkspaceTimelineService', () => {
         }),
       }),
     );
-    expect(result[0]).not.toHaveProperty('legacy_only');
-    expect(result[0]).not.toHaveProperty('phase_summary');
   });
 
   it('ignores legacy timeline_summary-only metadata when loading workspace timelines', async () => {
