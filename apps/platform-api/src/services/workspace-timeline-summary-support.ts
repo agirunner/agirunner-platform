@@ -1,4 +1,4 @@
-import { buildPlaybookRunSummary } from './playbook-run-summary.js';
+import { buildPlaybookRunSummary } from './playbook-run-summary/playbook-run-summary.js';
 
 export type WorkflowSummarySource = Record<string, unknown>;
 

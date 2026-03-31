@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPlaybookRunSummary } from '../../../src/services/playbook-run-summary.js';
+import { buildPlaybookRunSummary } from '../../../src/services/playbook-run-summary/playbook-run-summary.js';
 
 describe('buildPlaybookRunSummary', () => {
   it('catches embedded bearer tokens within workflow summary prose values', () => {

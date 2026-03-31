@@ -1,4 +1,4 @@
-import { sanitizeSecretLikeValue } from './secret-redaction.js';
+import { sanitizeSecretLikeValue } from '../secret-redaction.js';
 import type { TimelineEventRow, WorkflowActivationSummaryRow } from './playbook-run-summary.types.js';
 
 export const CHILD_WORKFLOW_EVENT_TYPES = new Set([

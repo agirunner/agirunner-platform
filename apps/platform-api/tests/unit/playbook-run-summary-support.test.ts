@@ -4,13 +4,13 @@ import {
   buildActivationActivity,
   deriveContinuousStageStatus,
   sanitizeWorkflowSummary,
-} from '../../src/services/playbook-run-summary-support.js';
+} from '../../src/services/playbook-run-summary/playbook-run-summary-support.js';
 import type {
   TimelineEventRow,
   WorkflowActivationSummaryRow,
   WorkflowStageSummaryRow,
   WorkflowWorkItemSummaryRow,
-} from '../../src/services/playbook-run-summary.types.js';
+} from '../../src/services/playbook-run-summary/playbook-run-summary.types.js';
 
 function buildStage(overrides: Partial<WorkflowStageSummaryRow> = {}): WorkflowStageSummaryRow {
   return {
