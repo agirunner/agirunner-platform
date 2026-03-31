@@ -497,7 +497,7 @@ describe('workflow-execution-log-composer', () => {
     expect(items.map((item) => item.headline)).toEqual([
       '[Think] Check whether the existing intake item already has unresolved findings.',
       '[Observe] The policy-assessor task is already in progress for workflows-intake-01.',
-      '[Verify] The handoff is blocked until the required target URL is available.',
+      '[Verify] The brief is blocked until the required target URL is available.',
     ]);
   });
 
@@ -1589,8 +1589,8 @@ describe('workflow-execution-log-composer', () => {
 
     expect(items.map((item) => item.headline)).toEqual([
       '[Think] Confirm whether the active design task already covers this work item.',
-      '[Plan] Wait for the architecture lead handoff before routing implementation.',
-      '[Observe] Observed the active architecture lead handoff and confirmed implementation should still wait.',
+      '[Plan] Wait for the architecture lead brief before routing implementation.',
+      '[Observe] Observed the active architecture lead brief and confirmed implementation should still wait.',
       '[Verify] The design work is still waiting on the active architecture task.',
     ]);
     expect(items.map((item) => item.item_id)).toEqual([

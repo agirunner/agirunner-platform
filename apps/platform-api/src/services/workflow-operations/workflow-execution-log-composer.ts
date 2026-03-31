@@ -1672,8 +1672,22 @@ function readOperatorReadableText(value: string | null, maxLength: number): stri
   if (!normalized || looksLikeRawExecutionDump(normalized) || looksLikeLowValueConsoleText(normalized)) {
     return null;
   }
-  const trimmed = truncate(normalized, maxLength);
+  const trimmed = truncate(normalizeWorkflowConsoleRecordTerminology(normalized), maxLength);
   return trimmed;
+}
+
+function normalizeWorkflowConsoleRecordTerminology(value: string): string {
+  return value
+    .replace(/\bpolicy assessment handoff\b/gi, 'policy assessment brief')
+    .replace(/\blatest implementation handoff\b/gi, 'latest implementation brief')
+    .replace(/\blatest handoff\b/gi, 'latest brief')
+    .replace(/\bpredecessor handoff\b/gi, 'predecessor brief')
+    .replace(/\barchitecture lead handoff\b/gi, 'architecture lead brief')
+    .replace(/\bwriting the handoff\b/gi, 'writing the brief')
+    .replace(/\bwrite the handoff\b/gi, 'write the brief')
+    .replace(/\b[Tt]he handoff is blocked\b/g, (match) => (
+      match.startsWith('T') ? 'The brief is blocked' : 'the brief is blocked'
+    ));
 }
 
 function normalizeConsoleText(value: string | null): string | null {

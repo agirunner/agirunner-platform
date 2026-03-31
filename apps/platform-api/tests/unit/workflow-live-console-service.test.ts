@@ -308,7 +308,7 @@ describe('WorkflowLiveConsoleService', () => {
         item_kind: 'execution_turn',
         item_id: 'execution-log:log-1',
         source_label: 'Policy Assessor',
-        headline: '[Plan] Drafting the policy assessment handoff.',
+        headline: '[Plan] Drafting the policy assessment brief.',
         work_item_id: 'work-item-1',
         task_id: 'task-1',
       }),
@@ -467,9 +467,9 @@ describe('WorkflowLiveConsoleService', () => {
       }),
     );
     expect(result.items.map((item) => item.headline)).toEqual([
-      '[Verify] The latest handoff is still pending validation.',
-      '[Observe] The policy review is still waiting on the latest implementation handoff.',
-      '[Plan] Review the current evidence before writing the handoff.',
+      '[Verify] The latest brief is still pending validation.',
+      '[Observe] The policy review is still waiting on the latest implementation brief.',
+      '[Plan] Review the current evidence before writing the brief.',
     ]);
   });
 
