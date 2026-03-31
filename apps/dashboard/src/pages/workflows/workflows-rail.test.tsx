@@ -6,6 +6,34 @@ import type { DashboardWorkflowRailRow } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 
 describe('WorkflowsRail', () => {
+  it('shows a loading message before the first rail packet arrives', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: '',
+        needsActionOnly: false,
+        ongoingOnly: false,
+        rows: [],
+        ongoingRows: [],
+        selectedWorkflowId: null,
+        selectedWorkflowRow: null,
+        hasNextPage: false,
+        isLoading: true,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Loading workflows…');
+    expect(html).not.toContain('No workflows match the current filters.');
+  });
+
   it('pins the current workflow when filters move it outside the visible rail rows', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
