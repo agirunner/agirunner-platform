@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 
-import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
+import { Button } from '../../../components/ui/button.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
+} from '../../../components/ui/select.js';
 
 const CUSTOM_VALUE = '__custom__';
 export const STRUCTURED_CONTROL_UNSET_VALUE = '__unset__';

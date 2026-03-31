@@ -1,15 +1,15 @@
 import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 
-import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
+import { Button } from '../../../components/ui/button.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { Textarea } from '../../components/ui/textarea.js';
+} from '../../../components/ui/select.js';
+import { Textarea } from '../../../components/ui/textarea.js';
 import { createEmptyColumnDraft, validateBoardColumnsDraft } from './playbook-authoring-support.js';
 import { LabeledField, SectionCard } from './playbook-authoring-form-fields.js';
 import {

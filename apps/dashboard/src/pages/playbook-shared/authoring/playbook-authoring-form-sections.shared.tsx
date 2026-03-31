@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/button.js';
+import { Button } from '../../../components/ui/button.js';
 import type { PlaybookAuthoringDraft } from './playbook-authoring-support.js';
 
 export interface SectionProps {

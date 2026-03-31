@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
-import { Switch } from '../../components/ui/switch.js';
+import { DashboardSectionCard } from '../../../components/layout/dashboard-section-card.js';
+import { Switch } from '../../../components/ui/switch.js';
 
 export function SectionCard(props: {
   id?: string;
