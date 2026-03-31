@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWorkflowLoadSeedSql } from './workflows-load-seed.js';
+import {
+  buildWorkflowLoadSeedPlan,
+  buildWorkflowLoadSeedSql,
+} from './workflows-load-seed.js';
 
 describe('buildWorkflowLoadSeedSql', () => {
   it('returns empty SQL when the requested workflow count is zero', () => {
@@ -66,5 +69,33 @@ describe('buildWorkflowLoadSeedSql', () => {
     expect(sql).not.toContain("'planned'");
     expect(sql).not.toContain("'completed'::public.workflow_state");
     expect(sql).not.toContain("'cancelled'::public.workflow_state");
+  });
+
+  it('builds configurable multi-work-item workflow plans for realistic perf seeding', () => {
+    const plan = buildWorkflowLoadSeedPlan({
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
+      workspaceName: 'Perf Workspace',
+      plannedPlaybookId: '00000000-0000-0000-0000-000000000003',
+      plannedPlaybookName: 'Planned Perf',
+      ongoingPlaybookId: '00000000-0000-0000-0000-000000000004',
+      ongoingPlaybookName: 'Ongoing Perf',
+      count: 1,
+      lifecycleMode: 'planned',
+      workItemsPerWorkflow: 3,
+      tasksPerWorkflow: 5,
+      deliverablesPerWorkflow: 4,
+      briefsPerWorkflow: 2,
+      turnsPerWorkflow: 6,
+      baseIso: '2026-02-01T00:00:00.000Z',
+    });
+
+    expect(plan.workflows).toHaveLength(1);
+    expect(plan.stages).toHaveLength(2);
+    expect(plan.workItems).toHaveLength(3);
+    expect(plan.tasks).toHaveLength(5);
+    expect(plan.logs).toHaveLength(6);
+    expect(plan.briefs).toHaveLength(2);
+    expect(plan.documents).toHaveLength(4);
   });
 });

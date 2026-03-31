@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 import {
   ADMIN_API_KEY,
@@ -17,8 +18,32 @@ interface ApiRecord {
   name?: string;
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+export interface SeedLoadArgs {
+  workflows: number;
+  turns: number;
+  briefs: number;
+  workItems: number;
+  tasks: number;
+  deliverables: number;
+  reset: boolean;
+  lifecycle: 'mixed' | 'ongoing' | 'planned';
+}
+
+export interface SeedLoadResult {
+  seeded_workflows: number;
+  workspace_id: string;
+  planned_playbook_id: string;
+  ongoing_playbook_id: string;
+  reset: boolean;
+  lifecycle: 'mixed' | 'ongoing' | 'planned';
+  turns_per_workflow: number;
+  briefs_per_workflow: number;
+  work_items_per_workflow: number;
+  tasks_per_workflow: number;
+  deliverables_per_workflow: number;
+}
+
+export async function seedWorkflowLoadCorpus(args: SeedLoadArgs): Promise<SeedLoadResult> {
   if (args.reset) {
     await resetWorkflowsState();
   }
@@ -55,10 +80,13 @@ async function main(): Promise<void> {
     lifecycleMode: args.lifecycle,
     turnsPerWorkflow: args.turns,
     briefsPerWorkflow: args.briefs,
+    workItemsPerWorkflow: args.workItems,
+    tasksPerWorkflow: args.tasks,
+    deliverablesPerWorkflow: args.deliverables,
   });
   runPsql(sql);
 
-  process.stdout.write(`${JSON.stringify({
+  return {
     seeded_workflows: args.workflows,
     workspace_id: workspace.id,
     planned_playbook_id: plannedPlaybook.id,
@@ -67,7 +95,15 @@ async function main(): Promise<void> {
     lifecycle: args.lifecycle,
     turns_per_workflow: args.turns,
     briefs_per_workflow: args.briefs,
-  }, null, 2)}\n`);
+    work_items_per_workflow: args.workItems,
+    tasks_per_workflow: args.tasks,
+    deliverables_per_workflow: args.deliverables,
+  };
+}
+
+async function main(): Promise<void> {
+  const result = await seedWorkflowLoadCorpus(parseSeedLoadArgs(process.argv.slice(2)));
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 async function apiRequest<T>(
@@ -114,15 +150,13 @@ function runPsql(sql: string): void {
   }
 }
 
-function parseArgs(argv: string[]): {
-  workflows: number;
-  turns: number;
-  briefs: number;
-  reset: boolean;
-} {
+export function parseSeedLoadArgs(argv: string[]): SeedLoadArgs {
   let workflows = 10000;
   let turns = 2;
   let briefs = 1;
+  let workItems = 3;
+  let tasks = 4;
+  let deliverables = 2;
   let reset = true;
   let lifecycle: 'mixed' | 'ongoing' | 'planned' = 'mixed';
 
@@ -141,6 +175,18 @@ function parseArgs(argv: string[]): {
         briefs = readPositiveInt(argv[index + 1], briefs);
         index += 1;
         break;
+      case '--work-items':
+        workItems = readPositiveInt(argv[index + 1], workItems);
+        index += 1;
+        break;
+      case '--tasks':
+        tasks = readPositiveInt(argv[index + 1], tasks);
+        index += 1;
+        break;
+      case '--deliverables':
+        deliverables = readPositiveInt(argv[index + 1], deliverables);
+        index += 1;
+        break;
       case '--lifecycle':
         lifecycle = readLifecycle(argv[index + 1], lifecycle);
         index += 1;
@@ -153,7 +199,7 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  return { workflows, turns, briefs, reset, lifecycle };
+  return { workflows, turns, briefs, workItems, tasks, deliverables, reset, lifecycle };
 }
 
 function readPositiveInt(value: string | undefined, fallback: number): number {
@@ -170,8 +216,18 @@ function readLifecycle(
     : fallback;
 }
 
-void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  process.stderr.write(`${message}\n`);
-  process.exitCode = 1;
-});
+function isMainModule(): boolean {
+  const entryPath = process.argv[1];
+  if (!entryPath) {
+    return false;
+  }
+  return import.meta.url === pathToFileURL(entryPath).href;
+}
+
+if (isMainModule()) {
+  void main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    process.stderr.write(`${message}\n`);
+    process.exitCode = 1;
+  });
+}

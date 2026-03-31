@@ -104,6 +104,7 @@ fi
 before_activation_count="$(read_workflow_activation_count)"
 
 export PLAYWRIGHT_SKIP_WEBSERVER="${PLAYWRIGHT_SKIP_WEBSERVER:-1}"
+export ARTIFACT_LOCAL_ROOT="${ARTIFACT_LOCAL_ROOT:-${ROOT_DIR}/tmp/integration-artifacts}"
 playwright_args=()
 for arg in "$@"; do
   playwright_args+=("$(normalize_spec_arg "$arg")")

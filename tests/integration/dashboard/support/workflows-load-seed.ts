@@ -27,16 +27,42 @@ export interface WorkflowLoadSeedInput {
   baseIso?: string;
   turnsPerWorkflow?: number;
   briefsPerWorkflow?: number;
+  workItemsPerWorkflow?: number;
+  tasksPerWorkflow?: number;
+  deliverablesPerWorkflow?: number;
 }
 
-export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
+export interface WorkflowLoadSeedPlan {
+  baseTimeMs: number;
+  workflows: string[];
+  stages: string[];
+  workItems: string[];
+  tasks: string[];
+  logs: string[];
+  briefs: string[];
+  documents: string[];
+}
+
+export function buildWorkflowLoadSeedPlan(input: WorkflowLoadSeedInput): WorkflowLoadSeedPlan {
   if (input.count <= 0) {
-    return '';
+    return {
+      baseTimeMs: Date.parse(input.baseIso ?? new Date().toISOString()),
+      workflows: [],
+      stages: [],
+      workItems: [],
+      tasks: [],
+      logs: [],
+      briefs: [],
+      documents: [],
+    };
   }
 
   const baseTimeMs = Date.parse(input.baseIso ?? new Date().toISOString());
   const turnsPerWorkflow = Math.max(1, input.turnsPerWorkflow ?? 2);
   const briefsPerWorkflow = Math.max(1, input.briefsPerWorkflow ?? 1);
+  const workItemsPerWorkflow = Math.max(1, input.workItemsPerWorkflow ?? 1);
+  const tasksPerWorkflow = Math.max(1, input.tasksPerWorkflow ?? 1);
+  const deliverablesPerWorkflow = Math.max(1, input.deliverablesPerWorkflow ?? 1);
   const workflows: string[] = [];
   const stages: string[] = [];
   const workItems: string[] = [];
@@ -48,8 +74,6 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
   for (let index = 0; index < input.count; index += 1) {
     const profile = resolveProfile(index, input.lifecycleMode);
     const workflowId = stableUuid(index, 1);
-    const workItemId = stableUuid(index, 2);
-    const taskId = stableUuid(index, 3);
     const createdAtIso = new Date(baseTimeMs + (input.count - index) * 1000).toISOString();
     const workflow = buildWorkflowShape(profile);
     const workflowName = `E2E Perf Workflow ${String(index + 1).padStart(5, '0')}`;
@@ -89,46 +113,58 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
       )`);
     }
 
-    workItems.push(`(
-      ${sqlUuid(workItemId)},
-      ${sqlUuid(input.tenantId)},
-      ${sqlUuid(workflowId)},
-      ${sqlText(workflow.workItemStage)},
-      ${sqlText(workflow.workItemTitle)},
-      ${sqlText(workflow.goal)},
-      ${sqlText(workflow.acceptanceCriteria)},
-      ${sqlText(workflow.columnId)},
-      ${sqlText(workflow.ownerRole)},
-      ${workflow.blockedState ? sqlText(workflow.blockedState) : 'NULL'},
-      ${workflow.blockedReason ? sqlText(workflow.blockedReason) : 'NULL'},
-      ${workflow.escalationStatus ? sqlText(workflow.escalationStatus) : 'NULL'},
-      ${sqlText('normal')}::task_priority,
-      ${sqlText(`perf-load:${workflowId}`)},
-      ${workflow.completed ? sqlTimestamp(createdAtIso) : 'NULL'},
-      ${sqlJsonValue(workflow.workItemMetadata)}::jsonb,
-      ${sqlTimestamp(createdAtIso)},
-      ${sqlTimestamp(createdAtIso)}
-    )`);
+    const workItemIds = Array.from({ length: workItemsPerWorkflow }, (_value, workItemIndex) => {
+      const workItemId = stableUuid(index, 2_000 + workItemIndex);
+      workItems.push(`(
+        ${sqlUuid(workItemId)},
+        ${sqlUuid(input.tenantId)},
+        ${sqlUuid(workflowId)},
+        ${sqlText(workItemStageName(workItemIndex))},
+        ${sqlText(buildWorkItemTitle(workflow.workItemTitle, workItemIndex))},
+        ${sqlText(workflow.goal)},
+        ${sqlText(workflow.acceptanceCriteria)},
+        ${sqlText(workflow.columnId)},
+        ${sqlText(workflow.ownerRole)},
+        ${workflow.blockedState ? sqlText(workflow.blockedState) : 'NULL'},
+        ${workflow.blockedReason ? sqlText(workflow.blockedReason) : 'NULL'},
+        ${workflow.escalationStatus ? sqlText(workflow.escalationStatus) : 'NULL'},
+        ${sqlText('normal')}::task_priority,
+        ${sqlText(`perf-load:${workflowId}:${workItemIndex}`)},
+        ${workflow.completed ? sqlTimestamp(createdAtIso) : 'NULL'},
+        ${sqlJsonValue(workflow.workItemMetadata)}::jsonb,
+        ${sqlTimestamp(createdAtIso)},
+        ${sqlTimestamp(createdAtIso)}
+      )`);
+      return workItemId;
+    });
 
-    tasks.push(`(
-      ${sqlUuid(taskId)},
-      ${sqlUuid(input.tenantId)},
-      ${sqlUuid(workflowId)},
-      ${sqlUuid(input.workspaceId)},
-      ${sqlUuid(workItemId)},
-      ${sqlText(workflow.workItemStage)},
-      ${sqlText(workflow.taskTitle)},
-      ${sqlText(workflow.ownerRole)},
-      ${sqlText(workflow.taskState)}::task_state,
-      ${sqlTimestamp(createdAtIso)},
-      '{}'::jsonb,
-      ${sqlJsonValue({ description: workflow.taskSummary })}::jsonb,
-      ${sqlTimestamp(createdAtIso)},
-      ${sqlTimestamp(createdAtIso)},
-      '{}'::jsonb
-    )`);
+    const taskIds = Array.from({ length: tasksPerWorkflow }, (_value, taskIndex) => {
+      const workItemId = workItemIds[taskIndex % workItemIds.length] ?? workItemIds[0];
+      const taskId = stableUuid(index, 4_000 + taskIndex);
+      const stageName = workItemStageName(taskIndex);
+      tasks.push(`(
+        ${sqlUuid(taskId)},
+        ${sqlUuid(input.tenantId)},
+        ${sqlUuid(workflowId)},
+        ${sqlUuid(input.workspaceId)},
+        ${sqlUuid(workItemId)},
+        ${sqlText(stageName)},
+        ${sqlText(buildTaskTitle(workflow.taskTitle, taskIndex))},
+        ${sqlText(workflow.ownerRole)},
+        ${sqlText(workflow.taskState)}::task_state,
+        ${sqlTimestamp(createdAtIso)},
+        '{}'::jsonb,
+        ${sqlJsonValue({ description: buildTaskSummary(workflow.taskSummary, taskIndex) })}::jsonb,
+        ${sqlTimestamp(createdAtIso)},
+        ${sqlTimestamp(createdAtIso)},
+        '{}'::jsonb
+      )`);
+      return taskId;
+    });
 
     for (let turnIndex = 0; turnIndex < turnsPerWorkflow; turnIndex += 1) {
+      const taskId = taskIds[turnIndex % taskIds.length] ?? taskIds[0];
+      const workItemId = workItemIds[turnIndex % workItemIds.length] ?? workItemIds[0];
       logs.push(`(
         ${sqlUuid(input.tenantId)},
         ${sqlUuid(stableUuid(index, 100 + turnIndex * 2))},
@@ -144,8 +180,8 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
         ${sqlText(workflowName)},
         ${sqlText(input.workspaceName)},
         ${sqlUuid(workItemId)},
-        ${sqlText(workflow.taskTitle)},
-        ${sqlText(workflow.workItemStage)},
+        ${sqlText(buildTaskTitle(workflow.taskTitle, turnIndex % taskIds.length))},
+        ${sqlText(workItemStageName(turnIndex))},
         FALSE,
         ${sqlText(workflow.ownerRole)},
         'runtime',
@@ -157,6 +193,8 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
 
     for (let briefIndex = 0; briefIndex < briefsPerWorkflow; briefIndex += 1) {
       const briefId = stableUuid(index, 200 + briefIndex);
+      const taskId = taskIds[briefIndex % taskIds.length] ?? taskIds[0];
+      const workItemId = workItemIds[briefIndex % workItemIds.length] ?? workItemIds[0];
       briefs.push(`(
         ${sqlUuid(briefId)},
         ${sqlUuid(input.tenantId)},
@@ -191,59 +229,80 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
     }
 
     if (workflow.hasDeliverable) {
-      documents.push(`(
-        ${sqlUuid(stableUuid(index, 300))},
-        ${sqlUuid(input.tenantId)},
-        ${sqlUuid(workflowId)},
-        ${sqlUuid(input.workspaceId)},
-        ${sqlUuid(taskId)},
-        ${sqlText(`deliverable-${index + 1}`)},
-        'external',
-        ${sqlText(`https://example.com/perf/${workflowId}/deliverable`)},
-        NULL,
-        'text/markdown',
-        ${sqlText(`${workflowName} deliverable`)},
-        ${sqlText(workflow.deliverableSummary)},
-        '{}'::jsonb,
-        ${sqlTimestamp(createdAtIso)}
-      )`);
+      for (let deliverableIndex = 0; deliverableIndex < deliverablesPerWorkflow; deliverableIndex += 1) {
+        const taskId = taskIds[deliverableIndex % taskIds.length] ?? taskIds[0];
+        documents.push(`(
+          ${sqlUuid(stableUuid(index, 300 + deliverableIndex))},
+          ${sqlUuid(input.tenantId)},
+          ${sqlUuid(workflowId)},
+          ${sqlUuid(input.workspaceId)},
+          ${sqlUuid(taskId)},
+          ${sqlText(`deliverable-${index + 1}-${deliverableIndex + 1}`)},
+          'external',
+          ${sqlText(`https://example.com/perf/${workflowId}/deliverable/${deliverableIndex + 1}`)},
+          NULL,
+          'text/markdown',
+          ${sqlText(`${workflowName} deliverable ${deliverableIndex + 1}`)},
+          ${sqlText(workflow.deliverableSummary)},
+          '{}'::jsonb,
+          ${sqlTimestamp(createdAtIso)}
+        )`);
+      }
     }
   }
 
+  return {
+    baseTimeMs,
+    workflows,
+    stages,
+    workItems,
+    tasks,
+    logs,
+    briefs,
+    documents,
+  };
+}
+
+export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
+  const plan = buildWorkflowLoadSeedPlan(input);
+  if (plan.workflows.length === 0) {
+    return '';
+  }
+
   return [
-    ...readExecutionLogPartitionStatements(baseTimeMs, input.count),
+    ...readExecutionLogPartitionStatements(plan.baseTimeMs, input.count),
     buildInsertStatement('public.workflows', [
       'id', 'tenant_id', 'workspace_id', 'playbook_id', 'name', 'state', 'lifecycle', 'current_stage',
       'parameters', 'metadata', 'created_at', 'updated_at',
-    ], workflows),
+    ], plan.workflows),
     buildInsertStatement('public.workflow_stages', [
       'id', 'tenant_id', 'workflow_id', 'name', 'position', 'goal', 'status', 'gate_status', 'created_at', 'updated_at',
-    ], stages),
+    ], plan.stages),
     buildInsertStatement('public.workflow_work_items', [
       'id', 'tenant_id', 'workflow_id', 'stage_name', 'title', 'goal', 'acceptance_criteria', 'column_id',
       'owner_role', 'blocked_state', 'blocked_reason', 'escalation_status', 'priority', 'request_id',
       'completed_at', 'metadata', 'created_at', 'updated_at',
-    ], workItems),
+    ], plan.workItems),
     buildInsertStatement('public.tasks', [
       'id', 'tenant_id', 'workflow_id', 'workspace_id', 'work_item_id', 'stage_name', 'title', 'role', 'state',
       'state_changed_at', 'input', 'metadata', 'created_at', 'updated_at', 'context',
-    ], tasks),
+    ], plan.tasks),
     buildInsertStatement('public.execution_logs', [
       'tenant_id', 'trace_id', 'span_id', 'source', 'category', 'level', 'operation', 'status', 'payload',
       'workspace_id', 'workflow_id', 'workflow_name', 'workspace_name', 'work_item_id', 'task_title',
       'stage_name', 'is_orchestrator_task', 'role', 'actor_type', 'actor_id', 'actor_name', 'created_at',
-    ], logs),
+    ], plan.logs),
     buildInsertStatement('public.workflow_operator_briefs', [
       'id', 'tenant_id', 'workflow_id', 'work_item_id', 'task_id', 'request_id', 'execution_context_id', 'brief_kind',
       'brief_scope', 'source_kind', 'source_role_name', 'llm_turn_count', 'status_kind', 'short_brief',
       'detailed_brief_json', 'linked_target_ids', 'sequence_number', 'related_artifact_ids',
       'related_output_descriptor_ids', 'related_intervention_ids', 'canonical_workflow_brief_id',
       'created_by_type', 'created_by_id', 'created_at', 'updated_at',
-    ], briefs),
+    ], plan.briefs),
     buildInsertStatement('public.workflow_documents', [
       'id', 'tenant_id', 'workflow_id', 'workspace_id', 'task_id', 'logical_name', 'source', 'location',
       'artifact_id', 'content_type', 'title', 'description', 'metadata', 'created_at',
-    ], documents),
+    ], plan.documents),
   ].filter(Boolean).join('\n\n');
 }
 
@@ -280,6 +339,22 @@ function resolveStageStatus(profile: WorkflowLoadProfile, stageName: string): st
   if (profile === 'completed' || profile === 'cancelled') return 'completed';
   if (stageName === 'intake') return 'active';
   return profile === 'failed' || profile === 'escalated' ? 'blocked' : 'pending';
+}
+
+function workItemStageName(index: number): string {
+  return LOAD_STAGES[index % LOAD_STAGES.length]?.name ?? LOAD_STAGES[0].name;
+}
+
+function buildWorkItemTitle(baseTitle: string, index: number): string {
+  return index === 0 ? baseTitle : `${baseTitle} ${index + 1}`;
+}
+
+function buildTaskTitle(baseTitle: string, index: number): string {
+  return index === 0 ? baseTitle : `${baseTitle} ${index + 1}`;
+}
+
+function buildTaskSummary(baseSummary: string, index: number): string {
+  return index === 0 ? baseSummary : `${baseSummary} Step ${index + 1}.`;
 }
 
 function resolveGateStatus(profile: WorkflowLoadProfile, stageName: string): string {
