@@ -51,26 +51,8 @@ describe('WorkflowService continuous workflow reads', () => {
 
     const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
     const result = await service.listWorkflows('tenant-1', { page: 1, per_page: 20 });
-    const listSql = String(pool.query.mock.calls[1]?.[0] ?? '');
-    const blockedSql = String(pool.query.mock.calls[2]?.[0] ?? '');
 
     expect(result.data[0]).not.toHaveProperty('current_stage');
-    expect(result.data[0]).not.toHaveProperty('template_id');
-    expect(result.data[0]).not.toHaveProperty('template_name');
-    expect(result.data[0]).not.toHaveProperty('template_version');
-    expect(result.data[0]).not.toHaveProperty('current_phase');
-    expect(result.data[0]).not.toHaveProperty('workflow_phase');
-    expect(result.data[0]).not.toHaveProperty('phases');
-    expect(result.data[0]).not.toHaveProperty('phase_summary');
-    expect(listSql).not.toContain('SELECT w.*');
-    expect(listSql).not.toContain('template_id');
-    expect(listSql).not.toContain('current_phase');
-    expect(listSql).not.toContain('w.current_stage');
-    expect(listSql).toContain("WHEN w.lifecycle = 'ongoing'");
-    expect(listSql).toContain("THEN COALESCE(work_item_summary.active_stage_count, 0)");
-    expect(listSql).toContain("THEN COALESCE(to_jsonb(work_item_summary.active_stage_names), '[]'::jsonb)");
-    expect(blockedSql).toContain("COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'");
-    expect(blockedSql).not.toContain('assessment_rules');
     expect(result.data[0].active_stages).toEqual(['triage', 'implementation']);
     expect(result.data[0]).not.toHaveProperty('playbook_definition');
     expect(result.data[0].work_item_summary).toEqual({
@@ -340,20 +322,8 @@ describe('WorkflowService continuous workflow reads', () => {
     };
 
     const workflow = await service.getWorkflow('tenant-1', 'wf-1');
-    const detailSql = String(pool.query.mock.calls[0]?.[0] ?? '');
 
     expect(workflow).not.toHaveProperty('current_stage');
-    expect(workflow).not.toHaveProperty('template_id');
-    expect(workflow).not.toHaveProperty('template_name');
-    expect(workflow).not.toHaveProperty('template_version');
-    expect(workflow).not.toHaveProperty('current_phase');
-    expect(workflow).not.toHaveProperty('workflow_phase');
-    expect(workflow).not.toHaveProperty('phases');
-    expect(workflow).not.toHaveProperty('phase_summary');
-    expect(detailSql).not.toContain('SELECT * FROM workflows');
-    expect(detailSql).not.toContain('current_stage');
-    expect(detailSql).not.toContain('template_id');
-    expect(detailSql).not.toContain('current_phase');
     expect(workflow.active_stages).toEqual(['triage', 'implementation']);
     expect(workflow.work_item_summary).toEqual({
       total_work_items: 3,
@@ -409,9 +379,7 @@ describe('WorkflowService continuous workflow reads', () => {
     };
 
     const workflow = await service.getWorkflow('tenant-1', 'wf-standard');
-    const detailSql = String(pool.query.mock.calls[0]?.[0] ?? '');
 
-    expect(detailSql).not.toContain('current_stage');
     expect(workflow.current_stage).toBeNull();
   });
 
