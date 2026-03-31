@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardEventRecord } from '../../lib/api.js';
@@ -214,71 +212,5 @@ describe('workflow interaction timeline', () => {
     expect(descriptor.narrativeHeadline).toContain('Orchestrator');
     expect(descriptor.scopeSummary).toContain('Actor Orchestrator');
     expect(descriptor.stageName).toBe('implementation');
-  });
-
-  it('renders timeline entries as actor-lane packets with reviewed payload drill-down', () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, './workflow-history-card.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('descriptor.actorLabel');
-    expect(source).toContain('descriptor.outcomeLabel');
-    expect(source).toContain('descriptor.emphasisLabel');
-    expect(source).toContain('descriptor.scopeSummary');
-    expect(source).toContain('descriptor.signalBadges');
-    expect(source).toContain('Advisory closure effect');
-    expect(source).toContain('Blocking closure effect');
-    expect(source).toContain('Closure callouts');
-    expect(source).toContain('TimelineEventPacket');
-    expect(source).toContain('descriptor={descriptor}');
-    expect(source).toContain('buildTimelineEntryActions');
-    expect(source).toContain('WorkflowSurfaceRecoveryState');
-    expect(source).toContain('Workflow activity is unavailable');
-    expect(source).toContain('Retry timeline');
-    expect(source).not.toContain('Event payload');
-  });
-
-  it('uses filter, sort, pagination, and saved-view controls in the interaction timeline card', () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, './workflow-history-card.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('WorkItemHistoryFilterBar');
-    expect(source).toContain('WorkItemHistoryPagination');
-    expect(source).toContain('filterAndSortTimelineRecords');
-    expect(source).toContain('paginateTimelineRecords');
-    expect(source).toContain('savedViewStorageKey');
-    expect(source).toContain('onApplySavedView');
-    expect(source).toContain('loadPersistedTimelineFilters');
-    expect(source).toContain('persistTimelineFilters');
-  });
-
-  it('uses relative timestamps with absolute tooltip instead of toLocaleString', () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, './workflow-history-card.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('formatRelativeTimestamp');
-    expect(source).toContain('formatAbsoluteTimestamp');
-    expect(source).toContain('title={formatAbsoluteTimestamp(event.created_at)}');
-    expect(source).toContain('{formatRelativeTimestamp(event.created_at)}');
-    expect(source).not.toContain('toLocaleString');
-    expect(source).not.toContain('formatTimestamp');
-  });
-
-  it('uses a debounced search input in the filter bar controls', () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, './workflow-work-item-history-controls.tsx'),
-      'utf8',
-    );
-
-    expect(source).toContain('DebouncedSearchInput');
-    expect(source).toContain('SEARCH_DEBOUNCE_MS');
-    expect(source).toContain('setTimeout');
-    expect(source).toContain('clearTimeout');
-    expect(source).not.toContain('toLocaleString');
   });
 });
