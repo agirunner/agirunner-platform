@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createDashboardApi } from './api.js';
-import { resetDashboardApiTestEnvironment } from './dashboard-api/create-dashboard-api.test-support.js';
-import { writeSession } from './auth/session.js';
+import { createDashboardApi } from './index.js';
+import { resetDashboardApiTestEnvironment } from './create-dashboard-api.test-support.js';
+import { writeSession } from '../auth/session.js';
 
 describe('dashboard api workflow operations', () => {
   beforeEach(() => {
