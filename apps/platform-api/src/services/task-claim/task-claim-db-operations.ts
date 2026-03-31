@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
-import { matchesWorkerToTaskRouting } from '../task-routing-contract.js';
+import { matchesWorkerToTaskRouting } from '../task/task-routing-contract.js';
 import { assertValidTransition } from '../../orchestration/task-state-machine.js';
 import { readAgentSupervisionTimingDefaults } from '../platform-timing-defaults.js';
 import {

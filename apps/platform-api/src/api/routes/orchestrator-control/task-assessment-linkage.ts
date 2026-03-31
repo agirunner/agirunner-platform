@@ -10,7 +10,7 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from '../../../services/assessment-subject-service.js';
-import type { ActiveOrchestratorTaskScope } from '../../../services/task-agent-scope-service.js';
+import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import {
   loadOrchestratorCreateWorkItemContext,

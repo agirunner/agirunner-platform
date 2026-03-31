@@ -13,7 +13,7 @@ import {
   type GuidedClosureStateSnapshot,
 } from '../../../services/guided-closure/types.js';
 import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
-import type { ActiveOrchestratorTaskScope } from '../../../services/task-agent-scope-service.js';
+import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 import type { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 
 import {

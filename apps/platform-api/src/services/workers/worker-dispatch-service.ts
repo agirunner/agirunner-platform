@@ -11,7 +11,7 @@ import {
   resetTaskClaim,
   type DispatchWorkerCandidate,
 } from './worker-dispatch-repository.js';
-import { resolveDispatchRoutingRequirements } from '../task-routing-contract.js';
+import { resolveDispatchRoutingRequirements } from '../task/task-routing-contract.js';
 import type { WorkerServiceContext } from './worker-service.js';
 
 interface DispatchCandidate {

@@ -1,16 +1,16 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import type { LogService } from '../logging/log-service.js';
-import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
-import { logTaskContextAttachments } from '../logging/task-context-log.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import type { LogService } from '../../logging/log-service.js';
+import { logPredecessorHandoffResolution } from '../../logging/predecessor-handoff-log.js';
+import { logTaskContextAttachments } from '../../logging/task-context-log.js';
 import {
   normalizeTaskState,
-} from '../orchestration/task-state-machine.js';
-import { sanitizeSecretLikeValue } from './secret-redaction.js';
-import { buildTaskContext, summarizeTaskContextAttachments } from './task-context-service/task-context-service.js';
-import type { ListTaskQuery } from './task/task-service.types.js';
-import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.js';
+} from '../../orchestration/task-state-machine.js';
+import { sanitizeSecretLikeValue } from '../secret-redaction.js';
+import { buildTaskContext, summarizeTaskContextAttachments } from '../task-context-service/task-context-service.js';
+import type { ListTaskQuery } from './task-service.types.js';
+import type { RelevantHandoffResolution } from '../predecessor-handoff-resolver.js';
 
 const SECRET_REDACTION = 'redacted://task-secret';
 

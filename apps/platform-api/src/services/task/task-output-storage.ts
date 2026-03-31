@@ -1,8 +1,8 @@
 import path from 'node:path';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import { ValidationError } from '../errors/domain-errors.js';
-import type { ArtifactService } from './artifacts/artifact-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import { ValidationError } from '../../errors/domain-errors.js';
+import type { ArtifactService } from '../artifacts/artifact-service.js';
 
 interface OutputStateDeclaration {
   mode: 'inline' | 'artifact' | 'git';

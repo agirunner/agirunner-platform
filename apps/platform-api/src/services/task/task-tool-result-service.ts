@@ -1,11 +1,11 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError } from '../errors/domain-errors.js';
-import { areJsonValuesEquivalent } from './json-equivalence.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError } from '../../errors/domain-errors.js';
+import { areJsonValuesEquivalent } from '../json-equivalence.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
+} from '../safetynet/registry.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
 
 export const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,

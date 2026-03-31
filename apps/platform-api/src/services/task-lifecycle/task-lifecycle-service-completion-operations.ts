@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { validateOutputSchema } from '../../validation/output-validator.js';
 import { registerTaskOutputDocuments } from '../document-reference/document-reference-service.js';
-import { applyOutputStateDeclarations } from '../task-output-storage.js';
+import { applyOutputStateDeclarations } from '../task/task-output-storage.js';
 import { readPersistedLifecyclePolicy } from './task-lifecycle-policy.js';
 import {
   sanitizeSecretLikeRecord,

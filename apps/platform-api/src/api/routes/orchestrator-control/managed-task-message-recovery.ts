@@ -1,5 +1,5 @@
 import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
-import type { ActiveOrchestratorTaskScope } from '../../../services/task-agent-scope-service.js';
+import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import {
   buildRecoverableGuidedNoop,

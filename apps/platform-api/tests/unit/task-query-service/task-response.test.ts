@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { TaskQueryService } from '../../../src/services/task-query-service.js';
+import { TaskQueryService } from '../../../src/services/task/task-query-service.js';
 import { createPool, taskId, tenantId } from './support.js';
 
 describe('TaskQueryService task responses', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TaskAgentScopeService } from '../../../../src/services/task-agent-scope-service.js';
+import { TaskAgentScopeService } from '../../../../src/services/task/task-agent-scope-service.js';
 
 describe('TaskAgentScopeService', () => {
   it('allows worker identities to load worker-owned active tasks', async () => {

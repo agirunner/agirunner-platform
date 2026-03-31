@@ -16,7 +16,7 @@ import {
   PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
   mustGetSafetynetEntry,
 } from '../../../services/safetynet/registry.js';
-import type { ActiveOrchestratorTaskScope } from '../../../services/task-agent-scope-service.js';
+import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
 
 import { orchestratorContinuityWriteSchema } from './schemas.js';

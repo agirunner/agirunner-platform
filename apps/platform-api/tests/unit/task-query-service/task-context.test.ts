@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TaskQueryService } from '../../../src/services/task-query-service.js';
+import { TaskQueryService } from '../../../src/services/task/task-query-service.js';
 import { taskId, tenantId } from './support.js';
 
 describe('TaskQueryService task context redaction', () => {

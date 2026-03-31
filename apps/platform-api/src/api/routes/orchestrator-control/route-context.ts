@@ -10,7 +10,7 @@ import { OrchestratorActivationCheckpointService } from '../../../services/orche
 import { OrchestratorTaskMessageService } from '../../../services/orchestrator/orchestrator-task-message-service.js';
 import { readWorkerDispatchAckTimeoutMs } from '../../../services/platform-timing-defaults.js';
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
-import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
+import { TaskAgentScopeService } from '../../../services/task/task-agent-scope-service.js';
 import { WorkItemContinuityService } from '../../../services/work-item-continuity-service/work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';

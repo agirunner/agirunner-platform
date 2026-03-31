@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import type { DatabaseClient } from '../../../db/database.js';
-import { TaskToolResultService } from '../../../services/task-tool-result-service.js';
+import { TaskToolResultService } from '../../../services/task/task-tool-result-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
 
 export async function loadTaskWorkflowId(

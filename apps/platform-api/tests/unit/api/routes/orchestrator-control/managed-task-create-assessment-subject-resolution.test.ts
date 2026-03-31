@@ -6,7 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../../../../sr
 import { ArtifactService } from '../../../../../src/services/artifacts/artifact-service.js';
 import { GuidedClosureRecoveryHelpersService } from '../../../../../src/services/guided-closure/recovery-helpers.js';
 import { PlaybookWorkflowControlService } from '../../../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js';
-import { TaskAgentScopeService } from '../../../../../src/services/task-agent-scope-service.js';
+import { TaskAgentScopeService } from '../../../../../src/services/task/task-agent-scope-service.js';
 import {
   normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,

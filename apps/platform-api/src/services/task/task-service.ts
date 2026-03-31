@@ -10,7 +10,7 @@ import { TaskClaimService } from '../task-claim/task-claim-service.js';
 import { TaskLifecycleService } from '../task-lifecycle/task-lifecycle-service.js';
 import { WorkflowStateService } from '../workflow-state-service.js';
 import { WorkspaceTimelineService } from '../workspace/timeline/workspace-timeline-service.js';
-import { TaskQueryService } from '../task-query-service.js';
+import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from '../task-lifecycle/task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
 import type { LogService } from '../../logging/log-service.js';

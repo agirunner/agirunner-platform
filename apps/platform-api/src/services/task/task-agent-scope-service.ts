@@ -1,9 +1,9 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { ForbiddenError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { ForbiddenError } from '../../errors/domain-errors.js';
 import {
   normalizeTaskState,
-} from '../orchestration/task-state-machine.js';
+} from '../../orchestration/task-state-machine.js';
 
 export interface ActiveTaskScope {
   id: string;

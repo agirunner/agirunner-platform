@@ -32,7 +32,7 @@ import {
 } from './task-claim-response.js';
 import { priorityCase } from './task-claim-constants.js';
 import type { TaskClaimDependencies, TaskClaimPayload } from './task-claim-types.js';
-import { matchesWorkerToTaskRouting } from '../task-routing-contract.js';
+import { matchesWorkerToTaskRouting } from '../task/task-routing-contract.js';
 
 export class TaskClaimService {
   constructor(private readonly deps: TaskClaimDependencies) {}

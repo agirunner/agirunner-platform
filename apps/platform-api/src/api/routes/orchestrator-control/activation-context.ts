@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import type { DatabaseQueryable } from '../../../db/database.js';
-import type { ActiveOrchestratorTaskScope } from '../../../services/task-agent-scope-service.js';
+import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import { asRecord, readString } from './shared.js';
 import { workItemCreateSchema } from './schemas.js';
