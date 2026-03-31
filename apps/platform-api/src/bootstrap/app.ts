@@ -35,7 +35,7 @@ import { EventService } from '../services/event/event-service.js';
 import { ExecutionEnvironmentCatalogService } from '../services/execution-environment/catalog-service.js';
 import { ExecutionEnvironmentService } from '../services/execution-environment/service.js';
 import { ExecutionEnvironmentVerificationService } from '../services/execution-environment/verification-service.js';
-import { FleetService } from '../services/fleet-service.js';
+import { FleetService } from '../services/fleet-service/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { ApprovalQueueService } from '../services/approval-queue-service.js';
 import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';

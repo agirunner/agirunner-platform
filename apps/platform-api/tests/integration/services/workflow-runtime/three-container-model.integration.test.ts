@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { FleetService } from '../../../../src/services/fleet-service.js';
+import { FleetService } from '../../../../src/services/fleet-service/fleet-service.js';
 import { ModelCatalogService } from '../../../../src/services/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults/runtime-defaults-service.js';
 import {

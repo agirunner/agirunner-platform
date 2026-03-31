@@ -3,7 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { AgentService } from '../services/agent-service.js';
-import { FleetService } from '../services/fleet-service.js';
+import { FleetService } from '../services/fleet-service/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { readLifecycleMonitorTimingDefaults } from '../services/platform-timing-defaults.js';
 import { TaskService } from '../services/task-service.js';

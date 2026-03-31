@@ -1,12 +1,12 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 
 import {
   FleetWorkerService,
-} from './fleet-service/worker-service.js';
+} from './worker-service.js';
 import type {
   CreateDesiredStateInput,
   UpdateDesiredStateInput,
-} from './fleet-service/worker-support.js';
+} from './worker-support.js';
 import {
   FleetDcmService,
   type ContainerManagerConfig,
@@ -15,9 +15,9 @@ import {
   type HeartbeatPayload,
   type RecordFleetEventInput,
   type FleetStatus,
-} from './fleet-service/dcm-service.js';
+} from './dcm-service.js';
 
-export type { CreateDesiredStateInput, UpdateDesiredStateInput } from './fleet-service/worker-support.js';
+export type { CreateDesiredStateInput, UpdateDesiredStateInput } from './worker-support.js';
 export type {
   ContainerManagerConfig,
   FleetEventFilters,
@@ -25,7 +25,7 @@ export type {
   HeartbeatPayload,
   RecordFleetEventInput,
   FleetStatus,
-} from './fleet-service/dcm-service.js';
+} from './dcm-service.js';
 
 type ReconcileSnapshot = {
   desired_states: Awaited<ReturnType<FleetWorkerService['listWorkers']>>;

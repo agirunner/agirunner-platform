@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { FleetService } from '../../../src/services/fleet-service.js';
+import { FleetService } from '../../../src/services/fleet-service/fleet-service.js';
 import {
   createMockPool,
   sampleActualState,

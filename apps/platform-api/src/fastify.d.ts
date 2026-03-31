@@ -12,7 +12,7 @@ import type { EventService } from './services/event/event-service.js';
 import type { ExecutionEnvironmentCatalogService } from './services/execution-environment/catalog-service.js';
 import type { ExecutionEnvironmentService } from './services/execution-environment/service.js';
 import type { ExecutionEnvironmentVerificationService } from './services/execution-environment/verification-service.js';
-import type { FleetService } from './services/fleet-service.js';
+import type { FleetService } from './services/fleet-service/fleet-service.js';
 import type { GovernanceService } from './services/governance-service.js';
 import type { ModelCatalogService } from './services/model-catalog-service.js';
 import type { MissionControlHistoryService } from './services/workflow-operations/mission-control-history-service.js';

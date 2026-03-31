@@ -8,7 +8,7 @@ import type {
   UpdateDesiredStateInput,
   HeartbeatPayload,
   FleetEventFilters,
-} from '../../../services/fleet-service.js';
+} from '../../../services/fleet-service/fleet-service.js';
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
   const service = app.fleetService;
