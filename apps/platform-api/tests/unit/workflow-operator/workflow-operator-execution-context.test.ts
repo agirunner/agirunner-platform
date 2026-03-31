@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resolveWorkflowOperatorExecutionContext } from '../../src/services/workflow-operator/workflow-operator-execution-context.js';
+import { resolveWorkflowOperatorExecutionContext } from '../../../src/services/workflow-operator/workflow-operator-execution-context.js';
 
 const IDENTITY = {
   id: 'key-1',
