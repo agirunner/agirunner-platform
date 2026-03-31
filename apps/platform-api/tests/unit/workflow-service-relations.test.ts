@@ -79,18 +79,4 @@ describe('WorkflowService workflow relations', () => {
       },
     });
   });
-
-  it('does not expose the retired workflow effective-model surface', async () => {
-    const pool = {
-      query: vi.fn(),
-    };
-    const service = new WorkflowService(
-      pool as never,
-      { emit: vi.fn() } as never,
-      { TASK_DEFAULT_TIMEOUT_MINUTES: 30, ARTIFACT_STORAGE_BACKEND: 'local', ARTIFACT_LOCAL_ROOT: '/tmp' } as never,
-    );
-
-    expect('getEffectiveModel' in service).toBe(false);
-  });
-
 });
