@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../src/errors/error-handler.js';
-import { taskPlatformRoutes } from '../../../src/api/routes/task-platform.routes.js';
+import { taskPlatformRoutes } from '../../../src/api/routes/task-platform/routes.js';
 
 vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {

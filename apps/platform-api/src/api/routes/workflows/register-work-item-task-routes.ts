@@ -1,5 +1,5 @@
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
-import { runIdempotentWorkflowBackedTaskAction } from '../task-route-idempotency.js';
+import { runIdempotentWorkflowBackedTaskAction } from '../task-platform/route-idempotency.js';
 import {
   assertTaskBelongsToWorkflowTask,
   assertTaskBelongsToWorkflowWorkItem,

@@ -5,7 +5,7 @@ import { WorkflowToolResultService } from '../../../services/workflow-tool-resul
 import {
   runIdempotentPublicTaskOperatorAction,
   runIdempotentTaskRouteAction,
-} from '../task-route-idempotency.js';
+} from '../task-platform/route-idempotency.js';
 import {
   assertRawTaskOperatorActionAllowed,
 } from './filters.js';

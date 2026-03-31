@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { taskPlatformRoutes } from '../../../src/api/routes/task-platform.routes.js';
+import { taskPlatformRoutes } from '../../../src/api/routes/task-platform/routes.js';
 import { createTaskPlatformApp, buildTaskRow } from './support.js';
 
 vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({

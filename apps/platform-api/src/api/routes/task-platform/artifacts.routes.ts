@@ -1,14 +1,14 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withAllowedScopes } from '../../auth/fastify-auth-hook.js';
-import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
-import { buildArtifactStorageConfig } from '../../content/storage-config.js';
-import { createArtifactStorage } from '../../content/storage-factory.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { ArtifactService } from '../../services/artifact-service.js';
-import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
-import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
+import { authenticateApiKey, withAllowedScopes } from '../../../auth/fastify-auth-hook.js';
+import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
+import { buildArtifactStorageConfig } from '../../../content/storage-config.js';
+import { createArtifactStorage } from '../../../content/storage-factory.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import { ArtifactService } from '../../../services/artifact-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { runIdempotentTaskRouteAction } from './route-idempotency.js';
 
 const artifactUploadSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),

@@ -2,30 +2,30 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import path from 'node:path';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
-import { buildArtifactStorageConfig } from '../../content/storage-config.js';
-import { createArtifactStorage } from '../../content/storage-factory.js';
-import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
+import { buildArtifactStorageConfig } from '../../../content/storage-config.js';
+import { createArtifactStorage } from '../../../content/storage-factory.js';
+import { SchemaValidationFailedError, ValidationError } from '../../../errors/domain-errors.js';
 import {
   ArtifactCatalogService,
   parseArtifactCatalogArtifactId,
-} from '../../services/artifact-catalog-service.js';
-import { HandoffService } from '../../services/handoff-service.js';
-import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
-import { WorkflowTaskDeliverablePromotionService } from '../../services/workflow-task-deliverable-promotion-service.js';
+} from '../../../services/artifact-catalog-service.js';
+import { HandoffService } from '../../../services/handoff-service.js';
+import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';
+import { WorkflowTaskDeliverablePromotionService } from '../../../services/workflow-task-deliverable-promotion-service.js';
 import {
   completionCalloutsSchema,
   guidedClosureSuggestedActionSchema,
   guidedClosureWaivedStepSchema,
-} from '../../services/guided-closure/types.js';
-import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
-import { WorkspaceMemoryScopeService } from '../../services/workspace-memory-scope-service.js';
-import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
-import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
-import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
-import { registerTaskPlatformMemoryReadRoutes } from './task-platform-memory-read-routes.js';
-import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
+} from '../../../services/guided-closure/types.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../services/workspace-memory-write-guard.js';
+import { WorkspaceMemoryScopeService } from '../../../services/workspace-memory-scope-service.js';
+import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
+import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { registerTaskPlatformMemoryReadRoutes } from './memory-read-routes.js';
+import { runIdempotentTaskRouteAction } from './route-idempotency.js';
 
 const memoryUpdatesSchema = z
   .record(z.string().min(1).max(256), z.unknown())

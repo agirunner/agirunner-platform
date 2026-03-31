@@ -1,6 +1,6 @@
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import { ConflictError, ValidationError } from '../../../errors/domain-errors.js';
-import { runIdempotentWorkflowBackedTaskAction } from '../task-route-idempotency.js';
+import { runIdempotentWorkflowBackedTaskAction } from '../task-platform/route-idempotency.js';
 import {
   mapWorkItemCreateBody,
   parseOrThrow,

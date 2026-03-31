@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { taskPlatformRoutes } from '../../../src/api/routes/task-platform.routes.js';
+import { taskPlatformRoutes } from '../../../src/api/routes/task-platform/routes.js';
 import { createTaskPlatformApp, createWorkflowReplayPool, VALID_ARTIFACT_ID } from './support.js';
 
 const downloadArtifactForTaskScope = vi.fn();

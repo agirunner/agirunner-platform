@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { taskArtifactRoutes } from '../../src/api/routes/task-artifacts.routes.js';
+import { taskArtifactRoutes } from '../../src/api/routes/task-platform/artifacts.routes.js';
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 
 const uploadTaskArtifact = vi.fn();

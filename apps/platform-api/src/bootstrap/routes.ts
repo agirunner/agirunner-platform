@@ -18,8 +18,8 @@ import { workflowActivationRoutes } from '../api/routes/workflow-activations.rou
 import { orchestratorConfigRoutes } from '../api/routes/orchestrator-config.routes.js';
 import { platformInstructionRoutes } from '../api/routes/platform-instructions.routes.js';
 import { taskRoutes } from '../api/routes/tasks.routes.js';
-import { taskArtifactRoutes } from '../api/routes/task-artifacts.routes.js';
-import { taskPlatformRoutes } from '../api/routes/task-platform.routes.js';
+import { taskArtifactRoutes } from '../api/routes/task-platform/artifacts.routes.js';
+import { taskPlatformRoutes } from '../api/routes/task-platform/routes.js';
 import { taskStreamRoutes } from '../api/routes/task-stream.routes.js';
 import { toolRoutes } from '../api/routes/tools.routes.js';
 import { webhookRoutes } from '../api/routes/webhooks.routes.js';
