@@ -35,7 +35,7 @@ import type {
   WorkflowSteeringSourceKind,
   WorkflowTaskScopeRow,
 } from './types.js';
-import type { WorkflowInterventionService } from '../workflow-intervention-service.js';
+import type { WorkflowInterventionService } from '../workflow-operations/workflow-intervention-service.js';
 
 export class WorkflowSteeringSessionService {
   constructor(

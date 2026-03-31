@@ -1,7 +1,7 @@
 import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
-} from './assessment-subject-service.js';
+} from '../assessment-subject-service.js';
 
 export type StageRoleCoverageStatus =
   | 'active_in_flight'

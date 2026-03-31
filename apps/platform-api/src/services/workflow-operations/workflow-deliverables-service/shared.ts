@@ -1,5 +1,5 @@
 import type { WorkflowDeliverableRecord } from '../../workflow-deliverables/workflow-deliverable-service.js';
-import type { WorkflowInputPacketRecord } from '../../workflow-input-packet-service.js';
+import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 
 import {
   asRecord,

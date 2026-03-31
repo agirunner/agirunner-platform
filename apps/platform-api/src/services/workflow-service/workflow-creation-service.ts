@@ -16,7 +16,7 @@ import { sanitizeOptionalWorkflowLiveVisibilityMode } from '../workflow-operator
 import { currentStageNameFromStages, WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from '../workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from '../workspace/workspace-settings.js';
-import type { WorkflowInputPacketService } from '../workflow-input-packet-service.js';
+import type { WorkflowInputPacketService } from '../workflow-operations/workflow-input-packet-service.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;

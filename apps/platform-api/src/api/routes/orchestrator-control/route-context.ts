@@ -16,7 +16,7 @@ import { WorkflowActivationDispatchService } from '../../../services/workflow-ac
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../../services/workflow-state-service.js';
-import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 
 import { loadManagedSpecialistTask } from './shared.js';
 

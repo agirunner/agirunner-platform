@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
-import { ensureWorkflowBranch } from '../workflow-branch-service.js';
+import { ensureWorkflowBranch } from '../workflow-operations/workflow-branch-service.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type {

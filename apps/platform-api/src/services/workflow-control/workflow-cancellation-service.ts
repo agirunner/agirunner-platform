@@ -1,10 +1,10 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { EventService } from './event/event-service.js';
-import { WorkflowStateService } from './workflow-state-service.js';
-import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
-import { stopWorkflowBoundExecution } from './workflow-execution-stop-service.js';
+import type { ApiKeyIdentity } from '../../../auth/api-key.js';
+import type { DatabasePool } from '../../../db/database.js';
+import { ConflictError, NotFoundError } from '../../../errors/domain-errors.js';
+import { EventService } from '.../event/event-service.js';
+import { WorkflowStateService } from '.../workflow-state-service.js';
+import type { WorkerConnectionHub } from '.../workers/worker-connection-hub.js';
+import { stopWorkflowBoundExecution } from '../workflow-operations/workflow-execution-stop-service.js';
 
 interface WorkflowCancellationDeps {
   pool: DatabasePool;

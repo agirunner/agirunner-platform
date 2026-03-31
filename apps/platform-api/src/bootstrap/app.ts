@@ -75,12 +75,12 @@ import { WorkflowActivationDispatchService } from '../services/workflow-activati
 import { WorkflowDeliverableService } from '../services/workflow-deliverables/workflow-deliverable-service.js';
 import { WorkflowDeliverableHandoffService } from '../services/workflow-deliverables/workflow-deliverable-handoff-service.js';
 import { WorkflowDeliverableLifecycleService } from '../services/workflow-deliverables/workflow-deliverable-lifecycle-service.js';
-import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
-import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
+import { WorkflowInputPacketService } from '../services/workflow-operations/workflow-input-packet-service.js';
+import { WorkflowInterventionService } from '../services/workflow-operations/workflow-intervention-service.js';
 import { WorkflowOperatorBriefService } from '../services/workflow-operator/workflow-operator-brief-service.js';
 import { WorkflowOperatorUpdateService } from '../services/workflow-operator/workflow-operator-update-service.js';
 import { WorkflowRedriveService } from '../services/workflow-service/workflow-redrive-service.js';
-import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
+import { WorkflowSettingsService } from '../services/workflow-operations/workflow-settings-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';

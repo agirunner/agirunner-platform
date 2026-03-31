@@ -4,7 +4,7 @@ vi.mock('../../../src/services/workflow-stage/workflow-stage-reconciliation.js',
   reconcilePlannedWorkflowStages: vi.fn(async () => undefined),
 }));
 
-import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../../../src/services/planned-work-item-auto-close.js';
+import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../../../src/services/workflow-stage/planned-work-item-auto-close.js';
 import { reconcilePlannedWorkflowStages } from '../../../src/services/workflow-stage/workflow-stage-reconciliation.js';
 
 describe('maybeAutoCloseCompletedPlannedPredecessorWorkItem', () => {

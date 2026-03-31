@@ -7,9 +7,9 @@ import { ArtifactRetentionService } from '../artifacts/artifact-retention-servic
 import { DestructiveDeleteService } from '../destructive-delete/destructive-delete-service.js';
 import { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
-import { WorkflowBudgetService } from '../workflow-budget-service.js';
-import { WorkflowCancellationService } from '../workflow-cancellation-service.js';
-import { WorkflowControlService } from '../workflow-control-service.js';
+import { WorkflowBudgetService } from '../workflow-operations/workflow-budget-service.js';
+import { WorkflowCancellationService } from '../workflow-control/workflow-cancellation-service.js';
+import { WorkflowControlService } from '../workflow-control/workflow-control-service.js';
 import { WorkflowCreationService } from './workflow-creation-service.js';
 import { WorkflowDeliverableService } from '../workflow-deliverables/workflow-deliverable-service.js';
 import { EventService } from '../event/event-service.js';
@@ -26,7 +26,7 @@ import type { TaskService } from '../task/task-service.js';
 import {
   type CreateWorkflowWorkItemEnvelopeInput,
   WorkflowAddWorkService,
-} from '../workflow-add-work-service.js';
+} from '../workflow-operations/workflow-add-work-service.js';
 import { WorkItemService } from '../work-item-service/work-item-service.js';
 import type {
   GetWorkflowWorkItemInput,
@@ -48,7 +48,7 @@ import {
 } from './workflow-query-service.js';
 import type { LogService } from '../../logging/log-service.js';
 import type { WorkerConnectionHub } from '../workers/worker-connection-hub.js';
-import type { WorkflowInputPacketService } from '../workflow-input-packet-service.js';
+import type { WorkflowInputPacketService } from '../workflow-operations/workflow-input-packet-service.js';
 import type {
   CreateWorkflowInput,
   ListWorkflowQuery,

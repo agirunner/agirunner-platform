@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
-import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 import {
   runIdempotentPublicTaskOperatorAction,
   runIdempotentTaskRouteAction,

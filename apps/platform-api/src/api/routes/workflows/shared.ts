@@ -17,10 +17,10 @@ import { HandoffService } from '../../../services/handoff-service/handoff-servic
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
-import { WorkflowChainingService } from '../../../services/workflow-chaining-service.js';
+import { WorkflowChainingService } from '../../../services/workflow-operations/workflow-chaining-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../../services/workflow-state-service.js';
-import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 import type { DatabaseClient } from '../../../db/database.js';
 
 const workflowBudgetSchema = z.object({

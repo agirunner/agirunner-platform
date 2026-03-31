@@ -1,4 +1,4 @@
-import type { DatabaseQueryable } from '../db/database.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 
 const PREDECESSOR_HANDOFF_FIELDS = `id,
             workflow_id,

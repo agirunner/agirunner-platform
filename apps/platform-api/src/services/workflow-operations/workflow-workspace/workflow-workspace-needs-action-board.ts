@@ -1,6 +1,6 @@
 import type {
   WorkflowInterventionRecord,
-} from '../../workflow-intervention-service.js';
+} from '../workflow-intervention-service.js';
 import type { WorkflowNeedsActionItem } from '../workflow-operations-types.js';
 import type { WorkflowBoardNeedsActionItem } from './workflow-workspace-types.js';
 import {

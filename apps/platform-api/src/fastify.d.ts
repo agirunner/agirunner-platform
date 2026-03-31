@@ -48,12 +48,12 @@ import type { ToolTagService } from './services/tool-tag-service.js';
 import type { WorkflowService } from './services/workflow-service/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation/workflow-activation-service.js';
 import type { WorkflowDeliverableService } from './services/workflow-deliverables/workflow-deliverable-service.js';
-import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
-import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
+import type { WorkflowInputPacketService } from './services/workflow-operations/workflow-input-packet-service.js';
+import type { WorkflowInterventionService } from './services/workflow-operations/workflow-intervention-service.js';
 import type { WorkflowOperatorBriefService } from './services/workflow-operator/workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateService } from './services/workflow-operator/workflow-operator-update-service.js';
 import type { WorkflowRedriveService } from './services/workflow-service/workflow-redrive-service.js';
-import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
+import type { WorkflowSettingsService } from './services/workflow-operations/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service/workflow-steering-session-service.js';
 import type { PlatformTransportTimingDefaults } from './services/platform-config/platform-timing-defaults.js';
 

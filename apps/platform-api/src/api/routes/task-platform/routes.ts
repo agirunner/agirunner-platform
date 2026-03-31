@@ -23,7 +23,7 @@ import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../../service
 import { WorkspaceMemoryScopeService } from '../../../services/workspace/memory/workspace-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../../services/task/task-agent-scope-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
-import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 import { registerTaskPlatformMemoryReadRoutes } from './memory-read-routes.js';
 import { runIdempotentTaskRouteAction } from './route-idempotency.js';
 

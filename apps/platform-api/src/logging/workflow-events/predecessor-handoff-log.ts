@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { LogService } from '../execution/log-service.js';
 import { actorFromAuth } from '../request/actor-context.js';
 import { getRequestContext } from '../../observability/request-context.js';
-import type { RelevantHandoffResolution } from '../../services/predecessor-handoff-resolver.js';
+import type { RelevantHandoffResolution } from '../../services/handoff-service/predecessor-handoff-resolver.js';
 
 interface LogPredecessorHandoffResolutionInput {
   tenantId: string;

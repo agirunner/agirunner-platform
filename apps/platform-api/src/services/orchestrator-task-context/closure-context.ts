@@ -3,7 +3,7 @@ import {
   type GuidedClosureContext,
   type GuidedClosureSuggestedAction,
 } from '../guided-closure/types.js';
-import { buildStageRoleCoverage } from '../stage-role-coverage.js';
+import { buildStageRoleCoverage } from '../workflow-stage/stage-role-coverage.js';
 import {
   type EscalationRow,
   type StageGateRow,

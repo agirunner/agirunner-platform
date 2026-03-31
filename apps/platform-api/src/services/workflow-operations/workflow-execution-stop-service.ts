@@ -1,6 +1,6 @@
-import type { DatabaseQueryable } from '../db/database.js';
-import type { EventService } from './event/event-service.js';
-import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import type { EventService } from '../event/event-service.js';
+import type { WorkerConnectionHub } from '../workers/worker-connection-hub.js';
 
 const CANCELLABLE_WORKFLOW_TASK_STATES = [
   'pending',

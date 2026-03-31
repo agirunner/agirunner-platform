@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
-import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
+import type { DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import {
   buildWorkflowOperatorFileRecordId,
   buildWorkflowOperatorStorageKey,
@@ -12,8 +12,8 @@ import {
   sanitizeWorkflowOperatorFileDescription,
   sanitizeWorkflowOperatorFileName,
   type WorkflowOperatorFileUploadInput,
-} from './workflow-operator/workflow-operator-file-support.js';
-import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+} from '../workflow-operator/workflow-operator-file-support.js';
+import { resolveOperatorRecordActorId } from '../operator-record-authorship.js';
 
 interface WorkflowPacketRow {
   id: string;

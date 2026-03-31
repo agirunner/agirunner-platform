@@ -11,7 +11,10 @@ import {
   readLifecycleTaskIds,
   reopenPauseCancelledSpecialistTasks,
 } from './workflow-lifecycle-control-support.js';
-import { stopWorkflowBoundExecution, type StopWorkflowBoundExecutionDeps } from './workflow-execution-stop-service.js';
+import {
+  stopWorkflowBoundExecution,
+  type StopWorkflowBoundExecutionDeps,
+} from './workflow-operations/workflow-execution-stop-service.js';
 
 interface WorkflowWorkItemControlRow {
   id: string;

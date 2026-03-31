@@ -1,8 +1,8 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseQueryable } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
-import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator/workflow-operator-record-sanitization.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
+import { resolveOperatorRecordActorId } from '../operator-record-authorship.js';
+import { sanitizeOptionalWorkflowLiveVisibilityMode } from '../workflow-operator/workflow-operator-record-sanitization.js';
 
 interface WorkflowSettingsRow {
   id: string;

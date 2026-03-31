@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkflowAddWorkService } from '../../../src/services/workflow-add-work-service.js';
+import { WorkflowAddWorkService } from '../../../src/services/workflow-operations/workflow-add-work-service.js';
 
 const IDENTITY = {
   id: 'key-1',

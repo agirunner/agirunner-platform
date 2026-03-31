@@ -1,12 +1,12 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import type { WorkflowActivationDispatchService } from './workflow-activation-dispatch/workflow-activation-dispatch-service.js';
-import type { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
-import type { WorkItemService } from './work-item-service/work-item-service.js';
-import type { CreateWorkItemInput, WorkItemReadModel } from './work-item-service/types.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
+import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
+import type { WorkItemService } from '../work-item-service/work-item-service.js';
+import type { CreateWorkItemInput, WorkItemReadModel } from '../work-item-service/types.js';
 import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
-import type { WorkflowOperatorFileUploadInput } from './workflow-operator/workflow-operator-file-support.js';
+import type { WorkflowOperatorFileUploadInput } from '../workflow-operator/workflow-operator-file-support.js';
 
 interface WorkflowLifecycleRow {
   lifecycle: string | null;

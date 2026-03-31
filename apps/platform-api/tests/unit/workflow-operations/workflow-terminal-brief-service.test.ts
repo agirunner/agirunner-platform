@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkflowTerminalBriefService } from '../../../src/services/workflow-terminal-brief-service.js';
+import { WorkflowTerminalBriefService } from '../../../src/services/workflow-operations/workflow-terminal-brief-service.js';
 
 describe('WorkflowTerminalBriefService', () => {
   let pool: { query: ReturnType<typeof vi.fn> };

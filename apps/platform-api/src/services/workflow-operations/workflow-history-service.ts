@@ -1,6 +1,6 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
-import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
-import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
+import type { WorkflowInputPacketRecord } from './workflow-input-packet-service.js';
+import type { WorkflowInterventionRecord } from './workflow-intervention-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator/workflow-operator-brief-service.js';
 import {
   buildWorkflowOperationsSnapshotVersion,

@@ -1,13 +1,13 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import { WorkflowService } from './workflow-service/workflow-service.js';
-import { WorkspaceTimelineService } from './workspace/timeline/workspace-timeline-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import { WorkflowService } from '../workflow-service/workflow-service.js';
+import { WorkspaceTimelineService } from '../workspace/timeline/workspace-timeline-service.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
+} from '../safetynet/registry.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
 
 const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,

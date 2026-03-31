@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { WorkflowInterventionService } from '../../../src/services/workflow-intervention-service.js';
+import { WorkflowInterventionService } from '../../../src/services/workflow-operations/workflow-intervention-service.js';
 
 const IDENTITY = {
   id: 'key-1',

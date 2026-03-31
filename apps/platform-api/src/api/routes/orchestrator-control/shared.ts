@@ -17,7 +17,7 @@ import {
   mustGetSafetynetEntry,
 } from '../../../services/safetynet/registry.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
-import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 
 import { orchestratorContinuityWriteSchema } from './schemas.js';
 

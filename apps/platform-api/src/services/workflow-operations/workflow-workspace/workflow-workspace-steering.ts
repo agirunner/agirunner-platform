@@ -5,7 +5,7 @@ import type {
 import { isWorkflowScopeHeaderAction } from '../mission-control-action-availability.js';
 import type {
   WorkflowInterventionRecord,
-} from '../../workflow-intervention-service.js';
+} from '../workflow-intervention-service.js';
 import type {
   WorkflowSteeringMessageRecord,
   WorkflowSteeringSessionRecord,

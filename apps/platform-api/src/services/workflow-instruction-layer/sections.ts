@@ -1,4 +1,4 @@
-import { buildStageRoleCoverage } from '../stage-role-coverage.js';
+import { buildStageRoleCoverage } from '../workflow-stage/stage-role-coverage.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   asRecord,

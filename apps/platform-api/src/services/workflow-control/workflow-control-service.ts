@@ -1,16 +1,19 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { EventService } from './event/event-service.js';
-import { enqueueWorkflowActivationRecord } from './workflow-activation/workflow-activation-record.js';
-import { WorkflowStateService } from './workflow-state-service.js';
+import type { ApiKeyIdentity } from '../../../auth/api-key.js';
+import type { DatabasePool } from '../../../db/database.js';
+import { ConflictError, NotFoundError } from '../../../errors/domain-errors.js';
+import { EventService } from '.../event/event-service.js';
+import { enqueueWorkflowActivationRecord } from '.../workflow-activation/workflow-activation-record.js';
+import { WorkflowStateService } from '.../workflow-state-service.js';
 import {
   clearStoppedRuntimeHeartbeatTasks,
   readLifecycleMarker,
   readLifecycleTaskIds,
   reopenPauseCancelledSpecialistTasks,
-} from './workflow-lifecycle-control-support.js';
-import { stopWorkflowBoundExecution, type StopWorkflowBoundExecutionDeps } from './workflow-execution-stop-service.js';
+} from '.../workflow-lifecycle-control-support.js';
+import {
+  stopWorkflowBoundExecution,
+  type StopWorkflowBoundExecutionDeps,
+} from '../workflow-operations/workflow-execution-stop-service.js';
 
 interface WorkflowControlRow {
   id: string;

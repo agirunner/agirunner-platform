@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-import type { DatabaseQueryable } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import type { WorkflowOperatorBriefService } from './workflow-operator/workflow-operator-brief-service.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import type { WorkflowOperatorBriefService } from '../workflow-operator/workflow-operator-brief-service.js';
 
 interface TerminalWorkflowRow {
   id: string;

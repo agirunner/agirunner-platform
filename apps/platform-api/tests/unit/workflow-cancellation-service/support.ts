@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowCancellationService } from '../../../src/services/workflow-cancellation-service.js';
+import { WorkflowCancellationService } from '../../../src/services/workflow-control/workflow-cancellation-service.js';
 
 export const identity = {
   id: 'admin',

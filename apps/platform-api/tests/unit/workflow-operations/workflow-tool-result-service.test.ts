@@ -9,7 +9,7 @@ vi.mock('../../../src/services/safetynet/logging.js', () => ({
 }));
 
 import { ConflictError } from '../../../src/errors/domain-errors.js';
-import { WorkflowToolResultService } from '../../../src/services/workflow-tool-result-service.js';
+import { WorkflowToolResultService } from '../../../src/services/workflow-operations/workflow-tool-result-service.js';
 import { buildRecoverableMutationResult } from '../../../src/services/guided-closure/types.js';
 
 describe('WorkflowToolResultService', () => {
