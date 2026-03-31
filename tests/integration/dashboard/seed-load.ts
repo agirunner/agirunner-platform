@@ -10,6 +10,7 @@ import {
 } from './support/platform-env.js';
 import { resetWorkflowsState } from './support/workflows-fixture-reset.js';
 import { buildWorkflowLoadSeedSql } from './support/workflows-load-seed.js';
+import { createPlaybook } from './support/workflows-records-api.js';
 
 interface ApiRecord {
   id: string;
@@ -67,40 +68,6 @@ async function main(): Promise<void> {
     turns_per_workflow: args.turns,
     briefs_per_workflow: args.briefs,
   }, null, 2)}\n`);
-}
-
-async function createPlaybook(input: {
-  name: string;
-  slug: string;
-  lifecycle: 'planned' | 'ongoing';
-}): Promise<ApiRecord> {
-  return apiRequest('/api/v1/playbooks', {
-    method: 'POST',
-    body: {
-      name: input.name,
-      slug: input.slug,
-      description: `Seeded ${input.lifecycle} playbook for workflow perf coverage.`,
-      outcome: 'Keep the workflow corpus operator-meaningful under load.',
-      lifecycle: input.lifecycle,
-      definition: {
-        process_instructions: 'Route work, preserve operator visibility, and keep outputs structured.',
-        lifecycle: input.lifecycle,
-        board: {
-          columns: [
-            { id: 'planned', label: 'Planned' },
-            { id: 'doing', label: 'Doing' },
-            { id: 'blocked', label: 'Blocked', is_blocked: true },
-            { id: 'done', label: 'Done', is_terminal: true },
-          ],
-        },
-        stages: [
-          { name: 'intake', goal: 'Clarify the request' },
-          { name: 'delivery', goal: 'Deliver the requested outcome' },
-        ],
-        parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
-      },
-    },
-  });
 }
 
 async function apiRequest<T>(
