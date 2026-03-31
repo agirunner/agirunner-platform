@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGitRemoteResourceBindings,
   resolveWorkspaceStorageBinding,
-} from '../../src/services/workspace-storage.js';
+} from '../../../src/services/workspace-storage.js';
 
 describe('workspace storage binding', () => {
   const hostPath = resolve('fixtures/coolrepo');

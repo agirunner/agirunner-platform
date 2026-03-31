@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   configureProviderSecretEncryptionKey,
   storeProviderSecret,
-} from '../../src/lib/oauth-crypto.js';
-import { WorkspaceService } from '../../src/services/workspace-service.js';
+} from '../../../src/lib/oauth-crypto.js';
+import { WorkspaceService } from '../../../src/services/workspace-service.js';
 
 configureProviderSecretEncryptionKey('test-encryption-key');
 

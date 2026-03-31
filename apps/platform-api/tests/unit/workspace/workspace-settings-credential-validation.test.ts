@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateWorkspaceSettingsShape } from '../../src/services/workspace-settings.js';
+import { validateWorkspaceSettingsShape } from '../../../src/services/workspace-settings.js';
 
 describe('workspace settings credential validation', () => {
   it('rejects git tokens with whitespace', () => {

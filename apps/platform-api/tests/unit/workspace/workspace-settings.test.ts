@@ -7,7 +7,7 @@ import {
   readWorkspaceSettingsExtras,
   readWorkspaceRepositorySettings,
   validateWorkspaceSettingsShape,
-} from '../../src/services/workspace-settings.js';
+} from '../../../src/services/workspace-settings.js';
 
 describe('workspace settings', () => {
   const hostPath = resolve('fixtures/coolrepo');

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceService } from '../../src/services/workspace-service.js';
+import { WorkspaceService } from '../../../src/services/workspace-service.js';
 
 describe('WorkspaceService memory scope events', () => {
   it('applies batched memory updates atomically and emits one scoped event per entry', async () => {
@@ -252,23 +252,34 @@ describe('WorkspaceService memory scope events', () => {
 
   it('redacts secret-bearing deleted values before emitting delete events', async () => {
     const pool = {
-      query: vi.fn().mockResolvedValue({
-        rows: [{ id: 'workspace-1', memory: {}, memory_max_bytes: 1_048_576 }],
-        rowCount: 1,
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT * FROM workspaces WHERE tenant_id = $1 AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'workspace-1']);
+          return {
+            rows: [{
+              id: 'workspace-1',
+              memory: {
+                credentials: {
+                  password: 'super-secret',
+                  secret_ref: 'secret:DB_PASSWORD',
+                },
+              },
+              memory_max_bytes: 1_048_576,
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('UPDATE workspaces')) {
+          return {
+            rows: [{ id: 'workspace-1', memory: {}, memory_max_bytes: 1_048_576 }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
       }),
     };
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
     const service = new WorkspaceService(pool as never, eventService as never);
-    vi.spyOn(service, 'getWorkspace').mockResolvedValue({
-      id: 'workspace-1',
-      memory: {
-        credentials: {
-          password: 'super-secret',
-          secret_ref: 'secret:DB_PASSWORD',
-        },
-      },
-      memory_max_bytes: 1_048_576,
-    } as never);
 
     await service.removeWorkspaceMemory(
       {

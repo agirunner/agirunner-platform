@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceMemoryScopeService } from '../../src/services/workspace-memory-scope-service.js';
+import { WorkspaceMemoryScopeService } from '../../../src/services/workspace-memory-scope-service.js';
 
 describe('WorkspaceMemoryScopeService', () => {
   it('filters visible task memory to global and current workflow scope', async () => {

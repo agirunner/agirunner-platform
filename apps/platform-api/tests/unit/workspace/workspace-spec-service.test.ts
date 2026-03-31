@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkspaceSpecService } from '../../src/services/workspace-spec-service.js';
+import { WorkspaceSpecService } from '../../../src/services/workspace-spec-service.js';
 
 const TENANT_ID = 'tenant-1';
 const WORKSPACE_ID = 'workspace-1';
