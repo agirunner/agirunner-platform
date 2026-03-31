@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowDeliverablesService } from '../../../src/services/workflow-operations/workflow-deliverables-service.js';
+import { WorkflowDeliverablesService } from '../../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
   it('does not surface a synthesized final brief packet for a reopened active work item', async () => {

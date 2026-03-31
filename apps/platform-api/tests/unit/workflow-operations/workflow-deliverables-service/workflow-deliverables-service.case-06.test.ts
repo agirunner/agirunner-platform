@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowDeliverablesService } from '../../../src/services/workflow-operations/workflow-deliverables-service.js';
+import { WorkflowDeliverablesService } from '../../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
   it('keeps final work-item deliverables visible in workflow scope even when workflow-scoped packets also exist', async () => {

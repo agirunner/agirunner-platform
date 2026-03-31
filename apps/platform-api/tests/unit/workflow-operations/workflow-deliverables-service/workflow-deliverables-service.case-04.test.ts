@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowDeliverablesService } from '../../../src/services/workflow-operations/workflow-deliverables-service.js';
+import { WorkflowDeliverablesService } from '../../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
   it('synthesizes a final brief-backed deliverable when a finalized deliverable brief has no descriptor row', async () => {
