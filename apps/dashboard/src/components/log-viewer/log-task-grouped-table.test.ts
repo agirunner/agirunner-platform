@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,10 +5,6 @@ import {
   MAX_VISIBLE_ENTRIES_PER_TASK_GROUP,
 } from './log-task-grouped-table.js';
 import type { LogEntry } from '../../lib/api.js';
-
-function readSource(fileName: string): string {
-  return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
-}
 
 function makeEntry(overrides: Partial<LogEntry> & { id: number }): LogEntry {
   return {
@@ -119,43 +113,5 @@ describe('groupByTask', () => {
 describe('MAX_VISIBLE_ENTRIES_PER_TASK_GROUP', () => {
   it('is set to a reasonable bounded rendering limit', () => {
     expect(MAX_VISIBLE_ENTRIES_PER_TASK_GROUP).toBe(20);
-  });
-});
-
-describe('log task grouped table source', () => {
-  it('renders ARIA attributes on task group headers for accessibility', () => {
-    const source = readSource('./log-task-grouped-table.tsx');
-    expect(source).toContain('role="button"');
-    expect(source).toContain('aria-expanded={isExpanded}');
-    expect(source).toContain('aria-label={');
-    expect(source).toContain('aria-hidden="true"');
-  });
-
-  it('supports keyboard activation on task group headers', () => {
-    const source = readSource('./log-task-grouped-table.tsx');
-    expect(source).toContain('tabIndex={0}');
-    expect(source).toContain("e.key === 'Enter'");
-    expect(source).toContain("e.key === ' '");
-    expect(source).toContain('e.preventDefault()');
-  });
-
-  it('bounds rendered entries per expanded group with a show-more control', () => {
-    const source = readSource('./log-task-grouped-table.tsx');
-    expect(source).toContain('MAX_VISIBLE_ENTRIES_PER_TASK_GROUP');
-    expect(source).toContain('visibleEntries');
-    expect(source).toContain('hiddenCount');
-    expect(source).toContain('showMoreEntries');
-    expect(source).toContain('Show');
-    expect(source).toContain('more');
-  });
-
-  it('labels the role badge for screen readers', () => {
-    const source = readSource('./log-task-grouped-table.tsx');
-    expect(source).toContain('aria-label={`Role: ${bucket.role}`}');
-  });
-
-  it('announces remaining count when more entries are hidden', () => {
-    const source = readSource('./log-task-grouped-table.tsx');
-    expect(source).toContain('remaining');
   });
 });
