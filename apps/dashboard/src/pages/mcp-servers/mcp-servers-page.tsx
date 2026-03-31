@@ -1,5 +1,6 @@
 import { Loader2, Plug, Plus } from 'lucide-react';
 
+import { DashboardMetricCard } from '../../components/dashboard-metric-card.js';
 import { ListPagination } from '../../components/list-pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
@@ -12,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
-import { MetricCard } from '../specialists/definitions/role-definitions-list.js';
 import {
   buildSubmitLabel,
   resolveDeviceAuthorizationUrl,
@@ -107,8 +107,8 @@ export function McpServersPage(): JSX.Element {
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <MetricCard label="Configured servers" value={stats.total} />
-        <MetricCard label="OAuth connected" value={stats.oauthConnected} />
+        <DashboardMetricCard label="Configured servers" value={stats.total} />
+        <DashboardMetricCard label="OAuth connected" value={stats.oauthConnected} />
       </div>
 
       <DashboardSectionCard

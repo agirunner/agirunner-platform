@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react';
 
+import { DashboardMetricCard } from '../../../components/dashboard-metric-card.js';
 import { Badge } from '../../../components/ui/badge.js';
-import { Card, CardContent } from '../../../components/ui/card.js';
 import { IconActionButton } from '../../../components/ui/icon-action-button.js';
 import { Switch } from '../../../components/ui/switch.js';
 import { TableCell, TableRow } from '../../../components/ui/table.js';
@@ -15,28 +15,7 @@ import {
 } from './role-definitions-lifecycle.js';
 import { buildRoleDetailSummary } from './role-definitions-list.support.js';
 
-export function MetricCard(props: {
-  label: string;
-  value: number;
-  tone?: 'default' | 'success' | 'warning';
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="text-xs font-medium uppercase tracking-wide text-muted">{props.label}</div>
-        <div
-          className={cn(
-            'mt-2 text-2xl font-semibold',
-            props.tone === 'success' && 'text-green-700 dark:text-green-400',
-            props.tone === 'warning' && 'text-amber-700 dark:text-amber-400',
-          )}
-        >
-          {props.value}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+export const MetricCard = DashboardMetricCard;
 
 export function RoleRow(props: {
   role: RoleDefinition;

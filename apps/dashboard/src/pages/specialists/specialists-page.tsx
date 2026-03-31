@@ -6,6 +6,7 @@ import { ListPagination } from '../../components/list-pagination/list-pagination
 import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
+import { DashboardMetricCard } from '../../components/dashboard-metric-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
@@ -28,7 +29,7 @@ import {
   type RoleDefinition,
 } from './definitions/role-definitions-page.support.js';
 import { RoleDialog } from './definitions/role-definitions-dialog.js';
-import { MetricCard, RoleRow } from './definitions/role-definitions-list.js';
+import { RoleRow } from './definitions/role-definitions-list.js';
 
 export function SpecialistsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -175,9 +176,9 @@ export function SpecialistsPage(): JSX.Element {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Total specialists" value={summary.total} />
-        <MetricCard label="Active specialists" value={summary.active} tone="success" />
-        <MetricCard label="Inactive specialists" value={summary.inactive} tone="warning" />
+        <DashboardMetricCard label="Total specialists" value={summary.total} />
+        <DashboardMetricCard label="Active specialists" value={summary.active} tone="success" />
+        <DashboardMetricCard label="Inactive specialists" value={summary.inactive} tone="warning" />
       </div>
 
       {roles.length === 0 ? (

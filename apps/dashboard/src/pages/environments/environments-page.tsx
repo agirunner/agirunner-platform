@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { Loader2, Plus } from 'lucide-react';
 
 import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import { DashboardMetricCard } from '../../components/dashboard-metric-card.js';
 import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
@@ -10,7 +11,6 @@ import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
 import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
-import { MetricCard } from '../specialists/definitions/role-definitions-list.js';
 import {
   archiveExecutionEnvironment,
   ExecutionEnvironmentAutoVerifyError,
@@ -202,9 +202,9 @@ export function EnvironmentsPage(): JSX.Element {
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Total environments" value={stats.total} />
-        <MetricCard label="Catalog" value={stats.catalog} />
-        <MetricCard label="Custom images" value={stats.custom} />
+        <DashboardMetricCard label="Total environments" value={stats.total} />
+        <DashboardMetricCard label="Catalog" value={stats.catalog} />
+        <DashboardMetricCard label="Custom images" value={stats.custom} />
       </div>
 
       <Card>
