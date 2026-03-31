@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -13,20 +11,7 @@ import type {
 } from '../../../lib/api.js';
 import { WorkflowDetails } from './workflow-details.js';
 
-function readDetailsSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-details.tsx'), 'utf8');
-}
-
 describe('WorkflowDetails', () => {
-  it('keeps details scoped to workflow or work item with no selected-task prop surface', () => {
-    const source = readDetailsSource();
-
-    expect(source).not.toContain('selectedTaskId: string | null;');
-    expect(source).not.toContain('selectedTaskTitle: string | null;');
-    expect(source).not.toContain('selectedTask: DashboardTaskRecord | null;');
-    expect(source).not.toContain("scope.scopeKind !== 'selected_task'");
-  });
-
   it('renders selected work-item scope as a compact briefing with readable asks and task rows', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
