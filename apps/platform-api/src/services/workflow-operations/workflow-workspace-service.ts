@@ -239,8 +239,9 @@ export class WorkflowWorkspaceService {
       liveConsole,
       scopedSteeringMessages,
     );
+    const normalizedLiveConsole = normalizeLiveConsolePacketForVisibleRows(liveConsoleWithSteering);
     const effectiveLiveConsole = filterLiveConsoleForSelectedScope(
-      liveConsoleWithSteering,
+      normalizedLiveConsole,
       selectedScope,
       readBoardWorkItemIds(board as Record<string, unknown>),
     );
@@ -825,26 +826,41 @@ function filterLiveConsoleForSelectedScope(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
   workflowWorkItemIds: string[],
 ): WorkflowWorkspacePacket['live_console'] {
-  if (packet.scope_filtered && selectedScope.scope_kind !== 'workflow') {
+  if (selectedScope.scope_kind === 'workflow') {
+    return packet;
+  }
+  if (packet.scope_filtered) {
     return packet;
   }
   const filteredItems = filterLiveConsoleItemsForSelectedScope(packet.items, selectedScope, workflowWorkItemIds);
-  const visibleTotalCount = readLiveConsoleVisibleTotal(packet);
-  const hasStableTotalCounts = shouldPreserveLiveConsoleTotals(packet);
-  if (filteredItems.length === packet.items.length) {
-    if (visibleTotalCount === packet.total_count) {
-      return packet;
-    }
-    return {
-      ...packet,
-      total_count: visibleTotalCount,
-    };
+  const counts = buildWorkflowLiveConsoleCounts(filteredItems);
+  if (
+    filteredItems.length === packet.items.length
+    && packet.total_count === counts.all
+    && areLiveConsoleCountsEqual(packet.counts, counts)
+  ) {
+    return packet;
   }
-  const counts = hasStableTotalCounts ? packet.counts : buildWorkflowLiveConsoleCounts(filteredItems);
   return {
     ...packet,
     items: filteredItems,
-    total_count: hasStableTotalCounts ? visibleTotalCount : counts.all,
+    total_count: counts.all,
+    counts,
+  };
+}
+
+function normalizeLiveConsolePacketForVisibleRows(
+  packet: WorkflowWorkspacePacket['live_console'],
+): WorkflowWorkspacePacket['live_console'] {
+  const visibleItems = packet.items.filter((item) => item.item_kind !== 'operator_update');
+  if (visibleItems.length === packet.items.length) {
+    return packet;
+  }
+  const counts = buildWorkflowLiveConsoleCounts(visibleItems);
+  return {
+    ...packet,
+    items: visibleItems,
+    total_count: counts.all,
     counts,
   };
 }
@@ -946,18 +962,19 @@ function sortNewestLiveConsoleFirst(
   return rightTimestamp.localeCompare(leftTimestamp) || right.item_id.localeCompare(left.item_id);
 }
 
-function readLiveConsoleVisibleTotal(
-  packet: WorkflowWorkspacePacket['live_console'],
-): number {
-  return typeof packet.counts?.all === 'number'
-    ? packet.counts.all
-    : packet.total_count;
-}
-
-function shouldPreserveLiveConsoleTotals(
-  packet: WorkflowWorkspacePacket['live_console'],
+function areLiveConsoleCountsEqual(
+  left: WorkflowWorkspacePacket['live_console']['counts'] | undefined,
+  right: WorkflowWorkspacePacket['live_console']['counts'],
 ): boolean {
-  return packet.next_cursor !== null || packet.total_count > packet.items.length;
+  if (!left) {
+    return false;
+  }
+  return (
+    left.all === right.all
+    && left.turn_updates === right.turn_updates
+    && left.briefs === right.briefs
+    && (left.steering ?? 0) === (right.steering ?? 0)
+  );
 }
 
 function readBoardWorkItemIds(board: Record<string, unknown>): string[] {

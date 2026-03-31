@@ -523,6 +523,7 @@ describe('WorkflowWorkspaceService', () => {
       all: 1,
       turn_updates: 0,
       briefs: 1,
+      steering: 0,
     });
     expect(result.bottom_tabs.counts.live_console_activity).toBe(1);
   });
@@ -5913,7 +5914,7 @@ describe('WorkflowWorkspaceService', () => {
         items: [
           {
             item_id: 'work-item-only',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'specialist',
             source_label: 'Verifier',
             headline: 'Work-item update',
@@ -5925,7 +5926,7 @@ describe('WorkflowWorkspaceService', () => {
           },
           {
             item_id: 'task-linked',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'orchestrator',
             source_label: 'Orchestrator',
             headline: 'Task-linked update',
@@ -6100,7 +6101,7 @@ describe('WorkflowWorkspaceService', () => {
         item_ids: ['history-task'],
       }),
     ]);
-    expect(result.bottom_tabs.counts.live_console_activity).toBe(0);
+    expect(result.bottom_tabs.counts.live_console_activity).toBe(1);
     expect(result.bottom_tabs.counts.briefs).toBe(1);
     expect(result.bottom_tabs.counts.history).toBe(1);
   });
@@ -6401,7 +6402,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.bottom_tabs.counts.live_console_activity).toBe(1);
   });
 
-  it('preserves scoped live-console totals when workspace filtering trims a paginated viewport window', async () => {
+  it('recomputes selected work-item live-console totals when workspace narrows an unscoped packet', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -6541,13 +6542,14 @@ describe('WorkflowWorkspaceService', () => {
       'selected-brief',
       'selected-turn',
     ]);
-    expect(result.live_console.total_count).toBe(6);
+    expect(result.live_console.total_count).toBe(2);
     expect(result.live_console.counts).toEqual({
-      all: 6,
-      turn_updates: 5,
+      all: 2,
+      turn_updates: 1,
       briefs: 1,
+      steering: 0,
     });
-    expect(result.bottom_tabs.counts.live_console_activity).toBe(6);
+    expect(result.bottom_tabs.counts.live_console_activity).toBe(2);
   });
 
   it('keeps plain workflow-scoped rollup deliverables visible in selected work-item and task scopes', async () => {
