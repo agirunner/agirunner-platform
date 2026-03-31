@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
-import { workflowRoutes } from '../../../../src/api/routes/workflows.routes.js';
+import { workflowRoutes } from '../../../../src/api/routes/workflows/routes.js';
 
 const mockWithScope = vi.fn((_scope: string) => async () => {});
 const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});

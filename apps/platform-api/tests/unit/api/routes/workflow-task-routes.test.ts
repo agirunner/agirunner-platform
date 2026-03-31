@@ -69,7 +69,7 @@ describe('workflow task routes', () => {
   });
 
   it('deduplicates workflow task agent-escalate requests for workflow-linked tasks without work items', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
     const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_agent_escalate');
     const workflowService = {
       createWorkflow: vi.fn(),

@@ -33,7 +33,7 @@ describe('workflow document routes', () => {
   });
 
   it('creates workflow documents through the workflow route surface', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
     const createdDocument = {
       id: 'doc-1',
       logical_name: 'brief',

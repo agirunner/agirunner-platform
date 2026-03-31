@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { buildAppliedMutationResult } from '../../services/guided-closure/types.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import { buildAppliedMutationResult } from '../../../services/guided-closure/types.js';
 
 const requestIdSchema = z.string().min(1).max(255);
 

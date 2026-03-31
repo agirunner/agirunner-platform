@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withAllowedScopes } from '../../auth/fastify-auth-hook.js';
-import { readUuidOrUndefined } from '../../lib/uuid.js';
-import type { WorkflowRailMode } from '../../services/workflow-operations/workflow-operations-types.js';
+import { authenticateApiKey, withAllowedScopes } from '../../../auth/fastify-auth-hook.js';
+import { readUuidOrUndefined } from '../../../lib/uuid.js';
+import type { WorkflowRailMode } from '../../../services/workflow-operations/workflow-operations-types.js';
 
 function readPositiveInt(value: unknown, fallback: number): number {
   const parsed = Number(value);

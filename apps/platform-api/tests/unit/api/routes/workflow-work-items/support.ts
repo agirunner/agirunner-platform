@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { expect, vi } from 'vitest';
 
-import { workflowRoutes as workflowRoutesModule } from '../../../../../src/api/routes/workflows.routes.js';
+import { workflowRoutes as workflowRoutesModule } from '../../../../../src/api/routes/workflows/routes.js';
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 export const handoffRouteMocks = {

@@ -33,7 +33,7 @@ describe('workflow model override routes', () => {
   });
 
   it('rejects legacy create-time model_overrides payloads', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
     const createWorkflow = vi.fn().mockResolvedValue({ id: 'workflow-1' });
 
     app = fastify();
@@ -87,7 +87,7 @@ describe('workflow model override routes', () => {
   });
 
   it('does not expose retired workflow model-routing routes', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);

@@ -3,7 +3,7 @@ import { expect, vi } from 'vitest';
 
 import * as documentReferenceService from '../../../../../src/services/document-reference-service.js';
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
-import * as workflowRoutesModule from '../../../../../src/api/routes/workflows.routes.js';
+import * as workflowRoutesModule from '../../../../../src/api/routes/workflows/routes.js';
 
 export const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});
 export const mockWithScope = vi.fn((_scope: string) => async () => {});

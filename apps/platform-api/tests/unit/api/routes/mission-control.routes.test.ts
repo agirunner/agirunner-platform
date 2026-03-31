@@ -32,7 +32,7 @@ describe('workflow operations routes', () => {
   });
 
   it('routes canonical workflow operations reads through the workflow operations services', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsLiveService = { getLive: vi.fn(async () => ({ sections: [], attentionItems: [] })) };
     const workflowOperationsRecentService = { getRecent: vi.fn(async () => ({ packets: [] })) };
     const workflowOperationsHistoryService = { getHistory: vi.fn(async () => ({ packets: [] })) };

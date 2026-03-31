@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 
 const KEEPALIVE_INTERVAL_MS = 15_000;
 const TASK_EVENTS_PATH = '/api/v1/tasks';

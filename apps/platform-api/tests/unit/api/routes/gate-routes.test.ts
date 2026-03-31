@@ -33,7 +33,7 @@ describe('gate routes', () => {
   });
 
   it('reads workflow-scoped gates by gate id', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -234,7 +234,7 @@ describe('gate routes', () => {
   });
 
   it('redacts secret-bearing gate response fields on workflow gate reads', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows.routes.js');
+    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);

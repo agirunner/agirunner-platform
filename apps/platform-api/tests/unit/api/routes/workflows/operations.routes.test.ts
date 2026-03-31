@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('routes canonical reads and stream batch reads through the workflow operations services', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsRailService = {
       getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
     };
@@ -139,7 +139,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('adds CORS headers to workflow stream responses for browser clients', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsRailService = {
       getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
     };
@@ -224,7 +224,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('keeps workspace streams open when an async refresh batch build rejects', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsRailService = {
       getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
     };
@@ -301,7 +301,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('keeps rail streams open when an async refresh batch build rejects', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsRailService = {
       getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
     };
@@ -371,7 +371,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('ignores invalid selected workflow ids on rail list and stream reads instead of forwarding them', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
     const workflowOperationsRailService = {
       getRail: vi.fn(async () => ({ rows: [], ongoing_rows: [], selected_workflow_id: null })),
     };
@@ -438,7 +438,7 @@ describe('workflow operations routes v2', () => {
   });
 
   it('does not expose legacy mission control route aliases after workflows cutover', async () => {
-    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
-import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
+import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
 
 const workflowOperatorFileUploadSchema = z.object({
   description: z.string().max(2000).optional(),
