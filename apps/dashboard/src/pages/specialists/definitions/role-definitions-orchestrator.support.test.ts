@@ -9,7 +9,7 @@ import {
   type RoleAssignmentRecord,
   type SystemDefaultRecord,
 } from './role-definitions-orchestrator.support.js';
-import { DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL } from '../../../lib/runtime-image-defaults.js';
+import { DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL } from '../../runtime-config-shared/runtime-image-defaults.js';
 
 describe('role definitions orchestrator support', () => {
   it('summarizes orchestrator prompt posture', () => {

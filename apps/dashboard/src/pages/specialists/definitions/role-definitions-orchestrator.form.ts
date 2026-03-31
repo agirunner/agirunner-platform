@@ -6,7 +6,7 @@ import {
   validateContainerCpu,
   validateContainerImage,
   validateContainerMemory,
-} from '../../../lib/container-resources.validation.js';
+} from '../../runtime-config-shared/container-resources.validation.js';
 import type { ReasoningConfigSchema } from './role-definitions-page.support.js';
 import type { RoleAssignmentRecord } from './role-definitions-orchestrator.support.js';
 import {

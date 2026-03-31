@@ -31,7 +31,7 @@ import {
 import {
   DEFAULT_RUNTIME_IMAGE_EXAMPLE,
   ORCHESTRATOR_RUNTIME_IMAGE_BOOTSTRAP_COPY,
-} from '../../../lib/runtime-image-defaults.js';
+} from '../../runtime-config-shared/runtime-image-defaults.js';
 import {
   buildOrchestratorPoolDraft,
   listOrchestratorWorkerOptions,

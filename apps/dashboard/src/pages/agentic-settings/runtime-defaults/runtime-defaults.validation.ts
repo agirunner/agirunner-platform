@@ -4,7 +4,7 @@ import {
   validateContainerCpu,
   validateContainerImage,
   validateContainerMemory,
-} from '../../../lib/container-resources.validation.js';
+} from '../../runtime-config-shared/container-resources.validation.js';
 
 export function buildValidationErrors(
   values: FormValues,

@@ -1,4 +1,4 @@
-import { DEFAULT_RUNTIME_IMAGE_EXAMPLE } from '../../../lib/runtime-image-defaults.js';
+import { DEFAULT_RUNTIME_IMAGE_EXAMPLE } from '../../runtime-config-shared/runtime-image-defaults.js';
 
 export const ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE = DEFAULT_RUNTIME_IMAGE_EXAMPLE;
 export const ORCHESTRATOR_DEFAULT_CPU_LIMIT = '2';

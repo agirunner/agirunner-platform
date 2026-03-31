@@ -3,7 +3,7 @@ import type {
   FleetStatusResponse,
   FleetWorkerRecord,
 } from '../../../lib/api.js';
-import { DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL } from '../../../lib/runtime-image-defaults.js';
+import { DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL } from '../../runtime-config-shared/runtime-image-defaults.js';
 import {
   ORCHESTRATOR_DEFAULT_CPU_LIMIT,
   ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,

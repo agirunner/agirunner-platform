@@ -28,7 +28,7 @@ import {
   validateContainerCpu,
   validateContainerImage,
   validateContainerMemory,
-} from '../../lib/container-resources.validation.js';
+} from '../runtime-config-shared/container-resources.validation.js';
 import type { DashboardExecutionEnvironmentPullPolicy } from '../../lib/api.js';
 import type { ExecutionEnvironmentFormState } from './environments-page.support.js';
 
