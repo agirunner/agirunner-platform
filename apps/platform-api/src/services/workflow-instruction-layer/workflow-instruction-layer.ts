@@ -1,15 +1,15 @@
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import { asRecord } from './workflow-instruction-layer/shared.js';
-import { buildOrchestratorSections, buildSpecialistSections } from './workflow-instruction-layer/sections.js';
-import { hasRepositoryBinding, isRepositoryBacked } from './workflow-instruction-layer/orchestrator-context.js';
-import type { WorkflowInstructionLayerInput } from './workflow-instruction-layer/types.js';
+import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
+import { asRecord } from './shared.js';
+import { buildOrchestratorSections, buildSpecialistSections } from './sections.js';
+import { hasRepositoryBinding, isRepositoryBacked } from './orchestrator-context.js';
+import type { WorkflowInstructionLayerInput } from './types.js';
 
 interface InstructionLayerDocument {
   content: string;
   format: 'markdown';
 }
 
-export type { WorkflowContextLike, WorkflowInstructionLayerInput } from './workflow-instruction-layer/types.js';
+export type { WorkflowContextLike, WorkflowInstructionLayerInput } from './types.js';
 
 export function buildWorkflowInstructionLayer(
   input: WorkflowInstructionLayerInput,
