@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../content/storage-config.js';
-import { ValidationError } from '../errors/domain-errors.js';
+import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../../content/storage-config.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 
 export interface WorkflowOperatorFileUploadInput {
   fileName: string;

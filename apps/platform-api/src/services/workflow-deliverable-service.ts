@@ -13,7 +13,7 @@ import {
   sanitizeDeliverableTargets,
   sanitizeOptionalText,
   sanitizeRequiredText,
-} from './workflow-operator-record-sanitization.js';
+} from './workflow-operator/workflow-operator-record-sanitization.js';
 
 interface WorkflowDeliverableRow {
   id: string;

@@ -1,5 +1,5 @@
-import { ValidationError } from '../errors/domain-errors.js';
-import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { ValidationError } from '../../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from '../secret-redaction.js';
 
 const BRIEF_REDACTION = 'redacted://workflow-brief-secret';
 const UPDATE_REDACTION = 'redacted://workflow-update-secret';

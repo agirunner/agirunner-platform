@@ -50,8 +50,8 @@ import type { WorkflowActivationService } from './services/workflow-activation-s
 import type { WorkflowDeliverableService } from './services/workflow-deliverable-service.js';
 import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
-import type { WorkflowOperatorBriefService } from './services/workflow-operator-brief-service.js';
-import type { WorkflowOperatorUpdateService } from './services/workflow-operator-update-service.js';
+import type { WorkflowOperatorBriefService } from './services/workflow-operator/workflow-operator-brief-service.js';
+import type { WorkflowOperatorUpdateService } from './services/workflow-operator/workflow-operator-update-service.js';
 import type { WorkflowRedriveService } from './services/workflow-redrive-service.js';
 import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service.js';

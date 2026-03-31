@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowOperatorUpdateService } from '../../../src/services/workflow-operator-update-service.js';
+import { WorkflowOperatorUpdateService } from '../../../src/services/workflow-operator/workflow-operator-update-service.js';
 
 export const IDENTITY = {
   id: 'key-1',

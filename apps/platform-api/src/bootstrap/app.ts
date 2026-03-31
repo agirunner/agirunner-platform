@@ -77,8 +77,8 @@ import { WorkflowDeliverableHandoffService } from '../services/workflow-delivera
 import { WorkflowDeliverableLifecycleService } from '../services/workflow-deliverable-lifecycle-service.js';
 import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
-import { WorkflowOperatorBriefService } from '../services/workflow-operator-brief-service.js';
-import { WorkflowOperatorUpdateService } from '../services/workflow-operator-update-service.js';
+import { WorkflowOperatorBriefService } from '../services/workflow-operator/workflow-operator-brief-service.js';
+import { WorkflowOperatorUpdateService } from '../services/workflow-operator/workflow-operator-update-service.js';
 import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
 import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';

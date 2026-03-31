@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseQueryable } from '../db/database.js';
 import { ConflictError, ValidationError } from '../errors/domain-errors.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
-import { sanitizeWorkflowLiveVisibilityMode } from './workflow-operator-record-sanitization.js';
+import { sanitizeWorkflowLiveVisibilityMode } from './workflow-operator/workflow-operator-record-sanitization.js';
 
 const DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS = 32_000;
 

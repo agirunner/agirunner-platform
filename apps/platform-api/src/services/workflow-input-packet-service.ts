@@ -12,7 +12,7 @@ import {
   sanitizeWorkflowOperatorFileDescription,
   sanitizeWorkflowOperatorFileName,
   type WorkflowOperatorFileUploadInput,
-} from './workflow-operator-file-support.js';
+} from './workflow-operator/workflow-operator-file-support.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 
 interface WorkflowPacketRow {

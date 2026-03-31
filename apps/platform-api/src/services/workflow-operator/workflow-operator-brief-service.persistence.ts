@@ -1,6 +1,6 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseQueryable } from '../db/database.js';
-import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableService } from './workflow-deliverable-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableService } from '../workflow-deliverable-service.js';
 import { sanitizeLinkedIdList, sanitizeOptionalText } from './workflow-operator-record-sanitization.js';
 import {
   buildArtifactPreviewCapabilities,

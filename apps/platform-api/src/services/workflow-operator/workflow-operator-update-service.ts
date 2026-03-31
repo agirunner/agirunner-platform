@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { resolveOperatorRecordActorId } from '../operator-record-authorship.js';
 import { resolveWorkflowOperatorExecutionContext } from './workflow-operator-execution-context.js';
 import {
   sanitizeLinkedIdList,

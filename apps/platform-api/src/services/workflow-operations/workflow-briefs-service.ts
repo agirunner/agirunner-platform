@@ -1,5 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
-import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
+import type { WorkflowOperatorBriefRecord } from '../workflow-operator/workflow-operator-brief-service.js';
 import {
   buildWorkflowOperationsSnapshotVersion,
   type WorkflowBriefItem,

@@ -12,7 +12,7 @@ import { WorkflowActivationDispatchService } from './workflow-activation-dispatc
 import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event-service.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
-import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator-record-sanitization.js';
+import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator/workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from './workspace-settings.js';

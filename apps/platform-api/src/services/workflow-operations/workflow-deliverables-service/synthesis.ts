@@ -1,6 +1,6 @@
 import type { WorkflowDeliverableRecord } from '../../workflow-deliverable-service.js';
 import type { WorkflowDeliverableHandoffRecord } from '../../workflow-deliverable-handoff-service.js';
-import type { WorkflowOperatorBriefRecord } from '../../workflow-operator-brief-service.js';
+import type { WorkflowOperatorBriefRecord } from '../../workflow-operator/workflow-operator-brief-service.js';
 
 import {
   isOrchestratorBrief,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from '../../src/errors/domain-errors.js';
-import { buildWorkflowOperatorStorageKey } from '../../src/services/workflow-operator-file-support.js';
+import { buildWorkflowOperatorStorageKey } from '../../src/services/workflow-operator/workflow-operator-file-support.js';
 
 describe('buildWorkflowOperatorStorageKey', () => {
   it('builds workflow operator file keys under the workflow artifact namespace', () => {

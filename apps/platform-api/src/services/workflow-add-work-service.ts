@@ -5,7 +5,7 @@ import type { WorkflowActivationDispatchService } from './workflow-activation-di
 import type { WorkflowActivationService } from './workflow-activation-service.js';
 import type { CreateWorkItemInput, WorkItemReadModel, WorkItemService } from './work-item-service.js';
 import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
-import type { WorkflowOperatorFileUploadInput } from './workflow-operator-file-support.js';
+import type { WorkflowOperatorFileUploadInput } from './workflow-operator/workflow-operator-file-support.js';
 
 interface WorkflowLifecycleRow {
   lifecycle: string | null;
