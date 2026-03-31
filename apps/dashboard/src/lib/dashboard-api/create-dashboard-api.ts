@@ -3,6 +3,20 @@ import { PlatformApiClient } from '@agirunner/sdk';
 import { clearSession, readSession, writeSession } from '../session.js';
 
 import { normalizeWorkspaceSpecRecord } from './contracts.js';
+import {
+  buildHttpErrorMessage,
+  buildMissionControlQuery,
+  buildQueryString,
+  buildRequestBodyWithRequestId,
+  createRequestId,
+  readContentDispositionFileName,
+  resolvePlatformPath,
+} from './create-dashboard-api.request.js';
+import {
+  buildSearchResults,
+  extractDataResult,
+  extractListResult,
+} from './create-dashboard-api.search.js';
 import type * as Contracts from './contracts.js';
 
 type DashboardAgentRecord = Contracts.DashboardAgentRecord;
@@ -21,7 +35,8 @@ type DashboardCustomizationValidateResponse = Contracts.DashboardCustomizationVa
 type DashboardDeleteImpactSummary = Contracts.DashboardDeleteImpactSummary;
 type DashboardEventPage = Contracts.DashboardEventPage;
 type DashboardEventRecord = Contracts.DashboardEventRecord;
-type DashboardExecutionEnvironmentCatalogRecord = Contracts.DashboardExecutionEnvironmentCatalogRecord;
+type DashboardExecutionEnvironmentCatalogRecord =
+  Contracts.DashboardExecutionEnvironmentCatalogRecord;
 type DashboardExecutionEnvironmentRecord = Contracts.DashboardExecutionEnvironmentRecord;
 type DashboardGovernanceRetentionPolicy = Contracts.DashboardGovernanceRetentionPolicy;
 type DashboardLiveContainerRecord = Contracts.DashboardLiveContainerRecord;
@@ -37,11 +52,13 @@ type DashboardMissionControlWorkspaceResponse = Contracts.DashboardMissionContro
 type DashboardOAuthProfileRecord = Contracts.DashboardOAuthProfileRecord;
 type DashboardOAuthStatusRecord = Contracts.DashboardOAuthStatusRecord;
 type DashboardPlatformInstructionRecord = Contracts.DashboardPlatformInstructionRecord;
-type DashboardPlatformInstructionVersionRecord = Contracts.DashboardPlatformInstructionVersionRecord;
+type DashboardPlatformInstructionVersionRecord =
+  Contracts.DashboardPlatformInstructionVersionRecord;
 type DashboardPlaybookDeleteImpact = Contracts.DashboardPlaybookDeleteImpact;
 type DashboardPlaybookRecord = Contracts.DashboardPlaybookRecord;
 type DashboardRemoteMcpAuthorizeResult = Contracts.DashboardRemoteMcpAuthorizeResult;
-type DashboardRemoteMcpOAuthClientProfileRecord = Contracts.DashboardRemoteMcpOAuthClientProfileRecord;
+type DashboardRemoteMcpOAuthClientProfileRecord =
+  Contracts.DashboardRemoteMcpOAuthClientProfileRecord;
 type DashboardRemoteMcpServerRecord = Contracts.DashboardRemoteMcpServerRecord;
 type DashboardResolvedDocumentReference = Contracts.DashboardResolvedDocumentReference;
 type DashboardRoleDefinitionRecord = Contracts.DashboardRoleDefinitionRecord;
@@ -285,7 +302,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       headers.Authorization = `Bearer ${activeSession.accessToken}`;
     }
 
-    const response = await requestFetch(resolvePlatformPath(path), {
+    const response = await requestFetch(resolvePlatformPath(path, baseUrl), {
       method: options.method ?? 'GET',
       headers,
       credentials: 'include',
@@ -296,69 +313,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     }
 
     return response;
-  }
-
-  function resolvePlatformPath(path: string): string {
-    const resolved = new URL(path, baseUrl);
-    const platformOrigin = new URL(baseUrl).origin;
-    if (resolved.origin !== platformOrigin) {
-      throw new Error('Artifact access must remain on the platform API origin');
-    }
-    return resolved.toString();
-  }
-
-  async function buildHttpErrorMessage(response: Response): Promise<string> {
-    const fallback = `HTTP ${response.status}`;
-    const contentType = response.headers.get('content-type') ?? '';
-
-    try {
-      if (contentType.includes('application/json')) {
-        const payload = (await response.json()) as {
-          error?: { message?: string; details?: { issues?: unknown } };
-          message?: string;
-        };
-        const message = payload.error?.message ?? payload.message;
-        const issues = formatValidationIssueDetails(payload.error?.details?.issues);
-        const detailMessage = issues ? `${message ?? 'Validation failed'} (${issues})` : message;
-        return detailMessage ? `HTTP ${response.status}: ${detailMessage}` : fallback;
-      }
-
-      const text = (await response.text()).trim();
-      return text ? `HTTP ${response.status}: ${text}` : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function formatValidationIssueDetails(value: unknown): string | null {
-    if (!value || typeof value !== 'object') {
-      return null;
-    }
-
-    const details = value as {
-      fieldErrors?: Record<string, string[] | undefined>;
-      formErrors?: string[];
-    };
-    const fieldMessages = Object.values(details.fieldErrors ?? {})
-      .flatMap((messages) => messages ?? [])
-      .filter((message) => typeof message === 'string' && message.trim().length > 0);
-    const formMessages = (details.formErrors ?? []).filter(
-      (message) => typeof message === 'string' && message.trim().length > 0,
-    );
-    const messages = [...fieldMessages, ...formMessages];
-    return messages.length > 0 ? messages.join(' ') : null;
-  }
-
-  function readContentDispositionFileName(headerValue: string | null): string | null {
-    if (!headerValue) {
-      return null;
-    }
-    const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
-    if (utf8Match) {
-      return decodeURIComponent(utf8Match[1]);
-    }
-    const basicMatch = headerValue.match(/filename=\"?([^\";]+)\"?/i);
-    return basicMatch?.[1] ?? null;
   }
 
   return {
@@ -725,13 +679,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     redriveWorkflow: (workflowId, payload) =>
       withRefresh(() =>
-        requestData<DashboardWorkflowRedriveResult>(
-          `/api/v1/workflows/${workflowId}/redrives`,
-          {
-            method: 'POST',
-            body: payload as unknown as Record<string, unknown>,
-          },
-        ),
+        requestData<DashboardWorkflowRedriveResult>(`/api/v1/workflows/${workflowId}/redrives`, {
+          method: 'POST',
+          body: payload as unknown as Record<string, unknown>,
+        }),
       ),
     getWorkflowBudget: (workflowId) =>
       withRefresh(() =>
@@ -1366,13 +1317,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     deleteRemoteMcpOAuthClientProfile: (profileId) =>
       withRefresh(() =>
-        requestData<void>(
-          `/api/v1/remote-mcp-oauth-client-profiles/${profileId}`,
-          {
-            method: 'DELETE',
-            allowNoContent: true,
-          },
-        ),
+        requestData<void>(`/api/v1/remote-mcp-oauth-client-profiles/${profileId}`, {
+          method: 'DELETE',
+          allowNoContent: true,
+        }),
       ),
     listRemoteMcpServers: () =>
       withRefresh(() =>
@@ -1444,13 +1392,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     deleteRemoteMcpServer: (serverId) =>
       withRefresh(() =>
-        requestData<void>(
-          `/api/v1/remote-mcp-servers/${serverId}`,
-          {
-            method: 'DELETE',
-            allowNoContent: true,
-          },
-        ),
+        requestData<void>(`/api/v1/remote-mcp-servers/${serverId}`, {
+          method: 'DELETE',
+          allowNoContent: true,
+        }),
       ),
     listSpecialistSkills: () =>
       withRefresh(() =>
@@ -1910,150 +1855,5 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   };
 }
 
-function buildQueryString(filters?: Record<string, string>): string {
-  if (!filters) {
-    return '';
-  }
-
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value) {
-      params.set(key, value);
-    }
-  });
-
-  const rendered = params.toString();
-  return rendered.length > 0 ? `?${rendered}` : '';
-}
-
-function buildMissionControlQuery(
-  values?: Record<string, string | number | undefined>,
-): string {
-  if (!values) {
-    return '';
-  }
-
-  const params = new URLSearchParams();
-  Object.entries(values).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') {
-      return;
-    }
-    params.set(key, String(value));
-  });
-
-  const rendered = params.toString();
-  return rendered.length > 0 ? `?${rendered}` : '';
-}
-
-function buildRequestBodyWithRequestId(body: Record<string, unknown>): Record<string, unknown> {
-  const requestId =
-    typeof body.request_id === 'string' && body.request_id.trim().length > 0
-      ? body.request_id
-      : createRequestId();
-  return {
-    ...body,
-    request_id: requestId,
-  };
-}
-
-function createRequestId(): string {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-export function buildSearchResults(
-  normalizedQuery: string,
-  collections: {
-    workflows: NamedRecord[];
-    tasks: NamedRecord[];
-    workers: NamedRecord[];
-    agents: NamedRecord[];
-    workspaces: NamedRecord[];
-    playbooks: NamedRecord[];
-  },
-): DashboardSearchResult[] {
-  const workflowMatches = filterRecords(collections.workflows, normalizedQuery).map((item) => ({
-    type: 'workflow' as const,
-    id: item.id,
-    label: item.name ?? item.id,
-    subtitle: item.state ?? 'workflow',
-    href: `/workflows?rail=workflow&workflow=${encodeURIComponent(item.id)}`,
-  }));
-
-  const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({
-    type: 'task' as const,
-    id: item.id,
-    label: item.title ?? item.name ?? item.id,
-    subtitle: item.state ?? 'task',
-    href: `/work/tasks/${item.id}`,
-  }));
-
-  const agentMatches = filterRecords(collections.agents, normalizedQuery).map((item) => ({
-    type: 'agent' as const,
-    id: item.id,
-    label: item.name ?? item.id,
-    subtitle: item.status ?? 'agent',
-    href: '/diagnostics/live-containers',
-  }));
-
-  const workspaceMatches = filterRecords(collections.workspaces, normalizedQuery).map((item) => ({
-    type: 'workspace' as const,
-    id: item.id,
-    label: item.name ?? item.id,
-    subtitle: item.status ?? 'workspace',
-    href: `/design/workspaces/${item.id}`,
-  }));
-
-  const playbookMatches = filterRecords(collections.playbooks, normalizedQuery).map((item) => ({
-    type: 'playbook' as const,
-    id: item.id,
-    label: item.name ?? item.id,
-    subtitle: item.status ?? 'playbook',
-    href: `/design/playbooks/${item.id}`,
-  }));
-
-  return [
-    ...workflowMatches,
-    ...taskMatches,
-    ...workspaceMatches,
-    ...playbookMatches,
-    ...agentMatches,
-  ].slice(0, 12);
-}
-
-function filterRecords(records: NamedRecord[], query: string): NamedRecord[] {
-  return records.filter((record) => {
-    const haystack = `${record.id} ${record.name ?? ''} ${record.title ?? ''}`.toLowerCase();
-    return haystack.includes(query);
-  });
-}
-
-function extractListResult(result: PromiseSettledResult<unknown>): NamedRecord[] {
-  if (result.status !== 'fulfilled') {
-    return [];
-  }
-
-  const value = result.value as { data?: unknown };
-  return Array.isArray(value.data) ? (value.data as NamedRecord[]) : [];
-}
-
-function extractDataResult(result: PromiseSettledResult<unknown>): NamedRecord[] {
-  if (result.status !== 'fulfilled') {
-    return [];
-  }
-
-  const value = result.value as { data?: unknown } | unknown[];
-  if (Array.isArray(value)) {
-    return value as NamedRecord[];
-  }
-
-  if (value && typeof value === 'object' && Array.isArray((value as { data?: unknown }).data)) {
-    return (value as { data: NamedRecord[] }).data;
-  }
-
-  return [];
-}
-
 export const dashboardApi = createDashboardApi();
+export { buildSearchResults } from './create-dashboard-api.search.js';

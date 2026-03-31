@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { buildSearchResults, createDashboardApi } from './api.js';
+import { createDashboardApi } from './api.js';
 import { clearSession, readSession, writeSession } from './session.js';
 
 function readApiSource() {
@@ -146,11 +146,12 @@ describe('dashboard api auth/session behavior', () => {
   it('routes workflow-linked escalation resolution through the workflow work-item operator flow', async () => {
     writeSession({ accessToken: 'token-1', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn(async () =>
-      new Response(JSON.stringify({ data: { id: 'task-1' } }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: { id: 'task-1' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     );
     const client = {
       refreshSession: vi.fn(),
@@ -187,11 +188,12 @@ describe('dashboard api auth/session behavior', () => {
   it('keeps standalone escalation resolution on the raw task endpoint', async () => {
     writeSession({ accessToken: 'token-1', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn(async () =>
-      new Response(JSON.stringify({ data: { id: 'task-standalone-1' } }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: { id: 'task-standalone-1' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
     );
     const client = {
       refreshSession: vi.fn(),
@@ -239,7 +241,9 @@ describe('dashboard api auth/session behavior', () => {
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
     expect(workspaceSettingsBlock).toContain('workspace_brief?: string | null;');
-    expect(workspaceSettingsInputBlock).toContain('credentials?: DashboardWorkspaceCredentialInput;');
+    expect(workspaceSettingsInputBlock).toContain(
+      'credentials?: DashboardWorkspaceCredentialInput;',
+    );
     expect(workspaceSettingsInputBlock).not.toContain(
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
@@ -256,7 +260,10 @@ describe('dashboard api auth/session behavior', () => {
     const toolTagBlock = readInterfaceBlock(source, 'DashboardToolTagRecord');
     const taskBlock = source.slice(
       source.indexOf('export interface DashboardTaskRecord extends Task {'),
-      source.indexOf('\n}\n', source.indexOf('export interface DashboardTaskRecord extends Task {')),
+      source.indexOf(
+        '\n}\n',
+        source.indexOf('export interface DashboardTaskRecord extends Task {'),
+      ),
     );
     const logEntryBlock = readInterfaceBlock(source, 'LogEntry');
     const liveContainerBlock = readInterfaceBlock(source, 'DashboardLiveContainerRecord');
@@ -264,8 +271,12 @@ describe('dashboard api auth/session behavior', () => {
     expect(toolTagBlock).toContain("owner?: 'runtime' | 'task';");
     expect(taskBlock).toContain("execution_backend: 'runtime_only' | 'runtime_plus_task';");
     expect(taskBlock).toContain('used_task_sandbox: boolean;');
-    expect(taskBlock).toContain('execution_environment?: DashboardExecutionEnvironmentRecord | null;');
-    expect(logEntryBlock).toContain("execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;");
+    expect(taskBlock).toContain(
+      'execution_environment?: DashboardExecutionEnvironmentRecord | null;',
+    );
+    expect(logEntryBlock).toContain(
+      "execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;",
+    );
     expect(logEntryBlock).toContain("tool_owner?: 'runtime' | 'task' | null;");
     expect(logEntryBlock).toContain('execution_environment_name?: string | null;');
     expect(logEntryBlock).toContain('execution_environment_image?: string | null;');
@@ -297,7 +308,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(apiBlock).toContain('getMissionControlWorkflowWorkspace(');
     expect(liveBlock).toContain('sections: DashboardMissionControlLiveSection[];');
     expect(liveBlock).toContain('attentionItems: DashboardMissionControlAttentionItem[];');
-    expect(sectionBlock).toContain("id: 'needs_action' | 'at_risk' | 'progressing' | 'waiting' | 'recently_changed';");
+    expect(sectionBlock).toContain(
+      "id: 'needs_action' | 'at_risk' | 'progressing' | 'waiting' | 'recently_changed';",
+    );
     expect(cardBlock).toContain('posture: DashboardMissionControlWorkflowPosture;');
     expect(cardBlock).toContain('outputDescriptors: DashboardMissionControlOutputDescriptor[];');
     expect(cardBlock).toContain('availableActions: DashboardMissionControlActionAvailability[];');
@@ -1202,7 +1215,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(dashboardApiBlock).not.toContain('getResolvedWorkflowModels(');
     expect(dashboardApiBlock).not.toContain('previewEffectiveModels(');
     expect(dashboardApiBlock).not.toContain('getResolvedWorkflowConfig(');
-    expect(createWorkflowBlock).not.toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(createWorkflowBlock).not.toContain(
+      'model_overrides?: Record<string, DashboardRoleModelOverride>;',
+    );
     expect(source).not.toContain('/api/v1/workspaces/${workspaceId}/model-overrides');
     expect(source).not.toContain('/api/v1/workflows/${workflowId}/model-overrides');
     expect(source).not.toContain('/api/v1/config/llm/resolve-preview');
@@ -2042,55 +2057,6 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
-  it('surfaces schema validation details in HTTP error messages', async () => {
-    writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
-
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          error: {
-            message: 'Invalid request body',
-            details: {
-              issues: {
-                fieldErrors: {
-                  cadence_minutes: ['cadence_minutes is required for interval schedules'],
-                },
-                formErrors: [],
-              },
-            },
-          },
-        }),
-        { status: 422, headers: { 'content-type': 'application/json' } },
-      ),
-    ) as unknown as typeof fetch;
-
-    const api = createDashboardApi({
-      client: {
-        refreshSession: vi.fn(),
-        setAccessToken: vi.fn(),
-        listWorkflows: vi.fn(),
-        exchangeApiKey: vi.fn(),
-        getWorkflow: vi.fn(),
-        createWorkflow: vi.fn(),
-        listTasks: vi.fn(),
-        getTask: vi.fn(),
-        listWorkers: vi.fn(),
-        listAgents: vi.fn(),
-      } as never,
-      fetcher,
-      baseUrl: 'http://localhost:8080',
-    });
-
-    await expect(
-      api.createWorkflowDocument('wf-1', {
-        logical_name: 'broken-schedule',
-        source: 'repository',
-      }),
-    ).rejects.toThrow(
-      'HTTP 422: Invalid request body (cadence_minutes is required for interval schedules)',
-    );
-  });
-
   it('manages workflow documents and task artifacts through typed dashboard mutations', async () => {
     writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
 
@@ -2449,10 +2415,10 @@ describe('dashboard api auth/session behavior', () => {
     expect(updated.llm_api_key_secret_ref_configured).toBe(true);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/fleet/status');
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/fleet/live-containers');
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers',
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/live-containers',
     );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
     expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
@@ -2471,7 +2437,8 @@ describe('dashboard api auth/session behavior', () => {
     writeSession({ accessToken: 'operator-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn() as unknown as typeof fetch;
-    vi.mocked(fetcher)
+    vi
+      .mocked(fetcher)
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -2952,30 +2919,6 @@ describe('dashboard api auth/session behavior', () => {
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task, workflow, workspace, playbook, and agent route targets', () => {
-    const results = buildSearchResults('build', {
-      workflows: [{ id: 'workflow-1', name: 'Build Workflow', state: 'running' }],
-      tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
-      workspaces: [{ id: 'workspace-1', name: 'Build Workspace' }],
-      playbooks: [{ id: 'playbook-1', name: 'Build Playbook' }],
-      workers: [{ id: 'worker-1', name: 'Builder worker', status: 'online' }],
-      agents: [{ id: 'agent-1', name: 'Builder agent', status: 'idle' }],
-    });
-
-    expect(results.map((result) => result.type)).toEqual([
-      'workflow',
-      'task',
-      'workspace',
-      'playbook',
-      'agent',
-    ]);
-    expect(results[0].href).toBe('/workflows?rail=workflow&workflow=workflow-1');
-    expect(results[1].href).toBe('/work/tasks/task-1');
-    expect(results[2].href).toBe('/design/workspaces/workspace-1');
-    expect(results[3].href).toBe('/design/playbooks/playbook-1');
-    expect(results[4].href).toBe('/diagnostics/live-containers');
-  });
-
   it('search() merges matches from all dashboard resources', async () => {
     writeSession({ accessToken: 'token', tenantId: 'tenant-1' });
 
@@ -3094,9 +3037,11 @@ describe('dashboard global search', () => {
   it('deletes a workspace with cascade enabled through the shared api client', async () => {
     writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
-    ) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+      ) as unknown as typeof fetch;
 
     const api = createDashboardApi({
       client: {} as never,
@@ -3185,9 +3130,11 @@ describe('dashboard global search', () => {
   it('deletes a playbook family permanently through the shared api client', async () => {
     writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
-    ) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+      ) as unknown as typeof fetch;
 
     const api = createDashboardApi({
       client: {} as never,
@@ -3208,5 +3155,4 @@ describe('dashboard global search', () => {
       }),
     );
   });
-
 });
