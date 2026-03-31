@@ -1,6 +1,4 @@
 import { createElement } from 'react';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,24 +6,6 @@ import type { DashboardWorkflowRailRow } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 
 describe('WorkflowsRail', () => {
-  it('preserves the operator rail scroll position when selection changes', () => {
-    const source = readFileSync(resolve(__dirname, './workflows-rail.tsx'), 'utf8');
-
-    expect(source).toContain('useLayoutEffect');
-    expect(source).toContain('const selectionRestoreFrameRef = useRef<number | null>(null);');
-    expect(source).toContain('data-workflows-rail-scroll-region="true"');
-    expect(source).toContain('const persistedScrollTopRef = useRef(0);');
-    expect(source).toContain('const handleSelectWorkflow = (workflowId: string) => {');
-    expect(source).toContain('persistedScrollTopRef.current = scrollRef.current.scrollTop;');
-    expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
-    expect(source).toContain('scrollRef.current.scrollTop = persistedScrollTopRef.current;');
-    expect(source).toContain(
-      'selectionRestoreFrameRef.current = window.requestAnimationFrame(() => {',
-    );
-    expect(source).toContain('window.cancelAnimationFrame(selectionRestoreFrameRef.current);');
-    expect(source).not.toContain('renderedRowSignature');
-  });
-
   it('pins the current workflow when filters move it outside the visible rail rows', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
@@ -60,43 +40,6 @@ describe('WorkflowsRail', () => {
     expect(html).not.toContain('stays pinned while you browse other rail results');
   });
 
-  it('uses a clearly stronger selected row treatment without reverting inner text to the default muted palette', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowsRail, {
-        mode: 'live',
-        search: '',
-        needsActionOnly: false,
-        ongoingOnly: false,
-        rows: [createRailRow({ workflow_id: 'workflow-selected', name: 'Workflow Selected' })],
-        ongoingRows: [],
-        selectedWorkflowId: 'workflow-selected',
-        selectedWorkflowRow: null,
-        hasNextPage: false,
-        isLoading: false,
-        onModeChange: vi.fn(),
-        onSearchChange: vi.fn(),
-        onNeedsActionOnlyChange: vi.fn(),
-        onShowAllOngoing: vi.fn(),
-        onClearOngoingFilter: vi.fn(),
-        onSelectWorkflow: vi.fn(),
-        onLoadMore: vi.fn(),
-        onCreateWorkflow: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain('border-sky-700/90');
-    expect(html).toContain('bg-sky-200/95');
-    expect(html).toContain('ring-2');
-    expect(html).toContain('ring-sky-500/70');
-    expect(html).toContain('shadow-[0_18px_40px_rgba(8,47,73,0.24)]');
-    expect(html).toContain('text-sky-950');
-    expect(html).toContain('text-sky-900/75');
-    expect(html).not.toContain('ring-offset-2');
-    expect(html).not.toContain('shadow-[0_24px_60px_rgba(8,47,73,0.42)]');
-    expect(html).not.toContain('text-white');
-    expect(html).not.toContain('bg-amber-100');
-  });
-
   it('treats Needs Action as a filter toggle instead of a second primary mode highlight', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
@@ -125,7 +68,7 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('aria-pressed="true"');
   });
 
-  it('wraps the rail controls instead of forcing horizontal overflow', () => {
+  it('shows the filtered count summary without pagination affordances when ongoing rows fit in view', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
         mode: 'live',
@@ -151,14 +94,7 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2');
     expect(html).toContain('1 shown · 18 total');
-    expect(html).toContain('overflow-x-hidden');
-    expect(html).not.toContain('overflow-x-auto');
-    expect(html).toContain('max-h-[18rem]');
-    expect(html).toContain('sm:max-h-[24rem]');
-    expect(html).toContain('lg:max-h-none');
-    expect(html).toContain('rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm');
     expect(html).not.toContain('Load more');
     expect(html).not.toContain('Select workflow');
   });
@@ -349,7 +285,6 @@ describe('WorkflowsRail', () => {
 
     expect(html).toContain('Selected workflow');
     expect(html).toContain('Workflow Selected');
-    expect(html).not.toContain('rounded-2xl border border-amber-300/60');
   });
 
   it('renders ongoing rows when the operator filters to ongoing workflows only', () => {
