@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { loadEnv } from '../../src/config/env.js';
+import { loadEnv } from '../../../src/config/env.js';
 
 describe('config validation', () => {
   it('accepts valid environment values', () => {

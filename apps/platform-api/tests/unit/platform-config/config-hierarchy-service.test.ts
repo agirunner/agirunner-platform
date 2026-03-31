@@ -4,7 +4,7 @@ import {
   buildResolvedConfigView,
   resolveInstructionConfig,
   resolveWorkflowConfig,
-} from '../../src/services/config-hierarchy-service.js';
+} from '../../../src/services/config-hierarchy-service.js';
 
 describe('config hierarchy service', () => {
   it('deep merges playbook, workspace, and run layers while preserving source snapshots', () => {
