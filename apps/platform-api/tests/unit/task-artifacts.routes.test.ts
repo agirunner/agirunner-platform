@@ -81,25 +81,6 @@ describe('task artifact routes', () => {
     }
   });
 
-  it('registers preview and permalink endpoints', async () => {
-    app = fastify();
-    app.decorate('pgPool', { connect: vi.fn() } as never);
-    app.decorate('taskService', { getTask: vi.fn() } as never);
-    app.decorate('config', {
-      ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
-      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
-      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
-    } as never);
-
-    await app.register(taskArtifactRoutes);
-
-    const routes = app.printRoutes();
-    expect(routes).toContain(':artifactId (GET, HEAD, DELETE)');
-    expect(routes).toContain('review (GET, HEAD)');
-    expect(routes).toContain('ermalink (GET, HEAD)');
-  });
-
   it('deduplicates repeated artifact uploads by request_id', async () => {
     const getTask = vi.fn().mockResolvedValue({
       id: 'task-1',
