@@ -20,11 +20,11 @@ test('renders supported deliverable types and artifact actions at workflow scope
 
   await expect(workbench.getByText('Showing all deliverables recorded across this workflow')).toBeVisible();
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Release repository output' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Stakeholder share link' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Export directory' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Inline decision summary' })).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Release repository output' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Stakeholder share link' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Inline decision summary' }).first()).toBeVisible();
   await expect(workbench.getByText('Workflow document').first()).toBeVisible();
   await expect(workbench.getByText('Repository').first()).toBeVisible();
   await expect(workbench.getByText('External URL').first()).toBeVisible();
@@ -69,9 +69,9 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
 
   await expect(workbench.getByText('Showing only deliverables recorded for Prepare blocked release brief.')).toBeVisible();
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Export directory' })).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Inline decision summary' })).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
+  await expect(workbench.getByRole('button', { name: 'Inline decision summary' }).first()).toBeVisible();
 
   await expect(workbench.getByRole('button', { name: 'Release repository output' })).toHaveCount(0);
   await expect(workbench.getByRole('button', { name: 'Stakeholder share link' })).toHaveCount(0);
