@@ -4,96 +4,38 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import {
+  dedupeNonEmptyStrings,
+  deriveMessageBody,
+  deriveMessageHeadline,
+  deriveSessionTitle,
+  firstArrayValue,
+  sanitizeOptionalBody,
+  sanitizeOptionalText,
+  sanitizeRequiredText,
+  toOptionalString,
+} from './workflow-steering-session-service/text-helpers.js';
+import {
+  toWorkflowSteeringMessageRecord,
+  toWorkflowSteeringSessionRecord,
+} from './workflow-steering-session-service/record-mappers.js';
+export type {
+  WorkflowSteeringMessageKind,
+  WorkflowSteeringMessageRecord,
+  WorkflowSteeringRequestResult,
+  WorkflowSteeringSessionRecord,
+  WorkflowSteeringSourceKind,
+} from './workflow-steering-session-service/types.js';
+import type {
+  WorkflowSteeringMessageKind,
+  WorkflowSteeringMessageRow,
+  WorkflowSteeringRequestResult,
+  WorkflowSteeringSessionRecord,
+  WorkflowSteeringSessionRow,
+  WorkflowSteeringSourceKind,
+  WorkflowTaskScopeRow,
+} from './workflow-steering-session-service/types.js';
 import type { WorkflowInterventionService } from './workflow-intervention-service.js';
-
-type WorkflowSteeringSourceKind = 'operator' | 'platform' | 'system';
-type WorkflowSteeringMessageKind = 'operator_request' | 'steering_response' | 'system_notice';
-type WorkflowSteeringSessionStatus = 'open' | 'closed' | 'archived';
-
-interface WorkflowSteeringSessionRow {
-  id: string;
-  tenant_id: string;
-  workflow_id: string;
-  work_item_id: string | null;
-  title: string | null;
-  status: WorkflowSteeringSessionStatus;
-  created_by_type: string;
-  created_by_id: string;
-  created_at: Date;
-  updated_at: Date;
-  last_message_at: Date | null;
-}
-
-interface WorkflowSteeringMessageRow {
-  id: string;
-  tenant_id: string;
-  workflow_id: string;
-  work_item_id: string | null;
-  steering_session_id: string;
-  source_kind: WorkflowSteeringSourceKind;
-  message_kind: WorkflowSteeringMessageKind;
-  headline: string;
-  body: string | null;
-  linked_intervention_id: string | null;
-  linked_input_packet_id: string | null;
-  linked_operator_update_id: string | null;
-  created_by_type: string;
-  created_by_id: string;
-  created_at: Date;
-}
-
-interface WorkflowTaskScopeRow {
-  work_item_id: string | null;
-}
-
-export interface WorkflowSteeringSessionRecord {
-  id: string;
-  workflow_id: string;
-  work_item_id: string | null;
-  title: string | null;
-  status: WorkflowSteeringSessionStatus;
-  created_by_type: string;
-  created_by_id: string;
-  created_at: string;
-  updated_at: string;
-  last_message_at: string | null;
-}
-
-export interface WorkflowSteeringMessageRecord {
-  id: string;
-  workflow_id: string;
-  work_item_id: string | null;
-  steering_session_id: string;
-  source_kind: WorkflowSteeringSourceKind;
-  message_kind: WorkflowSteeringMessageKind;
-  headline: string;
-  body: string | null;
-  linked_intervention_id: string | null;
-  linked_input_packet_id: string | null;
-  linked_operator_update_id: string | null;
-  created_by_type: string;
-  created_by_id: string;
-  created_at: string;
-}
-
-export interface WorkflowSteeringRequestResult {
-  outcome: 'applied';
-  result_kind: 'steering_request_recorded';
-  source_workflow_id: string;
-  workflow_id: string;
-  resulting_work_item_id: string | null;
-  input_packet_id: string | null;
-  intervention_id: string | null;
-  snapshot_version: string | null;
-  settings_revision: number | null;
-  message: string;
-  redrive_lineage: null;
-  steering_session_id: string;
-  request_message_id: string;
-  response_message_id: string | null;
-  linked_intervention_ids: string[];
-  linked_input_packet_ids: string[];
-}
 
 export class WorkflowSteeringSessionService {
   constructor(
@@ -110,6 +52,7 @@ export class WorkflowSteeringSessionService {
     if (input.workItemId) {
       await this.assertWorkItem(identity.tenantId, workflowId, input.workItemId);
     }
+
     const result = await this.pool.query<WorkflowSteeringSessionRow>(
       `INSERT INTO workflow_steering_sessions
          (id, tenant_id, workflow_id, work_item_id, title, status, created_by_type, created_by_id)
@@ -126,6 +69,7 @@ export class WorkflowSteeringSessionService {
         resolveOperatorRecordActorId(identity),
       ],
     );
+
     return toWorkflowSteeringSessionRecord(result.rows[0]);
   }
 
@@ -156,9 +100,14 @@ export class WorkflowSteeringSessionService {
       linkedInputPacketId?: string;
       linkedOperatorUpdateId?: string;
     },
-  ): Promise<WorkflowSteeringMessageRecord> {
+  ) {
     const session = await this.assertSession(identity.tenantId, workflowId, sessionId);
-    const scopedWorkItemId = await this.resolveScopedWorkItemId(identity.tenantId, workflowId, session, input);
+    const scopedWorkItemId = await this.resolveScopedWorkItemId(
+      identity.tenantId,
+      workflowId,
+      session,
+      input,
+    );
     const result = await this.pool.query<WorkflowSteeringMessageRow>(
       `INSERT INTO workflow_steering_messages
          (
@@ -196,6 +145,7 @@ export class WorkflowSteeringSessionService {
         resolveOperatorRecordActorId(identity),
       ],
     );
+
     await this.touchSession(identity.tenantId, workflowId, sessionId);
     return toWorkflowSteeringMessageRecord(result.rows[0]);
   }
@@ -204,7 +154,7 @@ export class WorkflowSteeringSessionService {
     tenantId: string,
     workflowId: string,
     sessionId: string,
-  ): Promise<WorkflowSteeringMessageRecord[]> {
+  ) {
     await this.assertSession(tenantId, workflowId, sessionId);
     const result = await this.pool.query<WorkflowSteeringMessageRow>(
       `SELECT *
@@ -314,7 +264,9 @@ export class WorkflowSteeringSessionService {
         request: sanitizeRequiredText(input.request, 'Steering request is required'),
         ...(input.workItemId ? { work_item_id: input.workItemId } : {}),
         ...(input.taskId ? { task_id: input.taskId } : {}),
-        ...(input.linkedInputPacketIds.length > 0 ? { linked_input_packet_ids: input.linkedInputPacketIds } : {}),
+        ...(input.linkedInputPacketIds.length > 0
+          ? { linked_input_packet_ids: input.linkedInputPacketIds }
+          : {}),
       },
       metadata: {
         steering_session_id: sessionId,
@@ -435,91 +387,4 @@ export class WorkflowSteeringSessionService {
     }
     return workItemId ?? taskScope.work_item_id ?? null;
   }
-}
-
-function toWorkflowSteeringSessionRecord(row: WorkflowSteeringSessionRow): WorkflowSteeringSessionRecord {
-  return {
-    id: row.id,
-    workflow_id: row.workflow_id,
-    work_item_id: row.work_item_id,
-    title: row.title,
-    status: row.status,
-    created_by_type: row.created_by_type,
-    created_by_id: row.created_by_id,
-    created_at: row.created_at.toISOString(),
-    updated_at: row.updated_at.toISOString(),
-    last_message_at: row.last_message_at ? row.last_message_at.toISOString() : null,
-  };
-}
-
-function toWorkflowSteeringMessageRecord(row: WorkflowSteeringMessageRow): WorkflowSteeringMessageRecord {
-  return {
-    id: row.id,
-    workflow_id: row.workflow_id,
-    work_item_id: row.work_item_id,
-    steering_session_id: row.steering_session_id,
-    source_kind: row.source_kind,
-    message_kind: row.message_kind,
-    headline: row.headline,
-    body: row.body,
-    linked_intervention_id: row.linked_intervention_id,
-    linked_input_packet_id: row.linked_input_packet_id,
-    linked_operator_update_id: row.linked_operator_update_id,
-    created_by_type: row.created_by_type,
-    created_by_id: row.created_by_id,
-    created_at: row.created_at.toISOString(),
-  };
-}
-
-function sanitizeOptionalText(value?: string): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function sanitizeRequiredText(value: string, errorMessage: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new ValidationError(errorMessage);
-  }
-  return trimmed;
-}
-
-function sanitizeOptionalBody(value?: string): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function deriveSessionTitle(request: string): string {
-  return deriveMessageHeadline(request);
-}
-
-function deriveMessageHeadline(request: string): string {
-  const trimmed = sanitizeRequiredText(request, 'Steering request is required');
-  return trimmed.length <= 255 ? trimmed : `${trimmed.slice(0, 252)}...`;
-}
-
-function deriveMessageBody(request: string): string | undefined {
-  const trimmed = sanitizeRequiredText(request, 'Steering request is required');
-  return trimmed.length > 255 ? trimmed : undefined;
-}
-
-function firstArrayValue(values?: string[]): string | undefined {
-  return dedupeNonEmptyStrings(values)[0];
-}
-
-function dedupeNonEmptyStrings(values?: string[]): string[] {
-  if (!Array.isArray(values)) {
-    return [];
-  }
-  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
-}
-
-function toOptionalString(value: string | null): string | undefined {
-  return typeof value === 'string' ? value : undefined;
 }
