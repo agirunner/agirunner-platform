@@ -215,6 +215,9 @@ function resolveDisplayColumnId(
   if (isBlockedWorkItem(workItem)) {
     return readBlockedColumnId(columns) ?? workItem.column_id;
   }
+  if (shouldRecoverOpenTerminalColumn(columns, workItem, workflowState)) {
+    return readActiveColumnId(columns) ?? workItem.column_id;
+  }
   return workItem.column_id;
 }
 
@@ -250,6 +253,31 @@ function isBlockedWorkItem(workItem: DashboardWorkflowWorkItemRecord): boolean {
 function readTerminalColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {
   const terminalColumn = columns.find((column) => Boolean(column.is_terminal));
   return terminalColumn?.id ?? null;
+}
+
+function readActiveColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {
+  const entryIndex = columns.length > 0 ? 0 : -1;
+  if (entryIndex < 0) {
+    return null;
+  }
+  return columns
+    .slice(entryIndex + 1)
+    .find((column) => !column.is_blocked && !column.is_terminal)?.id ?? null;
+}
+
+function shouldRecoverOpenTerminalColumn(
+  columns: DashboardWorkflowBoardColumn[],
+  workItem: DashboardWorkflowWorkItemRecord,
+  workflowState?: string | null,
+): boolean {
+  if (isTerminalWorkflowState(workflowState)) {
+    return false;
+  }
+  if (Boolean(workItem.completed_at) || hasWorkItemCancelMarker(workItem)) {
+    return false;
+  }
+  const currentColumn = columns.find((column) => column.id === workItem.column_id);
+  return Boolean(currentColumn?.is_terminal);
 }
 
 function buildLaneView(

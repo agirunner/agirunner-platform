@@ -4,7 +4,6 @@ import type {
   DashboardWorkflowStickyStrip,
 } from '../../lib/api.js';
 import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-presentation.js';
-import { isCompletedWorkItem } from './workflow-board.support.js';
 
 export function buildWorkflowHeaderState(props: {
   workflow: DashboardMissionControlWorkflowCard;
@@ -78,12 +77,13 @@ export function summarizeWorkload(
     };
   }
 
+  const workflowState = workflow.state ?? null;
   return {
     activeWorkItemCount: board.work_items.filter(
-      (workItem) => !isCompletedWorkItem(board.columns, workItem),
+      (workItem) => !isSummarilyCompletedWorkItem(board.columns, workItem, workflowState),
     ).length,
     completedWorkItemCount: board.work_items.filter((workItem) =>
-      isCompletedWorkItem(board.columns, workItem),
+      isSummarilyCompletedWorkItem(board.columns, workItem, workflowState),
     ).length,
   };
 }
@@ -211,6 +211,28 @@ function humanizePosture(value: string | null | undefined): string {
   return value
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function isSummarilyCompletedWorkItem(
+  columns: DashboardWorkflowBoardResponse['columns'],
+  workItem: DashboardWorkflowBoardResponse['work_items'][number],
+  workflowState: string | null,
+): boolean {
+  void columns;
+  if (workflowState === 'cancelled' || workflowState === 'completed' || workflowState === 'failed') {
+    return true;
+  }
+  if (workItem.completed_at || hasWorkItemCancelMarker(workItem)) {
+    return true;
+  }
+  return false;
+}
+
+function hasWorkItemCancelMarker(
+  workItem: DashboardWorkflowBoardResponse['work_items'][number],
+): boolean {
+  const value = workItem.metadata?.cancel_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function createFallbackWorkflowAction(

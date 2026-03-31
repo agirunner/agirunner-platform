@@ -277,6 +277,33 @@ describe('buildWorkflowBoardView', () => {
     ]);
   });
 
+  it('reprojects reopened unfinished work out of stale terminal columns and into the active lane', () => {
+    const board = createBoard([
+      createWorkItem({
+        id: 'reopened-item',
+        column_id: 'done',
+        stage_name: 'delivery',
+        completed_at: null,
+      }),
+    ]);
+
+    const view = buildWorkflowBoardView(board, {
+      boardMode: 'all',
+      workflowState: 'active',
+      stageFilter: '__all__',
+      laneFilter: '__all__',
+      blockedOnly: false,
+      escalatedOnly: false,
+      needsActionOnly: false,
+    });
+
+    expect(view.lanes.find((lane) => lane.column.id === 'active')?.activeItems.map((item) => item.id)).toEqual([
+      'reopened-item',
+    ]);
+    expect(view.lanes.find((lane) => lane.column.id === 'done')?.activeItems).toEqual([]);
+    expect(view.lanes.find((lane) => lane.column.id === 'done')?.visibleCompletedItems).toEqual([]);
+  });
+
   it('prefers the top task headline over raw goal text for compact work-item summaries', () => {
     const summary = buildWorkflowBoardWorkItemSummary(
       createWorkItem({

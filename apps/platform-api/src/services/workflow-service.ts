@@ -5,7 +5,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { activeColumnId, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
@@ -864,9 +864,11 @@ export class WorkflowService {
         .filter((column) => Boolean(column.is_terminal))
         .map((column) => String(column.id)),
     );
+    const reopenedActiveColumnId = activeColumnId(definition);
     const boardWorkItems = annotateBoardWorkItems(
       workItems,
       terminalColumns,
+      reopenedActiveColumnId,
       asOptionalString(workflow.state) ?? null,
       hasWorkflowCancelRequest(asRecord(workflow.metadata)),
     );
@@ -932,6 +934,7 @@ function buildWorkflowRelations(
 function annotateBoardWorkItems(
   workItems: Array<Record<string, unknown>>,
   terminalColumns: Set<string>,
+  reopenedActiveColumnId: string | null,
   workflowState: string | null,
   hasCancelRequest: boolean,
 ): Array<Record<string, unknown>> {
@@ -955,6 +958,7 @@ function annotateBoardWorkItems(
     const columnId = resolveBoardColumnId(
       item,
       terminalColumns,
+      reopenedActiveColumnId,
       workflowState,
       hasCancelRequest,
     );
@@ -977,6 +981,7 @@ function annotateBoardWorkItems(
 function resolveBoardColumnId(
   item: Record<string, unknown>,
   terminalColumns: Set<string>,
+  reopenedActiveColumnId: string | null,
   workflowState: string | null,
   hasCancelRequest: boolean,
 ): string | null {
@@ -986,6 +991,9 @@ function resolveBoardColumnId(
   }
   if ((hasCancelRequest || isTerminalWorkflowState(workflowState)) && terminalColumns.size > 0) {
     return terminalColumns.values().next().value ?? currentColumnId;
+  }
+  if (currentColumnId && terminalColumns.has(currentColumnId) && reopenedActiveColumnId) {
+    return reopenedActiveColumnId;
   }
   return currentColumnId;
 }
@@ -1035,24 +1043,29 @@ function isCompletedBoardChild(
   item: Record<string, unknown>,
   terminalColumns: Set<string>,
 ) {
-  const columnId = asOptionalString(item.column_id);
-  if (columnId && terminalColumns.has(columnId)) {
-    return true;
-  }
-  return item.completed_at != null;
+  void terminalColumns;
+  return item.completed_at != null || hasBoardStopMarker(item);
+}
+
+function hasBoardStopMarker(item: Record<string, unknown>) {
+  const metadata = asRecord(item.metadata);
+  return typeof metadata.cancel_requested_at === 'string' && metadata.cancel_requested_at.length > 0;
 }
 
 function normalizeWorkflowReadModel(
   workflow: Record<string, unknown>,
   detailSummary?: WorkflowWorkItemSummary,
-) {
+): Record<string, unknown> {
   const orderedSummary = normalizeWorkflowWorkItemSummary(
     detailSummary ?? asRecord(workflow.work_item_summary),
     workflow.playbook_definition,
   );
   if (workflow.lifecycle !== 'ongoing') {
     const { playbook_definition: _playbookDefinition, ...rest } = workflow;
-    return rest;
+    return {
+      ...rest,
+      ...(orderedSummary ? { work_item_summary: orderedSummary } : {}),
+    };
   }
 
   const { current_stage: _currentStage, playbook_definition: _playbookDefinition, ...rest } = workflow;

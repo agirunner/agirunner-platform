@@ -29,6 +29,25 @@ describe('workflow-state-strip support', () => {
     });
   });
 
+  it('treats stale terminal-column work without completed_at as active workload', () => {
+    const board = createBoard();
+    board.work_items.push({
+      id: 'work-item-4',
+      workflow_id: 'workflow-1',
+      stage_name: 'release',
+      title: 'Resume review after rework',
+      goal: 'Continue the reopened review path.',
+      column_id: 'done',
+      priority: 'medium',
+      completed_at: null,
+    });
+
+    expect(summarizeWorkload(board, createWorkflowCard())).toEqual({
+      activeWorkItemCount: 2,
+      completedWorkItemCount: 2,
+    });
+  });
+
   it('synthesizes pause and cancel as the active fallback workflow actions', () => {
     expect(buildFallbackWorkflowActions('active')).toEqual([
       expect.objectContaining({ kind: 'pause_workflow', scope: 'workflow', enabled: true }),
