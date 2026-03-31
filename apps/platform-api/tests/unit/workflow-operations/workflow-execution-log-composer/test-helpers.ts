@@ -3,7 +3,7 @@ import { posix } from 'node:path';
 import {
   buildExecutionTurnItems,
   buildLifecycleHistoryItems,
-} from '../../../src/services/workflow-operations/workflow-execution-log-composer.js';
+} from '../../../../src/services/workflow-operations/workflow-execution-log-composer.js';
 
 const taskWorkspaceRoot = posix.join('/', 'tmp', 'workspace');
 
