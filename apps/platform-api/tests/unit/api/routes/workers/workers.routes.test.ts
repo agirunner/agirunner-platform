@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('workers routes', () => {
   });
 
   it('rejects legacy capabilities on worker registration', async () => {
-    const { workerRoutes } = await import('../../../../src/api/routes/workers.routes.js');
+    const { workerRoutes } = await import('../../../../../src/api/routes/workers/workers.routes.js');
     const registerWorker = vi.fn();
 
     app = fastify();
@@ -65,7 +65,7 @@ describe('workers routes', () => {
   });
 
   it('rejects legacy capabilities on next-task claim', async () => {
-    const { workerRoutes } = await import('../../../../src/api/routes/workers.routes.js');
+    const { workerRoutes } = await import('../../../../../src/api/routes/workers/workers.routes.js');
     const claimTask = vi.fn();
 
     app = fastify();
@@ -100,7 +100,7 @@ describe('workers routes', () => {
   });
 
   it('allows polling workers to acknowledge a delivered signal', async () => {
-    const { workerRoutes } = await import('../../../../src/api/routes/workers.routes.js');
+    const { workerRoutes } = await import('../../../../../src/api/routes/workers/workers.routes.js');
     const acknowledgeSignal = vi.fn();
 
     app = fastify();
