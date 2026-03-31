@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react';
 
-import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
-import { Input } from '../../components/ui/input.js';
+import { DashboardSectionCard } from '../../../components/layout/dashboard-section-card.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { ConfigField } from './config-form-controls.js';
+} from '../../../components/ui/select.js';
+import { ConfigField } from '../config-form-controls.js';
 import type {
   FieldDefinition,
   FormValues,

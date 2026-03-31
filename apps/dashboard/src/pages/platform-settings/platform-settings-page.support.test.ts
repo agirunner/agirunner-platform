@@ -5,7 +5,7 @@ import {
   OPERATIONS_INLINE_SECTION_COLUMNS,
   OPERATIONS_SECTION_DEFINITIONS,
   fieldsForSection,
-} from '../agentic-settings/runtime-defaults.schema.js';
+} from '../agentic-settings/runtime-defaults/runtime-defaults.schema.js';
 
 describe('platform settings page support', () => {
   it('moves platform-owned timing and supervision settings onto the platform settings surface', () => {

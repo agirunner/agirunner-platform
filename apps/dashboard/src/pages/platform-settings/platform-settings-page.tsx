@@ -3,8 +3,8 @@ import {
   OPERATIONS_INLINE_SECTION_COLUMNS,
   OPERATIONS_SECTION_DEFINITIONS,
   PRIMARY_OPERATIONS_SECTION_KEYS,
-} from '../agentic-settings/runtime-defaults.schema.js';
-import { RuntimeDefaultsEditor } from '../agentic-settings/runtime-defaults-editor.js';
+} from '../agentic-settings/runtime-defaults/runtime-defaults.schema.js';
+import { RuntimeDefaultsEditor } from '../agentic-settings/runtime-defaults/runtime-defaults-editor.js';
 
 export function PlatformSettingsPage(): JSX.Element {
   return (

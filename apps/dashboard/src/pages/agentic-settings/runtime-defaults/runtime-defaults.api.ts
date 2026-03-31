@@ -1,4 +1,4 @@
-import { dashboardApi } from '../../lib/api.js';
+import { dashboardApi } from '../../../lib/api.js';
 import type { RuntimeDefault } from './runtime-defaults.types.js';
 
 export async function fetchRuntimeDefaults(): Promise<RuntimeDefault[]> {

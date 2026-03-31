@@ -9,12 +9,12 @@ import {
   PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS,
   RUNTIME_INLINE_SECTION_COLUMNS,
   SECTION_DEFINITIONS,
-} from './runtime-defaults.schema.js';
-import { RuntimeDefaultsEditor } from './runtime-defaults-editor.js';
+} from './runtime-defaults/runtime-defaults.schema.js';
+import { RuntimeDefaultsEditor } from './runtime-defaults/runtime-defaults-editor.js';
 import {
   AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT,
   validatePromptWarningThresholdChars,
-} from './runtime-defaults-page.support.js';
+} from './runtime-defaults/runtime-defaults-page.support.js';
 
 const AGENTIC_SETTINGS_QUERY_KEY = ['agentic-settings'];
 

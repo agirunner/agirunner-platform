@@ -112,13 +112,13 @@ export const PlatformInstructionsPage = lazyWithRetry(() =>
 );
 
 export const PlaybookListPage = lazyWithRetry(() =>
-  import('../pages/playbook-list/playbook-list-page.js').then((m) => ({
+  import('../pages/playbooks/list/playbook-list-page.js').then((m) => ({
     default: m.PlaybookListPage,
   })),
 );
 
 export const PlaybookDetailPage = lazyWithRetry(() =>
-  import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({
+  import('../pages/playbooks/detail/playbook-detail-page.js').then((m) => ({
     default: m.PlaybookDetailPage,
   })),
 );
