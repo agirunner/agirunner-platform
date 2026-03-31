@@ -10,7 +10,7 @@ import {
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_seed_llm_defaults_key';
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';

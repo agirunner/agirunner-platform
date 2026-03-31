@@ -9,13 +9,13 @@ import { WorkflowChainingService } from '../../../src/services/workflow-chaining
 import {
   TEST_IDENTITY as identity,
   createV2Harness,
-} from '../../helpers/v2-harness.js';
+} from '../helpers/v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../../helpers/postgres.js';
+} from '../helpers/postgres.js';
 
 vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown; headers: Record<string, unknown> }) => {

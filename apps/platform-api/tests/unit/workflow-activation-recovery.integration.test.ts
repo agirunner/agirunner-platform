@@ -5,13 +5,13 @@ import {
   TEST_IDENTITY as identity,
   agentIdentity,
   createV2Harness,
-} from '../helpers/v2-harness.js';
+} from './helpers/v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
 import { HandoffService } from '../../src/services/handoff-service.js';

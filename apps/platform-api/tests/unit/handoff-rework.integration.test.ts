@@ -5,13 +5,13 @@ import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-serv
 import {
   TEST_IDENTITY as identity,
   createV2Harness,
-} from '../helpers/v2-harness.js';
+} from './helpers/v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 describe('handoff rework integration', () => {
   let db: TestDatabase;

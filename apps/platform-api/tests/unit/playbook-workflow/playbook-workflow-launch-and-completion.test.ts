@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { TEST_IDENTITY as identity } from '../../helpers/v2-harness.js';
+import { TEST_IDENTITY as identity } from '../helpers/v2-harness.js';
 import {
   setupPlaybookWorkflowIntegrationSuite,
   type PlaybookWorkflowIntegrationSuite,

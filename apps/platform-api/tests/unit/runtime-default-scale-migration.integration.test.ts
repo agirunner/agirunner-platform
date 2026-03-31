@@ -11,7 +11,7 @@ import {
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 const canRunIntegration = isContainerRuntimeAvailable();
 const TENANT_ID = '00000000-0000-0000-0000-000000000099';

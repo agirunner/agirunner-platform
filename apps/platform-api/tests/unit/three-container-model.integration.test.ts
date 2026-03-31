@@ -7,13 +7,13 @@ import {
   TEST_IDENTITY as identity,
   agentIdentity,
   createV2Harness,
-} from '../helpers/v2-harness.js';
+} from './helpers/v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 const VERIFIED_BASELINE_COMMANDS = [
   'sleep',

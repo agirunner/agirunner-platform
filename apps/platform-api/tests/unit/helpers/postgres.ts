@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import pg from 'pg';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import pg from 'pg';
 
-import { runMigrations } from '../../src/db/migrations/run-migrations.js';
-import { seedDefaultTenant } from '../../src/db/seed.js';
+import { runMigrations } from '../../../src/db/migrations/run-migrations.js';
+import { seedDefaultTenant } from '../../../src/db/seed.js';
 
 export interface TestDatabase {
   container: StartedPostgreSqlContainer;
@@ -28,7 +28,7 @@ export async function startTestDatabase(): Promise<TestDatabase> {
   const pool = new pg.Pool({ connectionString: databaseUrl });
 
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const migrationsDir = path.join(currentDir, '..', '..', 'src', 'db', 'migrations');
+  const migrationsDir = path.join(currentDir, '..', '..', '..', 'src', 'db', 'migrations');
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool);
 

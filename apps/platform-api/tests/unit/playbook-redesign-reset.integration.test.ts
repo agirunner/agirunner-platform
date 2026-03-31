@@ -10,7 +10,7 @@ import {
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_playbook_redesign_reset_key';
 const canRunIntegration = isContainerRuntimeAvailable();

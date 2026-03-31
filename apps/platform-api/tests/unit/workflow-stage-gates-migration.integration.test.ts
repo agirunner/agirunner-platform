@@ -11,7 +11,7 @@ import {
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from './helpers/postgres.js';
 
 const canRunIntegration = isContainerRuntimeAvailable();
 
