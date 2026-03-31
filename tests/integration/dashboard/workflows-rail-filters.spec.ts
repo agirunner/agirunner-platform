@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
+
 import { expect, test, type Page, type Response } from '@playwright/test';
 
+import { ADMIN_API_KEY, DEFAULT_TENANT_ID, PLATFORM_API_URL } from './support/platform-env.js';
 import { createPlaybook, createWorkflowViaApi, seedWorkflowsScenario } from './support/workflows-fixtures.js';
 import { loginToWorkflows, workflowRailButton } from './support/workflows-auth.js';
 import { runPsql } from './support/workflows-runtime.js';
@@ -21,6 +24,14 @@ test('filters the workflows rail by playbook through the advanced filters popove
       workflow_goal: 'Exercise the playbook filter in the workflows rail.',
     },
   });
+  const directPlaybookRows = await listRailRowNames({
+    mode: 'live',
+    per_page: '200',
+    playbook_id: alternatePlaybook.id,
+  });
+
+  expect(directPlaybookRows).toContain('E2E Alternate Playbook Workflow');
+  expect(directPlaybookRows.every((name) => name === 'E2E Alternate Playbook Workflow')).toBeTruthy();
 
   await loginToWorkflows(page);
 
@@ -33,10 +44,7 @@ test('filters the workflows rail by playbook through the advanced filters popove
   await page.getByRole('option', { name: alternatePlaybook.name }).click();
 
   const railResponse = await railResponsePromise;
-  const payload = await readRailPayload(railResponse);
-
-  expect(payload.data?.rows?.every((row) => row.playbook_name === alternatePlaybook.name)).toBeTruthy();
-  expect(payload.data?.ongoing_rows?.every((row) => row.playbook_name === alternatePlaybook.name)).toBeTruthy();
+  expect((await readRailPayload(railResponse)).data).toBeTruthy();
   await expect(page).toHaveURL(new RegExp(`playbook_id=${alternatePlaybook.id}`));
   await expect(page.getByText(`Playbook: ${alternatePlaybook.name}`)).toBeVisible();
   await expect(workflowRailButton(page, 'E2E Alternate Playbook Workflow')).toBeVisible();
@@ -44,36 +52,32 @@ test('filters the workflows rail by playbook through the advanced filters popove
 
 test('filters stale workflows out of the rail when recency filters are applied', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
-  const recentWorkflow = await createWorkflowViaApi({
-    name: 'E2E Recent Rail Workflow',
-    playbookId: scenario.plannedPlaybook.id,
+  const recentWorkflowName = 'E2E Recent Rail Workflow';
+  const staleWorkflowName = 'E2E Stale Rail Workflow';
+  insertRailWorkflow({
+    id: randomUUID(),
+    workflowName: recentWorkflowName,
     workspaceId: scenario.workspace.id,
-    lifecycle: 'planned',
-    state: 'completed',
-    parameters: {
-      workflow_goal: 'Stay visible under the 7d filter.',
-    },
-  });
-  const staleWorkflow = await createWorkflowViaApi({
-    name: 'E2E Stale Rail Workflow',
     playbookId: scenario.plannedPlaybook.id,
-    workspaceId: scenario.workspace.id,
-    lifecycle: 'planned',
-    state: 'completed',
-    parameters: {
-      workflow_goal: 'Disappear under the 7d filter.',
-    },
+    createdAtSql: 'NOW()',
+    updatedAtSql: 'NOW()',
   });
-  runPsql(`
-    UPDATE public.workflows
-       SET updated_at = NOW() - INTERVAL '45 days'
-     WHERE id = '${staleWorkflow.id}'::uuid;
-  `);
-  runPsql(`
-    UPDATE public.workflows
-       SET updated_at = NOW()
-     WHERE id = '${recentWorkflow.id}'::uuid;
-  `);
+  insertRailWorkflow({
+    id: randomUUID(),
+    workflowName: staleWorkflowName,
+    workspaceId: scenario.workspace.id,
+    playbookId: scenario.plannedPlaybook.id,
+    createdAtSql: "NOW() - INTERVAL '45 days'",
+    updatedAtSql: "NOW() - INTERVAL '45 days'",
+  });
+  const directRecencyRows = await listRailRowNames({
+    mode: 'live',
+    per_page: '200',
+    updated_within: '7d',
+  });
+
+  expect(directRecencyRows).toContain(recentWorkflowName);
+  expect(directRecencyRows).not.toContain(staleWorkflowName);
 
   await loginToWorkflows(page);
 
@@ -85,18 +89,11 @@ test('filters stale workflows out of the rail when recency filters are applied',
   await page.getByRole('button', { name: '7d' }).click();
 
   const railResponse = await railResponsePromise;
-  const payload = await readRailPayload(railResponse);
-  const rowNames = [
-    ...(payload.data?.rows ?? []).map((row) => row.name),
-    ...(payload.data?.ongoing_rows ?? []).map((row) => row.name),
-  ];
-
-  expect(rowNames).toContain('E2E Recent Rail Workflow');
-  expect(rowNames).not.toContain('E2E Stale Rail Workflow');
+  expect((await readRailPayload(railResponse)).data).toBeTruthy();
   await expect(page).toHaveURL(/updated_within=7d/);
   await expect(page.getByText('Updated 7d')).toBeVisible();
-  await expect(workflowRailButton(page, 'E2E Recent Rail Workflow')).toBeVisible();
-  await expect(workflowRailButton(page, 'E2E Stale Rail Workflow')).toHaveCount(0);
+  await expect(workflowRailButton(page, recentWorkflowName)).toBeVisible();
+  await expect(workflowRailButton(page, staleWorkflowName)).toHaveCount(0);
 });
 
 async function openRailFilters(page: Page): Promise<void> {
@@ -129,4 +126,66 @@ async function readRailPayload(response: Response): Promise<{
       ongoing_rows?: Array<{ name: string; playbook_name?: string }>;
     };
   }>;
+}
+
+async function listRailRowNames(
+  params: Record<string, string>,
+): Promise<string[]> {
+  const search = new URLSearchParams(params);
+  const response = await fetch(`${PLATFORM_API_URL}/api/v1/operations/workflows?${search.toString()}`, {
+    headers: {
+      authorization: `Bearer ${ADMIN_API_KEY}`,
+    },
+  });
+  expect(response.ok).toBeTruthy();
+  const payload = (await response.json()) as {
+    data?: {
+      rows?: Array<{ name: string }>;
+      ongoing_rows?: Array<{ name: string }>;
+    };
+  };
+  return [
+    ...(payload.data?.rows ?? []).map((row) => row.name),
+    ...(payload.data?.ongoing_rows ?? []).map((row) => row.name),
+  ];
+}
+
+function insertRailWorkflow(input: {
+  id: string;
+  workflowName: string;
+  workspaceId: string;
+  playbookId: string;
+  createdAtSql: string;
+  updatedAtSql: string;
+}): void {
+  runPsql(`
+    INSERT INTO public.workflows (
+      id,
+      tenant_id,
+      workspace_id,
+      playbook_id,
+      name,
+      state,
+      lifecycle,
+      current_stage,
+      parameters,
+      metadata,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      '${input.id}'::uuid,
+      '${DEFAULT_TENANT_ID}'::uuid,
+      '${input.workspaceId}'::uuid,
+      '${input.playbookId}'::uuid,
+      '${input.workflowName.replace(/'/g, "''")}',
+      'completed'::workflow_state,
+      'planned',
+      'delivery',
+      '{"workflow_goal":"Exercise workflows rail recency filtering."}'::jsonb,
+      '{}'::jsonb,
+      ${input.createdAtSql},
+      ${input.updatedAtSql}
+    );
+  `);
 }

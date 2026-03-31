@@ -48,6 +48,63 @@ export function buildBulkWorkflowInsertSql(input: WorkflowBulkSeedInput): string
   `;
 }
 
+export function buildBulkWorkflowHeartbeatGuardInsertSql(input: WorkflowBulkSeedInput): string {
+  if (input.count <= 0 || (input.lifecycle ?? 'planned') !== 'ongoing') {
+    return '';
+  }
+
+  const namePrefix = input.namePrefix ?? readDefaultBulkWorkflowPrefix('ongoing');
+  return `
+    INSERT INTO public.tasks (
+      id,
+      tenant_id,
+      workflow_id,
+      work_item_id,
+      workspace_id,
+      title,
+      role,
+      stage_name,
+      priority,
+      state,
+      state_changed_at,
+      input,
+      context,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      gen_random_uuid(),
+      w.tenant_id,
+      w.id,
+      NULL,
+      w.workspace_id,
+      'Seed heartbeat guard',
+      'seed-guard',
+      COALESCE(w.current_stage, 'delivery'),
+      'normal'::task_priority,
+      'claimed'::task_state,
+      w.updated_at,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{"seeded_heartbeat_guard":true}'::jsonb,
+      w.created_at,
+      w.updated_at
+    FROM public.workflows w
+    WHERE w.tenant_id = ${sqlUuid(input.tenantId)}
+      AND w.workspace_id = ${sqlUuid(input.workspaceId)}
+      AND w.playbook_id = ${sqlUuid(input.playbookId)}
+      AND w.lifecycle = 'ongoing'
+      AND w.name LIKE ${sqlText(`${namePrefix} %`)}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.tasks t
+        WHERE t.workflow_id = w.id
+          AND t.metadata->>'seeded_heartbeat_guard' = 'true'
+      );
+  `;
+}
+
 interface WorkflowBulkWorkflowRowInput {
   tenantId: string;
   workspaceId: string;

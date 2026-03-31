@@ -3,14 +3,17 @@ import { execFileSync } from 'node:child_process';
 import {
   ADMIN_API_KEY,
   DEFAULT_TENANT_ID,
-  PLATFORM_API_CONTAINER_NAME,
   PLATFORM_API_URL,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
-import { buildBulkWorkflowInsertSql } from './workflows-bulk-seed.js';
-import { shellQuote, sqlText, sqlUuid } from './workflows-common.js';
+import { prunePlatformWorkflowArtifactDirectories } from './platform-artifacts.js';
+import {
+  buildBulkWorkflowHeartbeatGuardInsertSql,
+  buildBulkWorkflowInsertSql,
+} from './workflows-bulk-seed.js';
+import { sqlText, sqlUuid } from './workflows-common.js';
 
 export function runPsql(sql: string): string {
   return execFileSync(
@@ -92,6 +95,17 @@ export async function seedBulkWorkflows(
     return;
   }
   runPsql(sql);
+  const guardSql = buildBulkWorkflowHeartbeatGuardInsertSql({
+    tenantId: DEFAULT_TENANT_ID,
+    workspaceId,
+    playbookId,
+    count,
+    lifecycle: options.lifecycle,
+    namePrefix: options.namePrefix,
+  });
+  if (guardSql) {
+    runPsql(guardSql);
+  }
 }
 
 export async function blockWorkItem(
@@ -164,24 +178,7 @@ export function ensureNonLiveRuntimeQuiesced(): void {
 }
 
 export function pruneOrphanedWorkflowArtifactDirectories(tenantId: string, keepIds: string[]): void {
-  const script = `
-set -eu
-root=${shellQuote(`/artifacts/tenants/${tenantId}/workflows`)}
-[ -d "$root" ] || exit 0
-keep_ids=${shellQuote(keepIds.join('\n'))}
-find "$root" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r workflow_dir; do
-  workflow_id="$(basename "$workflow_dir")"
-  if ! printf '%s\\n' "$keep_ids" | grep -Fxq "$workflow_id"; then
-    rm -rf "$workflow_dir"
-  fi
-done
-`;
-
-  execFileSync(
-    'docker',
-    ['exec', '-i', PLATFORM_API_CONTAINER_NAME, 'sh', '-lc', script],
-    { stdio: 'pipe' },
-  );
+  prunePlatformWorkflowArtifactDirectories(tenantId, keepIds);
 }
 
 function isRevisionConflict(error: unknown): boolean {

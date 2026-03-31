@@ -4,11 +4,11 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import {
   DEFAULT_TENANT_ID,
-  PLATFORM_API_CONTAINER_NAME,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
+import { writePlatformArtifactObject } from './platform-artifacts.js';
 import {
   type SeededWorkflowsScenario,
   seedWorkflowsScenario,
@@ -331,24 +331,7 @@ function createWorkflowArtifact(input: SeededArtifactInput): {
 }
 
 function writeSeededArtifactObject(storageKey: string, payload: Buffer, contentType: string): void {
-  const containerPath = `/artifacts/${storageKey}`;
-  execFileSync(
-    'docker',
-    [
-      'exec',
-      '-i',
-      PLATFORM_API_CONTAINER_NAME,
-      'sh',
-      '-lc',
-      [
-        'set -e',
-        `mkdir -p ${shellQuote(containerPath.split('/').slice(0, -1).join('/'))}`,
-        `cat > ${shellQuote(containerPath)}`,
-        `printf %s ${shellQuote(contentType)} > ${shellQuote(`${containerPath}.content-type`)}`,
-      ].join(' && '),
-    ],
-    { input: payload },
-  );
+  writePlatformArtifactObject(storageKey, payload, contentType);
 }
 
 function runPsql(sql: string): void {
@@ -382,8 +365,4 @@ function sqlUuid(value: string): string {
 
 function sqlJsonValue(value: unknown): string {
   return sqlText(JSON.stringify(value));
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\"'\"'`)}'`;
 }

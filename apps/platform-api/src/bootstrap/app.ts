@@ -16,7 +16,7 @@ import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
 import { createLoggedService } from '../logging/create-logged-service.js';
 import { LogService } from '../logging/log-service.js';
-import { LogLevelCache } from '../logging/log-level-cache.js';
+import { LogLevelCache } from '../logging/execution/log-level-cache.js';
 import { LogStreamService } from '../logging/log-stream-service.js';
 import { registerRequestLogger } from '../logging/request/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';

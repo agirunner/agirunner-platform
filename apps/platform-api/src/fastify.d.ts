@@ -2,7 +2,7 @@ import type pg from 'pg';
 
 import type { ApiKeyIdentity } from './auth/api-key.js';
 import type { AppEnv } from './config/schema.js';
-import type { LogLevelCache } from './logging/log-level-cache.js';
+import type { LogLevelCache } from './logging/execution/log-level-cache.js';
 import type { LogService } from './logging/log-service.js';
 import type { LogStreamService } from './logging/log-stream-service.js';
 import type { ApiKeyService } from './services/api-key-service.js';
