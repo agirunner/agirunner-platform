@@ -7,7 +7,7 @@ import {
   toStoredTaskState,
   type TaskState,
 } from '../../orchestration/task-state-machine.js';
-import { applyTaskCompletionSideEffects } from '../task-completion-side-effects.js';
+import { applyTaskCompletionSideEffects } from '../task-completion-side-effects/task-completion-side-effects.js';
 import { enqueueAndDispatchImmediatePlaybookActivation } from '../workflow-immediate-activation.js';
 import type {
   TaskLifecycleServiceOperationContext,

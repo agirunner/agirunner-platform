@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { applyTaskCompletionSideEffects } from '../../../src/services/task-completion-side-effects.js';
+import { applyTaskCompletionSideEffects } from '../../../src/services/task-completion-side-effects/task-completion-side-effects.js';
 import {
   createAssessmentTask,
   createClient,

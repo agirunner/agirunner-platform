@@ -1,31 +1,31 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient } from '../db/database.js';
-import type { LogService } from '../logging/log-service.js';
-import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
-import type { EventService } from './event/event-service.js';
-import type { WorkItemContinuityService } from './work-item-continuity-service/work-item-continuity-service.js';
-import { enqueueAndDispatchImmediateWorkflowActivation } from './workflow-immediate-activation.js';
-import type { ImmediateWorkflowActivationDispatcher } from './workflow-immediate-activation.js';
-import type { PlaybookTaskParallelismService } from './playbook/playbook-task-parallelism-service.js';
-import { applyDependentTaskCompletionSideEffects } from './task-completion-side-effects/dependency-resolution.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient } from '../../db/database.js';
+import type { LogService } from '../../logging/log-service.js';
+import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../planned-work-item-auto-close.js';
+import type { EventService } from '../event/event-service.js';
+import type { WorkItemContinuityService } from '../work-item-continuity-service/work-item-continuity-service.js';
+import { enqueueAndDispatchImmediateWorkflowActivation } from '../workflow-immediate-activation.js';
+import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
+import type { PlaybookTaskParallelismService } from '../playbook/playbook-task-parallelism-service.js';
+import { applyDependentTaskCompletionSideEffects } from './dependency-resolution.js';
 import {
   maybeApplyExplicitAssessmentOutcomeAction,
   maybeRejectSubjectTask,
   maybeRequestSubjectTaskChanges,
-} from './task-completion-side-effects/assessment-actions.js';
+} from './assessment-actions.js';
 import {
   applyTaskCompletionContinuityEvent,
   maybeResolveAssessmentSubject,
   resolveTaskCompletionContinuityEvent,
-} from './task-completion-side-effects/assessment-resolution.js';
-import { maybeAutoCloseApprovedOngoingWorkItem } from './task-completion-side-effects/workflow-closure.js';
+} from './assessment-resolution.js';
+import { maybeAutoCloseApprovedOngoingWorkItem } from './workflow-closure.js';
 import {
   asOptionalString,
   asRecord,
   validateOutputSchema,
-} from './task-completion-side-effects/shared.js';
-import type { SubjectTaskChangeService } from './task-completion-side-effects/shared.js';
-import { loadLatestTaskAttemptHandoffOutcome } from './task-completion-side-effects/assessment-resolution.js';
+} from './shared.js';
+import type { SubjectTaskChangeService } from './shared.js';
+import { loadLatestTaskAttemptHandoffOutcome } from './assessment-resolution.js';
 
 export { validateOutputSchema };
 
