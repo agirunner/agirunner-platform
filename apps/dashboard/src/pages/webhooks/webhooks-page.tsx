@@ -1,4 +1,4 @@
-import { ConfigPlaceholderPage } from '../integrations-shared/config-placeholder-page.js';
+import { ConfigPlaceholderPage } from '../integrations/config-placeholder-page.js';
 
 export function WebhooksPage(): JSX.Element {
   return (

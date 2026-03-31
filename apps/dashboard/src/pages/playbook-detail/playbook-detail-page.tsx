@@ -1,5 +1,5 @@
 import { FormFeedbackMessage } from '../../components/forms/form-feedback.js';
-import { PlaybookAuthoringForm } from '../playbook-shared/authoring/playbook-authoring-form.js';
+import { PlaybookAuthoringForm } from '../playbooks/authoring/playbook-authoring-form.js';
 
 import {
   PlaybookDeleteDialogs,
