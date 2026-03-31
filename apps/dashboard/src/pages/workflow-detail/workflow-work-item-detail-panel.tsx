@@ -1,30 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import {
-  dashboardApi,
-  type DashboardWorkflowBoardColumn,
-  type DashboardWorkflowStageRecord,
-  type DashboardWorkflowWorkItemRecord,
-} from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { dashboardApi, type DashboardWorkflowBoardColumn, type DashboardWorkflowStageRecord, type DashboardWorkflowWorkItemRecord } from '../../lib/api.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import type { StructuredEntryDraft } from '../workspace-detail/workspace-detail-support.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
-import {
-  WorkItemArtifactsSection,
-  WorkItemContinuitySection,
-  WorkItemHandoffHistorySection,
-  WorkItemMemorySection,
-} from './workflow-work-item-detail-context-sections.js';
+import { WorkItemArtifactsSection, WorkItemContinuitySection, WorkItemHandoffHistorySection, WorkItemMemorySection } from './workflow-work-item-detail-context-sections.js';
 import {
   areWorkItemMetadataDraftsEqual,
   buildWorkItemMetadata,
@@ -34,29 +15,9 @@ import {
   type WorkItemPriority,
 } from './workflow-work-item-form-support.js';
 import { WorkItemOperatorSection } from './workflow-work-item-operator-section.js';
-import {
-  buildWorkItemRecoveryBrief,
-  buildWorkItemBreadcrumbs,
-  describeCountLabel,
-  flattenArtifactsByTask,
-  findWorkItemById,
-  isMilestoneWorkItem,
-  summarizeMilestoneOperatorFlow,
-  summarizeWorkItemExecution,
-  sortMemoryEntriesByKey,
-  sortMemoryHistoryNewestFirst,
-  sortEventsNewestFirst,
-  type DashboardGroupedWorkItemRecord,
-  type DashboardWorkItemArtifactRecord,
-  type DashboardWorkItemTaskRecord,
-} from './workflow-work-item-detail-support.js';
-import {
-  MilestoneChildrenSection,
-  MilestoneOperatorSummarySection,
-  WorkItemFocusPacket,
-  WorkItemHeader,
-  WorkItemReviewClosure,
-} from './workflow-work-item-summary-sections.js';
+import { buildWorkItemRecoveryBrief, buildWorkItemBreadcrumbs, flattenArtifactsByTask, findWorkItemById, isMilestoneWorkItem, summarizeMilestoneOperatorFlow, summarizeWorkItemExecution, sortMemoryEntriesByKey, sortMemoryHistoryNewestFirst, sortEventsNewestFirst, type DashboardGroupedWorkItemRecord, type DashboardWorkItemArtifactRecord, type DashboardWorkItemTaskRecord } from './workflow-work-item-detail-support.js';
+import { MilestoneChildrenSection, MilestoneOperatorSummarySection, WorkItemFocusPacket, WorkItemHeader, WorkItemReviewClosure } from './workflow-work-item-summary-sections.js';
+import { WorkItemDetailFrame } from './workflow-work-item-detail-frame.js';
 import { WorkItemRecoveryBriefSection } from './workflow-work-item-recovery-brief.js';
 import { WorkItemTasksSection } from './workflow-work-item-tasks-section.js';
 
@@ -74,11 +35,6 @@ interface WorkflowWorkItemDetailPanelProps {
   onClearSelection(): void;
 }
 
-const metaRowClass = 'flex flex-wrap items-center gap-2';
-const mutedBodyClass = 'text-sm leading-6 text-muted';
-const loadingTextClass =
-  'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
-const errorTextClass = 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
 const responsiveTabTriggerClass = 'h-auto whitespace-normal px-3 py-2 text-center leading-5';
 
 export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelProps): JSX.Element {
@@ -369,50 +325,15 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
   }, [props.workItemId]);
 
   return (
-    <Card
-      className="overflow-hidden border-accent/30 bg-surface/95 shadow-lg ring-1 ring-accent/10"
-      data-testid="work-item-detail-shell"
-      data-selected-panel="true"
-      data-workflow-focus-anchor="true"
-      tabIndex={-1}
-      aria-labelledby={panelTitleId}
+    <WorkItemDetailFrame
+      panelTitleId={panelTitleId}
+      linkedTaskCount={props.tasks.length}
+      artifactCount={artifactQuery.data?.length ?? 0}
+      isLoading={workItemQuery.isLoading}
+      hasError={Boolean(workItemQuery.error)}
+      onClearSelection={props.onClearSelection}
     >
-      <CardHeader className="gap-3 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="grid gap-3">
-            <div className={metaRowClass}>
-              <Badge variant="secondary">Selected work item</Badge>
-              <Badge variant="outline">
-                {describeCountLabel(props.tasks.length, 'linked step')}
-              </Badge>
-              {artifactQuery.data ? (
-                <Badge variant="outline">
-                  {describeCountLabel(artifactQuery.data.length, 'artifact')}
-                </Badge>
-              ) : null}
-            </div>
-            <div className="grid gap-2">
-              <CardTitle id={panelTitleId} className="text-xl">
-                Work Item Detail
-              </CardTitle>
-              <CardDescription className="max-w-3xl text-sm leading-6">
-                Start with the summary, open controls only when editing, then switch to evidence
-                when you need execution detail.
-              </CardDescription>
-            </div>
-          </div>
-          <Button variant="outline" onClick={props.onClearSelection}>
-            Clear Selection
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="grid gap-5 p-4">
-        {workItemQuery.isLoading ? <p className={loadingTextClass}>Loading work item...</p> : null}
-        {workItemQuery.error ? (
-          <p className={errorTextClass}>Failed to load work item detail.</p>
-        ) : null}
-        {workItem ? (
+      {workItem ? (
           <Tabs
             value={activeDetailSurface}
             onValueChange={(value) =>
@@ -556,7 +477,6 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
             </TabsContent>
           </Tabs>
         ) : null}
-      </CardContent>
-    </Card>
+    </WorkItemDetailFrame>
   );
 }
