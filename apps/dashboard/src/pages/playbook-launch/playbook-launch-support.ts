@@ -1,23 +1,30 @@
-import type {
-  DashboardPlaybookRecord,
-  DashboardRoleModelOverride,
-  DashboardWorkflowBudgetInput,
-} from '../../lib/api.js';
+import type { DashboardRoleModelOverride } from '../../lib/api.js';
+
+import {
+  validateWorkflowBudgetDraft,
+  type WorkflowBudgetDraft,
+} from './playbook-launch-budget.js';
+import {
+  readRequiredParameterError,
+  type LaunchParameterSpec,
+} from './playbook-launch-definition.js';
+
+export {
+  buildWorkflowBudgetInput,
+  clearWorkflowBudgetDraft,
+  createWorkflowBudgetDraft,
+  readWorkflowBudgetMode,
+  summarizeWorkflowBudgetDraft,
+  type WorkflowBudgetDraft,
+  type WorkflowBudgetMode,
+} from './playbook-launch-budget.js';
+export {
+  readLaunchDefinition,
+  type LaunchDefinitionSummary,
+  type LaunchParameterSpec,
+} from './playbook-launch-definition.js';
 
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
-
-export interface LaunchParameterSpec {
-  slug: string;
-  title: string;
-  required: boolean;
-}
-
-export interface LaunchDefinitionSummary {
-  roles: string[];
-  stageNames: string[];
-  boardColumns: Array<{ id: string; label: string }>;
-  parameterSpecs: LaunchParameterSpec[];
-}
 
 export interface StructuredEntryDraft {
   id: string;
@@ -33,14 +40,6 @@ export interface RoleOverrideDraft {
   model: string;
   reasoningEntries: StructuredEntryDraft[];
 }
-
-export interface WorkflowBudgetDraft {
-  tokenBudget: string;
-  costCapUsd: string;
-  maxDurationMinutes: string;
-}
-
-export type WorkflowBudgetMode = 'open-ended' | 'guarded';
 
 export interface LaunchValidationResult {
   fieldErrors: {
@@ -59,18 +58,6 @@ export interface LaunchValidationResult {
 }
 
 let draftCounter = 0;
-
-export function readLaunchDefinition(
-  playbook: DashboardPlaybookRecord | null,
-): LaunchDefinitionSummary {
-  const definition = asRecord(playbook?.definition);
-  return {
-    roles: readStringArray(definition.roles),
-    stageNames: readStageNames(definition),
-    boardColumns: readBoardColumns(definition.board),
-    parameterSpecs: readParameterSpecs(definition.parameters),
-  };
-}
 
 export function buildParametersFromDrafts(
   specs: LaunchParameterSpec[],
@@ -189,44 +176,8 @@ export function syncRoleOverrideDrafts(
   return [...ordered, ...custom];
 }
 
-export function createWorkflowBudgetDraft(): WorkflowBudgetDraft {
-  return {
-    tokenBudget: '',
-    costCapUsd: '',
-    maxDurationMinutes: '',
-  };
-}
-
-export function clearWorkflowBudgetDraft(): WorkflowBudgetDraft {
-  return createWorkflowBudgetDraft();
-}
-
-export function readWorkflowBudgetMode(draft: WorkflowBudgetDraft): WorkflowBudgetMode {
-  return hasWorkflowBudgetGuardrails(draft) ? 'guarded' : 'open-ended';
-}
-
-export function buildWorkflowBudgetInput(
-  draft: WorkflowBudgetDraft,
-): DashboardWorkflowBudgetInput | undefined {
-  const tokenBudget = parsePositiveInteger(draft.tokenBudget, 'Token budget');
-  const costCapUsd = parsePositiveNumber(draft.costCapUsd, 'Cost cap');
-  const maxDurationMinutes = parsePositiveInteger(draft.maxDurationMinutes, 'Maximum duration');
-
-  const value: DashboardWorkflowBudgetInput = {};
-  if (tokenBudget !== undefined) {
-    value.token_budget = tokenBudget;
-  }
-  if (costCapUsd !== undefined) {
-    value.cost_cap_usd = costCapUsd;
-  }
-  if (maxDurationMinutes !== undefined) {
-    value.max_duration_minutes = maxDurationMinutes;
-  }
-  return Object.keys(value).length > 0 ? value : undefined;
-}
-
 export function validateLaunchDraft(input: {
-  selectedPlaybook: DashboardPlaybookRecord | null;
+  selectedPlaybook: { is_active?: boolean } | null;
   workflowName: string;
   workflowBudgetDraft: WorkflowBudgetDraft;
   parameterSpecs: LaunchParameterSpec[];
@@ -278,94 +229,6 @@ export function validateLaunchDraft(input: {
   };
 }
 
-export function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string {
-  const parts: string[] = [];
-  if (draft.tokenBudget.trim()) {
-    parts.push(`${draft.tokenBudget.trim()} tokens`);
-  }
-  if (draft.costCapUsd.trim()) {
-    parts.push(`$${draft.costCapUsd.trim()} cost cap`);
-  }
-  if (draft.maxDurationMinutes.trim()) {
-    parts.push(`${draft.maxDurationMinutes.trim()} minutes`);
-  }
-  return parts.length > 0
-    ? `Workflow guardrails set for ${parts.join(', ')}.`
-    : 'No explicit budget guardrails; the workflow will use open-ended defaults.';
-}
-
-function readRequiredParameterError(
-  specs: LaunchParameterSpec[],
-  drafts: Record<string, string>,
-): string | undefined {
-  const missingRequired = specs.find(
-    (spec) => spec.required && (drafts[spec.slug]?.trim().length ?? 0) === 0,
-  );
-  return missingRequired
-    ? `Enter a value for required launch input '${missingRequired.title}'.`
-    : undefined;
-}
-
-function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => readParameterSpec(entry))
-    .filter((entry): entry is LaunchParameterSpec => entry !== null);
-}
-
-function readParameterSpec(value: unknown): LaunchParameterSpec | null {
-  const record = asRecord(value);
-  const slug = readNonEmptyString(record.slug);
-  const title = readNonEmptyString(record.title);
-  if (!slug || !title) {
-    return null;
-  }
-  return {
-    slug,
-    title,
-    required: record.required === true,
-  };
-}
-
-function readStageNames(definition: Record<string, unknown>): string[] {
-  return readNamedFlowEntries(definition.stages);
-}
-
-function readNamedFlowEntries(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => readNonEmptyString(asRecord(entry).name))
-    .filter((entry): entry is string => Boolean(entry));
-}
-
-function readBoardColumns(value: unknown): Array<{ id: string; label: string }> {
-  const board = asRecord(value);
-  const columns = Array.isArray(board.columns) ? board.columns : [];
-  return columns
-    .map((entry) => {
-      const record = asRecord(entry);
-      const id = readNonEmptyString(record.id);
-      if (!id) {
-        return null;
-      }
-      return {
-        id,
-        label: readNonEmptyString(record.label) ?? id,
-      };
-    })
-    .filter((entry): entry is { id: string; label: string } => entry !== null);
-}
-
-function readStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
-    : [];
-}
-
 function parseDraftValue(
   rawValue: string,
   valueType: StructuredValueType,
@@ -402,78 +265,6 @@ function parseJsonValue(value: string, label: string): unknown {
       `${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`,
     );
   }
-}
-
-function parsePositiveInteger(value: string, label: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const parsed = Number(trimmed);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive whole number.`);
-  }
-  return parsed;
-}
-
-function parsePositiveNumber(value: string, label: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be greater than zero.`);
-  }
-  return parsed;
-}
-
-function hasWorkflowBudgetGuardrails(draft: WorkflowBudgetDraft): boolean {
-  return (
-    draft.tokenBudget.trim().length > 0 ||
-    draft.costCapUsd.trim().length > 0 ||
-    draft.maxDurationMinutes.trim().length > 0
-  );
-}
-
-function validateWorkflowBudgetDraft(
-  draft: WorkflowBudgetDraft,
-): Pick<
-  LaunchValidationResult['fieldErrors'],
-  'tokenBudget' | 'costCapUsd' | 'maxDurationMinutes'
-> {
-  return {
-    tokenBudget: readBudgetFieldError(draft.tokenBudget, 'Token budget', parsePositiveInteger),
-    costCapUsd: readBudgetFieldError(draft.costCapUsd, 'Cost cap', parsePositiveNumber),
-    maxDurationMinutes: readBudgetFieldError(
-      draft.maxDurationMinutes,
-      'Maximum duration',
-      parsePositiveInteger,
-    ),
-  };
-}
-
-function readBudgetFieldError(
-  value: string,
-  label: string,
-  parser: (raw: string, fieldLabel: string) => number | undefined,
-): string | undefined {
-  try {
-    parser(value, label);
-    return undefined;
-  } catch (error) {
-    return error instanceof Error ? error.message : `${label} is invalid.`;
-  }
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function readNonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function nextDraftId(prefix: string): string {
