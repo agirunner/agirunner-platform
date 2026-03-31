@@ -1,18 +1,18 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { governanceRoutes } from '../../../../src/api/routes/governance.routes.js';
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { governanceRoutes } from '../../../../../src/api/routes/governance/governance.routes.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 const { configureApiKeyLoggingMock } = vi.hoisted(() => ({
   configureApiKeyLoggingMock: vi.fn(),
 }));
 
-vi.mock('../../../../src/auth/api-key.js', () => ({
+vi.mock('../../../../../src/auth/api-key.js', () => ({
   configureApiKeyLogging: configureApiKeyLoggingMock,
 }));
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',

@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { applyTenantLoggingLevel } from '../../logging/platform-log-level.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import { applyTenantLoggingLevel } from '../../../logging/platform-log-level.js';
 const retentionPolicySchema = z
   .object({
     task_prune_after_days: z.number().int().min(1).optional(),

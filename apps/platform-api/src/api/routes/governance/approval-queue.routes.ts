@@ -1,14 +1,14 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { ApprovalQueueService } from '../../services/approval-queue-service.js';
-import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control/playbook-workflow-control-service.js';
-import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
-import { WorkflowActivationService } from '../../services/workflow-activation/workflow-activation-service.js';
-import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
-import { WorkflowStateService } from '../../services/workflow-state-service.js';
-import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { ApprovalQueueService } from '../../../services/approval-queue-service.js';
+import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
+import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
+import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';
+import { WorkflowStateService } from '../../../services/workflow-state-service.js';
+import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
 
 const requestIdSchema = z.string().min(1).max(255);
 
@@ -74,7 +74,7 @@ async function runIdempotentGateDecision<T extends Record<string, unknown>>(
   workflowId: string,
   toolName: string,
   requestId: string | undefined,
-  run: (client: import('../../db/database.js').DatabaseClient) => Promise<T>,
+  run: (client: import('../../../db/database.js').DatabaseClient) => Promise<T>,
 ): Promise<T> {
   const normalizedRequestId = requestId?.trim();
   const client = await app.pgPool.connect();

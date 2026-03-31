@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('gate routes', () => {
   });
 
   it('reads workflow-scoped gates by gate id', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -148,7 +148,7 @@ describe('gate routes', () => {
   });
 
   it('reads approval queue gates by gate id', async () => {
-    const { approvalQueueRoutes } = await import('../../../../src/api/routes/approval-queue.routes.js');
+    const { approvalQueueRoutes } = await import('../../../../../src/api/routes/governance/approval-queue.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -234,7 +234,7 @@ describe('gate routes', () => {
   });
 
   it('redacts secret-bearing gate response fields on workflow gate reads', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);
