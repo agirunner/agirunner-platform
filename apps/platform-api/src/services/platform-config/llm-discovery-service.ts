@@ -8,7 +8,7 @@ import {
   PROVIDER_ENDPOINT_DEFAULTS,
   isDefaultEnabledModel,
   readNativeSearchCapability,
-} from '../catalogs/model-catalog.js';
+} from '../../catalogs/model-catalog.js';
 
 export type { NativeSearchCapability, ReasoningConfig };
 export { MODEL_CATALOG, findCatalogEntry, isDefaultEnabledModel, readNativeSearchCapability };

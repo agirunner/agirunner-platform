@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/domain-errors.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 
 export type InstructionFormat = 'text' | 'markdown';
 export type InstructionLayerName = 'platform' | 'workspace' | 'playbook' | 'role' | 'task';

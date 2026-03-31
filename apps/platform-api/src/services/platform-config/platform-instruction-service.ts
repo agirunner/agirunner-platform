@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { EventService } from './event/event-service.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { EventService } from '../event/event-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 
 const PLATFORM_INSTRUCTION_SECRET_REDACTION = 'redacted://platform-instruction-secret';

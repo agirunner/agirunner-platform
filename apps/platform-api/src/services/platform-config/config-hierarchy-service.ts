@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/domain-errors.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 import { normalizeSuppressedLayers, type InstructionLayerName } from './instruction-policy.js';
 
 type RecordValue = Record<string, unknown>;
