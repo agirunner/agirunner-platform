@@ -32,7 +32,9 @@ describe('runtime defaults page support', () => {
       'agent_safeguards',
     ]);
     expect(
-      SECTION_DEFINITIONS.filter((section) => section.defaultExpanded).map((section) => section.key),
+      SECTION_DEFINITIONS.filter((section) => section.defaultExpanded).map(
+        (section) => section.key,
+      ),
     ).toEqual(['runtime_containers', 'task_limits']);
 
     expect(fieldsForSection('runtime_containers').map((field) => field.key)).toEqual([
@@ -108,9 +110,7 @@ describe('runtime defaults page support', () => {
   });
 
   it('keeps the current top sections in place and explicitly balances the remaining columns', () => {
-    expect(PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS).toEqual([
-      'runtime_containers',
-    ]);
+    expect(PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS).toEqual(['runtime_containers']);
     expect(RUNTIME_INLINE_SECTION_COLUMNS).toEqual({
       left: [
         'server_timeouts',
@@ -149,7 +149,9 @@ describe('runtime defaults page support', () => {
     expect(errors['agent.specialist_context_tail_messages']).toContain('overall history budget');
     expect(errors['agent.context_compaction_threshold']).toContain('at most 1');
     expect(errors['agent.specialist_context_strategy']).toContain('must be one of');
-    expect(errors['agent.orchestrator_history_preserve_recent']).toContain('overall history budget');
+    expect(errors['agent.orchestrator_history_preserve_recent']).toContain(
+      'overall history budget',
+    );
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
     expect(errors['capture.push_retries']).toContain('at least 0');
     expect(errors['subagent.max_depth']).toContain('at least 0');
@@ -306,7 +308,9 @@ describe('runtime defaults page support', () => {
       specialist_runtime_default_memory: 'banana',
     });
 
-    expect(errors['specialist_runtime_default_image']).toContain('image:tag or image@sha256:digest');
+    expect(errors['specialist_runtime_default_image']).toContain(
+      'image:tag or image@sha256:digest',
+    );
     expect(errors['specialist_runtime_default_cpu']).toContain('greater than 0');
     expect(errors['specialist_runtime_default_memory']).toContain('512m, 2g, or 2Gi');
   });

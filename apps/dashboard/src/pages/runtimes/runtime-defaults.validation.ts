@@ -49,20 +49,13 @@ export function buildValidationErrors(
   return errors;
 }
 
-function validateHistoryRelationships(
-  values: FormValues,
-  errors: Record<string, string>,
-): void {
+function validateHistoryRelationships(values: FormValues, errors: Record<string, string>): void {
   const historyBudget = readNumber(values['agent.history_max_messages']);
   const preserveSpecialist = readNumber(values['agent.history_preserve_recent']);
   const specialistTail = readNumber(values['agent.specialist_context_tail_messages']);
   const preserveOrchestrator = readNumber(values['agent.orchestrator_history_preserve_recent']);
 
-  if (
-    historyBudget !== null &&
-    preserveSpecialist !== null &&
-    preserveSpecialist > historyBudget
-  ) {
+  if (historyBudget !== null && preserveSpecialist !== null && preserveSpecialist > historyBudget) {
     errors['agent.history_preserve_recent'] =
       'Preserved specialist history must stay within the overall history budget.';
   }
@@ -89,10 +82,7 @@ function readNumber(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function validateContainerDefaults(
-  values: FormValues,
-  errors: Record<string, string>,
-): void {
+function validateContainerDefaults(values: FormValues, errors: Record<string, string>): void {
   validateContainerAllocation(values, errors, {
     imageKey: 'specialist_runtime_default_image',
     cpuKey: 'specialist_runtime_default_cpu',
@@ -136,10 +126,7 @@ function validateContainerAllocation(
   }
 }
 
-function validateRealtimeTransportRanges(
-  values: FormValues,
-  errors: Record<string, string>,
-): void {
+function validateRealtimeTransportRanges(values: FormValues, errors: Record<string, string>): void {
   const minReconnect = readNumber(values['platform.worker_reconnect_min_ms']);
   const maxReconnect = readNumber(values['platform.worker_reconnect_max_ms']);
 

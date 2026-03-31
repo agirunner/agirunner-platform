@@ -43,9 +43,7 @@ export function formatDigestLabel(digest: string | null | undefined): string {
   return digest.length > 20 ? `${digest.slice(0, 12)}…${digest.slice(-6)}` : digest;
 }
 
-export function statusBadgeVariant(
-  status: string,
-): 'success' | 'secondary' | 'destructive' {
+export function statusBadgeVariant(status: string): 'success' | 'secondary' | 'destructive' {
   if (status === 'linked') {
     return 'success';
   }
@@ -67,9 +65,7 @@ export function deriveStatusFromState(
   return 'failed';
 }
 
-export function describeRuntimePosture(
-  status: DashboardCustomizationStatusResponse,
-): string {
+export function describeRuntimePosture(status: DashboardCustomizationStatusResponse): string {
   const derived = deriveStatusFromState(status);
   if (derived === 'linked') {
     return 'Active runtime image matches a configured digest.';
@@ -80,9 +76,7 @@ export function describeRuntimePosture(
   return 'Runtime image needs recovery before operators can trust rollout state.';
 }
 
-export function describeRuntimeNextAction(
-  status: DashboardCustomizationStatusResponse,
-): string {
+export function describeRuntimeNextAction(status: DashboardCustomizationStatusResponse): string {
   const derived = deriveStatusFromState(status);
   if (derived === 'linked') {
     return 'Inspect the manifest packet before making the next runtime change.';
@@ -131,7 +125,8 @@ export function buildRuntimeRecoveryBrief(
   if (derived === 'linked') {
     return {
       headline: 'Runtime image is linked and ready for inspection.',
-      detail: 'Confirm the manifest packet before making the next runtime change so rollout context stays intact.',
+      detail:
+        'Confirm the manifest packet before making the next runtime change so rollout context stays intact.',
       steps: [
         'Inspect the manifest packet and confirm the base image and customization inputs.',
         'Compare the active digest with the next runtime change before rollout.',
@@ -143,7 +138,8 @@ export function buildRuntimeRecoveryBrief(
   if (derived === 'valid') {
     return {
       headline: 'Runtime image service is reachable, but linkage still needs confirmation.',
-      detail: 'Treat this as a pre-rollout checkpoint. Finish digest linkage before trusting rollback or rollout decisions.',
+      detail:
+        'Treat this as a pre-rollout checkpoint. Finish digest linkage before trusting rollback or rollout decisions.',
       steps: [
         'Inspect the manifest packet to verify the runtime image inputs that produced the current image.',
         'Link the configured digest before rollout or rollback decisions.',
@@ -154,7 +150,8 @@ export function buildRuntimeRecoveryBrief(
   }
   return {
     headline: 'Runtime needs recovery before further configuration changes.',
-    detail: 'Do recovery work first so operators do not compound a broken runtime state with new defaults.',
+    detail:
+      'Do recovery work first so operators do not compound a broken runtime state with new defaults.',
     steps: [
       'Inspect the manifest packet and build history together to confirm what failed.',
       'Rebuild or relink the runtime image before rollout work continues.',
@@ -183,11 +180,15 @@ export function buildRuntimeHistorySummaryCards(
     {
       label: 'Current posture',
       value: derivedStatus ?? 'unknown',
-      detail: status ? describeRuntimePosture(status) : 'Runtime image status is not available right now.',
+      detail: status
+        ? describeRuntimePosture(status)
+        : 'Runtime image status is not available right now.',
     },
     {
       label: 'Recovery path',
-      value: derivedStatus ? describeBuildRecoveryPath(derivedStatus) : 'Inspect runtime image service health',
+      value: derivedStatus
+        ? describeBuildRecoveryPath(derivedStatus)
+        : 'Inspect runtime image service health',
       detail: status
         ? describeRuntimeNextAction(status)
         : 'Reconnect the runtime image service before trusting rollout or rollback posture.',
@@ -240,9 +241,7 @@ export function describeGatesSummary(gates?: DashboardCustomizationGate[]): stri
   return parts.join(' \u2022 ');
 }
 
-export function describeBuildOutcome(
-  build: DashboardCustomizationBuildResponse,
-): BuildOutcome {
+export function describeBuildOutcome(build: DashboardCustomizationBuildResponse): BuildOutcome {
   if (build.error) {
     return {
       headline: 'Build failed.',
@@ -296,9 +295,7 @@ export function describeValidationOutcome(
   };
 }
 
-export function describeLinkOutcome(
-  result: DashboardCustomizationLinkResponse,
-): LinkOutcome {
+export function describeLinkOutcome(result: DashboardCustomizationLinkResponse): LinkOutcome {
   if (result.linked) {
     return {
       headline: 'Build linked successfully.',
@@ -320,9 +317,7 @@ export function describeLinkOutcome(
   };
 }
 
-export function describeExportOutcome(
-  result: DashboardCustomizationExportResponse,
-): ExportOutcome {
+export function describeExportOutcome(result: DashboardCustomizationExportResponse): ExportOutcome {
   if (result.error) {
     return {
       headline: 'Export failed.',

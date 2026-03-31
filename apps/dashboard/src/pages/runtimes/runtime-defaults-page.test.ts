@@ -8,6 +8,15 @@ function readSource(fileName: string) {
   return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
 }
 
+function readApiContractSource() {
+  return [
+    '../../lib/api.ts',
+    '../../lib/dashboard-api/contracts.ts',
+  ]
+    .map((fileName) => readSource(fileName))
+    .join('\n');
+}
+
 describe('runtime defaults page source', () => {
   it('exposes the specialist runtime schema through structured exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
@@ -97,7 +106,9 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('fieldId="agentic-prompt-warning-threshold"');
     expect(pageSource).toContain('label="Prompt warning threshold"');
     expect(pageSource).toContain('prompt_warning_threshold_chars');
-    expect(pageSource).toContain('additionalHasValidationErrors={Boolean(promptWarningThresholdError)}');
+    expect(pageSource).toContain(
+      'additionalHasValidationErrors={Boolean(promptWarningThresholdError)}',
+    );
     expect(pageSource).toContain('connected_platform: (');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
@@ -112,17 +123,25 @@ describe('runtime defaults page source', () => {
     expect(editorSource).not.toContain('RuntimeAdvancedSettingsSection');
     expect(editorSource).toContain('Reset changes');
     expect(editorSource).toContain('Save');
-    expect(editorSource).toContain('sectionSupplementalContent?: Partial<Record<SectionDefinition[\'key\'], ReactNode>>;');
+    expect(editorSource).toContain(
+      "sectionSupplementalContent?: Partial<Record<SectionDefinition['key'], ReactNode>>;",
+    );
     expect(editorSource).toContain('additionalHasChanges?: boolean;');
     expect(editorSource).toContain('onSaveAdditional?(): Promise<void>;');
-    expect(editorSource).toContain('supplementalContent={props.sectionSupplementalContent?.[section.key]}');
+    expect(editorSource).toContain(
+      'supplementalContent={props.sectionSupplementalContent?.[section.key]}',
+    );
     expect(editorSource).toContain('buildValidationErrors');
     expect(editorSource).toContain('summarizeRuntimeDefaultSections');
     expect(editorSource).toContain('className="space-y-6 p-6"');
-    expect(editorSource).not.toContain('<Card>\n        <CardHeader>\n          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">');
+    expect(editorSource).not.toContain(
+      '<Card>\n        <CardHeader>\n          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">',
+    );
     expect(editorSource).toContain('const leftColumnSections = useMemo');
     expect(editorSource).toContain('const rightColumnSections = useMemo');
-    expect(editorSource).toContain('rightColumnSections.map((section) => renderSectionCard(section))');
+    expect(editorSource).toContain(
+      'rightColumnSections.map((section) => renderSectionCard(section))',
+    );
     expect(pageSource).not.toContain('sticky bottom-4');
     expect(pageSource).not.toContain('Save runtime defaults');
     expect(pageSource).not.toContain('ActiveRuntimeImageCard');
@@ -142,7 +161,9 @@ describe('runtime defaults page source', () => {
   it('guards against unsaved changes via beforeunload', () => {
     const source = readSource('./runtime-defaults-editor-page.tsx');
     expect(source).toContain('useUnsavedChanges');
-    expect(source).toContain('const hasAnyChanges = isDirty || Boolean(props.additionalHasChanges);');
+    expect(source).toContain(
+      'const hasAnyChanges = isDirty || Boolean(props.additionalHasChanges);',
+    );
     expect(source).toContain('useUnsavedChanges(hasAnyChanges)');
   });
 
@@ -173,7 +194,7 @@ describe('runtime defaults page source', () => {
   });
 
   it('types tenant agentic settings with the prompt warning threshold contract', () => {
-    const source = readSource('../../lib/api.ts');
+    const source = readApiContractSource();
 
     expect(source).toContain('prompt_warning_threshold_chars: number;');
     expect(source).toContain('settings_revision: number;');

@@ -15,7 +15,8 @@ export function ActiveRuntimeManifestPacket(props: {
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">Manifest packet</p>
         <p className="text-sm leading-6 text-muted">
-          Review the runtime image inputs and reasoning before making the next rebuild or relink decision.
+          Review the runtime image inputs and reasoning before making the next rebuild or relink
+          decision.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -24,7 +25,9 @@ export function ActiveRuntimeManifestPacket(props: {
             <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
               {packet.label}
             </p>
-            <p className={`mt-2 text-sm leading-6 ${packet.label === 'Base image' ? 'font-mono text-xs' : 'font-medium'}`}>
+            <p
+              className={`mt-2 text-sm leading-6 ${packet.label === 'Base image' ? 'font-mono text-xs' : 'font-medium'}`}
+            >
               {packet.value}
             </p>
             <p className="mt-2 text-xs leading-5 text-muted">{packet.detail}</p>

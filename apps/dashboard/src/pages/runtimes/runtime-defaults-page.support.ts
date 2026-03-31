@@ -1,7 +1,4 @@
-import {
-  FIELD_DEFINITIONS,
-  SECTION_DEFINITIONS,
-} from './runtime-defaults.schema.js';
+import { FIELD_DEFINITIONS, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FieldDefinition, FormValues, SectionDefinition } from './runtime-defaults.types.js';
 
 export const AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT = 32000;

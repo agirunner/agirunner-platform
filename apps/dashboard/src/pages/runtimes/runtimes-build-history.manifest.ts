@@ -29,9 +29,10 @@ export function buildRuntimeManifestPackets(
     {
       label: 'Managed files',
       value: String(fileCount),
-      detail: fileCount > 0
-        ? 'Managed files and path mapping are present in this manifest packet.'
-        : 'No managed files are attached to this specialist agent image manifest.',
+      detail:
+        fileCount > 0
+          ? 'Managed files and path mapping are present in this manifest packet.'
+          : 'No managed files are attached to this specialist agent image manifest.',
     },
     {
       label: 'Setup path',

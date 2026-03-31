@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './runtimes-build-history.tsx',
+    './runtimes-build-history.cards.tsx',
+    './runtimes-build-history.management.tsx',
+    './runtimes-build-history.shared.tsx',
     './runtimes-build-history.packet.tsx',
     './runtimes-build-history.support.ts',
   ]

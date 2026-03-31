@@ -36,7 +36,9 @@ describe('runtime defaults form', () => {
     ]);
 
     expect(values['agent.specialist_context_preserve_memory_ops']).toBe('9');
-    expect(values['specialist_runtime_default_image']).toBe('ghcr.io/agirunner/custom-runtime:stable');
+    expect(values['specialist_runtime_default_image']).toBe(
+      'ghcr.io/agirunner/custom-runtime:stable',
+    );
   });
 
   it('upserts canonical defaults when a displayed field has no stored row yet', () => {
@@ -68,9 +70,7 @@ describe('runtime defaults form', () => {
   });
 
   it('upserts changed canonical values instead of relying on delete semantics', () => {
-    const field = FIELD_DEFINITIONS.find(
-      (candidate) => candidate.key === 'global_max_specialists',
-    );
+    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'global_max_specialists');
 
     expect(field).toBeDefined();
     expect(

@@ -1,9 +1,9 @@
-import {
-  FIELD_DEFINITIONS,
-} from './runtime-defaults.schema.js';
+import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FieldDefinition, FormValues, RuntimeDefault } from './runtime-defaults.types.js';
 
-export function buildEmptyForm(fieldDefinitions: FieldDefinition[] = FIELD_DEFINITIONS): FormValues {
+export function buildEmptyForm(
+  fieldDefinitions: FieldDefinition[] = FIELD_DEFINITIONS,
+): FormValues {
   return Object.fromEntries(
     fieldDefinitions.map((field) => [field.key, getFieldDefaultValue(field)]),
   );
