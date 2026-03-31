@@ -3,9 +3,9 @@ import type { FastifyInstance } from 'fastify';
 
 import { buildApp } from '../../../../src/bootstrap/app.js';
 import { DEFAULT_TENANT_ID } from '../../../../src/db/seed.js';
-import { PlaybookService } from '../../../../src/services/playbook-service.js';
-import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
-import { SpecialistSkillService } from '../../../../src/services/specialist-skill-service.js';
+import { PlaybookService } from '../../../../src/services/playbook/playbook-service.js';
+import { RoleDefinitionService } from '../../../../src/services/role-definition/role-definition-service.js';
+import { SpecialistSkillService } from '../../../../src/services/specialist/specialist-skill-service.js';
 import { CommunityCatalogSourceService } from '../../../../src/services/community-catalog/community-catalog-source.js';
 import type {
   CommunityCatalogImportResult,
