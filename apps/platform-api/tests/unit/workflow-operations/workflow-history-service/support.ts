@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowHistoryService } from '../../../src/services/workflow-operations/workflow-history-service.js';
+import { WorkflowHistoryService } from '../../../../src/services/workflow-operations/workflow-history-service.js';
 
 export function createVersionSource() {
   return {
