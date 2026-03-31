@@ -4,7 +4,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowSteeringMessageRecord,
   DashboardWorkflowWorkItemRecord,
@@ -462,52 +461,6 @@ function createWorkItem(
     priority: 'normal',
     completed_at: null,
     branch_status: 'active',
-    ...overrides,
-  };
-}
-
-function createTask(overrides: Partial<DashboardTaskRecord> = {}): DashboardTaskRecord {
-  return {
-    id: 'task-3',
-    tenant_id: 'tenant-1',
-    workflow_id: 'workflow-1',
-    workspace_id: 'workspace-1',
-    parent_id: null,
-    title: 'Verify deliverable',
-    description: null,
-    state: 'in_progress',
-    priority: 'normal',
-    execution_backend: 'runtime_plus_task',
-    used_task_sandbox: true,
-    role: 'reviewer',
-    role_config: {},
-    environment: {},
-    resource_bindings: [],
-    input: {},
-    output: {},
-    metadata: {},
-    assigned_agent_id: null,
-    assigned_worker_id: null,
-    depends_on: [],
-    timeout_minutes: 30,
-    auto_retry: false,
-    max_retries: 0,
-    retry_count: 0,
-    claimed_at: null,
-    started_at: '2026-03-28T03:00:00.000Z',
-    completed_at: null,
-    failed_at: null,
-    cancelled_at: null,
-    created_at: '2026-03-28T02:55:00.000Z',
-    updated_at: '2026-03-28T03:00:00.000Z',
-    workflow: { id: 'workflow-1', name: 'Workflow 1', workspace_id: 'workspace-1' },
-    workflow_name: 'Workflow 1',
-    workspace_name: 'Workspace',
-    work_item_id: 'work-item-7',
-    work_item_title: 'Prepare release bundle',
-    stage_name: 'review',
-    activation_id: 'activation-1',
-    execution_environment: null,
     ...overrides,
   };
 }
