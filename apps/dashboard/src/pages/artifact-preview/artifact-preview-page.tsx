@@ -4,7 +4,7 @@ import { Copy, Download, FileText, Loader2, Package } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { dashboardApi } from '../../lib/api.js';
-import { readArtifactPreviewReturnState } from '../../lib/artifact-navigation.js';
+import { readArtifactPreviewReturnState } from './artifact-preview-navigation.js';
 import { toast } from '../../lib/toast.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';

@@ -1,4 +1,4 @@
-import { buildArtifactPermalink } from '../../lib/artifact-navigation.js';
+import { buildArtifactPermalink } from './artifact-preview-navigation.js';
 
 const SAFE_LINK_PROTOCOLS = ['http:', 'https:', 'mailto:'] as const;
 const ALLOWED_HTML_TAGS = new Set([
