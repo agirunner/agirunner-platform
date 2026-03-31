@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { LogService } from '../../src/logging/log-service.js';
+import { LogService } from '../../../src/logging/log-service.js';
 import {
   createDeferred,
   createLogEntry,
@@ -8,7 +8,7 @@ import {
   createMockPool,
   getInsertCall,
   getPartitionCalls,
-} from './logging-log-service-support.js';
+} from './support.js';
 
 describe('LogService', () => {
   describe('insert', () => {

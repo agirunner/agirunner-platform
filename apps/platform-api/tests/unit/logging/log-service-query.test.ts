@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { LogService } from '../../src/logging/log-service.js';
+import { LogService } from '../../../src/logging/log-service.js';
 import {
   createLogServiceHarness,
   createMockPool,
-} from './logging-log-service-support.js';
+} from './support.js';
 
 describe('LogService', () => {
   describe('query', () => {

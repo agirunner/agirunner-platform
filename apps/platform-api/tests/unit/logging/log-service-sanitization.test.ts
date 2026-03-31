@@ -4,7 +4,7 @@ import {
   createLogEntry,
   createLogServiceHarness,
   getInsertCall,
-} from './logging-log-service-support.js';
+} from './support.js';
 
 describe('LogService', () => {
   describe('insert sanitization', () => {

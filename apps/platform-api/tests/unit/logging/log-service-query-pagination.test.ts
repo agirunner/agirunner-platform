@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeCursor, encodeCursor } from '../../src/logging/log-service.js';
-import { createLogServiceHarness } from './logging-log-service-support.js';
+import { decodeCursor, encodeCursor } from '../../../src/logging/log-service.js';
+import { createLogServiceHarness } from './support.js';
 
 describe('LogService', () => {
   describe('query pagination', () => {

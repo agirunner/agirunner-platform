@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { logAuthEvent } from '../../src/logging/auth-log.js';
+import { logAuthEvent } from '../../../src/logging/auth-log.js';
 
 describe('logAuthEvent', () => {
   it('logsSuccessfulLoginWithInfoLevel', async () => {

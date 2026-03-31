@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createLogServiceHarness } from './logging-log-service-support.js';
+import { createLogServiceHarness } from './support.js';
 
 describe('LogService', () => {
   describe('stats', () => {

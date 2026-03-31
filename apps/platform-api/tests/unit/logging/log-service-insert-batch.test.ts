@@ -7,8 +7,8 @@ import {
   createMockPool,
   getInsertCall,
   getPartitionCalls,
-} from './logging-log-service-support.js';
-import { LogService } from '../../src/logging/log-service.js';
+} from './support.js';
+import { LogService } from '../../../src/logging/log-service.js';
 
 describe('LogService', () => {
   describe('insertBatch', () => {
