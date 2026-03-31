@@ -32,7 +32,7 @@ describe('workflow-linked task operator idempotency', () => {
   });
 
   it('rejects repeated resolve-escalation requests for workflow-linked tasks before replay', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const resolveEscalation = vi.fn(async () => ({
       id: 'task-resolve-1',
       workflow_id: 'workflow-resolve-1',
@@ -81,7 +81,7 @@ describe('workflow-linked task operator idempotency', () => {
   });
 
   it('deduplicates repeated start requests by request_id for workflow-backed tasks', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const startTask = vi.fn(async () => ({
       id: 'task-start-1',
       workflow_id: 'workflow-start-1',

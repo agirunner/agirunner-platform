@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { registerTaskOperatorRoutes } from './tasks/operator-routes.js';
-import { registerTaskPublicRoutes } from './tasks/public-routes.js';
+import { registerTaskOperatorRoutes } from './operator-routes.js';
+import { registerTaskPublicRoutes } from './public-routes.js';
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   await registerTaskPublicRoutes(app);

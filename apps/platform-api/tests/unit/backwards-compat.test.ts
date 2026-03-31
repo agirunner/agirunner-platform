@@ -50,12 +50,12 @@ describe('backwards compatibility', () => {
   describe('workflow routes exist', () => {
     it('workflow API paths are registered in route configuration', async () => {
       // Verify the workflows routes module exports correctly
-      const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+      const { workflowRoutes } = await import('../../src/api/routes/workflows/routes.js');
       expect(typeof workflowRoutes).toBe('function');
     });
 
     it('task routes module exports correctly', async () => {
-      const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+      const { taskRoutes } = await import('../../src/api/routes/tasks/routes.js');
       expect(typeof taskRoutes).toBe('function');
     });
   });

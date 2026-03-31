@@ -12,7 +12,7 @@ import {
   normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
-} from '../../../../../src/api/routes/orchestrator-control.routes.js';
+} from '../../../../../src/api/routes/orchestrator-control/routes.js';
 
 vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {

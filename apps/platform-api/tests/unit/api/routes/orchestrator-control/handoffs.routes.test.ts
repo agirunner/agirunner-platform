@@ -1,10 +1,10 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
-import { orchestratorControlRoutes } from '../../../../src/api/routes/orchestrator-control.routes.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
+import { orchestratorControlRoutes } from '../../../../../src/api/routes/orchestrator-control/routes.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',

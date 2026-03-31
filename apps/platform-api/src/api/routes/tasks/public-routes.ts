@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
 import { ValidationError } from '../../../errors/domain-errors.js';
-import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../pagination.js';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../../lib/pagination.js';
 import { parseExecutionBackendFilter, parseOptionalUuidFilter, parseTaskId, parseTaskStateFilter } from './filters.js';
 import {
   claimCredentialResolveSchema,

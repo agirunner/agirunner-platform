@@ -18,7 +18,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw approve requests for workflow-backed tasks even when request_id is repeated', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const approveTask = vi.fn(async () => ({
       id: 'task-1',
       workflow_id: 'workflow-1',
@@ -51,7 +51,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw approve-output requests for workflow-backed tasks even when request_id is repeated', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const approveTaskOutput = vi.fn(async () => ({
       id: 'task-2',
       workflow_id: 'workflow-2',
@@ -84,7 +84,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw cancel requests for workflow-backed tasks even when request_id is repeated', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const cancelTask = vi.fn(async () => ({ id: 'task-3', workflow_id: 'workflow-3', state: 'cancelled' }));
 
     app = buildTaskRouteApp(
@@ -112,7 +112,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw resolve-escalation mutations for workflow-linked tasks', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const resolveEscalation = vi.fn(async () => ({
       id: 'task-resolve-guard-1',
       workflow_id: 'workflow-resolve-guard-1',
@@ -154,7 +154,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw approve mutations for work-item-linked workflow tasks', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const approveTask = vi.fn(async () => ({
       id: 'task-work-item-approve-1',
       workflow_id: 'workflow-approve-guard-1',
@@ -196,7 +196,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('rejects raw cancel mutations for stage-linked workflow tasks without work items', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const cancelTask = vi.fn(async () => ({
       id: 'task-stage-cancel-1',
       workflow_id: 'workflow-cancel-guard-1',
@@ -238,7 +238,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('still allows raw resolve-escalation mutations for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const resolveEscalation = vi.fn(async () => ({ id: 'task-standalone-resolve-1', workflow_id: null, state: 'ready' }));
 
     app = buildTaskRouteApp(
@@ -259,7 +259,7 @@ describe('tasks routes raw operator guards', () => {
   });
 
   it('still allows raw approve mutations for standalone tasks', async () => {
-    const { taskRoutes } = await import('../../../../../src/api/routes/tasks.routes.js');
+    const { taskRoutes } = await import('../../../../../src/api/routes/tasks/routes.js');
     const approveTask = vi.fn(async () => ({ id: 'task-standalone-approve-1', workflow_id: null, state: 'ready' }));
 
     app = buildTaskRouteApp(

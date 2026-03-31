@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../../../../src/errors/error-handler.js';
-import { orchestratorControlRoutes } from '../../../../../../src/api/routes/orchestrator-control.routes.js';
+import { orchestratorControlRoutes } from '../../../../../../src/api/routes/orchestrator-control/routes.js';
 
 export interface ManagedTaskMessageRow {
   id: string;
