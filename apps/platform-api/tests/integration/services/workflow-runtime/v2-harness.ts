@@ -2,20 +2,20 @@ import { resolve } from 'node:path';
 
 import fastify from 'fastify';
 
-import type { AppEnv } from '../../../src/config/schema.js';
-import { DEFAULT_TENANT_ID } from '../../../src/db/seed.js';
-import { registerErrorHandler } from '../../../src/errors/error-handler.js';
-import { EventService } from '../../../src/services/event-service.js';
-import type { PlatformTransportTimingDefaults } from '../../../src/services/platform-timing-defaults.js';
-import { PlaybookService } from '../../../src/services/playbook-service.js';
-import { RoleDefinitionService } from '../../../src/services/role-definition-service.js';
-import { TaskService } from '../../../src/services/task-service.js';
-import { WorkerConnectionHub } from '../../../src/services/worker-connection-hub.js';
-import { WorkerService } from '../../../src/services/worker-service.js';
-import { WorkflowActivationDispatchService } from '../../../src/services/workflow-activation-dispatch-service.js';
-import { WorkflowActivationService } from '../../../src/services/workflow-activation-service.js';
-import { WorkflowService } from '../../../src/services/workflow-service.js';
-import type { TestDatabase } from './postgres.js';
+import type { AppEnv } from '../../../../src/config/schema.js';
+import { DEFAULT_TENANT_ID } from '../../../../src/db/seed.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { EventService } from '../../../../src/services/event-service.js';
+import type { PlatformTransportTimingDefaults } from '../../../../src/services/platform-timing-defaults.js';
+import { PlaybookService } from '../../../../src/services/playbook-service.js';
+import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
+import { TaskService } from '../../../../src/services/task-service.js';
+import { WorkerConnectionHub } from '../../../../src/services/worker-connection-hub.js';
+import { WorkerService } from '../../../../src/services/worker-service.js';
+import { WorkflowActivationDispatchService } from '../../../../src/services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationService } from '../../../../src/services/workflow-activation-service.js';
+import { WorkflowService } from '../../../../src/services/workflow-service.js';
+import type { TestDatabase } from '../../db/postgres.js';
 
 export const TEST_IDENTITY = {
   id: 'key-1',
@@ -98,7 +98,7 @@ export async function createOrchestratorControlTestApp(
   db: TestDatabase,
   harness: ReturnType<typeof createV2Harness>,
 ) {
-  const { orchestratorControlRoutes } = await import('../../../src/api/routes/orchestrator-control.routes.js');
+  const { orchestratorControlRoutes } = await import('../../../../src/api/routes/orchestrator-control.routes.js');
   const app = fastify();
   registerErrorHandler(app);
   app.decorate('pgPool', db.pool as never);

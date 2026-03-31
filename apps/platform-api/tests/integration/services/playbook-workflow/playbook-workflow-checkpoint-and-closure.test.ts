@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { TEST_IDENTITY as identity } from '../helpers/v2-harness.js';
-import { HandoffService } from '../../../src/services/handoff-service.js';
+import { TEST_IDENTITY as identity } from '../workflow-runtime/v2-harness.js';
+import { HandoffService } from '../../../../src/services/handoff-service.js';
 import {
   setupPlaybookWorkflowIntegrationSuite,
   type PlaybookWorkflowIntegrationSuite,

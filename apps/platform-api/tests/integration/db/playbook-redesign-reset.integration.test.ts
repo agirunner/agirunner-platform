@@ -2,15 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { seedConfigTables } from '../../src/bootstrap/seed.js';
-import { DEFAULT_ADMIN_KEY_PREFIX, seedDefaultTenant } from '../../src/db/seed.js';
-import { PlaybookRedesignResetService } from '../../src/services/redesign-reset-service.js';
+import { seedConfigTables } from '../../../src/bootstrap/seed.js';
+import { DEFAULT_ADMIN_KEY_PREFIX, seedDefaultTenant } from '../../../src/db/seed.js';
+import { PlaybookRedesignResetService } from '../../../src/services/redesign-reset-service.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from './postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_playbook_redesign_reset_key';
 const canRunIntegration = isContainerRuntimeAvailable();

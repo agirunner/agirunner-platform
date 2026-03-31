@@ -1,19 +1,19 @@
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from '../../src/db/migrations/run-migrations.js';
-import { seedDefaultTenant } from '../../src/db/seed.js';
-import { seedConfigTables } from '../../src/bootstrap/seed.js';
-import { resetPlaybookRedesignState } from '../../src/bootstrap/seed.js';
+import { runMigrations } from '../../../src/db/migrations/run-migrations.js';
+import { seedDefaultTenant } from '../../../src/db/seed.js';
+import { seedConfigTables } from '../../../src/bootstrap/seed.js';
+import { resetPlaybookRedesignState } from '../../../src/bootstrap/seed.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from './postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_reset_suite_contract_key';
 const canRunIntegration = isContainerRuntimeAvailable();
@@ -422,12 +422,16 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
 function readRuntimeDefaultsDashboardFieldKeys(): string[] {
   const dashboardDir = path.resolve(
     __dirname,
-    '../../../dashboard/src/pages/runtimes',
+    '../../../../dashboard/src/pages/agentic-settings',
   );
-  const sources = [
-    path.join(dashboardDir, 'runtime-defaults.schema.ts'),
-    path.join(dashboardDir, 'runtime-defaults-runtime-ops.ts'),
-  ];
+  const sources = readdirSync(dashboardDir)
+    .filter(
+      (file) =>
+        file.startsWith('runtime-defaults') &&
+        (file.endsWith('.ts') || file.endsWith('.tsx')) &&
+        !file.includes('.test.'),
+    )
+    .map((file) => path.join(dashboardDir, file));
   const keys = new Set<string>();
   const objectKeyPattern = /key:\s*'([^']+)'/g;
   const generatedFieldPattern = /[A-Za-z_]+Field\('([^']+)'/g;
@@ -482,5 +486,5 @@ function readRuntimeDefaultsDashboardFieldKeys(): string[] {
 
 function migrationsDirFromTest() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(currentDir, '..', '..', 'src', 'db', 'migrations');
+  return path.join(currentDir, '..', '..', '..', 'src', 'db', 'migrations');
 }

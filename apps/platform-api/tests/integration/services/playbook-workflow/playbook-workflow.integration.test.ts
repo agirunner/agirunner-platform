@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown; headers: Record<string, unknown> }) => {
     const rawOwnerId = request.headers['x-test-owner-id'];
     const ownerId = Array.isArray(rawOwnerId) ? rawOwnerId[0] : rawOwnerId;
@@ -16,9 +16,9 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
-import './playbook-workflow/playbook-workflow-creation-and-history.test.js';
-import './playbook-workflow/playbook-workflow-launch-and-completion.test.js';
-import './playbook-workflow/playbook-workflow-checkpoint-and-closure.test.js';
-import './playbook-workflow/playbook-workflow-rollups.test.js';
-import './playbook-workflow/playbook-workflow-dispatch.test.js';
-import './playbook-workflow/playbook-workflow-child-linkage.test.js';
+import './playbook-workflow-creation-and-history.test.js';
+import './playbook-workflow-launch-and-completion.test.js';
+import './playbook-workflow-checkpoint-and-closure.test.js';
+import './playbook-workflow-rollups.test.js';
+import './playbook-workflow-dispatch.test.js';
+import './playbook-workflow-child-linkage.test.js';

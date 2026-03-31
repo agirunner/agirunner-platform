@@ -1,19 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { FleetService } from '../../src/services/fleet-service.js';
-import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
-import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
+import { FleetService } from '../../../../src/services/fleet-service.js';
+import { ModelCatalogService } from '../../../../src/services/model-catalog-service.js';
+import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults-service.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
   createV2Harness,
-} from './helpers/v2-harness.js';
+} from './v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from '../../db/postgres.js';
 
 const VERIFIED_BASELINE_COMMANDS = [
   'sleep',

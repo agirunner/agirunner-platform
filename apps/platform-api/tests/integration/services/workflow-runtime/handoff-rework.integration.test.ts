@@ -1,17 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { HandoffService } from '../../src/services/handoff-service.js';
-import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
+import { HandoffService } from '../../../../src/services/handoff-service.js';
+import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults-service.js';
 import {
   TEST_IDENTITY as identity,
   createV2Harness,
-} from './helpers/v2-harness.js';
+} from './v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from '../../db/postgres.js';
 
 describe('handoff rework integration', () => {
   let db: TestDatabase;

@@ -1,21 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runWorkflowActivationDispatchTick } from '../../src/jobs/lifecycle-monitor.js';
+import { runWorkflowActivationDispatchTick } from '../../../../src/jobs/lifecycle-monitor.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
   createV2Harness,
-} from './helpers/v2-harness.js';
+} from './v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
-import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
-import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
-import { HandoffService } from '../../src/services/handoff-service.js';
-import { WorkflowOperatorBriefService } from '../../src/services/workflow-operator-brief-service.js';
+} from '../../db/postgres.js';
+import { ModelCatalogService } from '../../../../src/services/model-catalog-service.js';
+import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults-service.js';
+import { HandoffService } from '../../../../src/services/handoff-service.js';
+import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator-brief-service.js';
 
 describe('workflow activation recovery integration', () => {
   let db: TestDatabase;

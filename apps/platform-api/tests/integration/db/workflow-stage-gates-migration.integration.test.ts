@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from '../../src/db/migrations/run-migrations.js';
+import { runMigrations } from '../../../src/db/migrations/run-migrations.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from './postgres.js';
 
 const canRunIntegration = isContainerRuntimeAvailable();
 
@@ -104,5 +104,5 @@ async function createMigrationSubsetDir(files: string[]) {
 
 function migrationsDirFromTest() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(currentDir, '..', '..', 'src', 'db', 'migrations');
+  return path.join(currentDir, '..', '..', '..', 'src', 'db', 'migrations');
 }

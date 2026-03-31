@@ -2,15 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { seedDefaultTenant } from '../../src/db/seed.js';
-import { seedConfigTables } from '../../src/bootstrap/seed.js';
-import { BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG } from '../../src/services/execution-environment-starters.js';
+import { seedDefaultTenant } from '../../../src/db/seed.js';
+import { seedConfigTables } from '../../../src/bootstrap/seed.js';
+import { BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG } from '../../../src/services/execution-environment-starters.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from './helpers/postgres.js';
+} from './postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_seed_llm_defaults_key';
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';

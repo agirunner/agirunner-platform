@@ -2,22 +2,22 @@ import { randomUUID } from 'node:crypto';
 
 import { vi } from 'vitest';
 
-import { seedConfigTables } from '../../../src/bootstrap/seed.js';
-import { ApprovalQueueService } from '../../../src/services/approval-queue-service.js';
-import { RoleDefinitionService } from '../../../src/services/role-definition-service.js';
-import { WorkflowChainingService } from '../../../src/services/workflow-chaining-service.js';
+import { seedConfigTables } from '../../../../src/bootstrap/seed.js';
+import { ApprovalQueueService } from '../../../../src/services/approval-queue-service.js';
+import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
+import { WorkflowChainingService } from '../../../../src/services/workflow-chaining-service.js';
 import {
   TEST_IDENTITY as identity,
   createV2Harness,
-} from '../helpers/v2-harness.js';
+} from '../workflow-runtime/v2-harness.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
   stopTestDatabase,
   type TestDatabase,
-} from '../helpers/postgres.js';
+} from '../../db/postgres.js';
 
-vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown; headers: Record<string, unknown> }) => {
     const rawOwnerId = request.headers['x-test-owner-id'];
     const ownerId = Array.isArray(rawOwnerId) ? rawOwnerId[0] : rawOwnerId;
