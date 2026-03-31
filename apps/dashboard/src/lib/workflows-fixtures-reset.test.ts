@@ -6,7 +6,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: execFileSyncMock,
 }));
 
-import { resetWorkflowsState } from '../../tests/e2e/support/workflows-fixture-reset.js';
+import { resetWorkflowsState } from '../../../../tests/integration/dashboard/support/workflows-fixture-reset.js';
 
 type FetchPayload = {
   ok?: boolean;

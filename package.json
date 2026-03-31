@@ -10,12 +10,13 @@
     "typecheck": "corepack pnpm -r typecheck",
     "test": "corepack pnpm -r test",
     "test:ci": "corepack pnpm -r test",
+    "test:integration:dashboard": "./tests/integration/dashboard/run.sh",
     "test:v2-contract": "./scripts/test-v2-contract.sh",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
   "devDependencies": {
-    "@playwright/test": "1.50.1",
+    "@playwright/test": "1.51.1",
     "@types/bcryptjs": "2.4.6",
     "@types/node": "22.13.5",
     "@types/pg": "8.11.11",

@@ -12,7 +12,7 @@ import {
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
-import { buildBulkWorkflowInsertSql } from '../../../src/testing/workflows-bulk-seed.js';
+import { buildBulkWorkflowInsertSql } from '../../../../apps/dashboard/src/testing/workflows-bulk-seed.js';
 import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
 interface ApiRecord {

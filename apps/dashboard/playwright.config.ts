@@ -1,9 +1,9 @@
 import { defineConfig } from '@playwright/test';
 
-import { DASHBOARD_BASE_URL } from './tests/e2e/support/platform-env.js';
+import { DASHBOARD_BASE_URL } from '../../tests/integration/dashboard/support/platform-env.js';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: '../../tests/integration/dashboard',
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

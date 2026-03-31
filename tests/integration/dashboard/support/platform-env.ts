@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(CURRENT_DIR, '../../../../..');
+const REPO_ROOT = resolve(CURRENT_DIR, '../../../..');
 const ENV_PATH = resolve(REPO_ROOT, '.env');
 
 const envEntries = parseDotEnv(readFileSync(ENV_PATH, 'utf8'));
@@ -11,6 +11,7 @@ const envEntries = parseDotEnv(readFileSync(ENV_PATH, 'utf8'));
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 export const DASHBOARD_BASE_URL = `http://localhost:${readPlatformEnv('DASHBOARD_PORT', '3000')}`;
 export const PLATFORM_API_URL = `http://localhost:${readPlatformEnv('PLATFORM_API_PORT', '8080')}`;
+export const PLATFORM_API_CONTAINER_NAME = 'agirunner-platform-platform-api-1';
 export const POSTGRES_CONTAINER_NAME = 'agirunner-platform-postgres-1';
 export const POSTGRES_DB = readPlatformEnv('POSTGRES_DB', 'agirunner');
 export const POSTGRES_USER = readPlatformEnv('POSTGRES_USER', 'agirunner');

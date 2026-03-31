@@ -8,7 +8,7 @@ vi.mock('node:child_process', () => ({
   execFileSync,
 }));
 
-import { appendWorkflowEvent } from '../../../tests/e2e/support/workflows-fixtures.js';
+import { appendWorkflowEvent } from '../../../../../tests/integration/dashboard/support/workflows-fixtures.js';
 
 describe('workflows-fixtures appendWorkflowEvent', () => {
   beforeEach(() => {

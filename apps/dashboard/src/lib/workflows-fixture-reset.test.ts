@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { resetWorkflowsState } from '../../tests/e2e/support/workflows-fixture-reset.js';
+import { resetWorkflowsState } from '../../../../tests/integration/dashboard/support/workflows-fixture-reset.js';
 
 describe('workflows-fixture-reset', () => {
   afterEach(() => {

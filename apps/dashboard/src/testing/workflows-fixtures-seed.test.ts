@@ -8,9 +8,9 @@ import {
   POSTGRES_DB,
   POSTGRES_USER,
   PLATFORM_API_URL,
-} from '../../tests/e2e/support/platform-env.js';
-import { resetWorkflowsState } from '../../tests/e2e/support/workflows-fixture-reset.js';
-import { seedWorkflowsScenario } from '../../tests/e2e/support/workflows-fixtures.js';
+} from '../../../../tests/integration/dashboard/support/platform-env.js';
+import { resetWorkflowsState } from '../../../../tests/integration/dashboard/support/workflows-fixture-reset.js';
+import { seedWorkflowsScenario } from '../../../../tests/integration/dashboard/support/workflows-fixtures.js';
 
 describe('seedWorkflowsScenario', () => {
   afterEach(async () => {
