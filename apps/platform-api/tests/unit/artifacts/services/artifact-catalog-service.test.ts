@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ArtifactCatalogService } from '../../../../src/services/artifact-catalog-service.js';
+import { ArtifactCatalogService } from '../../../../src/services/artifacts/artifact-catalog-service.js';
 import { ValidationError } from '../../../../src/errors/domain-errors.js';
 
 const ARTIFACT_ID = '11111111-1111-4111-8111-111111111111';

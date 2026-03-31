@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ArtifactService } from '../../../../src/services/artifact-service.js';
+import { ArtifactService } from '../../../../src/services/artifacts/artifact-service.js';
 
 function createStorage() {
   return {

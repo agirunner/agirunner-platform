@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ApiKeyIdentity } from '../../../auth/api-key.js';
 import { buildArtifactStorageConfig } from '../../../content/storage-config.js';
 import { createArtifactStorage } from '../../../content/storage-factory.js';
-import { ArtifactService } from '../../../services/artifact-service.js';
+import { ArtifactService } from '../../../services/artifacts/artifact-service.js';
 import { GuidedClosureRecoveryHelpersService } from '../../../services/guided-closure/recovery-helpers.js';
 import { HandoffService } from '../../../services/handoff-service.js';
 import { OrchestratorActivationCheckpointService } from '../../../services/orchestrator-activation-checkpoint-service.js';

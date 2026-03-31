@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
-import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../content/storage-config.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
+import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../../content/storage-config.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 
 interface ArtifactRow {
   id: string;

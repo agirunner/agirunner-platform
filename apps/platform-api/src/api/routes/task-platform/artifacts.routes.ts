@@ -6,7 +6,7 @@ import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
 import { buildArtifactStorageConfig } from '../../../content/storage-config.js';
 import { createArtifactStorage } from '../../../content/storage-factory.js';
 import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
-import { ArtifactService } from '../../../services/artifact-service.js';
+import { ArtifactService } from '../../../services/artifacts/artifact-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
 import { runIdempotentTaskRouteAction } from './route-idempotency.js';
 

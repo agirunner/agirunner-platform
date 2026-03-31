@@ -1,4 +1,4 @@
-import { describeArtifactPreview } from '../artifact-service.js';
+import { describeArtifactPreview } from '../artifacts/artifact-service.js';
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import type {
   WorkspaceArtifactExplorerRecord,

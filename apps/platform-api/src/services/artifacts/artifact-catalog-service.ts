@@ -1,8 +1,8 @@
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
 import { z } from 'zod';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import {
   type ArtifactResponse,
   assertArtifactPreviewEligible,

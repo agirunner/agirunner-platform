@@ -3,7 +3,7 @@ import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ArtifactRetentionService } from './artifact-retention-service.js';
+import { ArtifactRetentionService } from './artifacts/artifact-retention-service.js';
 import { DestructiveDeleteService } from './destructive-delete-service.js';
 import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';

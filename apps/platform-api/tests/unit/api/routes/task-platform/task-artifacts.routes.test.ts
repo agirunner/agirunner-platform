@@ -21,7 +21,7 @@ vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../../../src/services/artifact-service.js', () => ({
+vi.mock('../../../../../src/services/artifacts/artifact-service.js', () => ({
   ArtifactService: vi.fn().mockImplementation(() => ({
     listTaskArtifacts: vi.fn(),
     uploadTaskArtifact,

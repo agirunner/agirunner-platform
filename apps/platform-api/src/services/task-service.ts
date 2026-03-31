@@ -1,9 +1,9 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import { ArtifactService } from './artifact-service.js';
+import { ArtifactService } from './artifacts/artifact-service.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ArtifactRetentionService } from './artifact-retention-service.js';
+import { ArtifactRetentionService } from './artifacts/artifact-retention-service.js';
 import { EventService } from './event/event-service.js';
 import { ModelCatalogService } from './model-catalog-service.js';
 import { TaskClaimService } from './task-claim/task-claim-service.js';

@@ -1,5 +1,5 @@
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
 interface RetainedArtifactRow {
   id: string;
