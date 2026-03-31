@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { CircuitBreakerService } from '../../services/circuit-breaker-service.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { CircuitBreakerService } from '../../../services/circuit-breaker-service.js';
 
 const reportSchema = z.object({
   workerId: z.string().uuid(),

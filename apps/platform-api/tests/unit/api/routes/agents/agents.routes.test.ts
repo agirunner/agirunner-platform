@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('agents routes', () => {
   });
 
   it('rejects legacy capabilities on agent registration', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
+    const { agentRoutes } = await import('../../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn();
 
     app = fastify();
@@ -60,7 +60,7 @@ describe('agents routes', () => {
   });
 
   it('accepts explicit suppression of agent api key issuance', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
+    const { agentRoutes } = await import('../../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
 
     app = fastify();
@@ -93,7 +93,7 @@ describe('agents routes', () => {
   });
 
   it('accepts playbook scope on agent registration', async () => {
-    const { agentRoutes } = await import('../../../../src/api/routes/agents/agents.routes.js');
+    const { agentRoutes } = await import('../../../../../src/api/routes/agents/agents.routes.js');
     const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
 
     app = fastify();

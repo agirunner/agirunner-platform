@@ -42,7 +42,7 @@ describe('execution-logs route helpers', () => {
     actors?: ReturnType<typeof vi.fn>;
     stats?: ReturnType<typeof vi.fn>;
   } = {}) {
-    const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs.routes.js');
+    const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs/execution-logs.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

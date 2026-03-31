@@ -103,7 +103,7 @@ export function createExecutionLogsLogService(
 export async function createExecutionLogsApp(
   overrides: Partial<ExecutionLogsRouteLogService> = {},
 ) {
-  const { executionLogRoutes } = await import('../../src/api/routes/execution-logs.routes.js');
+  const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs/execution-logs.routes.js');
   const app = fastify();
   const logService = createExecutionLogsLogService(overrides);
 

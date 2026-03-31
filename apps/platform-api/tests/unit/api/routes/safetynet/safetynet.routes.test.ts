@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -26,7 +26,7 @@ describe('safetynet routes', () => {
   });
 
   it('returns the live safetynet inventory', async () => {
-    const { safetynetRoutes } = await import('../../../../src/api/routes/safetynet.routes.js');
+    const { safetynetRoutes } = await import('../../../../../src/api/routes/safetynet/safetynet.routes.js');
 
     app = fastify();
     await app.register(safetynetRoutes);

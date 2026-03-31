@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('workflow model override routes', () => {
   });
 
   it('rejects legacy create-time model_overrides payloads', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
     const createWorkflow = vi.fn().mockResolvedValue({ id: 'workflow-1' });
 
     app = fastify();
@@ -87,7 +87,7 @@ describe('workflow model override routes', () => {
   });
 
   it('does not expose retired workflow model-routing routes', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
 
     app = fastify();
     registerErrorHandler(app);

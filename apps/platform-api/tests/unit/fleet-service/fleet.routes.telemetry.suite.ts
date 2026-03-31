@@ -33,7 +33,7 @@ describe('fleet routes telemetry', () => {
   });
 
   it('accepts snake_case actual-state payloads from workers', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -72,7 +72,7 @@ describe('fleet routes telemetry', () => {
   });
 
   it('returns 400 instead of 500 when actual-state payload is missing required ids', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -95,7 +95,7 @@ describe('fleet routes telemetry', () => {
   });
 
   it('wraps fleet heartbeat responses in the standard data envelope', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -138,7 +138,7 @@ describe('fleet routes telemetry', () => {
   });
 
   it('deletes fleet heartbeats idempotently', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -157,4 +157,3 @@ describe('fleet routes telemetry', () => {
     expect(removeHeartbeat).toHaveBeenCalledWith('tenant-1', 'runtime-1');
   });
 });
-

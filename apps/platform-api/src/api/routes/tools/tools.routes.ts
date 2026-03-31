@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { toolCategoryValues } from '../../services/tool-tag-service.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import { toolCategoryValues } from '../../../services/tool-tag-service.js';
 
 const createToolTagSchema = z.object({
   id: z.string().min(1).max(255),

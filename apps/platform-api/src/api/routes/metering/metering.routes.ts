@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { ValidationError } from '../../errors/domain-errors.js';
-import { MeteringService } from '../../services/metering-service.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
+import { MeteringService } from '../../../services/metering-service.js';
 
 const recordSchema = z.object({
   taskId: z.string().uuid(),

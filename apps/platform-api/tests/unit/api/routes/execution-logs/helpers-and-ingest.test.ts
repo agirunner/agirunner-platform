@@ -19,7 +19,7 @@ vi.mock('../../../../../src/auth/rbac.js', () => ({
   withRole: () => async () => {},
 }));
 
-import { ingestSchema } from '../../../../../src/api/routes/execution-logs.routes.js';
+import { ingestSchema } from '../../../../../src/api/routes/execution-logs/execution-logs.routes.js';
 
 describe('execution-logs route helpers', () => {
   beforeEach(() => {

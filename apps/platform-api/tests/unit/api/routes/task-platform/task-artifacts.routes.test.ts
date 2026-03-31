@@ -2,12 +2,12 @@ import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { taskArtifactRoutes } from '../../../../src/api/routes/task-platform/artifacts.routes.js';
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { taskArtifactRoutes } from '../../../../../src/api/routes/task-platform/artifacts.routes.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 const uploadTaskArtifact = vi.fn();
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -21,7 +21,7 @@ vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../../src/services/artifact-service.js', () => ({
+vi.mock('../../../../../src/services/artifact-service.js', () => ({
   ArtifactService: vi.fn().mockImplementation(() => ({
     listTaskArtifacts: vi.fn(),
     uploadTaskArtifact,

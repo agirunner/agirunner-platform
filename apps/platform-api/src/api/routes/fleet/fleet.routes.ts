@@ -1,14 +1,14 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
 import type {
   CreateDesiredStateInput,
   UpdateDesiredStateInput,
   HeartbeatPayload,
   FleetEventFilters,
-} from '../../services/fleet-service.js';
+} from '../../../services/fleet-service.js';
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
   const service = app.fleetService;

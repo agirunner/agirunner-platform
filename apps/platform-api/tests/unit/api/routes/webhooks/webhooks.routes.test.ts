@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('webhook routes', () => {
   });
 
   it('rejects git webhooks when the matched workspace has no configured per-workspace secret', async () => {
-    const { webhookRoutes } = await import('../../../../src/api/routes/webhooks.routes.js');
+    const { webhookRoutes } = await import('../../../../../src/api/routes/webhooks/webhooks.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

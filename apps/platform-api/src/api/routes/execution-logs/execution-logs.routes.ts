@@ -1,16 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { withRole } from '../../auth/rbac.js';
-import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { withRole } from '../../../auth/rbac.js';
+import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
 import {
   PUBLIC_LOG_CSV_COLUMNS,
   toPublicLogRow,
   toPublicLogSummaryRow,
-} from '../../logging/public-log-row.js';
-import type { LogStreamFilters } from '../../logging/log-stream-service.js';
-import type { LogFilters, LogRow, LogStatsFilters } from '../../logging/log-service.js';
+} from '../../../logging/public-log-row.js';
+import type { LogStreamFilters } from '../../../logging/log-stream-service.js';
+import type { LogFilters, LogRow, LogStatsFilters } from '../../../logging/log-service.js';
 
 const validSources = ['runtime', 'container_manager', 'platform', 'task_container'] as const;
 const validCategories = [

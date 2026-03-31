@@ -3,14 +3,14 @@ import { Readable } from 'node:stream';
 
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
-import { UnauthorizedError } from '../../errors/domain-errors.js';
-import { NotFoundError } from '../../errors/domain-errors.js';
+import { UnauthorizedError } from '../../../errors/domain-errors.js';
+import { NotFoundError } from '../../../errors/domain-errors.js';
 import {
   extractRepositoryUrl,
   extractTaskIdFromGitPayload,
   mapGitEventType,
   normalizeGitEvent,
-} from '../../services/git-platform-adapter.js';
+} from '../../../services/git-platform-adapter.js';
 
 interface InboundWebhookIdentity {
   provider: 'github' | 'gitea' | 'gitlab';

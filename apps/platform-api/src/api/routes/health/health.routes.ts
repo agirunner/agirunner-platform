@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { metricsRegistry } from '../../observability/metrics.js';
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { metricsRegistry } from '../../../observability/metrics.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
   app.get('/health', async () => ({ status: 'ok' }));

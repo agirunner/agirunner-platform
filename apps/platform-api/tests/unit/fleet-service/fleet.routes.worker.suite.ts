@@ -33,7 +33,7 @@ describe('fleet routes', () => {
   });
 
   it('does not serialize llm api key secret refs on worker list responses', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -93,7 +93,7 @@ describe('fleet routes', () => {
   });
 
   it('passes the enabled filter through worker list requests', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -113,7 +113,7 @@ describe('fleet routes', () => {
   });
 
   it('returns a reconcile snapshot for worker-scope fleet consumers', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -160,7 +160,7 @@ describe('fleet routes', () => {
   });
 
   it('does not serialize llm api key secret refs on worker create responses', async () => {
-    const { fleetRoutes } = await import('../../../src/api/routes/fleet.routes.js');
+    const { fleetRoutes } = await import('../../../src/api/routes/fleet/fleet.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -233,4 +233,3 @@ describe('fleet routes', () => {
     );
   });
 });
-

@@ -37,7 +37,7 @@ describe('execution-logs route helpers', () => {
   });
 
   async function registerRoutes() {
-    const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs.routes.js');
+    const { executionLogRoutes } = await import('../../../../../src/api/routes/execution-logs/execution-logs.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
