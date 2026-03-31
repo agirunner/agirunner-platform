@@ -20,8 +20,8 @@ import {
   createDefaultAuthoringDraft,
   reconcileValidationIssues,
   type PlaybookAuthoringDraft,
-} from '../playbook-authoring/playbook-authoring-support.js';
-import { PlaybookAuthoringForm } from '../playbook-authoring/playbook-authoring-form.js';
+} from '../playbook-shared/authoring/playbook-authoring-support.js';
+import { PlaybookAuthoringForm } from '../playbook-shared/authoring/playbook-authoring-form.js';
 import {
   Select,
   SelectContent,

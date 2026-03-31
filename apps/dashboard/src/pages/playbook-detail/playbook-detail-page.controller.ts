@@ -18,7 +18,7 @@ import {
   hydratePlaybookAuthoringDraft,
   reconcileValidationIssues,
   type PlaybookAuthoringDraft,
-} from '../playbook-authoring/playbook-authoring-support.js';
+} from '../playbook-shared/authoring/playbook-authoring-support.js';
 import {
   buildPlaybookRevisionChain,
   buildPlaybookRevisionDiff,
