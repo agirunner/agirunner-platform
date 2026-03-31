@@ -1,59 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { RoleDefinitionService } from '../../src/services/role-definition-service.js';
-
-function createMockPool() {
-  return { query: vi.fn() };
-}
-
-const TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const ROLE_ID = '00000000-0000-0000-0000-000000000099';
-const ENVIRONMENT_ID = '00000000-0000-0000-0000-000000000777';
-const MCP_SERVER_ID = '00000000-0000-0000-0000-000000000888';
-const SKILL_ID = '00000000-0000-0000-0000-000000000889';
-
-function buildRoleRow(
-  overrides: Partial<Record<string, unknown>> = {},
-): Record<string, unknown> {
-  return {
-    id: ROLE_ID,
-    tenant_id: TENANT_ID,
-    name: 'developer',
-    description: 'Implements features',
-    system_prompt: 'You are a developer.',
-    allowed_tools: ['file_read', 'file_write'],
-    model_preference: 'gpt-5-mini',
-    verification_strategy: 'peer_review',
-    execution_environment_id: null,
-    escalation_target: null,
-    max_escalation_depth: 5,
-    is_active: true,
-    version: 1,
-    created_at: new Date(),
-    updated_at: new Date(),
-    ee_id: null,
-    ee_name: null,
-    ee_source_kind: null,
-    ee_catalog_key: null,
-    ee_catalog_version: null,
-    ee_image: null,
-    ee_cpu: null,
-    ee_memory: null,
-    ee_pull_policy: null,
-    ee_compatibility_status: null,
-    ee_verification_contract_version: null,
-    ee_verified_metadata: null,
-    ee_tool_capabilities: null,
-    ee_bootstrap_commands: null,
-    ee_bootstrap_required_domains: null,
-    ee_catalog_support_status: null,
-    mcp_server_ids: [],
-    skill_ids: [],
-    mcp_servers: [],
-    skills: [],
-    ...overrides,
-  };
-}
+import { RoleDefinitionService } from '../../../src/services/role-definition-service.js';
+import {
+  buildRoleRow,
+  createMockPool,
+  ENVIRONMENT_ID,
+  MCP_SERVER_ID,
+  ROLE_ID,
+  SKILL_ID,
+  TENANT_ID,
+} from './role-definition-test-fixtures.js';
 
 describe('RoleDefinitionService', () => {
   let pool: ReturnType<typeof createMockPool>;
@@ -66,8 +22,7 @@ describe('RoleDefinitionService', () => {
 
   describe('listRoles', () => {
     it('returns all roles for tenant', async () => {
-      const sampleRole = buildRoleRow();
-      pool.query.mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 });
 
       const result = await service.listRoles(TENANT_ID);
 
@@ -130,45 +85,49 @@ describe('RoleDefinitionService', () => {
 
   describe('getRoleById', () => {
     it('returns role when found', async () => {
-      const roleRow = buildRoleRow({
-        execution_environment_id: ENVIRONMENT_ID,
-        mcp_server_ids: [MCP_SERVER_ID],
-        skill_ids: [SKILL_ID],
-        mcp_servers: [
-          {
-            id: MCP_SERVER_ID,
-            name: 'Docs MCP',
-            slug: 'docs-mcp',
-            verification_status: 'verified',
-            is_archived: false,
-          },
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          buildRoleRow({
+            execution_environment_id: ENVIRONMENT_ID,
+            mcp_server_ids: [MCP_SERVER_ID],
+            skill_ids: [SKILL_ID],
+            mcp_servers: [
+              {
+                id: MCP_SERVER_ID,
+                name: 'Docs MCP',
+                slug: 'docs-mcp',
+                verification_status: 'verified',
+                is_archived: false,
+              },
+            ],
+            skills: [
+              {
+                id: SKILL_ID,
+                name: 'Docs Research',
+                slug: 'docs-research',
+                is_archived: false,
+              },
+            ],
+            ee_id: ENVIRONMENT_ID,
+            ee_name: 'Debian Base',
+            ee_source_kind: 'catalog',
+            ee_catalog_key: 'debian-base',
+            ee_catalog_version: 1,
+            ee_image: 'debian:trixie-slim',
+            ee_cpu: '2',
+            ee_memory: '1Gi',
+            ee_pull_policy: 'if-not-present',
+            ee_compatibility_status: 'compatible',
+            ee_verification_contract_version: 'v1',
+            ee_verified_metadata: { distro: 'debian' },
+            ee_tool_capabilities: { verified_baseline_commands: ['sh'] },
+            ee_bootstrap_commands: [],
+            ee_bootstrap_required_domains: [],
+            ee_catalog_support_status: 'active',
+          }),
         ],
-        skills: [
-          {
-            id: SKILL_ID,
-            name: 'Docs Research',
-            slug: 'docs-research',
-            is_archived: false,
-          },
-        ],
-        ee_id: ENVIRONMENT_ID,
-        ee_name: 'Debian Base',
-        ee_source_kind: 'catalog',
-        ee_catalog_key: 'debian-base',
-        ee_catalog_version: 1,
-        ee_image: 'debian:trixie-slim',
-        ee_cpu: '2',
-        ee_memory: '1Gi',
-        ee_pull_policy: 'if-not-present',
-        ee_compatibility_status: 'compatible',
-        ee_verification_contract_version: 'v1',
-        ee_verified_metadata: { distro: 'debian' },
-        ee_tool_capabilities: { verified_baseline_commands: ['sh'] },
-        ee_bootstrap_commands: [],
-        ee_bootstrap_required_domains: [],
-        ee_catalog_support_status: 'active',
+        rowCount: 1,
       });
-      pool.query.mockResolvedValueOnce({ rows: [roleRow], rowCount: 1 });
 
       const result = await service.getRoleById(TENANT_ID, ROLE_ID);
 
@@ -437,13 +396,11 @@ describe('RoleDefinitionService', () => {
     });
 
     it('allows already-assigned archived MCP servers and skills to remain on update', async () => {
-      let roleLookupCount = 0;
       pool.query.mockImplementation(async (sql: unknown) => {
         if (typeof sql !== 'string') {
           return { rows: [], rowCount: 1 };
         }
         if (sql.includes('WHERE rd.tenant_id = $1') && sql.includes('AND rd.id = $2')) {
-          roleLookupCount += 1;
           return {
             rows: [
               buildRoleRow({
@@ -488,8 +445,7 @@ describe('RoleDefinitionService', () => {
     });
 
     it('returns current role when no fields to update', async () => {
-      const current = buildRoleRow();
-      pool.query.mockResolvedValueOnce({ rows: [current], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 });
 
       const result = await service.updateRole(TENANT_ID, ROLE_ID, {});
 
@@ -498,160 +454,6 @@ describe('RoleDefinitionService', () => {
           id: ROLE_ID,
           execution_environment: null,
         }),
-      );
-    });
-  });
-
-  describe('secret redaction', () => {
-    const REDACTED = 'redacted://role-definition-secret';
-
-    it('redacts secret references in system_prompt via listRoles', async () => {
-      const roleWithSecrets = buildRoleRow({
-        system_prompt: 'secret:provider-api-key-openai',
-      });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithSecrets], rowCount: 1 });
-
-      const result = await service.listRoles(TENANT_ID);
-
-      expect(result[0].system_prompt).toBe(REDACTED);
-    });
-
-    it('redacts secret references in system_prompt via getRoleById', async () => {
-      const roleWithSecret = buildRoleRow({ system_prompt: 'secret:github-token-prod' });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithSecret], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result.system_prompt).toBe(REDACTED);
-    });
-
-    it('redacts secret references in system_prompt via getRoleByName', async () => {
-      const roleWithSecrets = buildRoleRow({ system_prompt: 'secret:my-db-password' });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithSecrets], rowCount: 1 });
-
-      const result = await service.getRoleByName(TENANT_ID, 'developer');
-
-      expect(result!.system_prompt).toBe(REDACTED);
-    });
-
-    it('redacts secret references in system_prompt via createRole', async () => {
-      const insertedRow = buildRoleRow({ system_prompt: 'secret:openai-key' });
-      pool.query
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [{ id: ROLE_ID }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [insertedRow], rowCount: 1 });
-
-      const result = await service.createRole(TENANT_ID, {
-        name: 'developer',
-        systemPrompt: 'secret:openai-key',
-        allowedTools: [],
-      });
-
-      expect(result.system_prompt).toBe(REDACTED);
-    });
-
-    it('redacts secret references in system_prompt via updateRole', async () => {
-      const updatedRow = buildRoleRow({ system_prompt: 'secret:github-token-prod' });
-      pool.query
-        .mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ id: ROLE_ID }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [updatedRow], rowCount: 1 });
-
-      const result = await service.updateRole(TENANT_ID, ROLE_ID, {
-        systemPrompt: 'secret:github-token-prod',
-      });
-
-      expect(result.system_prompt).toBe(REDACTED);
-    });
-
-    it('preserves non-secret system_prompt content unchanged', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result.system_prompt).toBe('You are a developer.');
-      expect(result.name).toBe('developer');
-      expect(result.description).toBe('Implements features');
-    });
-
-    it('redacts enc:v1 encrypted values in description field', async () => {
-      const roleWithEncrypted = buildRoleRow({
-        description: 'enc:v1:ciphertext-data-here',
-      });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithEncrypted], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result.description).toBe(REDACTED);
-    });
-
-    it('redacts secret references in model_preference field', async () => {
-      const roleWithSecretModel = buildRoleRow({
-        model_preference: 'secret:custom-model-key',
-      });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithSecretModel], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result.model_preference).toBe(REDACTED);
-    });
-
-    it('preserves Date fields through sanitization', async () => {
-      const now = new Date();
-      const roleWithDates = buildRoleRow({ created_at: now, updated_at: now });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithDates], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result.created_at).toEqual(now);
-      expect(result.updated_at).toEqual(now);
-    });
-
-  });
-
-  describe('deleteRole', () => {
-    it('deletes a role not used by any playbook', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 });
-
-      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).resolves.toBeUndefined();
-      expect(pool.query).toHaveBeenNthCalledWith(
-        4,
-        'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
-        [TENANT_ID, 'developer'],
-      );
-    });
-
-    it('rejects delete when role is used by playbook', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ name: 'SDLC' }], rowCount: 1 });
-
-      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow('used by playbook');
-    });
-
-    it('rejects delete when a workflow-linked inactive playbook version still uses the role', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [{ name: 'SDLC v4' }], rowCount: 1 });
-
-      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow(
-        'referenced by workflow',
-      );
-    });
-
-    it('throws NotFoundError when role does not exist', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow(
-        'Role definition not found',
       );
     });
   });
