@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LogStreamService } from '../../../src/logging/log-stream-service.js';
+import { LogStreamService } from '../../../../../src/logging/log-stream-service.js';
 import { createMockPool, sampleRow } from './support.js';
 
 describe('LogStreamService lifecycle and reconnect behavior', () => {

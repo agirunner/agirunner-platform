@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_TENANT_ID } from '../../src/db/seed.js';
+import { DEFAULT_TENANT_ID } from '../../../../src/db/seed.js';
 import {
   applyDefaultTenantLoggingLevel,
   readDefaultTenantLoggingLevel,
   applyTenantLoggingLevel,
-} from '../../src/logging/platform-log-level.js';
+} from '../../../../src/logging/platform-log-level.js';
 
 const { configureApiKeyLoggingMock } = vi.hoisted(() => ({
   configureApiKeyLoggingMock: vi.fn(),
 }));
 
-vi.mock('../../src/auth/api-key.js', () => ({
+vi.mock('../../../../src/auth/api-key.js', () => ({
   configureApiKeyLogging: configureApiKeyLoggingMock,
 }));
 
