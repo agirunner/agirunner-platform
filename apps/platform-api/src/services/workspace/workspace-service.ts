@@ -7,13 +7,13 @@ import {
   DestructiveDeleteService,
   type DeleteImpactSummary,
 } from '../destructive-delete-service.js';
-import { EventService } from '../event-service.js';
+import { EventService } from '../event/event-service.js';
 import type { WorkspaceMemoryMutationContext } from './memory/workspace-memory-scope-service.js';
 import {
   parseWorkspaceSettingsInput,
 } from './workspace-settings.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
-import { encryptWebhookSecret } from '../webhook-secret-crypto.js';
+import { encryptWebhookSecret } from '../webhooks/webhook-secret-crypto.js';
 import {
   WorkspaceGitAccessVerifier,
   type VerifyWorkspaceGitAccessResult,

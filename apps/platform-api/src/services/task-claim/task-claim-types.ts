@@ -9,7 +9,7 @@ import type {
   ExecutionContainerContract,
   ExecutionEnvironmentSummary,
 } from '../execution-environment/contract.js';
-import { EventService } from '../event-service.js';
+import { EventService } from '../event/event-service.js';
 import type { ToolOwner } from '../tool-tag-service.js';
 
 export type AgentExecutionMode = 'specialist' | 'orchestrator' | 'hybrid';

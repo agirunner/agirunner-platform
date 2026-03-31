@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { EventService } from '../../../src/services/event-service.js';
+import { EventService } from '../../../src/services/event/event-service.js';
 
 describe('EventService', () => {
   it('adds stable workflow filters and timeline metadata for activation-backed child workflow events', async () => {

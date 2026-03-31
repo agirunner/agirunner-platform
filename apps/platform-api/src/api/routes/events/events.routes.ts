@@ -1,12 +1,12 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
-import { sanitizeEventRow } from '../../../services/event-service.js';
+import { sanitizeEventRow } from '../../../services/event/event-service.js';
 import {
   EventQueryService,
   parseCursorAfter,
   parseCursorLimit,
-} from '../../../services/event-query-service.js';
+} from '../../../services/event/event-query-service.js';
 
 function parseCsv(raw?: string): string[] | undefined {
   return raw?.split(',').map((value) => value.trim()).filter(Boolean);

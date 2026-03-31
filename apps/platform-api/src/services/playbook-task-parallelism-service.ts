@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 
 const ACTIVE_SPECIALIST_STATES: TaskState[] = [
   'ready',

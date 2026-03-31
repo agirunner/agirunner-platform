@@ -1,7 +1,7 @@
 import type { DatabaseClient } from '../../db/database.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import type { LogService } from '../../logging/log-service.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 
 export interface AssessmentExplicitOutcomeContext {
   tenantId: string;

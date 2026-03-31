@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 interface CreateSessionInput {

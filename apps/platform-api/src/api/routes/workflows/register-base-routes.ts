@@ -1,7 +1,7 @@
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../../lib/pagination.js';
 import { ValidationError } from '../../../errors/domain-errors.js';
-import { parseCursorAfter, parseCursorLimit } from '../../../services/event-query-service.js';
+import { parseCursorAfter, parseCursorLimit } from '../../../services/event/event-query-service.js';
 import {
   mapWorkflowCreateBody,
   mapWorkflowOperatorFiles,

@@ -3,7 +3,7 @@ import type { DatabaseClient } from '../../db/database.js';
 import type { LogService } from '../../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
 import { registerTaskOutputDocuments } from '../document-reference/document-reference-service.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 import type {
   SubjectTaskCandidateLookup,
   SubjectTaskCandidateOptions,

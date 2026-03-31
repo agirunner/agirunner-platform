@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { DatabaseQueryable } from '../../db/database.js';
 import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 import type { FleetService } from '../fleet-service.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;

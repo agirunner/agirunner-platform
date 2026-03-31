@@ -1,6 +1,6 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { LogService } from '../../logging/log-service.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 import type { WorkflowTaskDeliverablePromotionService } from '../workflow-task-deliverable-promotion-service.js';
 import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
 

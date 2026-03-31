@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
-import { EventService } from '../event-service.js';
+import { EventService } from '../event/event-service.js';
 import { validateWorkspaceDocumentRegistry } from '../document-reference/document-reference-service.js';
 import { normalizeInstructionDocument } from '../instruction-policy.js';
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';

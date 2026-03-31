@@ -2,7 +2,7 @@ import type { DatabasePool } from '../db/database.js';
 
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
 import { NotFoundError } from '../errors/domain-errors.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
 import {
   sanitizeSecretLikeRecord,

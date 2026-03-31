@@ -10,7 +10,7 @@ import type {
   WorkflowInputPacketRecord,
   WorkflowInputPacketService,
 } from './workflow-input-packet-service.js';
-import type { EventService } from './event-service.js';
+import type { EventService } from './event/event-service.js';
 import type { WorkflowService } from './workflow-service.js';
 
 interface SourceWorkflowRow {

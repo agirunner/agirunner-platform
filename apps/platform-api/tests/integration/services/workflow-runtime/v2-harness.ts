@@ -5,7 +5,7 @@ import fastify from 'fastify';
 import type { AppEnv } from '../../../../src/config/schema.js';
 import { DEFAULT_TENANT_ID } from '../../../../src/db/seed.js';
 import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
-import { EventService } from '../../../../src/services/event-service.js';
+import { EventService } from '../../../../src/services/event/event-service.js';
 import type { PlatformTransportTimingDefaults } from '../../../../src/services/platform-timing-defaults.js';
 import { PlaybookService } from '../../../../src/services/playbook-service.js';
 import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';

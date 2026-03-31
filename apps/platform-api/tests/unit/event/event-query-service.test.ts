@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { EventQueryService } from '../../../src/services/event-query-service.js';
+import { EventQueryService } from '../../../src/services/event/event-query-service.js';
 
 describe('EventQueryService', () => {
   it('casts workflow scope entity ids to text before reusing the workflow filter parameter', async () => {

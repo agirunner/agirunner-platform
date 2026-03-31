@@ -12,7 +12,7 @@ import {
   EventQueryService,
   parseCursorAfter,
   parseCursorLimit,
-} from '../../../services/event-query-service.js';
+} from '../../../services/event/event-query-service.js';
 import { HandoffService } from '../../../services/handoff-service.js';
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';

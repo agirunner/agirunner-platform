@@ -1,5 +1,5 @@
 import type { DatabasePool } from '../../db/database.js';
-import { EventQueryService } from '../event-query-service.js';
+import { EventQueryService } from '../event/event-query-service.js';
 import { buildMissionControlPacket, buildWorkflowMap, groupWorkflowIds } from './mission-control-packet-support.js';
 import type { MissionControlRecentResponse, MissionControlWorkflowCard } from './mission-control-types.js';
 import { MissionControlLiveService } from './mission-control-live-service.js';

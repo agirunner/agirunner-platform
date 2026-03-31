@@ -6,7 +6,7 @@ import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { LogService } from '../logging/log-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 import { WorkspaceTimelineService } from './workspace/timeline/workspace-timeline-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation/workflow-activation-record.js';
 

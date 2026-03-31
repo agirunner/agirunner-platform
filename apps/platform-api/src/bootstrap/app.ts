@@ -30,8 +30,8 @@ import { ContainerInventoryService } from '../services/execution-environment/con
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/execution-environment/container-manager-verifier.js';
 import { listWorkflowDocuments } from '../services/document-reference/document-reference-service.js';
-import { EventStreamService } from '../services/event-stream-service.js';
-import { EventService } from '../services/event-service.js';
+import { EventStreamService } from '../services/event/event-stream-service.js';
+import { EventService } from '../services/event/event-service.js';
 import { ExecutionEnvironmentCatalogService } from '../services/execution-environment/catalog-service.js';
 import { ExecutionEnvironmentService } from '../services/execution-environment/service.js';
 import { ExecutionEnvironmentVerificationService } from '../services/execution-environment/verification-service.js';

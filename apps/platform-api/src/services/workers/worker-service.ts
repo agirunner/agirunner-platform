@@ -2,7 +2,7 @@ import type { DatabasePool } from '../../db/database.js';
 
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { AppEnv } from '../../config/schema.js';
-import { EventService } from '../event-service.js';
+import { EventService } from '../event/event-service.js';
 import {
   readAgentSupervisionTimingDefaults,
   readWorkerSupervisionTimingDefaults,
@@ -18,7 +18,7 @@ import {
 import { enforceHeartbeatTimeouts, heartbeat } from './worker-heartbeat-service.js';
 import { deleteWorker, getWorker, listWorkers, registerWorker } from './worker-registration-service.js';
 import { acknowledgeSignal, sendSignal } from './worker-signal-service.js';
-import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature } from '../webhook-delivery.js';
+import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature } from '../webhooks/webhook-delivery.js';
 
 export interface WorkerAgentInput {
   name: string;

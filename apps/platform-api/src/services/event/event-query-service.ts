@@ -1,6 +1,6 @@
-import { DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../lib/pagination.js';
-import type { DatabasePool } from '../db/database.js';
-import { ValidationError } from '../errors/domain-errors.js';
+import { DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../lib/pagination.js';
+import type { DatabasePool } from '../../db/database.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 import { sanitizeEventRows } from './event-service.js';
 
 const WORKSPACE_ID_SQL =

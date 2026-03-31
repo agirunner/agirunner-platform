@@ -1,5 +1,5 @@
 import type { DatabasePool } from '../../db/database.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 import type { PlaybookTaskParallelismService } from '../playbook-task-parallelism-service.js';
 import type { TaskServiceConfig } from '../task-service.types.js';
 

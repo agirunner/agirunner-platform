@@ -12,7 +12,7 @@ import { WorkflowCancellationService } from './workflow-cancellation-service.js'
 import { WorkflowControlService } from './workflow-control-service.js';
 import { WorkflowCreationService } from './workflow-creation-service.js';
 import { WorkflowDeliverableService } from './workflow-deliverable-service.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 import {
   PlaybookWorkflowControlService,
   type AdvanceStageInput,

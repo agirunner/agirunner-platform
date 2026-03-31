@@ -10,7 +10,7 @@ import { resolveWorkflowConfig } from './config-hierarchy-service.js';
 import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import type { CreateWorkflowInput } from './workflow-service.types.js';
-import { EventService } from './event-service.js';
+import { EventService } from './event/event-service.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator/workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage/workflow-stage-service.js';

@@ -4,7 +4,7 @@ import {
   decryptWebhookSecret,
   encryptWebhookSecret,
   isWebhookSecretEncrypted,
-} from '../../../../src/services/webhook-secret-crypto.js';
+} from '../../../../src/services/webhooks/webhook-secret-crypto.js';
 
 describe('webhook secret encryption', () => {
   const encryptionKey = 'k'.repeat(64);

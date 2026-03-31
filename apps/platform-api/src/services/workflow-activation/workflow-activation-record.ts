@@ -1,5 +1,5 @@
 import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../../db/database.js';
-import { EventService } from '../event-service.js';
+import { EventService } from '../event/event-service.js';
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,

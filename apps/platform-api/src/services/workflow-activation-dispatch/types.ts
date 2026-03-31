@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
 import type { AppEnv } from '../../config/schema.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 
 export const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'pending',

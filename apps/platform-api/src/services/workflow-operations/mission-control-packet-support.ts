@@ -1,4 +1,4 @@
-import type { StreamEvent } from '../event-stream-service.js';
+import type { StreamEvent } from '../event/event-stream-service.js';
 import type {
   MissionControlOutputDescriptor,
   MissionControlPacket,

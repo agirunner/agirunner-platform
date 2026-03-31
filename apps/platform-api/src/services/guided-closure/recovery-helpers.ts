@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
-import type { EventService } from '../event-service.js';
+import type { EventService } from '../event/event-service.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
 import {
   activeColumnId,

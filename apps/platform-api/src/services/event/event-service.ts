@@ -1,5 +1,5 @@
-import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import type { DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 
 type EventEntityType =
   | 'task'

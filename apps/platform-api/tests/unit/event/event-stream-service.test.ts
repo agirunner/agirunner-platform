@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EventStreamService } from '../../../src/services/event-stream-service.js';
+import { EventStreamService } from '../../../src/services/event/event-stream-service.js';
 
 function createMockPool() {
   const mockClient = {
