@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { WorkflowService } from '../../src/services/workflow-service.js';
+import { WorkflowService } from '../../../src/services/workflow-service.js';
 
 describe('WorkflowService workflow relations', () => {
   const artifactLocalRoot = resolve('tmp');
