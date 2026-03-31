@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveWorkflowStageProjection } from '../../../src/services/workflow-stage-projection.js';
+import { deriveWorkflowStageProjection } from '../../../src/services/workflow-stage/workflow-stage-projection.js';
 
 describe('deriveWorkflowStageProjection', () => {
   it('derives planned current and active stages from normalized stage rows', () => {

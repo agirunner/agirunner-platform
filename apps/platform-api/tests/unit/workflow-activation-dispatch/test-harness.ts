@@ -46,10 +46,10 @@ vi.mock('../../../src/services/runtime-defaults/runtime-default-values.js', asyn
   };
 });
 
-vi.mock('../../../src/services/workflow-stage-projection.js', async () => {
+vi.mock('../../../src/services/workflow-stage/workflow-stage-projection.js', async () => {
   const actual =
-    await vi.importActual<typeof import('../../../src/services/workflow-stage-projection.js')>(
-      '../../../src/services/workflow-stage-projection.js',
+    await vi.importActual<typeof import('../../../src/services/workflow-stage/workflow-stage-projection.js')>(
+      '../../../src/services/workflow-stage/workflow-stage-projection.js',
     );
   return {
     ...actual,

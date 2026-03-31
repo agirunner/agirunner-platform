@@ -1,6 +1,6 @@
-import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
+import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import type { PlaybookDefinition } from '../../orchestration/playbook-model.js';
 
 export interface WorkflowStageViewInput {
   id: string;

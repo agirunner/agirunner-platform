@@ -3,12 +3,12 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { ConflictError } from '../../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
-import { toGateResponse } from '../workflow-stage-gate-service.js';
+import { toGateResponse } from '../workflow-stage/workflow-stage-gate-service.js';
 import {
   gateRequiresSupersession,
   loadLatestStageSubjectRevision,
   supersedeStageGatesForRevision,
-} from '../workflow-stage-gate-revisions.js';
+} from '../workflow-stage/workflow-stage-gate-revisions.js';
 import type {
   StageGateDecisionInput,
   StageGateRequestInput,

@@ -8,7 +8,7 @@ import {
   queryWorkflowGates,
 } from './approval-queue-service/queries.js';
 import type { ApprovalStageRow } from './approval-queue-service/types.js';
-import { toGateResponse } from './workflow-stage-gate-service.js';
+import { toGateResponse } from './workflow-stage/workflow-stage-gate-service.js';
 
 export class ApprovalQueueService {
   constructor(private readonly pool: DatabasePool) {}

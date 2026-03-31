@@ -2,10 +2,10 @@ import type { DatabaseQueryable } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import {
   queryWorkflowStageViews,
-} from './workflow-stage-service.js';
+} from './workflow-stage/workflow-stage-service.js';
 import {
   deriveWorkflowStageProjection,
-} from './workflow-stage-projection.js';
+} from './workflow-stage/workflow-stage-projection.js';
 import {
   activeStageNames,
   derivePendingDispatches,

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../../src/services/workflow-stage-reconciliation.js', () => ({
+vi.mock('../../../src/services/workflow-stage/workflow-stage-reconciliation.js', () => ({
   reconcilePlannedWorkflowStages: vi.fn(async () => undefined),
 }));
 
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../../../src/services/planned-work-item-auto-close.js';
-import { reconcilePlannedWorkflowStages } from '../../../src/services/workflow-stage-reconciliation.js';
+import { reconcilePlannedWorkflowStages } from '../../../src/services/workflow-stage/workflow-stage-reconciliation.js';
 
 describe('maybeAutoCloseCompletedPlannedPredecessorWorkItem', () => {
   const identity = {

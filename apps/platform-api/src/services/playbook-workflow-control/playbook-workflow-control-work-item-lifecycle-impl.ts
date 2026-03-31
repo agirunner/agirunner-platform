@@ -8,7 +8,7 @@ import {
   parsePlaybookDefinition,
 } from '../../orchestration/playbook-model.js';
 import { normalizeCompletionCalloutsInput } from '../guided-closure/types.js';
-import { reconcilePlannedWorkflowStages } from '../workflow-stage-reconciliation.js';
+import { reconcilePlannedWorkflowStages } from '../workflow-stage/workflow-stage-reconciliation.js';
 import {
   loadOpenWorkItemEscalation,
   resolveWorkItemEscalation,

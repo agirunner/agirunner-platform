@@ -2,7 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 
 import { readWorkflowActivationTimingDefaults } from '../platform-timing-defaults.js';
-import { loadWorkflowStageProjection } from '../workflow-stage-projection.js';
+import { loadWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 
 import {
   ACTIVE_ORCHESTRATOR_TASK_STATES,

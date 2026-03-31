@@ -5,9 +5,9 @@ import { activeColumnId, parsePlaybookDefinition } from '../../orchestration/pla
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import { buildWorkflowReadColumns } from '../workflow-read-columns.js';
 import type { ListWorkflowQuery } from '../workflow-service.types.js';
-import { deriveWorkflowStageProjection } from '../workflow-stage-projection.js';
+import { deriveWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import type { WorkItemService } from '../work-item-service.js';
-import type { WorkflowStageResponse, WorkflowStageService } from '../workflow-stage-service.js';
+import type { WorkflowStageResponse, WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';
 import {
   annotateBoardWorkItems,
   buildBoardStageSummary,

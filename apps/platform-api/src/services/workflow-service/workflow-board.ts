@@ -2,7 +2,7 @@ import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   isActiveStageStatus,
   type WorkflowStageResponse,
-} from '../workflow-stage-service.js';
+} from '../workflow-stage/workflow-stage-service.js';
 import type { WorkflowWorkItemSummary } from '../workflow-service.types.js';
 import { asOptionalString, asRecord } from './workflow-read-model.js';
 

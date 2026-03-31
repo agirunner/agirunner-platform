@@ -164,7 +164,7 @@ const entries: SafetynetEntry[] = [
     intervention: 'platform marks prior decisions superseded while preserving audit history',
     risk_if_triggered: 'low; prevents stale approvals from unlocking current work incorrectly',
     operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
-    owner_module: 'src/services/workflow-stage-gate-revisions.ts',
+    owner_module: 'src/services/workflow-stage/workflow-stage-gate-revisions.ts',
     test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
     metrics_key:
       'platform_safetynet_trigger_total{behavior="platform.approval.stale_decision_supersession"}',

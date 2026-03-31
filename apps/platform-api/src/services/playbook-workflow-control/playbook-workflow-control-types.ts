@@ -6,7 +6,7 @@ import type { WorkflowDeliverableService } from '../workflow-deliverable-service
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch-service.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import type { WorkflowStateService } from '../workflow-state-service.js';
-import type { WorkflowStageGateRecord } from '../workflow-stage-gate-service.js';
+import type { WorkflowStageGateRecord } from '../workflow-stage/workflow-stage-gate-service.js';
 import type { CompletionCallouts } from '../guided-closure/types.js';
 
 export interface WorkflowContextRow {

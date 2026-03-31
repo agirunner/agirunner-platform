@@ -1,4 +1,4 @@
-import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from '../secret-redaction.js';
 
 const GATE_SECRET_REDACTION = 'redacted://gate-secret';
 

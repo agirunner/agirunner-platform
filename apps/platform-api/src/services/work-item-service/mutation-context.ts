@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
-import { loadWorkflowStageProjection } from '../workflow-stage-projection.js';
+import { loadWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type { WorkflowStageContextRow } from './types.js';
 

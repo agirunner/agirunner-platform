@@ -7,7 +7,7 @@ import {
   mergeCompletionCallouts,
   normalizeCompletionCalloutsInput,
 } from '../guided-closure/types.js';
-import { reconcilePlannedWorkflowStages } from '../workflow-stage-reconciliation.js';
+import { reconcilePlannedWorkflowStages } from '../workflow-stage/workflow-stage-reconciliation.js';
 import type { AdvanceStageInput, CompleteWorkflowInput } from './playbook-workflow-control-types.js';
 import {
   isIdempotentStageAdvance,

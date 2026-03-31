@@ -34,7 +34,7 @@ import {
   type ListWorkflowWorkItemsInput,
   type WorkItemReadModel,
 } from './work-item-service.js';
-import { WorkflowStageService } from './workflow-stage-service.js';
+import { WorkflowStageService } from './workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { WorkflowWorkItemControlService } from './workflow-work-item-control-service.js';
 import { WorkspaceTimelineService } from './workspace-timeline-service.js';

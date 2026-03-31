@@ -2,7 +2,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
 import { completionCalloutsSchema } from '../guided-closure/types.js';
-import { loadWorkflowStageProjection } from '../workflow-stage-projection.js';
+import { loadWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import type {
   WorkflowContextRow,
   WorkflowStageGateRow,

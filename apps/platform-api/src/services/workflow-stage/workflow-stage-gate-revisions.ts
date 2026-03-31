@@ -1,9 +1,9 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import {
   PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
+} from '../safetynet/registry.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
 
 export const APPROVAL_STALE_DECISION_SUPERSESSION_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,

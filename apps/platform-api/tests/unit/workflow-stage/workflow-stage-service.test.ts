@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowStageService } from '../../../src/services/workflow-stage-service.js';
+import { WorkflowStageService } from '../../../src/services/workflow-stage/workflow-stage-service.js';
 
 describe('WorkflowStageService', () => {
   it('treats the earliest open successor stage as active for planned workflows', async () => {

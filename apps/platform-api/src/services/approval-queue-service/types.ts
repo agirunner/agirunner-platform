@@ -1,4 +1,4 @@
-import type { WorkflowStageGateRecord } from '../workflow-stage-gate-service.js';
+import type { WorkflowStageGateRecord } from '../workflow-stage/workflow-stage-gate-service.js';
 
 export interface ApprovalTaskRow {
   id: string;

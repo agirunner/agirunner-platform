@@ -7,7 +7,7 @@ import {
   readSpecialistRoleCapabilities,
   type SpecialistRoleCapabilities,
 } from './specialist-capability-service.js';
-import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
+import { loadWorkflowStageProjection } from './workflow-stage/workflow-stage-projection.js';
 import {
   applyTaskContextAnchor,
   buildOrchestratorExecutionBrief,

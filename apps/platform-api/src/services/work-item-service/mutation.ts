@@ -40,7 +40,7 @@ import {
   assertWorkflowAcceptsWorkItemMutation,
   loadWorkflowForUpdate,
 } from './mutation-context.js';
-import { reconcilePlannedWorkflowStages } from '../workflow-stage-reconciliation.js';
+import { reconcilePlannedWorkflowStages } from '../workflow-stage/workflow-stage-reconciliation.js';
 
 const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
