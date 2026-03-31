@@ -2,7 +2,7 @@ import type {
   MissionControlOutputDescriptor,
   MissionControlOutputLocation,
   MissionControlOutputStatus,
-} from './mission-control-types.js';
+} from './types.js';
 
 export type MissionControlOutputDescriptorInput =
   | {

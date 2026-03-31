@@ -1,4 +1,4 @@
-import type { MissionControlWorkflowCard } from '../mission-control-types.js';
+import type { MissionControlWorkflowCard } from '../mission-control/types.js';
 import type {
   WorkflowBottomTabsPacket,
   WorkflowBriefItem,

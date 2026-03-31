@@ -1,10 +1,10 @@
-import type { StreamEvent } from '../event/event-stream-service.js';
+import type { StreamEvent } from '../../event/event-stream-service.js';
 import type {
   MissionControlOutputDescriptor,
   MissionControlPacket,
   MissionControlPacketCategory,
   MissionControlWorkflowCard,
-} from './mission-control-types.js';
+} from './types.js';
 
 export function buildMissionControlPacket(
   event: StreamEvent,

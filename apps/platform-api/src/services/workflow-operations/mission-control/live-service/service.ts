@@ -1,11 +1,11 @@
-import type { DatabasePool } from '../../../db/database.js';
-import { composeMissionControlOutputDescriptor } from '../mission-control-output-descriptors.js';
+import type { DatabasePool } from '../../../../db/database.js';
+import { composeMissionControlOutputDescriptor } from '../output-descriptors.js';
 import type {
   MissionControlLiveResponse,
   MissionControlOutputDescriptor,
   MissionControlReadModelVersion,
   MissionControlWorkflowCard,
-} from '../mission-control-types.js';
+} from '../types.js';
 import {
   buildAttentionItems,
   buildWorkflowCard,

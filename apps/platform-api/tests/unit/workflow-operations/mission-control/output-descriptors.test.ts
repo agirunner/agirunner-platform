@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { composeMissionControlOutputDescriptor } from '../../../src/services/workflow-operations/mission-control-output-descriptors.js';
+import { composeMissionControlOutputDescriptor } from '../../../../src/services/workflow-operations/mission-control/output-descriptors.js';
 
 const hostOutputPath = resolve('exports/release-notes.md');
 

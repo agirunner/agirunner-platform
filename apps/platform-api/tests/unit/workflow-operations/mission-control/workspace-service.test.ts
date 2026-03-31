@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { MissionControlWorkspaceService } from '../../../src/services/workflow-operations/mission-control-workspace-service.js';
+import { MissionControlWorkspaceService } from '../../../../src/services/workflow-operations/mission-control/workspace-service.js';
 
 describe('MissionControlWorkspaceService', () => {
   it('composes overview, board, outputs, steering, and history for a selected workflow', async () => {

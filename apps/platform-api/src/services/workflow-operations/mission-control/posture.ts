@@ -2,7 +2,7 @@ import {
   type MissionControlAttentionLane,
   type MissionControlPulse,
   type MissionControlWorkflowPosture,
-} from './mission-control-types.js';
+} from './types.js';
 
 export interface MissionControlPostureInput {
   workflowState: string;

@@ -1,8 +1,8 @@
 import type {
   MissionControlActionAvailability,
   MissionControlWorkflowCard,
-} from '../mission-control-types.js';
-import { isWorkflowScopeHeaderAction } from '../mission-control-action-availability.js';
+} from '../mission-control/types.js';
+import { isWorkflowScopeHeaderAction } from '../mission-control/action-availability.js';
 import type {
   WorkflowInterventionRecord,
 } from '../workflow-intervention-service.js';

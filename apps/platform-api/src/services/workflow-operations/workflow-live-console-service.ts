@@ -1,4 +1,4 @@
-import type { MissionControlHistoryResponse } from './mission-control-types.js';
+import type { MissionControlHistoryResponse } from './mission-control/types.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator/workflow-operator-brief-service.js';
 import type { LogRow } from '../../logging/log-service.js';
 import { filterLiveConsoleItemsForSelectedScope } from './workflow-live-console-scope.js';

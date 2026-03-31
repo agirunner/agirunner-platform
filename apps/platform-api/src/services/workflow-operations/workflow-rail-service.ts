@@ -4,7 +4,7 @@ import type {
   MissionControlPacket,
   MissionControlRecentResponse,
   MissionControlWorkflowCard,
-} from './mission-control-types.js';
+} from './mission-control/types.js';
 import { readUuidOrUndefined } from '../../lib/uuid.js';
 import {
   buildWorkflowOperationsSnapshotVersion,

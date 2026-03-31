@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../../../db/database.js';
+import type { DatabasePool } from '../../../../db/database.js';
 import type { WorkflowRow } from './types.js';
 
 export async function loadWorkflowRows(

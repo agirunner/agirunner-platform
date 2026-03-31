@@ -15,9 +15,9 @@ import type { ExecutionEnvironmentVerificationService } from './services/executi
 import type { FleetService } from './services/fleet-service/fleet-service.js';
 import type { GovernanceService } from './services/governance-service.js';
 import type { ModelCatalogService } from './services/model-catalog/model-catalog-service.js';
-import type { MissionControlHistoryService } from './services/workflow-operations/mission-control-history-service.js';
-import type { MissionControlLiveService } from './services/workflow-operations/mission-control-live-service.js';
-import type { MissionControlRecentService } from './services/workflow-operations/mission-control-recent-service.js';
+import type { MissionControlHistoryService } from './services/workflow-operations/mission-control/history-service.js';
+import type { MissionControlLiveService } from './services/workflow-operations/mission-control/live-service.js';
+import type { MissionControlRecentService } from './services/workflow-operations/mission-control/recent-service.js';
 import type { WorkflowDeliverablesService } from './services/workflow-operations/workflow-deliverables-service.js';
 import type { WorkflowHistoryService } from './services/workflow-operations/workflow-history-service.js';
 import type { WorkflowLiveConsoleService } from './services/workflow-operations/workflow-live-console-service.js';

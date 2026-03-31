@@ -3,7 +3,7 @@ import type {
   MissionControlActionKind,
   MissionControlConfirmationLevel,
   MissionControlWorkflowPosture,
-} from './mission-control-types.js';
+} from './types.js';
 
 interface VersionSnapshot {
   readModelEventId: number | null;

@@ -5,14 +5,14 @@ import type {
   MissionControlOutputStatus,
   MissionControlReadModelVersion,
   MissionControlWorkflowCard,
-} from '../mission-control-types.js';
+} from '../types.js';
 import type {
   ArtifactOutputRow,
   WorkflowRow,
   WorkflowSignalRow,
 } from './types.js';
-import { deriveMissionControlPosture } from '../mission-control-posture.js';
-import { deriveWorkflowActionAvailability } from '../mission-control-action-availability.js';
+import { deriveMissionControlPosture } from '../posture.js';
+import { deriveWorkflowActionAvailability } from '../action-availability.js';
 
 export function normalizeLifecycleFilter(
   value: 'all' | 'ongoing' | 'planned' | undefined,

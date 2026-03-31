@@ -38,9 +38,9 @@ import { ExecutionEnvironmentVerificationService } from '../services/execution-e
 import { FleetService } from '../services/fleet-service/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { ApprovalQueueService } from '../services/approval-queue-service/approval-queue-service.js';
-import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';
-import { MissionControlLiveService } from '../services/workflow-operations/mission-control-live-service.js';
-import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
+import { MissionControlHistoryService } from '../services/workflow-operations/mission-control/history-service.js';
+import { MissionControlLiveService } from '../services/workflow-operations/mission-control/live-service.js';
+import { MissionControlRecentService } from '../services/workflow-operations/mission-control/recent-service.js';
 import { WorkflowDeliverablesService } from '../services/workflow-operations/workflow-deliverables-service.js';
 import { WorkflowHistoryService } from '../services/workflow-operations/workflow-history-service.js';
 import { WorkflowBriefsService } from '../services/workflow-operations/workflow-briefs-service.js';

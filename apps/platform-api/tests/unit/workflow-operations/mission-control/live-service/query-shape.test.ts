@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   countWorkflowRows,
   loadWorkflowRows,
-} from '../../../../src/services/workflow-operations/mission-control-live-service/workflow-list-queries.js';
+} from '../../../../../src/services/workflow-operations/mission-control/live-service/workflow-list-queries.js';
 
 describe('workflow list query shape', () => {
   it('skips needs-action summary CTEs for the default rail query', async () => {

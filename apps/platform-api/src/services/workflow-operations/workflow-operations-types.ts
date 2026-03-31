@@ -259,7 +259,7 @@ export interface WorkflowBottomTabsPacket {
 
 export interface WorkflowWorkspacePacket extends WorkflowOperationsSnapshot {
   workflow_id: string;
-  workflow: import('./mission-control-types.js').MissionControlWorkflowCard | null;
+  workflow: import('./mission-control/types.js').MissionControlWorkflowCard | null;
   selected_scope: {
     scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
     work_item_id: string | null;
