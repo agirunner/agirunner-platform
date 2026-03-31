@@ -7,7 +7,7 @@ import { acpRoutes } from '../api/routes/agents/acp.routes.js';
 import { approvalQueueRoutes } from '../api/routes/governance/approval-queue.routes.js';
 import { apiKeyRoutes } from '../api/routes/auth/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth/auth.routes.js';
-import { eventRoutes } from '../api/routes/events.routes.js';
+import { eventRoutes } from '../api/routes/events/events.routes.js';
 import { executionEnvironmentRoutes } from '../api/routes/platform-config/execution-environments.routes.js';
 import { governanceRoutes } from '../api/routes/governance/governance.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
