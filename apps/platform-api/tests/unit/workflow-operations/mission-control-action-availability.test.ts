@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveTaskActionAvailability,
   deriveWorkflowActionAvailability,
-} from '../../src/services/workflow-operations/mission-control-action-availability.js';
+} from '../../../src/services/workflow-operations/mission-control-action-availability.js';
 
 describe('mission control action availability', () => {
   it('enables workflow actions with platform-authored confirmation levels', () => {

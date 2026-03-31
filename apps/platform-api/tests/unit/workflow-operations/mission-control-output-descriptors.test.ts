@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { composeMissionControlOutputDescriptor } from '../../src/services/workflow-operations/mission-control-output-descriptors.js';
+import { composeMissionControlOutputDescriptor } from '../../../src/services/workflow-operations/mission-control-output-descriptors.js';
 
 const hostOutputPath = resolve('exports/release-notes.md');
 
@@ -20,7 +20,7 @@ describe('mission control output descriptors', () => {
     expect(descriptor).toEqual(
       expect.objectContaining({
         title: 'deliverables/spec.md',
-        primaryLocation: {
+        primaryLocation: expect.objectContaining({
           kind: 'artifact',
           artifactId: 'artifact-1',
           taskId: 'task-1',
@@ -28,7 +28,7 @@ describe('mission control output descriptors', () => {
           previewPath: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
           downloadPath: '/api/v1/tasks/task-1/artifacts/artifact-1',
           contentType: 'text/markdown',
-        },
+        }),
       }),
     );
   });

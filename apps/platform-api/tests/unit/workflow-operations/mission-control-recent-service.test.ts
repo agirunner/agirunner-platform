@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { MissionControlRecentService } from '../../src/services/workflow-operations/mission-control-recent-service.js';
+import { MissionControlRecentService } from '../../../src/services/workflow-operations/mission-control-recent-service.js';
 
 describe('MissionControlRecentService', () => {
   it('turns recent tenant events into review packets with workflow carryover state', async () => {

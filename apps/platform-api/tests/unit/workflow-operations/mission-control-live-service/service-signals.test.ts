@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MissionControlLiveService } from '../../../src/services/workflow-operations/mission-control-live-service.js';
+import { MissionControlLiveService } from '../../../../src/services/workflow-operations/mission-control-live-service.js';
 import { createSequencedPool } from './test-helpers.js';
 
 describe('MissionControlLiveService signals', () => {
