@@ -64,7 +64,7 @@ import { WorkspaceService } from '../services/workspace-service.js';
 import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
-import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
+import { RuntimeDefaultsService } from '../services/runtime-defaults/runtime-defaults-service.js';
 import { TaskService } from '../services/task-service.js';
 import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';

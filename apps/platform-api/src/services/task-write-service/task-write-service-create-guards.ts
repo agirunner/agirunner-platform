@@ -5,7 +5,7 @@ import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
-} from '../runtime-default-values.js';
+} from '../runtime-defaults/runtime-default-values.js';
 import type { CreateTaskInput } from '../task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowMutationGuardRow, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
 import {

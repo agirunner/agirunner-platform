@@ -10,10 +10,10 @@ const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
   logSafetynetTriggeredMock: vi.fn(),
 }));
 
-vi.mock('../../../src/services/runtime-default-values.js', async () => {
+vi.mock('../../../src/services/runtime-defaults/runtime-default-values.js', async () => {
   const actual =
-    await vi.importActual<typeof import('../../../src/services/runtime-default-values.js')>(
-      '../../../src/services/runtime-default-values.js',
+    await vi.importActual<typeof import('../../../src/services/runtime-defaults/runtime-default-values.js')>(
+      '../../../src/services/runtime-defaults/runtime-default-values.js',
     );
   return {
     ...actual,

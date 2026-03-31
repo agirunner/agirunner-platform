@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { DEFAULT_TENANT_ID } from '../db/seed.js';
 import { ValidationError } from '../errors/domain-errors.js';
-import { readRuntimeDefaultValue } from './runtime-default-values.js';
+import { readRuntimeDefaultValue } from './runtime-defaults/runtime-default-values.js';
 
 export const WORKFLOW_ACTIVATION_DELAY_MS_RUNTIME_KEY = 'platform.workflow_activation_delay_ms';
 export const WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS_RUNTIME_KEY =

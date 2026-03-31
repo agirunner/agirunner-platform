@@ -6,7 +6,7 @@ import {
   TASK_MAX_ITERATIONS_RUNTIME_KEY,
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,
-} from '../runtime-default-values.js';
+} from '../runtime-defaults/runtime-default-values.js';
 
 import type {
   ActivationTaskDefinition,

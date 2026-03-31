@@ -29,7 +29,7 @@ import type { WorkspaceService } from './services/workspace-service.js';
 import type { WorkspaceArtifactFileService } from './services/workspace-artifact-file-service.js';
 import type { PlaybookService } from './services/playbook-service.js';
 import type { RoleDefinitionService } from './services/role-definition-service.js';
-import type { RuntimeDefaultsService } from './services/runtime-defaults-service.js';
+import type { RuntimeDefaultsService } from './services/runtime-defaults/runtime-defaults-service.js';
 import type { TaskService } from './services/task-service.js';
 import type { UserService } from './services/user-service.js';
 import type { WorkerConnectionHub } from './services/worker-connection-hub.js';

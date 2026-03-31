@@ -1,6 +1,6 @@
-import type { DatabaseQueryable } from '../db/database.js';
-import { ValidationError } from '../errors/domain-errors.js';
-import type { ExecutionEnvironmentPullPolicy } from './execution-environment/contract.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { ValidationError } from '../../errors/domain-errors.js';
+import type { ExecutionEnvironmentPullPolicy } from '../execution-environment/contract.js';
 
 export const TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY = 'tasks.default_timeout_minutes';
 export const TASK_MAX_ITERATIONS_RUNTIME_KEY = 'agent.max_iterations';

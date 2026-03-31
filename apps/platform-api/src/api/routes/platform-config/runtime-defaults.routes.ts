@@ -5,7 +5,7 @@ import { isSecretLikeKey } from '../../../services/secret-redaction.js';
 import type {
   CreateRuntimeDefaultInput,
   UpdateRuntimeDefaultInput,
-} from '../../../services/runtime-defaults-service.js';
+} from '../../../services/runtime-defaults/runtime-defaults-service.js';
 
 export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
   const service = app.runtimeDefaultsService;

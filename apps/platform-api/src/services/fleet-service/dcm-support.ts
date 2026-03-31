@@ -1,6 +1,6 @@
 import { ValidationError } from '../../errors/domain-errors.js';
 import type { PlaybookRuntimePoolKind } from '../../orchestration/playbook-model.js';
-import { GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY, SPECIALIST_RUNTIME_DEFAULT_KEYS } from '../runtime-default-values.js';
+import { GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY, SPECIALIST_RUNTIME_DEFAULT_KEYS } from '../runtime-defaults/runtime-default-values.js';
 
 const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 const GENERIC_SPECIALIST_TARGET_ID = 'specialist';
@@ -419,4 +419,3 @@ export interface FleetRuntimeStatsRow {
   active_runtimes: number;
   active_execution_containers: number;
 }
-

@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
-import { RuntimeDefaultsService } from '../../../../../src/services/runtime-defaults-service.js';
+import { RuntimeDefaultsService } from '../../../../../src/services/runtime-defaults/runtime-defaults-service.js';
 
 vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {

@@ -7,7 +7,7 @@ import { readAgentSupervisionTimingDefaults } from '../platform-timing-defaults.
 import {
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,
-} from '../runtime-default-values.js';
+} from '../runtime-defaults/runtime-default-values.js';
 import { buildResolvedTaskExecutionEnvironment, readTaskExecutionBackend } from './task-claim-task-payload.js';
 import { priorityCase } from './task-claim-constants.js';
 import {

@@ -1,6 +1,6 @@
 import type { DatabaseQueryable } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
-import { RuntimeDefaultsService } from '../../services/runtime-defaults-service.js';
+import { RuntimeDefaultsService } from '../../services/runtime-defaults/runtime-defaults-service.js';
 import { seedDefaultPrompts } from './default-prompts.js';
 import { DASHBOARD_BACKED_RUNTIME_DEFAULTS } from './dashboard-backed-runtime-defaults.js';
 

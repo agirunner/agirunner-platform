@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
-import { readPositiveInteger, readRequiredPositiveIntegerRuntimeDefault } from '../runtime-default-values.js';
+import { readPositiveInteger, readRequiredPositiveIntegerRuntimeDefault } from '../runtime-defaults/runtime-default-values.js';
 import type { EventService } from '../event-service.js';
 import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
 import { enqueueAndDispatchImmediatePlaybookActivation } from '../workflow-immediate-activation.js';

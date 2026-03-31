@@ -35,10 +35,10 @@ vi.mock('../../../src/services/platform-timing-defaults.js', () => ({
   readWorkflowActivationTimingDefaults: readWorkflowActivationTimingDefaultsMock,
 }));
 
-vi.mock('../../../src/services/runtime-default-values.js', async () => {
+vi.mock('../../../src/services/runtime-defaults/runtime-default-values.js', async () => {
   const actual =
-    await vi.importActual<typeof import('../../../src/services/runtime-default-values.js')>(
-      '../../../src/services/runtime-default-values.js',
+    await vi.importActual<typeof import('../../../src/services/runtime-defaults/runtime-default-values.js')>(
+      '../../../src/services/runtime-defaults/runtime-default-values.js',
     );
   return {
     ...actual,
