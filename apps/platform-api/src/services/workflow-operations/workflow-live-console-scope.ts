@@ -136,7 +136,7 @@ function referencesSiblingWorkItem(
   if (explicitSiblingReference) {
     return true;
   }
-  return readItemTaskTargetIds(item).some((taskId) => {
+  return readItemTaskTargetIds(item, workflowTaskToWorkItemIds).some((taskId) => {
     const mappedWorkItemId = workflowTaskToWorkItemIds.get(taskId);
     return Boolean(mappedWorkItemId && mappedWorkItemId !== selectedWorkItemId);
   });
@@ -147,18 +147,21 @@ function itemTargetsSelectedWorkItemViaTask(
   selectedWorkItemId: string,
   workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
 ): boolean {
-  return readItemTaskTargetIds(item).some(
+  return readItemTaskTargetIds(item, workflowTaskToWorkItemIds).some(
     (taskId) => workflowTaskToWorkItemIds.get(taskId) === selectedWorkItemId,
   );
 }
 
-function readItemTaskTargetIds(item: WorkflowLiveConsoleItem): string[] {
+function readItemTaskTargetIds(
+  item: WorkflowLiveConsoleItem,
+  workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
+): string[] {
   const taskIds = new Set<string>();
   if (item.task_id) {
     taskIds.add(item.task_id);
   }
   for (const targetId of item.linked_target_ids) {
-    if (targetId.startsWith('task-')) {
+    if (workflowTaskToWorkItemIds.has(targetId)) {
       taskIds.add(targetId);
     }
   }

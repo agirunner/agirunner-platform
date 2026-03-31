@@ -77,6 +77,32 @@ describe('workflow live console scope', () => {
     expect(result.map((item) => item.item_id)).toEqual(['task-bound-row']);
   });
 
+  it('keeps linked uuid task targets visible at selected work-item scope when the task map resolves them', () => {
+    const taskId = '7c2c5b18-1f90-4935-a37d-1b38349bd119';
+    const items = [
+      createItem({
+        item_id: 'uuid-task-bound-row',
+        work_item_id: null,
+        task_id: null,
+        linked_target_ids: ['workflow-1', taskId],
+        scope_binding: 'execution_context',
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_work_item',
+        work_item_id: 'work-item-1',
+        task_id: null,
+      },
+      ['work-item-1'],
+      new Map([[taskId, 'work-item-1']]),
+    );
+
+    expect(result.map((item) => item.item_id)).toEqual(['uuid-task-bound-row']);
+  });
+
   it('excludes task-bound rows at selected work-item scope when the task belongs to a sibling work item', () => {
     const items = [
       createItem({
