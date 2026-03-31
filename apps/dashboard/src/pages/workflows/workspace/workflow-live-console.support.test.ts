@@ -385,7 +385,7 @@ describe('workflow live console support', () => {
     }))).toBeNull();
   });
 
-  it('auto-pauses live mode when the operator scrolls away and then unlocks upward history prefetch', () => {
+  it('keeps live mode pinned to the bottom until the operator explicitly pauses follow mode', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -396,8 +396,9 @@ describe('workflow live console support', () => {
         clientHeight: 500,
       }),
     ).toEqual({
-      isAtLiveEdge: false,
-      shouldPrefetchHistory: true,
+      isAtLiveEdge: true,
+      shouldPrefetchHistory: false,
+      shouldSnapToLiveEdge: true,
     });
 
     expect(
@@ -412,6 +413,7 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldPrefetchHistory: true,
+      shouldSnapToLiveEdge: false,
     });
   });
 
@@ -486,8 +488,9 @@ describe('workflow live console support', () => {
         clientHeight: 200,
       }),
     ).toEqual({
-      isAtLiveEdge: false,
-      shouldPrefetchHistory: true,
+      isAtLiveEdge: true,
+      shouldPrefetchHistory: false,
+      shouldSnapToLiveEdge: true,
     });
   });
 
@@ -504,6 +507,7 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldPrefetchHistory: true,
+      shouldSnapToLiveEdge: false,
     });
   });
 

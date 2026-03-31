@@ -315,6 +315,9 @@ export function WorkflowLiveConsole(props: {
               scrollHeight: element.scrollHeight,
               clientHeight: element.clientHeight,
             });
+            if (scrollBehavior.shouldSnapToLiveEdge) {
+              element.scrollTop = element.scrollHeight;
+            }
             isAtLiveEdgeRef.current = scrollBehavior.isAtLiveEdge;
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
             scrollMetricsRef.current.scrollTop = element.scrollTop;
