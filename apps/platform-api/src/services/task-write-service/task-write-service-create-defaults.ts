@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
-import { mergeLifecyclePolicy, readTemplateLifecyclePolicy } from '../task-lifecycle-policy.js';
+import { mergeLifecyclePolicy, readTemplateLifecyclePolicy } from '../task-lifecycle/task-lifecycle-policy.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_LLM_MAX_RETRIES_RUNTIME_KEY,

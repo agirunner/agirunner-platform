@@ -9,7 +9,7 @@ import type {
 import type {
   WorkflowSteeringMessageRecord,
   WorkflowSteeringSessionRecord,
-} from '../../workflow-steering-session-service.js';
+} from '../../workflow-steering-session-service/workflow-steering-session-service.js';
 import type {
   WorkflowLiveConsoleItem,
   WorkflowWorkspacePacket,

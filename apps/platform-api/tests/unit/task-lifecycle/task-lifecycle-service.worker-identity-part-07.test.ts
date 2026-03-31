@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { TaskLifecycleService } from '../../../src/services/task-lifecycle-service.js';
+import { TaskLifecycleService } from '../../../src/services/task-lifecycle/task-lifecycle-service.js';
 type TaskLifecycleDependencies = ConstructorParameters<typeof TaskLifecycleService>[0];
 describe('TaskLifecycleService worker identity + payload semantics', () => {
   it('treats a repeated request-changes action as idempotent once active rework is already in progress', async () => {

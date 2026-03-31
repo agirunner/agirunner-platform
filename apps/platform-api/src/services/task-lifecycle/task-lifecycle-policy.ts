@@ -1,4 +1,4 @@
-import { SchemaValidationFailedError, ValidationError } from '../errors/domain-errors.js';
+import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 
 type RecordValue = Record<string, unknown>;
 

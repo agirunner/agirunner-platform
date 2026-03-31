@@ -10,7 +10,7 @@ import type { PlaybookTaskParallelismService } from '../playbook-task-parallelis
 import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
 import type { WorkflowStateService } from '../workflow-state-service.js';
 import type { WorkItemContinuityService } from '../work-item-continuity-service.js';
-import type { LifecyclePolicy } from '../task-lifecycle-policy.js';
+import type { LifecyclePolicy } from './task-lifecycle-policy.js';
 import type {
   FailureClassification,
 } from './task-lifecycle-service-helpers.js';

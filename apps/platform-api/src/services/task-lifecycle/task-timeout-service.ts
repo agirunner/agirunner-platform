@@ -1,6 +1,6 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { toStoredTaskState, type TaskState } from '../../orchestration/task-state-machine.js';
 
 const ACTIVE_EXECUTION_STATES: TaskState[] = ['claimed', 'in_progress'];
 const STORED_ACTIVE_EXECUTION_STATES = ACTIVE_EXECUTION_STATES.map(toStoredTaskState);

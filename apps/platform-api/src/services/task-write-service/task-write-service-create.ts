@@ -9,7 +9,7 @@ import {
 import { TaskWriteCreateDefaults } from './task-write-service-create-defaults.js';
 import { TaskWriteCreateGuards } from './task-write-service-create-guards.js';
 import { TaskWriteParentPolicies } from './task-write-service-create-parent.js';
-import { readTemplateLifecyclePolicy } from '../task-lifecycle-policy.js';
+import { readTemplateLifecyclePolicy } from '../task-lifecycle/task-lifecycle-policy.js';
 import {
   assertMatchingCreateTaskReplay,
   assertNoPlaintextSecrets,

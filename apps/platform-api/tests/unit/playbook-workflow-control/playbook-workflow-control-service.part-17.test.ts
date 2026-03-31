@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConflictError, ValidationError } from '../../../src/errors/domain-errors.js';
-import { PlaybookWorkflowControlService } from '../../../src/services/playbook-workflow-control-service.js';
+import { PlaybookWorkflowControlService } from '../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js';
 
 const definition = {
   lifecycle: 'planned',

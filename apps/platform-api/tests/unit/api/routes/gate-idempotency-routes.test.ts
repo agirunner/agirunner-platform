@@ -26,7 +26,7 @@ describe('gate decision route idempotency', () => {
 
   afterEach(async () => {
     vi.doUnmock('../../../../src/services/approval-queue-service.js');
-    vi.doUnmock('../../../../src/services/playbook-workflow-control-service.js');
+    vi.doUnmock('../../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js');
     vi.doUnmock('../../../../src/services/workflow-state-service.js');
     vi.doUnmock('../../../../src/services/workflow-activation/workflow-activation-service.js');
     vi.doUnmock('../../../../src/services/workflow-activation-dispatch-service.js');
@@ -49,7 +49,7 @@ describe('gate decision route idempotency', () => {
         listApprovals: vi.fn(),
       })),
     }));
-    vi.doMock('../../../../src/services/playbook-workflow-control-service.js', () => ({
+    vi.doMock('../../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js', () => ({
       PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
         actOnGate,
       })),
@@ -104,7 +104,7 @@ describe('gate decision route idempotency', () => {
         listApprovals: vi.fn(),
       })),
     }));
-    vi.doMock('../../../../src/services/playbook-workflow-control-service.js', () => ({
+    vi.doMock('../../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js', () => ({
       PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
         actOnGate,
       })),

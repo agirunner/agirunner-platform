@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { resolveOperatorRecordActorId } from '../operator-record-authorship.js';
 import {
   dedupeNonEmptyStrings,
   deriveMessageBody,
@@ -14,18 +14,18 @@ import {
   sanitizeOptionalText,
   sanitizeRequiredText,
   toOptionalString,
-} from './workflow-steering-session-service/text-helpers.js';
+} from './text-helpers.js';
 import {
   toWorkflowSteeringMessageRecord,
   toWorkflowSteeringSessionRecord,
-} from './workflow-steering-session-service/record-mappers.js';
+} from './record-mappers.js';
 export type {
   WorkflowSteeringMessageKind,
   WorkflowSteeringMessageRecord,
   WorkflowSteeringRequestResult,
   WorkflowSteeringSessionRecord,
   WorkflowSteeringSourceKind,
-} from './workflow-steering-session-service/types.js';
+} from './types.js';
 import type {
   WorkflowSteeringMessageKind,
   WorkflowSteeringMessageRow,
@@ -34,8 +34,8 @@ import type {
   WorkflowSteeringSessionRow,
   WorkflowSteeringSourceKind,
   WorkflowTaskScopeRow,
-} from './workflow-steering-session-service/types.js';
-import type { WorkflowInterventionService } from './workflow-intervention-service.js';
+} from './types.js';
+import type { WorkflowInterventionService } from '../workflow-intervention-service.js';
 
 export class WorkflowSteeringSessionService {
   constructor(

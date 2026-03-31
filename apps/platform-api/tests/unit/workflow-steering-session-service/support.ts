@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowSteeringSessionService } from '../../../src/services/workflow-steering-session-service.js';
+import { WorkflowSteeringSessionService } from '../../../src/services/workflow-steering-session-service/workflow-steering-session-service.js';
 
 export const IDENTITY = {
   id: 'key-1',

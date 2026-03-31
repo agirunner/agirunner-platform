@@ -1,5 +1,5 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient } from '../db/database.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient } from '../../db/database.js';
 import type {
   AdvanceStageInput,
   CompleteWorkflowInput,
@@ -9,7 +9,7 @@ import type {
   StageGateDecisionInput,
   StageGateRequestInput,
   UpdateWorkflowWorkItemInput,
-} from './playbook-workflow-control/playbook-workflow-control-private-impl.js';
+} from './playbook-workflow-control-private-impl.js';
 import {
   actOnGateInTransactionImpl,
   actOnStageGateInTransactionImpl,
@@ -40,7 +40,7 @@ import {
   requestStageGateApprovalInTransactionImpl,
   resolveWorkItemEscalationInTransactionImpl,
   updateWorkItemInTransactionImpl,
-} from './playbook-workflow-control/playbook-workflow-control-private-impl.js';
+} from './playbook-workflow-control-private-impl.js';
 
 export type {
   UpdateWorkflowWorkItemInput,
@@ -50,7 +50,7 @@ export type {
   StageGateDecisionInput,
   AdvanceStageInput,
   CompleteWorkflowInput,
-} from './playbook-workflow-control/playbook-workflow-control-private-impl.js';
+} from './playbook-workflow-control-private-impl.js';
 
 export class PlaybookWorkflowControlService {
   constructor(private readonly deps: Dependencies) {}

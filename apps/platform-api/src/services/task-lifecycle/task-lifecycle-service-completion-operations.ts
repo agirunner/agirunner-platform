@@ -3,7 +3,7 @@ import type { DatabaseClient } from '../../db/database.js';
 import { validateOutputSchema } from '../../validation/output-validator.js';
 import { registerTaskOutputDocuments } from '../document-reference/document-reference-service.js';
 import { applyOutputStateDeclarations } from '../task-output-storage.js';
-import { readPersistedLifecyclePolicy } from '../task-lifecycle-policy.js';
+import { readPersistedLifecyclePolicy } from './task-lifecycle-policy.js';
 import {
   sanitizeSecretLikeRecord,
   sanitizeSecretLikeValue,

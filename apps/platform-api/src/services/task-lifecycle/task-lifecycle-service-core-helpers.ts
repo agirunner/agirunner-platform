@@ -13,7 +13,7 @@ import {
   type EscalationPolicy,
   type LifecyclePolicy,
   type RetryPolicy,
-} from '../task-lifecycle-policy.js';
+} from './task-lifecycle-policy.js';
 import { areJsonValuesEquivalent } from '../json-equivalence.js';
 import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
 

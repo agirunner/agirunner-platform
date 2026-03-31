@@ -10,7 +10,7 @@ import {
   type EscalationPolicy,
   type LifecyclePolicy,
   type RetryPolicy,
-} from '../task-lifecycle-policy.js';
+} from './task-lifecycle-policy.js';
 import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
 import {
   ACTIVE_PARALLELISM_SLOT_STATES,

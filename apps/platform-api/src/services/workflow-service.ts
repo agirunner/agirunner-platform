@@ -21,7 +21,7 @@ import {
   type StageGateDecisionInput,
   type StageGateRequestInput,
   type UpdateWorkflowWorkItemInput,
-} from './playbook-workflow-control-service.js';
+} from './playbook-workflow-control/playbook-workflow-control-service.js';
 import type { TaskService } from './task-service.js';
 import {
   type CreateWorkflowWorkItemEnvelopeInput,

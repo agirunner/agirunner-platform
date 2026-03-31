@@ -1,38 +1,38 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient } from '../db/database.js';
-import { ForbiddenError } from '../errors/domain-errors.js';
-import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
-import type { TaskState } from '../orchestration/task-state-machine.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient } from '../../db/database.js';
+import { ForbiddenError } from '../../errors/domain-errors.js';
+import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
+import type { TaskState } from '../../orchestration/task-state-machine.js';
 import {
   asRecord,
   readOptionalText,
-} from './task-lifecycle/task-lifecycle-service-helpers.js';
+} from './task-lifecycle-service-helpers.js';
 import {
   clearOpenChildAssessmentWorkItemRouting,
   reconcileWorkItemExecutionColumn,
   reopenCompletedWorkItemForRework,
   restoreOpenChildAssessmentWorkItemRouting,
-} from './task-lifecycle/task-lifecycle-work-item-helpers.js';
+} from './task-lifecycle-work-item-helpers.js';
 import {
   enqueuePlaybookActivationIfNeeded,
   maybeOpenTaskWorkItemEscalation,
   maybeResolveTaskWorkItemEscalation,
-} from './task-lifecycle/task-lifecycle-escalation-helpers.js';
+} from './task-lifecycle-escalation-helpers.js';
 import {
   applyStateTransition as applyStateTransitionOperation,
   resolveCreatedSpecialistTaskState as resolveCreatedSpecialistTaskStateOperation,
   resolveNextState as resolveNextStateOperation,
-} from './task-lifecycle/task-lifecycle-service-transition-operations.js';
+} from './task-lifecycle-service-transition-operations.js';
 import {
   assertOperatorReportingBeforeCompletion,
   loadLatestAssessmentRequestHandoff,
   loadLatestTaskAttemptHandoffCreatedAt,
-} from './task-lifecycle/task-lifecycle-service-query-helpers.js';
+} from './task-lifecycle-service-query-helpers.js';
 import {
   completeTask as completeTaskOperation,
   failTask as failTaskOperation,
   startTask as startTaskOperation,
-} from './task-lifecycle/task-lifecycle-service-completion-operations.js';
+} from './task-lifecycle-service-completion-operations.js';
 import {
   approveTask as approveTaskOperation,
   approveTaskOutput as approveTaskOutputOperation,
@@ -41,30 +41,30 @@ import {
   rejectTask as rejectTaskOperation,
   requestTaskChanges as requestTaskChangesOperation,
   retryTask as retryTaskOperation,
-} from './task-lifecycle/task-lifecycle-service-review-operations.js';
+} from './task-lifecycle-service-review-operations.js';
 import {
   overrideTaskOutput as overrideTaskOutputOperation,
   skipTask as skipTaskOperation,
-} from './task-lifecycle/task-lifecycle-service-review-output-operations.js';
+} from './task-lifecycle-service-review-output-operations.js';
 import {
   agentEscalate as agentEscalateOperation,
   escalateTask as escalateTaskOperation,
-} from './task-lifecycle/task-lifecycle-service-escalation-operations.js';
+} from './task-lifecycle-service-escalation-operations.js';
 import {
   resolveEscalation as resolveEscalationOperation,
   respondToEscalation as respondToEscalationOperation,
-} from './task-lifecycle/task-lifecycle-service-escalation-resolution-operations.js';
+} from './task-lifecycle-service-escalation-resolution-operations.js';
 import {
   createEscalationTaskForRole,
   maybeCreateEscalationTask,
   maybeResolveEscalationSource,
   resolveInheritedTaskTimeoutMinutes,
-} from './task-lifecycle/task-lifecycle-service-escalation-support.js';
+} from './task-lifecycle-service-escalation-support.js';
 import type {
   TaskLifecycleDependencies,
   TaskLifecycleServiceOperationContext,
   TransitionOptions,
-} from './task-lifecycle/task-lifecycle-service-types.js';
+} from './task-lifecycle-service-types.js';
 
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}

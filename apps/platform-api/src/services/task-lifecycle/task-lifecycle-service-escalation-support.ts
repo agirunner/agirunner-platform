@@ -4,7 +4,7 @@ import { toStoredTaskState } from '../../orchestration/task-state-machine.js';
 import {
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
 } from '../runtime-defaults/runtime-default-values.js';
-import type { LifecyclePolicy } from '../task-lifecycle-policy.js';
+import type { LifecyclePolicy } from './task-lifecycle-policy.js';
 import type { TaskLifecycleServiceOperationContext } from './task-lifecycle-service-types.js';
 import {
   asRecord,

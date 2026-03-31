@@ -5,7 +5,7 @@ import type {
 } from '../workflow-intervention-service.js';
 import type {
   WorkflowSteeringSessionService,
-} from '../workflow-steering-session-service.js';
+} from '../workflow-steering-session-service/workflow-steering-session-service.js';
 import type { WorkflowDeliverablesService } from './workflow-deliverables-service.js';
 import type { WorkflowHistoryService } from './workflow-history-service.js';
 import type { WorkflowLiveConsoleService } from './workflow-live-console-service.js';

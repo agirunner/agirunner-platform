@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { ConflictError } from '../../errors/domain-errors.js';
 import type { TaskState } from '../../orchestration/task-state-machine.js';
-import { readPersistedLifecyclePolicy } from '../task-lifecycle-policy.js';
+import { readPersistedLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { TaskLifecycleServiceOperationContext } from './task-lifecycle-service-types.js';
 import {
   asRecord,

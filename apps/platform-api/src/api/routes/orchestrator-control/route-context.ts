@@ -9,7 +9,7 @@ import { HandoffService } from '../../../services/handoff-service.js';
 import { OrchestratorActivationCheckpointService } from '../../../services/orchestrator-activation-checkpoint-service.js';
 import { OrchestratorTaskMessageService } from '../../../services/orchestrator-task-message-service.js';
 import { readWorkerDispatchAckTimeoutMs } from '../../../services/platform-timing-defaults.js';
-import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control-service.js';
+import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
 import { WorkItemContinuityService } from '../../../services/work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';

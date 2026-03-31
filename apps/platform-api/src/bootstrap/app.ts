@@ -81,7 +81,7 @@ import { WorkflowOperatorBriefService } from '../services/workflow-operator/work
 import { WorkflowOperatorUpdateService } from '../services/workflow-operator/workflow-operator-update-service.js';
 import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
 import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
-import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';
+import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
