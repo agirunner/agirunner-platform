@@ -2,22 +2,19 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrainCircuit, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
-import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
-import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
-import { Button } from '../../components/ui/button.js';
-import { IconActionButton } from '../../components/ui/icon-action-button.js';
+import { ListPagination } from '../../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../../lib/pagination/list-pagination.js';
+import { DashboardPageHeader } from '../../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../../components/layout/dashboard-section-card.js';
+import { Button } from '../../../components/ui/button.js';
+import { IconActionButton } from '../../../components/ui/icon-action-button.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../../components/ui/dialog.js';
+} from '../../../components/ui/dialog.js';
 import {
   Table,
   TableBody,
@@ -25,9 +22,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../components/ui/table.js';
-import { toast } from '../../lib/toast.js';
-import type { DashboardSpecialistSkillRecord } from '../../lib/api.js';
+} from '../../../components/ui/table.js';
+import { toast } from '../../../lib/toast.js';
+import type { DashboardSpecialistSkillRecord } from '../../../lib/api.js';
 import {
   createSpecialistSkill,
   deleteSpecialistSkill,
@@ -199,7 +196,10 @@ export function SkillsPage(): JSX.Element {
                           >
                             <Pencil className="h-4 w-4" />
                           </IconActionButton>
-                          <IconActionButton label={`Delete ${skill.name}`} onClick={() => setDeletingSkill(skill)}>
+                          <IconActionButton
+                            label={`Delete ${skill.name}`}
+                            onClick={() => setDeletingSkill(skill)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </IconActionButton>
                         </div>

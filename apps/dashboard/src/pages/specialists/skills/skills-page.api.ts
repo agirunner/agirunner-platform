@@ -1,9 +1,9 @@
-import { dashboardApi } from '../../lib/api.js';
+import { dashboardApi } from '../../../lib/api.js';
 import type {
   DashboardSpecialistSkillCreateInput,
   DashboardSpecialistSkillRecord,
   DashboardSpecialistSkillUpdateInput,
-} from '../../lib/api.js';
+} from '../../../lib/api.js';
 
 export const fetchSpecialistSkills = (): Promise<DashboardSpecialistSkillRecord[]> =>
   dashboardApi.listSpecialistSkills();

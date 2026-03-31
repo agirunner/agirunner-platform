@@ -1,19 +1,19 @@
-import { Button } from '../../components/ui/button.js';
+import { Button } from '../../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
   FieldErrorText,
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
-} from '../../components/forms/form-feedback.js';
+} from '../../../components/forms/form-feedback.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
-import { Textarea } from '../../components/ui/textarea.js';
+} from '../../../components/ui/dialog.js';
+import { Input } from '../../../components/ui/input.js';
+import { Textarea } from '../../../components/ui/textarea.js';
 
 export interface SkillFormState {
   name: string;

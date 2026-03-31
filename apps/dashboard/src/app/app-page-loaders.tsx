@@ -72,7 +72,7 @@ export const SpecialistsPage = lazyWithRetry(() =>
 );
 
 export const SkillsPage = lazyWithRetry(() =>
-  import('../pages/skills/skills-page.js').then((m) => ({ default: m.SkillsPage })),
+  import('../pages/specialists/skills/skills-page.js').then((m) => ({ default: m.SkillsPage })),
 );
 
 export const OrchestratorPage = lazyWithRetry(() =>
