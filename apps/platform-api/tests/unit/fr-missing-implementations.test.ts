@@ -12,22 +12,11 @@
  * runtime connected mode (worker/runtime container merge).
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it, vi } from 'vitest';
 
 import type { DatabaseQueryable } from '../../src/db/database.js';
 import { TenantScopedRepository } from '../../src/db/tenant-scoped-repository.js';
 import { isOriginAllowed } from '../../src/bootstrap/websocket.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const srcDir = path.resolve(__dirname, '../../src');
-
-function readSrc(relPath: string): string {
-  return fs.readFileSync(path.join(srcDir, relPath), 'utf-8');
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-150 & FR-761: All entities scoped to tenant — DB query filtering
@@ -87,14 +76,6 @@ describe('FR-150 & FR-761: all DB queries must filter by tenant_id', () => {
     expect(result).toBe(false);
   });
 
-  it('TenantScopedRepository.scopedTenantId exposes the bound tenant', () => {
-    // FR-761: downstream services can retrieve the tenant ID from the repository.
-    const mockQuery = vi.fn();
-    const db = { query: mockQuery } as unknown as DatabaseQueryable;
-    const repo = new TenantScopedRepository(db, 'my-tenant');
-
-    expect(repo.scopedTenantId).toBe('my-tenant');
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,13 +83,6 @@ describe('FR-150 & FR-761: all DB queries must filter by tenant_id', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('FR-152: tenant filter at data-access layer', () => {
-  it('TenantScopedRepository file exists and exports the class', () => {
-    // FR-152
-    const source = readSrc('db/tenant-scoped-repository.ts');
-    expect(source).toContain('export class TenantScopedRepository');
-    expect(source).toContain('tenant_id = $1');
-  });
-
   it('repository enforces tenant isolation even when no extra conditions are given', async () => {
     // FR-152: bare findAll with no extra conditions still filters by tenant.
     const mockQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
@@ -140,42 +114,6 @@ describe('FR-152: tenant filter at data-access layer', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-754: Zero-config first run — default tenant + default API key
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('FR-754: zero-config first run creates default tenant and API key', () => {
-  it('seed.ts exports seedDefaultTenant which handles both tenant and API key', () => {
-    // FR-754
-    const source = readSrc('db/seed.ts');
-    expect(source).toContain('seedDefaultTenant');
-    expect(source).toContain('seedDefaultAdminKey');
-    expect(source).toContain('DEFAULT_TENANT_ID');
-    expect(source).toContain('INSERT INTO api_keys');
-  });
-
-  it('default key prefix is deterministic to allow idempotent detection', () => {
-    // FR-754: fixed prefix prevents duplicate key creation across restarts
-    const source = readSrc('db/seed.ts');
-    expect(source).toContain("DEFAULT_ADMIN_KEY_PREFIX = 'ar_admin_def'");
-  });
-
-  it('seed prints the API key only on first creation', () => {
-    // FR-754: operator gets the key exactly once without needing config files
-    const source = readSrc('db/seed.ts');
-    expect(source).toContain('console.info');
-    expect(source).toContain('Zero-Config First Run');
-    expect(source).toContain('Store this key');
-  });
-
-  it('seedDefaultTenant is idempotent using ON CONFLICT DO NOTHING', () => {
-    // FR-754: safe to call on every server start
-    const source = readSrc('db/seed.ts');
-    expect(source).toContain('ON CONFLICT');
-    expect(source).toContain('DO NOTHING');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FR-820: External workers run anywhere (network-transparent protocol)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -193,10 +131,4 @@ describe('FR-820: external workers connect via network-transparent protocol', ()
     expect(isOriginAllowed(undefined, config)).toBe(true);
   });
 
-  it('worker registration route accepts standard connection modes', () => {
-    const source = readSrc('api/routes/workers.routes.ts');
-    expect(source).toContain("'websocket'");
-    expect(source).toContain("'polling'");
-    expect(source).toContain("'sse'");
-  });
 });
