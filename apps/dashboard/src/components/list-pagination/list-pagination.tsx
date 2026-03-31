@@ -1,58 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { LIST_PAGE_SIZE_OPTIONS } from '../../lib/pagination/list-pagination.js';
 import { Button } from '../ui/button.js';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select.js';
-
-export const LIST_PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
-export const DEFAULT_LIST_PAGE_SIZE = LIST_PAGE_SIZE_OPTIONS[0];
-
-export interface PaginatedListResult<T> {
-  items: T[];
-  page: number;
-  totalItems: number;
-  totalPages: number;
-  start: number;
-  end: number;
-}
-
-export function paginateListItems<T>(
-  items: T[],
-  page: number,
-  pageSize: number,
-): PaginatedListResult<T> {
-  const totalItems = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safePage = clampPage(page, totalPages);
-
-  if (totalItems === 0) {
-    return {
-      items: [],
-      page: 1,
-      totalItems: 0,
-      totalPages: 1,
-      start: 0,
-      end: 0,
-    };
-  }
-
-  const startIndex = (safePage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-
-  return {
-    items: items.slice(startIndex, endIndex),
-    page: safePage,
-    totalItems,
-    totalPages,
-    start: startIndex + 1,
-    end: endIndex,
-  };
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select.js';
 
 export function ListPagination(props: {
   page: number;
@@ -76,9 +26,7 @@ export function ListPagination(props: {
       </p>
       <div className="flex flex-wrap items-center justify-end gap-3">
         <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted">
-            Page size
-          </span>
+          <span className="text-xs font-medium uppercase tracking-wide text-muted">Page size</span>
           <Select
             value={String(props.pageSize)}
             onValueChange={(value) => props.onPageSizeChange(Number(value))}
@@ -123,14 +71,4 @@ export function ListPagination(props: {
       </div>
     </div>
   );
-}
-
-function clampPage(page: number, totalPages: number): number {
-  if (!Number.isFinite(page) || page < 1) {
-    return 1;
-  }
-  if (page > totalPages) {
-    return totalPages;
-  }
-  return Math.floor(page);
 }

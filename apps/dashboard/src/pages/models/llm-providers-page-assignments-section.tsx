@@ -8,10 +8,7 @@ import {
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -29,10 +26,7 @@ import {
   panelToneStyle,
   SubsectionPanel,
 } from './llm-providers-page.chrome.js';
-import {
-  ReasoningControl,
-  type RoleState,
-} from './llm-providers-page-assignment-controls.js';
+import { ReasoningControl, type RoleState } from './llm-providers-page-assignment-controls.js';
 import {
   buildRoleStateMap,
   readHasUnsavedChanges,

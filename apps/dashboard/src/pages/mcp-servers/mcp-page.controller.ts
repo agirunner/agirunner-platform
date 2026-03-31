@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import type {
   DashboardRemoteMcpOAuthClientProfileRecord,
   DashboardRemoteMcpServerRecord,
@@ -40,9 +33,7 @@ import {
   createRemoteMcpOAuthClientProfileForm,
   type RemoteMcpOAuthClientProfileFormState,
 } from './mcp-page.oauth-client-profile-form.js';
-import {
-  type RemoteMcpDeviceAuthorizationState,
-} from './mcp-page.oauth-flow.js';
+import { type RemoteMcpDeviceAuthorizationState } from './mcp-page.oauth-flow.js';
 import {
   buildRemoteMcpCreatePayload,
   buildRemoteMcpServerStats,
@@ -289,10 +280,7 @@ export function useMcpPageController() {
     },
   });
 
-  const servers = useMemo(
-    () => sortRemoteMcpServers(serversQuery.data ?? []),
-    [serversQuery.data],
-  );
+  const servers = useMemo(() => sortRemoteMcpServers(serversQuery.data ?? []), [serversQuery.data]);
   const pagination = paginateListItems(servers, page, pageSize);
   const stats = buildRemoteMcpServerStats(servers);
 
@@ -311,9 +299,7 @@ export function useMcpPageController() {
     setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm());
   }
 
-  function openEditOauthClientProfileDialog(
-    profile: DashboardRemoteMcpOAuthClientProfileRecord,
-  ) {
+  function openEditOauthClientProfileDialog(profile: DashboardRemoteMcpOAuthClientProfileRecord) {
     setOauthClientProfileDialogState({ mode: 'edit', profile });
     setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm(profile));
   }

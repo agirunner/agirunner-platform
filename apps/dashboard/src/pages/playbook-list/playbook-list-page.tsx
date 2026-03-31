@@ -12,10 +12,7 @@ import {
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
@@ -42,9 +39,7 @@ import {
   type PlaybookLifecycleFilter,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
-import {
-  PlaybookLibrarySection,
-} from './playbook-list-page.library.js';
+import { PlaybookLibrarySection } from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'ongoing';
 
@@ -122,8 +117,7 @@ export function PlaybookListPage(): JSX.Element {
   const allPlaybooks = playbooksQuery.data?.data ?? [];
   const playbookFamilies = useMemo(() => buildPlaybookFamilies(allPlaybooks), [allPlaybooks]);
   const filteredFamilies = useMemo(
-    () =>
-      filterPlaybookFamilies(playbookFamilies, search, statusFilter, lifecycleFilter, sort),
+    () => filterPlaybookFamilies(playbookFamilies, search, statusFilter, lifecycleFilter, sort),
     [lifecycleFilter, playbookFamilies, search, sort, statusFilter],
   );
   const pagination = useMemo(
@@ -193,10 +187,7 @@ export function PlaybookListPage(): JSX.Element {
 
   if (createMode) {
     return (
-      <div
-        data-testid="playbook-create-workspace"
-        className="space-y-6 p-4 sm:p-6"
-      >
+      <div data-testid="playbook-create-workspace" className="space-y-6 p-4 sm:p-6">
         <div className="space-y-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm">
           <Button variant="ghost" className="w-fit px-0 text-muted" onClick={closeCreateWorkspace}>
             <ArrowLeft className="h-4 w-4" />
@@ -228,8 +219,8 @@ export function PlaybookListPage(): JSX.Element {
             <CardHeader className="space-y-2">
               <CardTitle>Playbook Basics</CardTitle>
               <p className="text-sm text-muted">
-                Define the playbook identity first, then author the process, specialists,
-                workflow goals, and required rules below.
+                Define the playbook identity first, then author the process, specialists, workflow
+                goals, and required rules below.
               </p>
             </CardHeader>
             <CardContent className="grid gap-6">
@@ -244,7 +235,9 @@ export function PlaybookListPage(): JSX.Element {
                     }}
                   />
                   {hasAttemptedCreate && createValidation.fieldErrors.name ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.name}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {createValidation.fieldErrors.name}
+                    </p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm">
@@ -263,7 +256,9 @@ export function PlaybookListPage(): JSX.Element {
                       : 'Slug will be generated from the name once it contains letters or numbers.'}
                   </p>
                   {hasAttemptedCreate && createValidation.fieldErrors.slug ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.slug}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {createValidation.fieldErrors.slug}
+                    </p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:col-span-2">
@@ -276,16 +271,16 @@ export function PlaybookListPage(): JSX.Element {
                     }}
                   />
                   {hasAttemptedCreate && createValidation.fieldErrors.outcome ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.outcome}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {createValidation.fieldErrors.outcome}
+                    </p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:max-w-xs">
                   <span className="font-medium">Lifecycle</span>
                   <Select
                     value={lifecycle}
-                    onValueChange={(value) =>
-                      handleLifecycleChange(value as 'planned' | 'ongoing')
-                    }
+                    onValueChange={(value) => handleLifecycleChange(value as 'planned' | 'ongoing')}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -361,7 +356,7 @@ export function PlaybookListPage(): JSX.Element {
         onCreatePlaybook={openCreateWorkspace}
         togglingFamilySlug={
           toggleActiveMutation.isPending
-            ? (toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null
+            ? ((toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null)
             : null
         }
         onSearchChange={(value) => {

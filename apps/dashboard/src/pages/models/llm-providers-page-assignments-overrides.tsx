@@ -1,10 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  type PaginatedListResult,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import type { PaginatedListResult } from '../../lib/pagination/list-pagination.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
@@ -101,9 +98,7 @@ export function RoleAssignmentsOverridesPanel(props: {
                       <CardTitle className="text-base">{role.name}</CardTitle>
                       {renderRoleStatusBadge(role)}
                     </div>
-                    <p className="text-sm leading-6 text-muted">
-                      {summarizeRoleDescription(role)}
-                    </p>
+                    <p className="text-sm leading-6 text-muted">{summarizeRoleDescription(role)}</p>
                   </CardHeader>
                   <CardContent>
                     <ModelReasoningSelect
@@ -154,10 +149,7 @@ export function RoleAssignmentsOverridesPanel(props: {
                           {role.name}
                         </TableCell>
                         <TableCell className="align-middle text-sm text-foreground">
-                          <span
-                            className="block truncate"
-                            title={summarizeRoleDescription(role)}
-                          >
+                          <span className="block truncate" title={summarizeRoleDescription(role)}>
                             {description}
                           </span>
                         </TableCell>

@@ -2,11 +2,8 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';

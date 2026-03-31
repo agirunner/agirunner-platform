@@ -2,11 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
@@ -106,7 +103,8 @@ export function WorkspaceListPage(): JSX.Element {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div className="min-w-0 flex-1 space-y-3">
               <p className="text-sm text-muted">
-                {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {activeCount} active · {inactiveCount} inactive
+                {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {activeCount}{' '}
+                active · {inactiveCount} inactive
               </p>
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,200px)_auto]">
                 <label className="grid gap-2 text-sm">
@@ -237,7 +235,10 @@ export function WorkspaceListPage(): JSX.Element {
 
       {filteredWorkspaces.length > 0 && hasFilters ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
-          <span>{filteredWorkspaces.length} matching workspace{filteredWorkspaces.length === 1 ? '' : 's'}</span>
+          <span>
+            {filteredWorkspaces.length} matching workspace
+            {filteredWorkspaces.length === 1 ? '' : 's'}
+          </span>
         </div>
       ) : null}
     </div>

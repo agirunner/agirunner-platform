@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Loader2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
@@ -81,7 +78,9 @@ export function McpPageOAuthClientProfilesSection(props: {
                   <TableHead>Profile</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Token endpoint</TableHead>
-                  <TableHead className="w-[132px] whitespace-nowrap text-center">Linked MCP servers</TableHead>
+                  <TableHead className="w-[132px] whitespace-nowrap text-center">
+                    Linked MCP servers
+                  </TableHead>
                   <TableHead className="w-[120px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -122,7 +121,10 @@ export function McpPageOAuthClientProfilesSection(props: {
                               ? `${profile.name} is still assigned to MCP servers`
                               : `Delete ${profile.name}`
                           }
-                          disabled={profile.linked_server_count > 0 || props.deletingProfileId === profile.id}
+                          disabled={
+                            profile.linked_server_count > 0 ||
+                            props.deletingProfileId === profile.id
+                          }
                           onClick={() => props.onDelete(profile)}
                         >
                           <Trash2 className="h-4 w-4" />

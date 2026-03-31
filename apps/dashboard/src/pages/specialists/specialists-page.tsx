@@ -2,22 +2,13 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, ShieldCheck } from 'lucide-react';
 
-import {
-  DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
-  paginateListItems,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import { DEFAULT_LIST_PAGE_SIZE, paginateListItems } from '../../lib/pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import { toast } from '../../lib/toast.js';
 import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
 import {
@@ -98,22 +89,39 @@ export function SpecialistsPage(): JSX.Element {
   });
 
   if (
-    rolesQuery.isLoading
-    || toolsQuery.isLoading
-    || environmentsQuery.isLoading
-    || remoteMcpServersQuery.isLoading
-    || specialistSkillsQuery.isLoading
+    rolesQuery.isLoading ||
+    toolsQuery.isLoading ||
+    environmentsQuery.isLoading ||
+    remoteMcpServersQuery.isLoading ||
+    specialistSkillsQuery.isLoading
   ) {
-    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      </div>
+    );
   }
   if (
-    rolesQuery.error
-    || toolsQuery.error
-    || environmentsQuery.error
-    || remoteMcpServersQuery.error
-    || specialistSkillsQuery.error
+    rolesQuery.error ||
+    toolsQuery.error ||
+    environmentsQuery.error ||
+    remoteMcpServersQuery.error ||
+    specialistSkillsQuery.error
   ) {
-    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load specialists: {String(rolesQuery.error ?? toolsQuery.error ?? environmentsQuery.error ?? remoteMcpServersQuery.error ?? specialistSkillsQuery.error)}</div></div>;
+    return (
+      <div className="p-6">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+          Failed to load specialists:{' '}
+          {String(
+            rolesQuery.error ??
+              toolsQuery.error ??
+              environmentsQuery.error ??
+              remoteMcpServersQuery.error ??
+              specialistSkillsQuery.error,
+          )}
+        </div>
+      </div>
+    );
   }
 
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
@@ -124,7 +132,9 @@ export function SpecialistsPage(): JSX.Element {
   const { assignments, models } = orchestratorState.roleDialogCatalog;
   const modelLookup = new Map(models.map((m) => [m.id, m.model_id]));
   function getModelLabel(roleName: string): string {
-    const assignment = assignments.find((a) => a.role_name.trim().toLowerCase() === roleName.trim().toLowerCase());
+    const assignment = assignments.find(
+      (a) => a.role_name.trim().toLowerCase() === roleName.trim().toLowerCase(),
+    );
     if (!assignment?.primary_model_id) return 'System default';
     return modelLookup.get(assignment.primary_model_id) ?? assignment.primary_model_id;
   }
@@ -156,7 +166,10 @@ export function SpecialistsPage(): JSX.Element {
                 aria-label="Show active specialists only"
               />
             </div>
-            <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Specialist</Button>
+            <Button onClick={() => setIsCreating(true)}>
+              <Plus className="h-4 w-4" />
+              Create Specialist
+            </Button>
           </>
         }
       />
@@ -202,7 +215,12 @@ export function SpecialistsPage(): JSX.Element {
                     key={role.id}
                     role={role}
                     modelLabel={getModelLabel(role.name)}
-                    togglingRoleId={toggleActiveMutation.isPending ? (toggleActiveMutation.variables as RoleDefinition | undefined)?.id ?? null : null}
+                    togglingRoleId={
+                      toggleActiveMutation.isPending
+                        ? ((toggleActiveMutation.variables as RoleDefinition | undefined)?.id ??
+                          null)
+                        : null
+                    }
                     onEdit={setEditingRole}
                     onDelete={(target) => {
                       deleteMutation.reset();
@@ -235,8 +253,19 @@ export function SpecialistsPage(): JSX.Element {
         </DashboardSectionCard>
       )}
 
-      {isCreating ? <RoleDialog {...dialogProps} duplicateFrom={duplicateFrom} onClose={() => { setIsCreating(false); setDuplicateFrom(null); }} /> : null}
-      {editingRole ? <RoleDialog {...dialogProps} role={editingRole} onClose={() => setEditingRole(null)} /> : null}
+      {isCreating ? (
+        <RoleDialog
+          {...dialogProps}
+          duplicateFrom={duplicateFrom}
+          onClose={() => {
+            setIsCreating(false);
+            setDuplicateFrom(null);
+          }}
+        />
+      ) : null}
+      {editingRole ? (
+        <RoleDialog {...dialogProps} role={editingRole} onClose={() => setEditingRole(null)} />
+      ) : null}
       <DeleteRoleDialog
         role={deletingRole}
         deleteErrorMessage={formatRoleDeleteError(deleteMutation.error)}

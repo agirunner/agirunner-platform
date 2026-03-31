@@ -1,10 +1,8 @@
 import { Search } from 'lucide-react';
 
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
-import {
-  ListPagination,
-  type PaginatedListResult,
-} from '../../components/list-pagination/list-pagination.js';
+import { ListPagination } from '../../components/list-pagination/list-pagination.js';
+import type { PaginatedListResult } from '../../lib/pagination/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -19,10 +17,7 @@ import {
   type PlaybookSortOption,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
-import {
-  PlaybookLibraryEmptyState,
-  PlaybookLibraryTable,
-} from './playbook-list-page.table.js';
+import { PlaybookLibraryEmptyState, PlaybookLibraryTable } from './playbook-list-page.table.js';
 
 export function PlaybookLibraryToolbar(props: {
   search: string;
@@ -46,9 +41,7 @@ export function PlaybookLibraryToolbar(props: {
         </p>
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,180px)_minmax(0,220px)]">
           <label className="grid gap-2 text-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted">
-              Search
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted">Search</span>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
@@ -60,9 +53,7 @@ export function PlaybookLibraryToolbar(props: {
             </div>
           </label>
           <label className="grid gap-2 text-sm">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted">
-              Status
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted">Status</span>
             <Select
               value={props.statusFilter}
               onValueChange={(value) => props.onStatusFilterChange(value as PlaybookStatusFilter)}
@@ -83,7 +74,9 @@ export function PlaybookLibraryToolbar(props: {
             </span>
             <Select
               value={props.lifecycleFilter}
-              onValueChange={(value) => props.onLifecycleFilterChange(value as PlaybookLifecycleFilter)}
+              onValueChange={(value) =>
+                props.onLifecycleFilterChange(value as PlaybookLifecycleFilter)
+              }
             >
               <SelectTrigger aria-label="Playbook lifecycle">
                 <SelectValue />
@@ -97,7 +90,10 @@ export function PlaybookLibraryToolbar(props: {
           </label>
           <label className="grid gap-2 text-sm">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">Sort</span>
-            <Select value={props.sort} onValueChange={(value) => props.onSortChange(value as PlaybookSortOption)}>
+            <Select
+              value={props.sort}
+              onValueChange={(value) => props.onSortChange(value as PlaybookSortOption)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
