@@ -3,12 +3,12 @@ import { ValidationError } from '../../errors/domain-errors.js';
 import type {
   RemoteMcpOAuthConfigRecord,
   RemoteMcpOAuthCredentialsRecord,
-} from '../remote-mcp-model.js';
-import { refreshRemoteMcpAccessToken } from '../remote-mcp-oauth-http.js';
+} from './core/remote-mcp-model.js';
+import { refreshRemoteMcpAccessToken } from './oauth/remote-mcp-oauth-http.js';
 import {
   decryptRemoteMcpSecret,
   encryptRemoteMcpSecret,
-} from '../remote-mcp-secret-crypto.js';
+} from './core/remote-mcp-secret-crypto.js';
 import { isExpired } from './remote-mcp-oauth-helpers.js';
 
 export type AuthorizationSecretInput = {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { RemoteMcpHttpVerifier } from '../../../src/services/remote-mcp-http-verifier.js';
+import { RemoteMcpHttpVerifier } from '../../../src/services/remote-mcp/verification/remote-mcp-http-verifier.js';
 
 describe('RemoteMcpHttpVerifier', () => {
   beforeEach(() => {

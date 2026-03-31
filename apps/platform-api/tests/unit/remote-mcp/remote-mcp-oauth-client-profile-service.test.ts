@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../../src/lib/oauth-crypto.js';
 import { ConflictError, ValidationError } from '../../../src/errors/domain-errors.js';
-import { RemoteMcpOAuthClientProfileService } from '../../../src/services/remote-mcp-oauth-client-profile-service.js';
+import { RemoteMcpOAuthClientProfileService } from '../../../src/services/remote-mcp/oauth/remote-mcp-oauth-client-profile-service.js';
 
 function createMockPool() {
   return {

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
-import { decryptRemoteMcpSecret, encryptRemoteMcpSecret } from '../../../src/services/remote-mcp-secret-crypto.js';
-import { RemoteMcpOAuthService } from '../../../src/services/remote-mcp-oauth-service.js';
+import { decryptRemoteMcpSecret, encryptRemoteMcpSecret } from '../../../src/services/remote-mcp/core/remote-mcp-secret-crypto.js';
+import { RemoteMcpOAuthService } from '../../../src/services/remote-mcp/oauth/remote-mcp-oauth-service.js';
 import { mockJsonResponse } from './remote-mcp-oauth-test-helpers.js';
 
 describe('RemoteMcpOAuthService stored credentials', () => {

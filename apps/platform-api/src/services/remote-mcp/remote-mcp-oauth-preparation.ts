@@ -4,8 +4,8 @@ import type {
   RemoteMcpOAuthConfigRecord,
   RemoteMcpOauthDefinition,
   RemoteMcpParameterInput,
-} from '../remote-mcp-model.js';
-import { buildOauthClientConfig } from '../remote-mcp-oauth-client.js';
+} from './core/remote-mcp-model.js';
+import { buildOauthClientConfig } from './oauth/remote-mcp-oauth-client.js';
 import {
   assertOAuthEndpointUrl,
   buildAuthorizeUrl,
@@ -13,21 +13,21 @@ import {
   discoverAuthorizationServerMetadata,
   discoverResourceMetadata,
   resolveRemoteMcpCallbackMode,
-} from '../remote-mcp-oauth-discovery.js';
+} from './oauth/remote-mcp-oauth-discovery.js';
 import {
   readMissingAuthorizationEndpointMessage,
   readMissingDeviceAuthorizationEndpointMessage,
-} from '../remote-mcp-oauth-errors.js';
+} from './core/remote-mcp-oauth-errors.js';
 import {
   exchangeClientCredentialsToken,
   requestDeviceAuthorization,
-} from '../remote-mcp-oauth-http.js';
+} from './oauth/remote-mcp-oauth-http.js';
 import type {
   DeviceAuthorizationFlow,
   PreparedOAuthFlow,
   TokenResponse,
-} from '../remote-mcp-oauth-types.js';
-import type { RemoteMcpOAuthClientProfileRecord } from '../remote-mcp-oauth-client-profile-service.js';
+} from './core/remote-mcp-oauth-types.js';
+import type { RemoteMcpOAuthClientProfileRecord } from './oauth/remote-mcp-oauth-client-profile-service.js';
 import {
   mergeOauthDefinitionWithClientProfile,
   requirePlatformPublicBaseUrl,

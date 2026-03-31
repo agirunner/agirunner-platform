@@ -4,7 +4,7 @@ import type {
   RemoteMcpOauthDefinition,
   RemoteMcpParameterInput,
   RemoteMcpTransportPreference,
-} from '../remote-mcp-model.js';
+} from './core/remote-mcp-model.js';
 
 export interface RemoteMcpServerRow {
   id: string;

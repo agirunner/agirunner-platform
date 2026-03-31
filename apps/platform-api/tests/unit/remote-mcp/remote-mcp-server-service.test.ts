@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../../src/lib/oauth-crypto.js';
-import { REMOTE_MCP_STORED_SECRET_VALUE } from '../../../src/services/remote-mcp-secret-crypto.js';
-import { RemoteMcpServerService } from '../../../src/services/remote-mcp-server-service.js';
+import { REMOTE_MCP_STORED_SECRET_VALUE } from '../../../src/services/remote-mcp/core/remote-mcp-secret-crypto.js';
+import { RemoteMcpServerService } from '../../../src/services/remote-mcp/servers/remote-mcp-server-service.js';
 
 function createMockPool() {
   return {

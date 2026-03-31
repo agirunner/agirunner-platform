@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
-import { decryptRemoteMcpSecret } from '../../../src/services/remote-mcp-secret-crypto.js';
+import { decryptRemoteMcpSecret } from '../../../src/services/remote-mcp/core/remote-mcp-secret-crypto.js';
 import {
   buildStoredOauthCredentials,
   mergeOauthDefinitionWithClientProfile,

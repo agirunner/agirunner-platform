@@ -6,7 +6,7 @@ import {
   encryptRemoteMcpSecret,
   isRemoteMcpSecretEncrypted,
   normalizeStoredRemoteMcpSecret,
-} from '../../../src/services/remote-mcp-secret-crypto.js';
+} from '../../../src/services/remote-mcp/core/remote-mcp-secret-crypto.js';
 
 describe('remote-mcp-secret-crypto', () => {
   beforeEach(() => {

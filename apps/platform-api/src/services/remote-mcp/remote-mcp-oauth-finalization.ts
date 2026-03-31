@@ -1,10 +1,10 @@
 import type {
   CreateVerifiedRemoteMcpServerInput,
   UpdateVerifiedRemoteMcpServerInput,
-} from '../remote-mcp-server-service.js';
-import type { RemoteMcpOAuthConfigRecord } from '../remote-mcp-model.js';
-import type { TokenResponse } from '../remote-mcp-oauth-types.js';
-import type { RemoteMcpVerifier } from '../remote-mcp-verification-service.js';
+} from './servers/remote-mcp-server-service.js';
+import type { RemoteMcpOAuthConfigRecord } from './core/remote-mcp-model.js';
+import type { TokenResponse } from './core/remote-mcp-oauth-types.js';
+import type { RemoteMcpVerifier } from './verification/remote-mcp-verification-service.js';
 import {
   buildStoredOauthCredentials,
   parseDraftOauthDefinition,

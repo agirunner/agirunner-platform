@@ -1,5 +1,5 @@
 import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
-import { decryptRemoteMcpSecret } from '../remote-mcp-secret-crypto.js';
+import { decryptRemoteMcpSecret } from './core/remote-mcp-secret-crypto.js';
 import {
   remoteMcpOauthConfigSchema,
   remoteMcpOauthCredentialsSchema,
@@ -8,7 +8,7 @@ import {
   type RemoteMcpOAuthCredentialsRecord,
   type RemoteMcpOauthDefinition,
   type RemoteMcpTransportPreference,
-} from '../remote-mcp-model.js';
+} from './core/remote-mcp-model.js';
 import type {
   RemoteMcpServerParameterRecord,
   RemoteMcpServerRecord,

@@ -6,13 +6,13 @@ import {
   type RemoteMcpOAuthCredentialsRecord,
   type RemoteMcpOauthDefinition,
   type RemoteMcpParameterInput,
-} from '../remote-mcp-model.js';
-import type { RemoteMcpOAuthClientProfileRecord } from '../remote-mcp-oauth-client-profile-service.js';
-import type { TokenResponse } from '../remote-mcp-oauth-types.js';
+} from './core/remote-mcp-model.js';
+import type { RemoteMcpOAuthClientProfileRecord } from './oauth/remote-mcp-oauth-client-profile-service.js';
+import type { TokenResponse } from './core/remote-mcp-oauth-types.js';
 import {
   encryptRemoteMcpSecret,
   isRemoteMcpSecretEncrypted,
-} from '../remote-mcp-secret-crypto.js';
+} from './core/remote-mcp-secret-crypto.js';
 
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 

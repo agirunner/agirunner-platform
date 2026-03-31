@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 
-import type { RemoteMcpOAuthStartResult } from '../../../src/services/remote-mcp-oauth-types.js';
+import type { RemoteMcpOAuthStartResult } from '../../../src/services/remote-mcp/core/remote-mcp-oauth-types.js';
 
 export function mockJsonResponse(body: unknown, status = 200, headers?: Record<string, string>): Response {
   return {

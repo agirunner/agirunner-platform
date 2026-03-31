@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
-import { RemoteMcpOAuthService } from '../../../src/services/remote-mcp-oauth-service.js';
+import { RemoteMcpOAuthService } from '../../../src/services/remote-mcp/oauth/remote-mcp-oauth-service.js';
 import { mockJsonResponse } from './remote-mcp-oauth-test-helpers.js';
 
 describe('RemoteMcpOAuthService callback and connection flows', () => {

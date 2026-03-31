@@ -53,11 +53,11 @@ import { OrchestratorConfigService } from '../services/orchestrator-config-servi
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
-import { RemoteMcpOAuthClientProfileService } from '../services/remote-mcp-oauth-client-profile-service.js';
-import { RemoteMcpServerService } from '../services/remote-mcp-server-service.js';
-import { RemoteMcpHttpVerifier } from '../services/remote-mcp-http-verifier.js';
-import { RemoteMcpOAuthService } from '../services/remote-mcp-oauth-service.js';
-import { RemoteMcpVerificationService } from '../services/remote-mcp-verification-service.js';
+import { RemoteMcpOAuthClientProfileService } from '../services/remote-mcp/oauth/remote-mcp-oauth-client-profile-service.js';
+import { RemoteMcpServerService } from '../services/remote-mcp/servers/remote-mcp-server-service.js';
+import { RemoteMcpHttpVerifier } from '../services/remote-mcp/verification/remote-mcp-http-verifier.js';
+import { RemoteMcpOAuthService } from '../services/remote-mcp/oauth/remote-mcp-oauth-service.js';
+import { RemoteMcpVerificationService } from '../services/remote-mcp/verification/remote-mcp-verification-service.js';
 import { SpecialistSkillService } from '../services/specialist-skill-service.js';
 import { WorkspaceArtifactFileService } from '../services/workspace/artifacts/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace/workspace-service.js';

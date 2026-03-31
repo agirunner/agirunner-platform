@@ -2,13 +2,13 @@ import { z } from 'zod';
 
 import type { DatabaseQueryable } from '../../db/database.js';
 import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
-import type { StoredRemoteMcpServerRecord } from '../remote-mcp-server-service.js';
+import type { StoredRemoteMcpServerRecord } from './servers/remote-mcp-server-service.js';
 import {
   remoteMcpOauthDefinitionSchema,
   remoteMcpParameterSchema,
   remoteMcpTransportPreferenceSchema,
-} from '../remote-mcp-model.js';
-import type { RemoteMcpOAuthStatePayload } from '../remote-mcp-oauth-types.js';
+} from './core/remote-mcp-model.js';
+import type { RemoteMcpOAuthStatePayload } from './core/remote-mcp-oauth-types.js';
 import { persistableOauthDefinition } from './remote-mcp-oauth-helpers.js';
 
 export const draftInputSchema = z.object({

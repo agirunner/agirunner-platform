@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../src/errors/error-handler.js';
-import { RemoteMcpOAuthClientProfileService } from '../../../src/services/remote-mcp-oauth-client-profile-service.js';
+import { RemoteMcpOAuthClientProfileService } from '../../../src/services/remote-mcp/oauth/remote-mcp-oauth-client-profile-service.js';
 
 vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {

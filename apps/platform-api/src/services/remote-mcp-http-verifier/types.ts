@@ -1,7 +1,7 @@
 import type {
   RemoteMcpParameterInput,
   RemoteMcpTransportPreference,
-} from '../remote-mcp-model.js';
+} from '../remote-mcp/core/remote-mcp-model.js';
 
 export interface VerifyRequest {
   endpointUrl: string;
