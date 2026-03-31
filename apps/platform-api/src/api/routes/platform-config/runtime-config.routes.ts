@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
-import { RuntimeConfigService } from '../../../services/runtime-config-service.js';
+import { RuntimeConfigService } from '../../../services/platform-config/runtime-config-service.js';
 
 export const runtimeConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = new RuntimeConfigService(app.pgPool);

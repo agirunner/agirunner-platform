@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError, ValidationError } from '../../../errors/domain-errors.js';
-import { PlatformInstructionService } from '../../../services/platform-instruction-service.js';
+import { PlatformInstructionService } from '../../../services/platform-config/platform-instruction-service.js';
 
 const instructionSchema = z.object({
   content: z.string(),

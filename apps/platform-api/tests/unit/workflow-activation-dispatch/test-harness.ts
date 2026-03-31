@@ -31,7 +31,7 @@ export const DEFAULT_RUNTIME_DEFAULTS: Record<string, number> = {
   'agent.llm_max_retries': 5,
 };
 
-vi.mock('../../../src/services/platform-timing-defaults.js', () => ({
+vi.mock('../../../src/services/platform-config/platform-timing-defaults.js', () => ({
   readWorkflowActivationTimingDefaults: readWorkflowActivationTimingDefaultsMock,
 }));
 

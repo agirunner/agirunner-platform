@@ -1,7 +1,7 @@
 import type { DatabaseClient } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 
-import { readWorkflowActivationTimingDefaults } from '../platform-timing-defaults.js';
+import { readWorkflowActivationTimingDefaults } from '../platform-config/platform-timing-defaults.js';
 
 import {
   ACTIVE_ORCHESTRATOR_TASK_STATES,

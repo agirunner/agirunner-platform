@@ -6,7 +6,7 @@ import {
   type DiscoveredModel,
   isDefaultEnabledModel,
   readNativeSearchCapability,
-} from './llm-discovery-service.js';
+} from './platform-config/llm-discovery-service.js';
 import {
   attachNativeSearchCapability,
   normalizeSecretValue,

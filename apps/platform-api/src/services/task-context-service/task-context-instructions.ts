@@ -1,4 +1,4 @@
-import { normalizeInstructionDocument } from '../instruction-policy.js';
+import { normalizeInstructionDocument } from '../platform-config/instruction-policy.js';
 import {
   buildRemoteMcpAvailabilitySection,
   buildSpecialistSkillInstructionSection,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeInstructionDocument } from '../../../src/services/instruction-policy.js';
+import { normalizeInstructionDocument } from '../../../src/services/platform-config/instruction-policy.js';
 
 describe('normalizeInstructionDocument', () => {
   it('accepts instruction arrays and preserves ordering as markdown bullets', () => {

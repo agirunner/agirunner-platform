@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { RuntimeConfigService } from '../../../src/services/runtime-config-service.js';
+import { RuntimeConfigService } from '../../../src/services/platform-config/runtime-config-service.js';
 
 function createMockPool() {
   return { query: vi.fn() };

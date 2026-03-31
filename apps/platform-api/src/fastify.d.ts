@@ -55,7 +55,7 @@ import type { WorkflowOperatorUpdateService } from './services/workflow-operator
 import type { WorkflowRedriveService } from './services/workflow-service/workflow-redrive-service.js';
 import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service/workflow-steering-session-service.js';
-import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';
+import type { PlatformTransportTimingDefaults } from './services/platform-config/platform-timing-defaults.js';
 
 declare module 'fastify' {
   interface FastifyInstance {

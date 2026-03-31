@@ -8,7 +8,7 @@ import type {
   CreateModelInput,
   UpdateModelInput,
 } from '../../../services/model-catalog-service.js';
-import { LlmDiscoveryService } from '../../../services/llm-discovery-service.js';
+import { LlmDiscoveryService } from '../../../services/platform-config/llm-discovery-service.js';
 import { getOAuthProfile } from '../../../catalogs/oauth-profiles.js';
 
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {

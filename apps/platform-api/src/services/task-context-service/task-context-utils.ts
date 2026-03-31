@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { normalizeInstructionDocument } from '../instruction-policy.js';
+import { normalizeInstructionDocument } from '../platform-config/instruction-policy.js';
 import { sanitizeSecretLikeValue } from '../secret-redaction.js';
 import { TASK_CONTEXT_SECRET_REDACTION, UPSTREAM_OUTPUT_MAX_BYTES } from './task-context-constants.js';
 

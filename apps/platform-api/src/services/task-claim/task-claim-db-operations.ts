@@ -3,7 +3,7 @@ import type { DatabaseClient } from '../../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import { matchesWorkerToTaskRouting } from '../task/task-routing-contract.js';
 import { assertValidTransition } from '../../orchestration/task-state-machine.js';
-import { readAgentSupervisionTimingDefaults } from '../platform-timing-defaults.js';
+import { readAgentSupervisionTimingDefaults } from '../platform-config/platform-timing-defaults.js';
 import {
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,

@@ -6,7 +6,7 @@ import {
   parsePlaybookDefinition,
   type PlaybookDefinition,
 } from '../../orchestration/playbook-model.js';
-import { resolveWorkflowConfig } from '../config-hierarchy-service.js';
+import { resolveWorkflowConfig } from '../platform-config/config-hierarchy-service.js';
 import { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import type { CreateWorkflowInput, WorkflowAttemptInput } from './workflow-service.types.js';

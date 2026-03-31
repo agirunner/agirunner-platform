@@ -63,7 +63,7 @@ import { WorkspaceArtifactFileService } from '../services/workspace/artifacts/wo
 import { WorkspaceService } from '../services/workspace/workspace-service.js';
 import { PlaybookService } from '../services/playbook/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition/role-definition-service.js';
-import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
+import { readPlatformTransportTimingDefaults } from '../services/platform-config/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults/runtime-defaults-service.js';
 import { TaskService } from '../services/task/task-service.js';
 import { UserService } from '../services/user-service.js';

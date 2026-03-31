@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { LlmDiscoveryService } from '../../../src/services/llm-discovery-service.js';
+import { LlmDiscoveryService } from '../../../src/services/platform-config/llm-discovery-service.js';
 import { MODEL_CATALOG } from '../../../src/catalogs/model-catalog.js';
 
 function mockFetchResponse(data: unknown, status = 200): Response {

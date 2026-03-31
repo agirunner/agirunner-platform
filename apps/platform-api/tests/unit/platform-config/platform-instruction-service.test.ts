@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { PlatformInstructionService } from '../../../src/services/platform-instruction-service.js';
+import { PlatformInstructionService } from '../../../src/services/platform-config/platform-instruction-service.js';
 
 const SECRET_ERROR =
   'platform instructions must not contain pasted credentials, tokens, or secret values; use supported secret fields instead';

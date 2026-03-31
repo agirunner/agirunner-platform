@@ -3,7 +3,7 @@ import { ValidationError } from '../../errors/domain-errors.js';
 import {
   readNativeSearchCapability,
   type NativeSearchCapability,
-} from '../llm-discovery-service.js';
+} from '../platform-config/llm-discovery-service.js';
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 
 export interface ProviderRow {

@@ -6,8 +6,8 @@ import { EventService } from '../event/event-service.js';
 import {
   readAgentSupervisionTimingDefaults,
   readWorkerSupervisionTimingDefaults,
-} from '../platform-timing-defaults.js';
-import type { PlatformTransportTimingDefaults } from '../platform-timing-defaults.js';
+} from '../platform-config/platform-timing-defaults.js';
+import type { PlatformTransportTimingDefaults } from '../platform-config/platform-timing-defaults.js';
 import { WorkerConnectionHub } from './worker-connection-hub.js';
 import {
   acknowledgeTask,
