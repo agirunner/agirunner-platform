@@ -46,6 +46,8 @@ tasks/
 tmp/
 .artifacts/
 .superpowers/
+AGENTS.md
+CLAUDE.md
 docs/superpowers/
 apps/dashboard/test-results/
 test-results/
