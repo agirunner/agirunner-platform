@@ -9,5 +9,7 @@ export interface DatabasePool extends DatabaseQueryable {
 }
 
 export interface DatabaseClient extends DatabaseQueryable {
+  on: PoolClient['on'];
+  removeAllListeners: PoolClient['removeAllListeners'];
   release: PoolClient['release'];
 }
