@@ -2,7 +2,7 @@ import { filterPacketsByCategories } from './mission-control-packet-support.js';
 import type { MissionControlWorkspaceResponse } from './mission-control-types.js';
 import { MissionControlHistoryService } from './mission-control-history-service.js';
 import { MissionControlLiveService } from './mission-control-live-service.js';
-import type { WorkflowService } from '../workflow-service.js';
+import type { WorkflowService } from '../workflow-service/workflow-service.js';
 
 export class MissionControlWorkspaceService {
   constructor(

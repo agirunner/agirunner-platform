@@ -1,18 +1,18 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
-import { buildArtifactStorageConfig } from '../content/storage-config.js';
-import { createArtifactStorage } from '../content/storage-factory.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ArtifactRetentionService } from './artifacts/artifact-retention-service.js';
-import { DestructiveDeleteService } from './destructive-delete/destructive-delete-service.js';
-import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
-import { WorkflowActivationDispatchService } from './workflow-activation-dispatch/workflow-activation-dispatch-service.js';
-import { WorkflowBudgetService } from './workflow-budget-service.js';
-import { WorkflowCancellationService } from './workflow-cancellation-service.js';
-import { WorkflowControlService } from './workflow-control-service.js';
-import { WorkflowCreationService } from './workflow-creation-service.js';
-import { WorkflowDeliverableService } from './workflow-deliverable-service.js';
-import { EventService } from './event/event-service.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
+import { buildArtifactStorageConfig } from '../../content/storage-config.js';
+import { createArtifactStorage } from '../../content/storage-factory.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ArtifactRetentionService } from '../artifacts/artifact-retention-service.js';
+import { DestructiveDeleteService } from '../destructive-delete/destructive-delete-service.js';
+import { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
+import { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
+import { WorkflowBudgetService } from '../workflow-budget-service.js';
+import { WorkflowCancellationService } from '../workflow-cancellation-service.js';
+import { WorkflowControlService } from '../workflow-control-service.js';
+import { WorkflowCreationService } from '../workflow-creation-service.js';
+import { WorkflowDeliverableService } from '../workflow-deliverable-service.js';
+import { EventService } from '../event/event-service.js';
 import {
   PlaybookWorkflowControlService,
   type AdvanceStageInput,
@@ -21,34 +21,34 @@ import {
   type StageGateDecisionInput,
   type StageGateRequestInput,
   type UpdateWorkflowWorkItemInput,
-} from './playbook-workflow-control/playbook-workflow-control-service.js';
-import type { TaskService } from './task-service.js';
+} from '../playbook-workflow-control/playbook-workflow-control-service.js';
+import type { TaskService } from '../task-service.js';
 import {
   type CreateWorkflowWorkItemEnvelopeInput,
   WorkflowAddWorkService,
-} from './workflow-add-work-service.js';
-import { WorkItemService } from './work-item-service/work-item-service.js';
+} from '../workflow-add-work-service.js';
+import { WorkItemService } from '../work-item-service/work-item-service.js';
 import type {
   GetWorkflowWorkItemInput,
   GroupedWorkItemReadModel,
   ListWorkflowWorkItemsInput,
   WorkItemReadModel,
-} from './work-item-service/types.js';
-import { WorkflowStageService } from './workflow-stage/workflow-stage-service.js';
-import { WorkflowStateService } from './workflow-state-service.js';
-import { WorkflowWorkItemControlService } from './workflow-work-item-control-service.js';
-import { WorkspaceTimelineService } from './workspace/timeline/workspace-timeline-service.js';
-import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
-import { deleteWorkflow as deleteWorkflowRecord } from './workflow-service/workflow-delete-service.js';
+} from '../work-item-service/types.js';
+import { WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';
+import { WorkflowStateService } from '../workflow-state-service.js';
+import { WorkflowWorkItemControlService } from '../workflow-work-item-control-service.js';
+import { WorkspaceTimelineService } from '../workspace/timeline/workspace-timeline-service.js';
+import { readTaskCancelSignalGracePeriodMs } from '../platform-timing-defaults.js';
+import { deleteWorkflow as deleteWorkflowRecord } from './workflow-delete-service.js';
 import {
   getWorkflow as getWorkflowRecord,
   getWorkflowBoard as getWorkflowBoardRecord,
   listWorkflows as listWorkflowRecords,
   type WorkflowQueryDependencies,
-} from './workflow-service/workflow-query-service.js';
-import type { LogService } from '../logging/log-service.js';
-import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
-import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
+} from './workflow-query-service.js';
+import type { LogService } from '../../logging/log-service.js';
+import type { WorkerConnectionHub } from '../workers/worker-connection-hub.js';
+import type { WorkflowInputPacketService } from '../workflow-input-packet-service.js';
 import type {
   CreateWorkflowInput,
   ListWorkflowQuery,

@@ -1,6 +1,6 @@
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from '../secret-redaction.js';
-import type { WorkflowWorkItemSummary } from '../workflow-service.types.js';
+import type { WorkflowWorkItemSummary } from './workflow-service.types.js';
 
 export function normalizeWorkflowReadModel(
   workflow: Record<string, unknown>,

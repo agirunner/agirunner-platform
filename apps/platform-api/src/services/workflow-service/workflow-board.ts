@@ -3,7 +3,7 @@ import {
   isActiveStageStatus,
   type WorkflowStageResponse,
 } from '../workflow-stage/workflow-stage-service.js';
-import type { WorkflowWorkItemSummary } from '../workflow-service.types.js';
+import type { WorkflowWorkItemSummary } from './workflow-service.types.js';
 import { asOptionalString, asRecord } from './workflow-read-model.js';
 
 export function annotateBoardWorkItems(

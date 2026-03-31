@@ -3,7 +3,7 @@ import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event/event-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
-import type { WorkflowBudgetSnapshot } from './workflow-service.types.js';
+import type { WorkflowBudgetSnapshot } from './workflow-service/workflow-service.types.js';
 
 type BudgetDimension = 'tokens' | 'cost' | 'duration';
 

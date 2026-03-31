@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabasePool } from '../../db/database.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
-import { WorkflowService } from '../workflow-service.js';
+import { WorkflowService } from '../workflow-service/workflow-service.js';
 
 export class WorkspacePlanningService {
   constructor(

@@ -4,7 +4,7 @@ import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 import { activeColumnId, parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import { buildWorkflowReadColumns } from '../workflow-read-columns.js';
-import type { ListWorkflowQuery } from '../workflow-service.types.js';
+import type { ListWorkflowQuery } from './workflow-service.types.js';
 import { deriveWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import type { WorkItemService } from '../work-item-service/work-item-service.js';
 import type { WorkflowStageResponse, WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';

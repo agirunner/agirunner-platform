@@ -1,4 +1,4 @@
-import type { WorkflowService } from '../workflow-service.js';
+import type { WorkflowService } from '../workflow-service/workflow-service.js';
 import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type {
   WorkflowInterventionService,

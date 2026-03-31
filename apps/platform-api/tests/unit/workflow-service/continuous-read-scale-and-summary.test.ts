@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowService } from '../../../src/services/workflow-service.js';
+import { WorkflowService } from '../../../src/services/workflow-service/workflow-service.js';
 
 const config = {
   TASK_DEFAULT_TIMEOUT_MINUTES: 30,

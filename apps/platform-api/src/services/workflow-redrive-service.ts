@@ -4,14 +4,14 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type {
   CreateWorkflowInput,
   WorkflowAttemptInput,
-} from './workflow-service.types.js';
+} from './workflow-service/workflow-service.types.js';
 import type {
   CreateWorkflowInputPacketInput,
   WorkflowInputPacketRecord,
   WorkflowInputPacketService,
 } from './workflow-input-packet-service.js';
 import type { EventService } from './event/event-service.js';
-import type { WorkflowService } from './workflow-service.js';
+import type { WorkflowService } from './workflow-service/workflow-service.js';
 
 interface SourceWorkflowRow {
   id: string;
