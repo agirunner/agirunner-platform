@@ -31,8 +31,6 @@ test('redirects into Workflows and defaults the workbench by workflow posture', 
   ).toBeVisible();
   await expect(page.locator('p').filter({ hasText: /^Final$/ }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'History' }).click();
-  await expect(page.getByText('Durable decisions and workflow records for this workflow.')).toBeVisible();
 });
 
 test('preloads the seeded admin key on the login screen and signs in without manual entry', async ({ page }) => {

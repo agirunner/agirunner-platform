@@ -1,9 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
 import {
-  ADMIN_API_KEY,
   DEFAULT_TENANT_ID,
-  PLATFORM_API_URL,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
@@ -20,7 +18,6 @@ const NON_LIVE_RUNTIME_CONTAINERS = [
 
 interface ApiRecord {
   id: string;
-  slug?: string;
   name?: string;
 }
 
@@ -30,6 +27,7 @@ export async function resetWorkflowsState(): Promise<void> {
   const fixturePlaybookIds = selectFixturePlaybookIds();
   const blockingWorkflows = selectBlockingWorkflows();
   const fixtureWorkflowIds = selectFixtureWorkflowIds();
+
   if (blockingWorkflows.length > 0) {
     throw new Error(
       `Refusing to seed dashboard E2E workflows over active non-fixture workflows: ${blockingWorkflows
@@ -38,26 +36,15 @@ export async function resetWorkflowsState(): Promise<void> {
     );
   }
 
-  if (fixtureWorkflowIds.length > 0) {
-    await apiDataRequest('/api/v1/workflows/bulk-delete', {
-      method: 'POST',
-      body: { workflow_ids: fixtureWorkflowIds },
-    });
+  if (
+    fixtureWorkflowIds.length === 0
+    && fixtureWorkspaceIds.length === 0
+    && fixturePlaybookIds.length === 0
+  ) {
+    return;
   }
 
-  for (const workspaceId of fixtureWorkspaceIds) {
-    await apiDataRequest(`/api/v1/workspaces/${workspaceId}`, {
-      method: 'DELETE',
-      allowNotFound: true,
-    });
-  }
-
-  for (const playbookId of fixturePlaybookIds) {
-    await apiDataRequest(`/api/v1/playbooks/${playbookId}`, {
-      method: 'DELETE',
-      allowNotFound: true,
-    });
-  }
+  runPsql(buildFixturePurgeSql());
 }
 
 function ensureNonLiveRuntimeQuiesced(): void {
@@ -152,12 +139,483 @@ function selectFixtureWorkflowIds(): string[] {
   `);
 }
 
+function buildFixturePurgeSql(): string {
+  const workspaceFilter = `slug LIKE ${sqlText(`${FIXTURE_WORKSPACE_SLUG_PREFIX}%`)}`;
+  const playbookFilter = `(
+           slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[0]}%`)}
+           OR slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[1]}%`)}
+         )`;
+  const workflowFilter = `COALESCE(name, '') LIKE 'E2E %'
+            AND (
+              workspace_id IN (
+                SELECT id
+                  FROM public.workspaces
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workspaceFilter}
+              )
+              OR playbook_id IN (
+                SELECT id
+                  FROM public.playbooks
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${playbookFilter}
+              )
+            )`;
+  return `
+    WITH fixture_workspaces AS (
+      SELECT id
+        FROM public.workspaces
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND slug LIKE ${sqlText(`${FIXTURE_WORKSPACE_SLUG_PREFIX}%`)}
+    ),
+    fixture_playbooks AS (
+      SELECT id
+        FROM public.playbooks
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND (
+           slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[0]}%`)}
+           OR slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[1]}%`)}
+         )
+    ),
+    fixture_workflows AS (
+      SELECT id
+        FROM public.workflows
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND COALESCE(name, '') LIKE 'E2E %'
+         AND (
+           workspace_id IN (SELECT id FROM fixture_workspaces)
+           OR playbook_id IN (SELECT id FROM fixture_playbooks)
+         )
+    ),
+    fixture_tasks AS (
+      SELECT id
+        FROM public.tasks
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND workflow_id IN (SELECT id FROM fixture_workflows)
+    )
+    UPDATE public.agents
+       SET current_task_id = NULL,
+           status = (CASE WHEN status = 'inactive' THEN 'inactive' ELSE 'idle' END)::agent_status
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND current_task_id IN (SELECT id FROM fixture_tasks);
+
+    WITH fixture_workspaces AS (
+      SELECT id
+        FROM public.workspaces
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND slug LIKE ${sqlText(`${FIXTURE_WORKSPACE_SLUG_PREFIX}%`)}
+    ),
+    fixture_playbooks AS (
+      SELECT id
+        FROM public.playbooks
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND (
+           slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[0]}%`)}
+           OR slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[1]}%`)}
+         )
+    ),
+    fixture_workflows AS (
+      SELECT id
+        FROM public.workflows
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND COALESCE(name, '') LIKE 'E2E %'
+         AND (
+           workspace_id IN (SELECT id FROM fixture_workspaces)
+           OR playbook_id IN (SELECT id FROM fixture_playbooks)
+         )
+    ),
+    fixture_tasks AS (
+      SELECT id
+        FROM public.tasks
+       WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+         AND workflow_id IN (SELECT id FROM fixture_workflows)
+    )
+    UPDATE public.workers
+       SET current_task_id = NULL
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND current_task_id IN (SELECT id FROM fixture_tasks);
+
+    DELETE FROM public.integration_actions
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND task_id IN (
+         SELECT id
+           FROM public.tasks
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND workflow_id IN (
+              SELECT id
+                FROM public.workflows
+               WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                 AND COALESCE(name, '') LIKE 'E2E %'
+                 AND (
+                   workspace_id IN (
+                     SELECT id
+                       FROM public.workspaces
+                      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                        AND slug LIKE ${sqlText(`${FIXTURE_WORKSPACE_SLUG_PREFIX}%`)}
+                   )
+                   OR playbook_id IN (
+                     SELECT id
+                       FROM public.playbooks
+                      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                        AND (
+                          slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[0]}%`)}
+                          OR slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[1]}%`)}
+                        )
+                   )
+                 )
+            )
+       );
+
+    DELETE FROM public.worker_signals
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND task_id IN (
+         SELECT id
+           FROM public.tasks
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND workflow_id IN (
+              SELECT id
+                FROM public.workflows
+               WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                 AND COALESCE(name, '') LIKE 'E2E %'
+                 AND (
+                   workspace_id IN (
+                     SELECT id
+                       FROM public.workspaces
+                      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                        AND slug LIKE ${sqlText(`${FIXTURE_WORKSPACE_SLUG_PREFIX}%`)}
+                   )
+                   OR playbook_id IN (
+                     SELECT id
+                       FROM public.playbooks
+                      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                        AND (
+                          slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[0]}%`)}
+                          OR slug LIKE ${sqlText(`${FIXTURE_PLAYBOOK_SLUG_PREFIXES[1]}%`)}
+                        )
+                   )
+                 )
+            )
+       );
+
+    DELETE FROM public.task_handoffs
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+         workflow_id IN (
+           SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+         OR task_id IN (
+           SELECT id
+             FROM public.tasks
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND workflow_id IN (
+                SELECT id
+                  FROM public.workflows
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workflowFilter}
+              )
+         )
+       );
+
+    DELETE FROM public.task_tool_results
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND task_id IN (
+         SELECT id
+           FROM public.tasks
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND workflow_id IN (
+              SELECT id
+                FROM public.workflows
+               WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                 AND ${workflowFilter}
+            )
+       );
+
+    DELETE FROM public.execution_container_leases
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND task_id IN (
+         SELECT id
+           FROM public.tasks
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND workflow_id IN (
+              SELECT id
+                FROM public.workflows
+               WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                 AND ${workflowFilter}
+            )
+       );
+
+    DELETE FROM public.orchestrator_task_messages
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+         workflow_id IN (
+           SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+         OR task_id IN (
+           SELECT id
+             FROM public.tasks
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND workflow_id IN (
+                SELECT id
+                  FROM public.workflows
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workflowFilter}
+              )
+         )
+         OR orchestrator_task_id IN (
+           SELECT id
+             FROM public.tasks
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND workflow_id IN (
+                SELECT id
+                  FROM public.workflows
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workflowFilter}
+              )
+         )
+       );
+
+    DELETE FROM public.workflow_subject_escalations
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_stage_gates
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_intervention_files
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_interventions
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_input_packet_files
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_input_packets
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_output_descriptors
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_operator_updates
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_operator_briefs
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_documents
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+         workflow_id IN (
+           SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+         OR workspace_id IN (
+           SELECT id
+             FROM public.workspaces
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workspaceFilter}
+         )
+       );
+
+    DELETE FROM public.workflow_tool_results
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.orchestrator_grants
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.execution_logs
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+         workflow_id IN (
+           SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+         OR workspace_id IN (
+           SELECT id
+             FROM public.workspaces
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workspaceFilter}
+         )
+       );
+
+    DELETE FROM public.events
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+        (entity_type = 'workflow' AND entity_id IN (
+          SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         ))
+        OR (entity_type = 'task' AND entity_id IN (
+          SELECT id
+             FROM public.tasks
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND workflow_id IN (
+                SELECT id
+                  FROM public.workflows
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workflowFilter}
+              )
+         ))
+         OR data->>'workflow_id' IN (
+           SELECT id::text
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+       );
+
+    DELETE FROM public.workflow_branches
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_stages
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.tasks
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_work_items
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_activations
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflows
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND ${workflowFilter};
+
+    DELETE FROM public.workspaces
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND ${workspaceFilter};
+
+    DELETE FROM public.playbooks
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND ${playbookFilter};
+  `;
+}
+
 function queryScalarValues(sql: string): string[] {
   return queryRows(sql).map(([value]) => value);
 }
 
 function queryRows(sql: string): string[][] {
-  const output = execFileSync(
+  const output = runPsql(sql).trim();
+  if (!output) {
+    return [];
+  }
+  return output
+    .split('\n')
+    .map((line) => line.split('|').map((value) => value.trim()))
+    .filter((row) => row.some((value) => value.length > 0));
+}
+
+function runPsql(sql: string): string {
+  return execFileSync(
     'docker',
     [
       'exec',
@@ -176,14 +634,7 @@ function queryRows(sql: string): string[][] {
       sql,
     ],
     { encoding: 'utf8' },
-  ).trim();
-  if (!output) {
-    return [];
-  }
-  return output
-    .split('\n')
-    .map((line) => line.split('|').map((value) => value.trim()))
-    .filter((row) => row.some((value) => value.length > 0));
+  );
 }
 
 function sqlText(value: string): string {
@@ -192,37 +643,4 @@ function sqlText(value: string): string {
 
 function sqlUuid(value: string): string {
   return `${sqlText(value)}::uuid`;
-}
-
-async function apiDataRequest<T>(
-  path: string,
-  init: { method?: string; body?: Record<string, unknown>; allowNotFound?: boolean } = {},
-): Promise<T> {
-  const payload = await apiJsonRequest<{ data: T }>(path, init);
-  return payload.data;
-}
-
-async function apiJsonRequest<T>(
-  path: string,
-  init: { method?: string; body?: Record<string, unknown>; allowNotFound?: boolean } = {},
-): Promise<T> {
-  const hasBody = init.body !== undefined;
-  const response = await fetch(`${PLATFORM_API_URL}${path}`, {
-    method: init.method ?? 'GET',
-    headers: {
-      authorization: `Bearer ${ADMIN_API_KEY}`,
-      ...(hasBody ? { 'content-type': 'application/json' } : {}),
-    },
-    body: hasBody ? JSON.stringify(init.body) : undefined,
-  });
-  if (!response.ok) {
-    const responseText = await response.text();
-    if (init.allowNotFound && response.status === 404) {
-      return ({ data: null } satisfies { data: null }) as T;
-    }
-    throw new Error(
-      `API request failed ${init.method ?? 'GET'} ${path}: ${response.status} ${responseText}`,
-    );
-  }
-  return (await response.json()) as T;
 }

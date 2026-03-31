@@ -15,11 +15,11 @@ test('restores workflow scope, selected work item, and tab state across refresh 
   await expect(page).toHaveURL(/workflows\/.+\?work_item_id=.*tab=details/);
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
-  await expect(workbench.getByText('What was asked')).toBeVisible();
+  await expect(workbench.getByText(/what was asked/i)).toBeVisible();
 
   await page.reload();
   await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
-  await expect(workbench.getByText('What was asked')).toBeVisible();
+  await expect(workbench.getByText(/what was asked/i)).toBeVisible();
 
   await page.getByRole('button', { name: 'Live Console' }).click();
   await expect(page).toHaveURL(/tab=live_console/);

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const execFileSyncMock = vi.hoisted(() => vi.fn());
 
@@ -8,13 +8,6 @@ vi.mock('node:child_process', () => ({
 
 import { resetWorkflowsState } from '../../../../tests/integration/dashboard/support/workflows-fixture-reset.js';
 
-type FetchPayload = {
-  ok?: boolean;
-  status?: number;
-  json?: unknown;
-  text?: string;
-};
-
 type SqlOutputs = {
   workspaces?: string;
   playbooks?: string;
@@ -22,38 +15,12 @@ type SqlOutputs = {
   workflows?: string;
 };
 
-function jsonResponse(payload: unknown): FetchPayload {
-  return {
-    ok: true,
-    status: 200,
-    json: payload,
-    text: JSON.stringify(payload),
-  };
-}
-
-function installFetchMock(responses: FetchPayload[]) {
+function installFetchTrap() {
   const fetchMock = vi.fn(async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error('unexpected fetch call');
-    }
-    return {
-      ok: next.ok ?? true,
-      status: next.status ?? 200,
-      async json() {
-        return next.json ?? {};
-      },
-      async text() {
-        return next.text ?? '';
-      },
-    };
+    throw new Error('unexpected fetch call');
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
-}
-
-function fetchCalls(fetchMock: ReturnType<typeof vi.fn>): Array<[unknown, RequestInit | undefined]> {
-  return fetchMock.mock.calls as Array<[unknown, RequestInit | undefined]>;
 }
 
 function installExecMock(sqlOutputs: SqlOutputs, options: { runningContainers?: string[] } = {}) {
@@ -70,18 +37,21 @@ function installExecMock(sqlOutputs: SqlOutputs, options: { runningContainers?: 
       return '';
     }
 
-    const sql = args.at(-1) ?? '';
-    if (sql.includes('FROM public.workflows') && sql.includes("COALESCE(name, '') LIKE 'E2E %'")) {
+    const sql = String(args.at(-1) ?? '');
+    if (sql.includes("COALESCE(name, '') LIKE 'E2E %'")) {
       return sqlOutputs.workflows ?? '';
     }
-    if (sql.includes('FROM public.workflows') && sql.includes('state NOT IN') && sql.includes('LIMIT 20')) {
+    if (sql.includes('state NOT IN') && sql.includes('LIMIT 20')) {
       return sqlOutputs.blockingWorkflows ?? '';
     }
-    if (sql.includes('FROM public.workspaces')) {
+    if (sql.startsWith('\n    SELECT id::text') && sql.includes('FROM public.workspaces')) {
       return sqlOutputs.workspaces ?? '';
     }
-    if (sql.includes('FROM public.playbooks')) {
+    if (sql.startsWith('\n    SELECT id::text') && sql.includes('FROM public.playbooks')) {
       return sqlOutputs.playbooks ?? '';
+    }
+    if (sql.includes('DELETE FROM public.workflows')) {
+      return '';
     }
 
     throw new Error(`unexpected docker exec invocation: ${args.join(' ')}`);
@@ -91,9 +61,6 @@ function installExecMock(sqlOutputs: SqlOutputs, options: { runningContainers?: 
 describe('resetWorkflowsState', () => {
   beforeEach(() => {
     execFileSyncMock.mockReset();
-  });
-
-  afterEach(() => {
     vi.unstubAllGlobals();
   });
 
@@ -103,7 +70,7 @@ describe('resetWorkflowsState', () => {
       playbooks: 'fixture-playbook-planned\n',
       blockingWorkflows: 'live-workflow|SDLC Parallel Assessors Mixed Outcomes\n',
     });
-    const fetchMock = installFetchMock([]);
+    const fetchMock = installFetchTrap();
 
     await expect(resetWorkflowsState()).rejects.toThrow(/active non-fixture workflows/i);
 
@@ -111,7 +78,7 @@ describe('resetWorkflowsState', () => {
     expect(execFileSyncMock).toHaveBeenCalledTimes(5);
   });
 
-  it('bulk deletes fixture workflows before removing their workspaces and playbooks', async () => {
+  it('purges fixture workflows, workspaces, and playbooks locally without API calls', async () => {
     installExecMock(
       {
         workspaces: 'fixture-workspace\n',
@@ -121,19 +88,7 @@ describe('resetWorkflowsState', () => {
       },
       { runningContainers: ['orchestrator-primary-0', 'agirunner-platform-container-manager-1'] },
     );
-    const fetchMock = installFetchMock([
-      jsonResponse({
-        data: {
-          deleted: true,
-          deleted_workflow_count: 2,
-          deleted_task_count: 4,
-          deleted_workflow_ids: ['fixture-workflow-1', 'fixture-workflow-2'],
-        },
-      }),
-      jsonResponse({ data: { id: 'fixture-workspace', deleted: true } }),
-      jsonResponse({ data: { id: 'fixture-playbook-planned', deleted: true } }),
-      jsonResponse({ data: { id: 'fixture-playbook-ongoing', deleted: true } }),
-    ]);
+    const fetchMock = installFetchTrap();
 
     await resetWorkflowsState();
 
@@ -149,43 +104,39 @@ describe('resetWorkflowsState', () => {
       ['stop', 'orchestrator-primary-0', 'agirunner-platform-container-manager-1'],
       { stdio: 'pipe' },
     );
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-    const calls = fetchCalls(fetchMock);
-    expect(String(calls[0]?.[0] ?? '')).toContain('/api/v1/workflows/bulk-delete');
-    expect(calls[0]?.[1]).toMatchObject({
-      method: 'POST',
-      body: JSON.stringify({ workflow_ids: ['fixture-workflow-1', 'fixture-workflow-2'] }),
-    });
-    expect(String(calls[1]?.[0] ?? '')).toContain('/api/v1/workspaces/fixture-workspace');
-    expect(calls[1]?.[1]).toMatchObject({ method: 'DELETE' });
-    expect(String(calls[2]?.[0] ?? '')).toContain('/api/v1/playbooks/fixture-playbook-planned');
-    expect(calls[2]?.[1]).toMatchObject({ method: 'DELETE' });
-    expect(String(calls[3]?.[0] ?? '')).toContain('/api/v1/playbooks/fixture-playbook-ongoing');
-    expect(calls[3]?.[1]).toMatchObject({ method: 'DELETE' });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const purgeCall = execFileSyncMock.mock.calls.find(
+      ([command, args]) =>
+        command === 'docker'
+        && Array.isArray(args)
+        && args[0] === 'exec'
+        && typeof args.at(-1) === 'string'
+        && String(args.at(-1)).includes('DELETE FROM public.workflows'),
+    );
+
+    expect(purgeCall).toBeDefined();
+    const purgeSql = String((purgeCall?.[1] as string[]).at(-1) ?? '');
+    expect(purgeSql).toContain('DELETE FROM public.workflow_input_packets');
+    expect(purgeSql).toContain('DELETE FROM public.workflow_operator_briefs');
+    expect(purgeSql).toContain('DELETE FROM public.execution_logs');
+    expect(purgeSql).toContain('DELETE FROM public.workflows');
+    expect(purgeSql).toContain('DELETE FROM public.workspaces');
+    expect(purgeSql).toContain('DELETE FROM public.playbooks');
   });
 
-  it('ignores not-found cleanup calls so reset stays idempotent', async () => {
+  it('returns cleanly when there is no fixture state to purge', async () => {
     installExecMock({
-      workspaces: 'fixture-workspace\n',
-      playbooks: 'fixture-playbook-planned\n',
+      workspaces: '',
+      playbooks: '',
       blockingWorkflows: '',
       workflows: '',
     });
-    const fetchMock = installFetchMock([
-      {
-        ok: false,
-        status: 404,
-        text: '{"error":{"code":"NOT_FOUND","message":"Workspace not found"}}',
-      },
-      {
-        ok: false,
-        status: 404,
-        text: '{"error":{"code":"NOT_FOUND","message":"Playbook not found"}}',
-      },
-    ]);
+    const fetchMock = installFetchTrap();
 
     await expect(resetWorkflowsState()).resolves.toBeUndefined();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(execFileSyncMock).toHaveBeenCalledTimes(5);
   });
 });
