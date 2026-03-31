@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('lists remote MCP servers', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -66,7 +66,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('creates remote MCP servers through the verification gate', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -110,7 +110,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('starts an oauth-backed remote MCP registration draft', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -167,7 +167,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('starts an oauth reconnect flow for an existing remote MCP server', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -213,7 +213,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('polls a device-authorization flow for an oauth-backed remote MCP server', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -268,7 +268,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('disconnects oauth credentials from an existing remote MCP server', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -301,7 +301,7 @@ describe('remote mcp server routes', () => {
   });
 
   it('deletes a remote MCP server', async () => {
-    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+    const { remoteMcpServerRoutes } = await import('../../../src/api/routes/remote-mcp/servers.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

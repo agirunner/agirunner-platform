@@ -1,10 +1,10 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
-import { RemoteMcpOAuthClientProfileService } from '../../src/services/remote-mcp-oauth-client-profile-service.js';
+import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { RemoteMcpOAuthClientProfileService } from '../../../src/services/remote-mcp-oauth-client-profile-service.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -34,7 +34,7 @@ describe('remote mcp oauth client profile routes', () => {
   });
 
   it('lists oauth client profiles', async () => {
-    const { remoteMcpOAuthClientProfileRoutes } = await import('../../src/api/routes/remote-mcp-oauth-client-profiles.routes.js');
+    const { remoteMcpOAuthClientProfileRoutes } = await import('../../../src/api/routes/remote-mcp/oauth-client-profiles.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -59,7 +59,7 @@ describe('remote mcp oauth client profile routes', () => {
   });
 
   it('creates oauth client profiles', async () => {
-    const { remoteMcpOAuthClientProfileRoutes } = await import('../../src/api/routes/remote-mcp-oauth-client-profiles.routes.js');
+    const { remoteMcpOAuthClientProfileRoutes } = await import('../../../src/api/routes/remote-mcp/oauth-client-profiles.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -99,7 +99,7 @@ describe('remote mcp oauth client profile routes', () => {
   });
 
   it('returns an explicit name validation message for blank oauth client profile names', async () => {
-    const { remoteMcpOAuthClientProfileRoutes } = await import('../../src/api/routes/remote-mcp-oauth-client-profiles.routes.js');
+    const { remoteMcpOAuthClientProfileRoutes } = await import('../../../src/api/routes/remote-mcp/oauth-client-profiles.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -151,7 +151,7 @@ describe('remote mcp oauth client profile routes', () => {
   });
 
   it('deletes oauth client profiles', async () => {
-    const { remoteMcpOAuthClientProfileRoutes } = await import('../../src/api/routes/remote-mcp-oauth-client-profiles.routes.js');
+    const { remoteMcpOAuthClientProfileRoutes } = await import('../../../src/api/routes/remote-mcp/oauth-client-profiles.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

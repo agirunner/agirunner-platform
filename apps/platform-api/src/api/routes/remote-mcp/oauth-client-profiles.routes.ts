@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 
 export const remoteMcpOAuthClientProfileRoutes: FastifyPluginAsync = async (app) => {
   app.get(
