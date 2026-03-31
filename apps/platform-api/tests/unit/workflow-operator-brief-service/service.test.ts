@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createWorkflowOperatorBriefRow, createWorkflowOperatorBriefServiceTestContext } from './workflow-operator-brief-service.test-support.js';
+import { createWorkflowOperatorBriefRow, createWorkflowOperatorBriefServiceTestContext } from './support.js';
 
 describe('WorkflowOperatorBriefService', () => {
   let pool: ReturnType<typeof createWorkflowOperatorBriefServiceTestContext>['pool'];

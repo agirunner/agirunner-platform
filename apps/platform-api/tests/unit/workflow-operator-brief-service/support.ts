@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
-import { WorkflowOperatorBriefService } from '../../src/services/workflow-operator-brief-service.js';
-import type { WorkflowOperatorBriefRow } from '../../src/services/workflow-operator-brief-service.types.js';
+import { WorkflowOperatorBriefService } from '../../../src/services/workflow-operator-brief-service.js';
+import type { WorkflowOperatorBriefRow } from '../../../src/services/workflow-operator-brief-service.types.js';
 
 export const IDENTITY = {
   id: 'key-1',
