@@ -10,7 +10,7 @@ const RAIL_PAGE_SIZE = 100;
 
 type WorkflowRailQueryState = Pick<
   WorkflowsPageState,
-  'mode' | 'search' | 'needsActionOnly' | 'lifecycleFilter'
+  'mode' | 'search' | 'needsActionOnly' | 'lifecycleFilter' | 'playbookId' | 'updatedWithin'
 >;
 
 export function useWorkflowRailData(pageState: WorkflowRailQueryState) {
@@ -25,6 +25,8 @@ export function useWorkflowRailData(pageState: WorkflowRailQueryState) {
         needsActionOnly: pageState.needsActionOnly,
         lifecycleFilter: pageState.lifecycleFilter,
         search: pageState.search,
+        playbookId: pageState.playbookId ?? undefined,
+        updatedWithin: pageState.updatedWithin,
       }),
     getNextPageParam: getNextWorkflowRailPageParam,
   });

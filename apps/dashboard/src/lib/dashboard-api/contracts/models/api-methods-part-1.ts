@@ -137,6 +137,8 @@ export interface DashboardApiMethodsPart1 {
       perPage?: number;
       needsActionOnly?: boolean;
       lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      playbookId?: string;
+      updatedWithin?: 'all' | '24h' | '7d' | '30d';
       search?: string;
       workflowId?: string;
     }): Promise<DashboardWorkflowRailPacket>;

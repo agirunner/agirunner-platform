@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
   dashboardApi,
+  type DashboardPlaybookRecord,
   type DashboardTaskRecord,
   type DashboardWorkflowInputPacketRecord,
   type DashboardWorkflowWorkItemRecord,
@@ -145,6 +146,11 @@ export function WorkflowsPage(): JSX.Element {
   };
 
   const { railPacket, railQuery } = useWorkflowRailData(pageState);
+  const playbooksQuery = useQuery({
+    queryKey: ['playbooks', 'workflows-rail'],
+    queryFn: () => dashboardApi.listPlaybooks(),
+    staleTime: 30_000,
+  });
   const workspaceQuery = useQuery({
     queryKey: pageState.workflowId
       ? buildWorkflowWorkspaceQueryKey({
@@ -196,6 +202,8 @@ export function WorkflowsPage(): JSX.Element {
     search: pageState.search,
     needsActionOnly: pageState.needsActionOnly,
     lifecycleFilter: pageState.lifecycleFilter,
+    playbookId: pageState.playbookId,
+    updatedWithin: pageState.updatedWithin,
   });
   useWorkflowWorkspaceRealtime(queryClient, {
     workflowId: pageState.workflowId,
@@ -337,6 +345,7 @@ export function WorkflowsPage(): JSX.Element {
       pageState={pageState}
       railLoading={railQuery.isLoading || railQuery.isFetchingNextPage}
       railOngoingRows={railPacket?.ongoing_rows ?? []}
+      railPlaybooks={(playbooksQuery.data ?? []) as DashboardPlaybookRecord[]}
       railRows={railPacket?.rows ?? []}
       railTotalCount={railPacket?.total_count}
       railVisibleCount={railPacket?.visible_count}
@@ -370,6 +379,9 @@ export function WorkflowsPage(): JSX.Element {
       onBoardModeChange={(boardMode) => patchPageState(navigate, pageState, { boardMode })}
       onLifecycleFilterChange={(lifecycleFilter) =>
         patchPageState(navigate, pageState, { lifecycleFilter })
+      }
+      onPlaybookFilterChange={(playbookId) =>
+        patchPageState(navigate, pageState, { playbookId })
       }
       onClearWorkItemScope={handleClearWorkItemScope}
       onCreateWorkflow={openWorkflowLaunchDialog}
@@ -408,6 +420,9 @@ export function WorkflowsPage(): JSX.Element {
       onRailModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
       onRailResizePointerDown={handleRailResizePointerDown}
       onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
+      onUpdatedWithinChange={(updatedWithin) =>
+        patchPageState(navigate, pageState, { updatedWithin })
+      }
       onSelectWorkflow={(workflowId) =>
         patchPageState(navigate, pageState, { workflowId, workItemId: null })
       }

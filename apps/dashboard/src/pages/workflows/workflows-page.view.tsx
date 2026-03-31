@@ -10,6 +10,7 @@ import {
 import { Button } from '../../components/ui/button.js';
 import type {
   DashboardMissionControlWorkflowCard,
+  DashboardPlaybookRecord,
   DashboardWorkflowInputPacketRecord,
   DashboardWorkflowRailRow,
   DashboardWorkflowWorkItemRecord,
@@ -55,6 +56,7 @@ type WorkflowsPageViewProps = {
   pageState: WorkflowsPageState;
   railLoading: boolean;
   railOngoingRows: DashboardWorkflowRailRow[];
+  railPlaybooks: DashboardPlaybookRecord[];
   railRows: DashboardWorkflowRailRow[];
   railTotalCount: number | undefined;
   railVisibleCount: number | undefined;
@@ -88,6 +90,7 @@ type WorkflowsPageViewProps = {
   onNeedsActionOnlyChange(needsActionOnly: boolean): void;
   onOpenAddWork(workItemId: string | null | undefined): void;
   onLifecycleFilterChange(lifecycleFilter: 'all' | 'ongoing' | 'planned'): void;
+  onPlaybookFilterChange(playbookId: string | null): void;
   onRailModeChange(mode: WorkflowsPageState['mode']): void;
   onRailResizePointerDown(event: PointerEvent<HTMLButtonElement>): void;
   onSearchChange(search: string): void;
@@ -97,6 +100,7 @@ type WorkflowsPageViewProps = {
   onSteeringRecorded(): void;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onToggleRail(): void;
+  onUpdatedWithinChange(updatedWithin: WorkflowsPageState['updatedWithin']): void;
   onWorkItemAction(input: {
     workItemId: string;
     action: 'needs-action' | 'steer' | 'repeat' | 'pause' | 'resume' | 'cancel';
@@ -117,18 +121,23 @@ export function WorkflowsPageView(props: WorkflowsPageViewProps): JSX.Element {
             search={props.pageState.search}
             needsActionOnly={props.pageState.needsActionOnly}
             lifecycleFilter={props.pageState.lifecycleFilter}
+            playbookId={props.pageState.playbookId}
+            updatedWithin={props.pageState.updatedWithin}
             visibleCount={props.railVisibleCount}
             totalCount={props.railTotalCount}
             rows={props.railRows}
             ongoingRows={props.railOngoingRows}
+            playbooks={props.railPlaybooks}
             selectedWorkflowId={props.pageState.workflowId}
             selectedWorkflowRow={props.selectedWorkflowRow}
             hasNextPage={props.hasMoreRailRows}
             isLoading={props.railLoading}
             onModeChange={props.onRailModeChange}
             onLifecycleFilterChange={props.onLifecycleFilterChange}
+            onPlaybookFilterChange={props.onPlaybookFilterChange}
             onSearchChange={props.onSearchChange}
             onNeedsActionOnlyChange={props.onNeedsActionOnlyChange}
+            onUpdatedWithinChange={props.onUpdatedWithinChange}
             onSelectWorkflow={props.onSelectWorkflow}
             onLoadMore={props.onLoadMoreRail}
             onCreateWorkflow={props.onCreateWorkflow}

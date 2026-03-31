@@ -25,6 +25,8 @@ describe('workflows page support', () => {
       search: '',
       needsActionOnly: false,
       lifecycleFilter: 'all',
+      playbookId: null,
+      updatedWithin: 'all',
       boardMode: 'active_recent_complete',
     });
   });
@@ -45,6 +47,8 @@ describe('workflows page support', () => {
       search: 'release',
       needsActionOnly: true,
       lifecycleFilter: 'ongoing',
+      playbookId: null,
+      updatedWithin: 'all',
       boardMode: 'all',
     });
   });
@@ -65,8 +69,38 @@ describe('workflows page support', () => {
       search: '',
       needsActionOnly: false,
       lifecycleFilter: 'all',
+      playbookId: null,
+      updatedWithin: 'all',
       boardMode: 'active_recent_complete',
     });
+  });
+
+  it('reads and builds advanced rail filters from canonical search params', () => {
+    const parsed = readWorkflowsPageState(
+      '/workflows/workflow-2',
+      new URLSearchParams(
+        'work_item_id=work-item-7&playbook_id=playbook-9&updated_within=7d&lifecycle=planned',
+      ),
+    );
+
+    expect(parsed).toEqual({
+      mode: 'live',
+      workflowId: 'workflow-2',
+      workItemId: 'work-item-7',
+      tab: null,
+      search: '',
+      needsActionOnly: false,
+      lifecycleFilter: 'planned',
+      playbookId: 'playbook-9',
+      updatedWithin: '7d',
+      boardMode: 'active_recent_complete',
+    });
+
+    expect(
+      buildWorkflowsPageHref({}, parsed),
+    ).toBe(
+      '/workflows/workflow-2?work_item_id=work-item-7&lifecycle=planned&playbook_id=playbook-9&updated_within=7d',
+    );
   });
 
   it('builds canonical workflows hrefs from partial shell state', () => {
@@ -79,10 +113,12 @@ describe('workflows page support', () => {
         search: 'release readiness',
         needsActionOnly: true,
         lifecycleFilter: 'ongoing',
+        playbookId: 'playbook-5',
+        updatedWithin: '30d',
         boardMode: 'all',
       }),
     ).toBe(
-      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&lifecycle=ongoing&board_mode=all',
+      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&lifecycle=ongoing&playbook_id=playbook-5&updated_within=30d&board_mode=all',
     );
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
   });

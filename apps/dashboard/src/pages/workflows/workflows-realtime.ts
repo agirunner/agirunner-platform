@@ -6,7 +6,11 @@ import { processSseBuffer } from '../../lib/sse.js';
 import type { DashboardWorkflowOperationsStreamBatch } from '../../lib/api.js';
 import { clearSession, readSession, writeSession } from '../../lib/auth/session.js';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
-import type { WorkflowPageMode, WorkflowRailLifecycleFilter } from './workflows-page.support.js';
+import type {
+  WorkflowPageMode,
+  WorkflowRailLifecycleFilter,
+  WorkflowRailUpdatedWindow,
+} from './workflows-page.support.js';
 import {
   applyRailStreamBatch,
   applyWorkspaceStreamBatch,
@@ -38,6 +42,8 @@ export function useWorkflowRailRealtime(
     search: string;
     needsActionOnly: boolean;
     lifecycleFilter: WorkflowRailLifecycleFilter;
+    playbookId: string | null;
+    updatedWithin: WorkflowRailUpdatedWindow;
   },
 ): void {
   useEffect(() => {
@@ -51,6 +57,8 @@ export function useWorkflowRailRealtime(
               search: input.search,
               needsActionOnly: input.needsActionOnly,
               lifecycleFilter: input.lifecycleFilter,
+              playbookId: input.playbookId,
+              updatedWithin: input.updatedWithin,
             }),
           },
           (previous) => applyRailStreamBatch(previous as never, batch),
@@ -63,10 +71,20 @@ export function useWorkflowRailRealtime(
             search: input.search,
             needsActionOnly: input.needsActionOnly,
             lifecycleFilter: input.lifecycleFilter,
+            playbookId: input.playbookId,
+            updatedWithin: input.updatedWithin,
           }),
         }),
     });
-  }, [input.lifecycleFilter, input.mode, input.needsActionOnly, input.search, queryClient]);
+  }, [
+    input.lifecycleFilter,
+    input.mode,
+    input.needsActionOnly,
+    input.playbookId,
+    input.search,
+    input.updatedWithin,
+    queryClient,
+  ]);
 }
 
 export function useWorkflowWorkspaceRealtime(
@@ -302,6 +320,8 @@ function buildRailStreamPath(input: {
   search: string;
   needsActionOnly: boolean;
   lifecycleFilter: WorkflowRailLifecycleFilter;
+  playbookId: string | null;
+  updatedWithin: WorkflowRailUpdatedWindow;
 }): string {
   const params = new URLSearchParams();
   params.set('mode', input.mode);
@@ -313,6 +333,12 @@ function buildRailStreamPath(input: {
   }
   if (input.lifecycleFilter !== 'all') {
     params.set('lifecycle', input.lifecycleFilter);
+  }
+  if (input.playbookId) {
+    params.set('playbook_id', input.playbookId);
+  }
+  if (input.updatedWithin !== 'all') {
+    params.set('updated_within', input.updatedWithin);
   }
   return `/api/v1/operations/workflows/stream?${params.toString()}`;
 }

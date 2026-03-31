@@ -29,12 +29,16 @@ export class MissionControlLiveService {
     tenantId: string,
     input: {
       lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      playbookId?: string;
+      updatedWithin?: 'all' | '24h' | '7d' | '30d';
       search?: string;
       needsActionOnly?: boolean;
     } = {},
   ): Promise<number> {
     return countWorkflowRows(this.pool, tenantId, {
       lifecycleFilter: normalizeLifecycleFilter(input.lifecycleFilter),
+      playbookId: input.playbookId,
+      updatedWithin: input.updatedWithin ?? 'all',
       search: input.search,
       needsActionOnly: input.needsActionOnly,
     });
@@ -46,6 +50,8 @@ export class MissionControlLiveService {
       page?: number;
       perPage?: number;
       lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      playbookId?: string;
+      updatedWithin?: 'all' | '24h' | '7d' | '30d';
       search?: string;
       needsActionOnly?: boolean;
     } = {},
@@ -55,6 +61,8 @@ export class MissionControlLiveService {
       page: input.page ?? 1,
       perPage: input.perPage ?? 100,
       lifecycleFilter: normalizeLifecycleFilter(input.lifecycleFilter),
+      playbookId: input.playbookId,
+      updatedWithin: input.updatedWithin ?? 'all',
       search: input.search,
       needsActionOnly: input.needsActionOnly,
       version,
@@ -73,6 +81,8 @@ export class MissionControlLiveService {
       page?: number;
       perPage?: number;
       lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      playbookId?: string;
+      updatedWithin?: 'all' | '24h' | '7d' | '30d';
       search?: string;
       needsActionOnly?: boolean;
       version?: MissionControlReadModelVersion;

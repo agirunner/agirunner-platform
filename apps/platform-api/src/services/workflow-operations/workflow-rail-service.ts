@@ -20,6 +20,8 @@ interface LiveRailSource {
       page?: number;
       perPage?: number;
       lifecycleFilter?: WorkflowRailLifecycleFilter;
+      playbookId?: string;
+      updatedWithin?: WorkflowRailUpdatedWindow;
       search?: string;
       needsActionOnly?: boolean;
     },
@@ -28,6 +30,8 @@ interface LiveRailSource {
     tenantId: string,
     input?: {
       lifecycleFilter?: WorkflowRailLifecycleFilter;
+      playbookId?: string;
+      updatedWithin?: WorkflowRailUpdatedWindow;
       search?: string;
       needsActionOnly?: boolean;
     },
@@ -53,6 +57,8 @@ export interface WorkflowRailQuery {
   mode: WorkflowRailMode;
   needsActionOnly?: boolean;
   lifecycleFilter?: WorkflowRailLifecycleFilter;
+  playbookId?: string;
+  updatedWithin?: WorkflowRailUpdatedWindow;
   search?: string;
   page?: number;
   perPage?: number;
@@ -60,6 +66,7 @@ export interface WorkflowRailQuery {
 }
 
 export type WorkflowRailLifecycleFilter = 'all' | 'ongoing' | 'planned';
+export type WorkflowRailUpdatedWindow = 'all' | '24h' | '7d' | '30d';
 
 export class WorkflowRailService {
   constructor(
@@ -95,11 +102,15 @@ export class WorkflowRailService {
         page: query.page ?? 1,
         perPage: query.perPage ?? 100,
         lifecycleFilter: query.lifecycleFilter ?? 'all',
+        playbookId: query.playbookId,
+        updatedWithin: query.updatedWithin ?? 'all',
         search: query.search,
         needsActionOnly: query.needsActionOnly,
       }),
       this.liveSource.countWorkflows?.(tenantId, {
         lifecycleFilter: query.lifecycleFilter ?? 'all',
+        playbookId: query.playbookId,
+        updatedWithin: query.updatedWithin ?? 'all',
         search: query.search,
         needsActionOnly: query.needsActionOnly,
       }) ?? Promise.resolve(0),

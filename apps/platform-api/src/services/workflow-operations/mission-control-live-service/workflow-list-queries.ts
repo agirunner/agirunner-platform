@@ -9,6 +9,8 @@ export async function loadWorkflowRows(
     page?: number;
     perPage?: number;
     lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+    playbookId?: string;
+    updatedWithin?: 'all' | '24h' | '7d' | '30d';
     search?: string;
     needsActionOnly?: boolean;
   },
@@ -70,6 +72,8 @@ export async function countWorkflowRows(
   tenantId: string,
   input: {
     lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+    playbookId?: string;
+    updatedWithin?: 'all' | '24h' | '7d' | '30d';
     search?: string;
     needsActionOnly?: boolean;
   },
@@ -94,6 +98,8 @@ export async function countWorkflowRows(
 
 interface WorkflowListFilterInput {
   lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+  playbookId?: string;
+  updatedWithin?: 'all' | '24h' | '7d' | '30d';
   search?: string;
   needsActionOnly?: boolean;
 }
@@ -241,6 +247,13 @@ function buildWorkflowScopeWhereClauses(
   if (lifecycleFilter !== 'all') {
     whereClauses.push(`w.lifecycle = ${builder.add(lifecycleFilter)}`);
   }
+  if (input.playbookId) {
+    whereClauses.push(`w.playbook_id = ${builder.add(input.playbookId)}`);
+  }
+  const updatedWithinWhereClause = readUpdatedWithinWhereClause(input.updatedWithin);
+  if (updatedWithinWhereClause) {
+    whereClauses.push(updatedWithinWhereClause);
+  }
   const searchText = readSearchText(input.search);
   if (searchText) {
     const placeholder = builder.add(`%${searchText}%`);
@@ -281,4 +294,19 @@ function createSqlParamBuilder(tenantId: string) {
 function readSearchText(value: string | undefined): string | null {
   const trimmed = value?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readUpdatedWithinWhereClause(
+  value: WorkflowListFilterInput['updatedWithin'],
+): string | null {
+  switch (value) {
+    case '24h':
+      return "w.updated_at >= NOW() - INTERVAL '24 hours'";
+    case '7d':
+      return "w.updated_at >= NOW() - INTERVAL '7 days'";
+    case '30d':
+      return "w.updated_at >= NOW() - INTERVAL '30 days'";
+    default:
+      return null;
+  }
 }

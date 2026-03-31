@@ -10,6 +10,7 @@ export {
   type WorkflowBoardMode,
   type WorkflowLaunchRequest,
   type WorkflowRailLifecycleFilter,
+  type WorkflowRailUpdatedWindow,
   type WorkflowPageMode,
   type WorkflowsPageState,
   type WorkflowTabScope,

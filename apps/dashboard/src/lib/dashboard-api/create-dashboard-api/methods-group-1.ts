@@ -212,6 +212,11 @@ getWorkflowRail: (input) =>
         lifecycle: input?.lifecycleFilter && input.lifecycleFilter !== 'all'
           ? input.lifecycleFilter
           : undefined,
+        playbook_id: input?.playbookId,
+        updated_within:
+          input?.updatedWithin && input.updatedWithin !== 'all'
+            ? input.updatedWithin
+            : undefined,
         search: input?.search,
         workflow_id: input?.workflowId,
       })}`,

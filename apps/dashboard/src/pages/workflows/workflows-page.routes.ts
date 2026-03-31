@@ -1,5 +1,6 @@
 export type WorkflowPageMode = 'live' | 'recent';
 export type WorkflowRailLifecycleFilter = 'all' | 'ongoing' | 'planned';
+export type WorkflowRailUpdatedWindow = 'all' | '24h' | '7d' | '30d';
 export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'
@@ -21,6 +22,8 @@ export interface WorkflowsPageState {
   search: string;
   needsActionOnly: boolean;
   lifecycleFilter: WorkflowRailLifecycleFilter;
+  playbookId: string | null;
+  updatedWithin: WorkflowRailUpdatedWindow;
   boardMode: WorkflowBoardMode;
 }
 
@@ -32,6 +35,8 @@ const DEFAULT_STATE: WorkflowsPageState = {
   search: '',
   needsActionOnly: false,
   lifecycleFilter: 'all',
+  playbookId: null,
+  updatedWithin: 'all',
   boardMode: 'active_recent_complete',
 };
 
@@ -55,6 +60,12 @@ export function readWorkflowsPageState(
     lifecycleFilter: readLifecycleFilter(
       searchParams.get('lifecycle') ?? searchParams.get('l'),
       searchParams.get('ongoing_only'),
+    ),
+    playbookId:
+      readOptionalValue(searchParams.get('playbook_id')) ??
+      readOptionalValue(searchParams.get('playbook')),
+    updatedWithin: readUpdatedWithin(
+      searchParams.get('updated_within') ?? searchParams.get('updated'),
     ),
     boardMode: readBoardMode(searchParams.get('board_mode')),
   };
@@ -90,6 +101,12 @@ export function buildWorkflowsPageSearchParams(
   }
   if (nextState.lifecycleFilter !== DEFAULT_STATE.lifecycleFilter) {
     next.set('lifecycle', nextState.lifecycleFilter);
+  }
+  if (nextState.playbookId) {
+    next.set('playbook_id', nextState.playbookId);
+  }
+  if (nextState.updatedWithin !== DEFAULT_STATE.updatedWithin) {
+    next.set('updated_within', nextState.updatedWithin);
   }
   if (nextState.boardMode !== DEFAULT_STATE.boardMode) {
     next.set('board_mode', nextState.boardMode);
@@ -203,6 +220,17 @@ function readLifecycleFilter(
     return 'ongoing';
   }
   return DEFAULT_STATE.lifecycleFilter;
+}
+
+function readUpdatedWithin(value: string | null): WorkflowRailUpdatedWindow {
+  switch (value) {
+    case '24h':
+    case '7d':
+    case '30d':
+      return value;
+    default:
+      return DEFAULT_STATE.updatedWithin;
+  }
 }
 
 function readOptionalValue(value: string | null): string | null {

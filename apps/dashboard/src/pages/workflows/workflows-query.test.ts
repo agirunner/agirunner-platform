@@ -10,6 +10,8 @@ describe('workflows query keys', () => {
         search: '',
         needsActionOnly: false,
         lifecycleFilter: 'all',
+        playbookId: null,
+        updatedWithin: 'all',
       }),
     ).toEqual([
       'workflows',
@@ -18,6 +20,8 @@ describe('workflows query keys', () => {
       '',
       false,
       'all',
+      null,
+      'all',
     ]);
     expect(
       buildWorkflowRailQueryKey({
@@ -25,6 +29,8 @@ describe('workflows query keys', () => {
         search: '',
         needsActionOnly: false,
         lifecycleFilter: 'all',
+        playbookId: null,
+        updatedWithin: 'all',
       }),
     ).toEqual(
       buildWorkflowRailQueryKey({
@@ -32,6 +38,8 @@ describe('workflows query keys', () => {
         search: '',
         needsActionOnly: false,
         lifecycleFilter: 'all',
+        playbookId: null,
+        updatedWithin: 'all',
       }),
     );
   });

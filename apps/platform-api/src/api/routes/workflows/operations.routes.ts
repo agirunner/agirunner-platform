@@ -27,6 +27,10 @@ function readRailLifecycleFilter(
   return readBooleanFlag(legacyOngoingOnly) ? 'ongoing' : 'all';
 }
 
+function readUpdatedWithin(value: unknown): 'all' | '24h' | '7d' | '30d' {
+  return value === '24h' || value === '7d' || value === '30d' ? value : 'all';
+}
+
 function prefersSse(request: { headers: Record<string, unknown> }): boolean {
   const accept = request.headers.accept;
   return typeof accept === 'string' && accept.includes('text/event-stream');
@@ -79,6 +83,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       ongoing_only?: string;
       search?: string;
       workflow_id?: string;
+      playbook_id?: string;
+      updated_within?: string;
     };
     log?: { error: (payload: object, message: string) => void };
   }) {
@@ -90,6 +96,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           needsActionOnly: readBooleanFlag(query.needs_action_only),
           lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
           search: query.search,
+          playbookId: readUuidOrUndefined(query.playbook_id),
+          updatedWithin: readUpdatedWithin(query.updated_within),
           page: readPositiveInt(query.page, 1),
           perPage: readPositiveInt(query.per_page, 100),
           selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
@@ -100,6 +108,11 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       data: await app.workflowOperationsLiveService.getLive(request.auth!.tenantId, {
         page: readPositiveInt(query.page, 1),
         perPage: readPositiveInt(query.per_page, 100),
+        lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
+        playbookId: readUuidOrUndefined(query.playbook_id),
+        updatedWithin: readUpdatedWithin(query.updated_within),
+        search: query.search,
+        needsActionOnly: readBooleanFlag(query.needs_action_only),
       }),
     };
   }
@@ -180,6 +193,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       search?: string;
       after_cursor?: string;
       workflow_id?: string;
+      playbook_id?: string;
+      updated_within?: string;
     };
     headers: Record<string, unknown>;
     log?: { error: (payload: object, message: string) => void };
@@ -193,6 +208,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       needsActionOnly: readBooleanFlag(query.needs_action_only),
       lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
       search: query.search,
+      playbookId: readUuidOrUndefined(query.playbook_id),
+      updatedWithin: readUpdatedWithin(query.updated_within),
       selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
       afterCursor: query.after_cursor,
     });
@@ -209,6 +226,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           needsActionOnly: readBooleanFlag(query.needs_action_only),
           lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
           search: query.search,
+          playbookId: readUuidOrUndefined(query.playbook_id),
+          updatedWithin: readUpdatedWithin(query.updated_within),
           selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
           afterCursor: currentCursor,
         })

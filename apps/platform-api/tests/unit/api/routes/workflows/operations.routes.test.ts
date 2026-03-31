@@ -97,10 +97,12 @@ describe('workflow operations routes v2', () => {
       mode: 'live',
       needsActionOnly: true,
       lifecycleFilter: 'all',
+      playbookId: undefined,
       search: undefined,
       page: 1,
       perPage: 100,
       selectedWorkflowId: undefined,
+      updatedWithin: 'all',
     });
     expect(workflowOperationsWorkspaceService.getWorkspace).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
       boardMode: undefined,
@@ -121,9 +123,11 @@ describe('workflow operations routes v2', () => {
       mode: 'live',
       needsActionOnly: false,
       lifecycleFilter: 'all',
+      playbookId: undefined,
       search: undefined,
       afterCursor: 'workflow-operations:41',
       selectedWorkflowId: undefined,
+      updatedWithin: 'all',
     });
     expect(workflowOperationsStreamService.buildWorkspaceBatch).toHaveBeenCalledWith(
       'tenant-1',
@@ -422,6 +426,80 @@ describe('workflow operations routes v2', () => {
       mode: 'live',
       needsActionOnly: false,
       lifecycleFilter: 'all',
+      playbookId: undefined,
+      search: undefined,
+      page: 1,
+      perPage: 100,
+      selectedWorkflowId: undefined,
+      updatedWithin: 'all',
+    });
+    expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledWith('tenant-1', {
+      mode: 'live',
+      needsActionOnly: false,
+      lifecycleFilter: 'all',
+      playbookId: undefined,
+      search: undefined,
+      afterCursor: undefined,
+      selectedWorkflowId: undefined,
+      updatedWithin: 'all',
+    });
+  });
+
+  it('forwards canonical playbook and recency filters to rail reads and stream batches', async () => {
+    const { workflowOperationsRoutes } = await import('../../../../../src/api/routes/workflows/operations.routes.js');
+    const workflowOperationsRailService = {
+      getRail: vi.fn(async () => ({ rows: [], ongoing_rows: [], selected_workflow_id: null })),
+    };
+    const workflowOperationsWorkspaceService = {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    };
+    const workflowOperationsStreamService = {
+      buildRailBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+      buildWorkspaceBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
+    app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
+    app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    app.decorate('logStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    await app.register(workflowOperationsRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const playbookId = '00000000-0000-4000-8000-000000000009';
+    const liveResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/operations/workflows?mode=live&playbook_id=${playbookId}&updated_within=7d&needs_action_only=true`,
+      headers,
+    });
+    const railStreamResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/operations/workflows/stream?mode=live&playbook_id=${playbookId}&updated_within=7d`,
+      headers,
+    });
+
+    expect(liveResponse.statusCode).toBe(200);
+    expect(railStreamResponse.statusCode).toBe(200);
+    expect(workflowOperationsRailService.getRail).toHaveBeenCalledWith('tenant-1', {
+      mode: 'live',
+      needsActionOnly: true,
+      lifecycleFilter: 'all',
+      playbookId,
+      updatedWithin: '7d',
       search: undefined,
       page: 1,
       perPage: 100,
@@ -431,6 +509,8 @@ describe('workflow operations routes v2', () => {
       mode: 'live',
       needsActionOnly: false,
       lifecycleFilter: 'all',
+      playbookId,
+      updatedWithin: '7d',
       search: undefined,
       afterCursor: undefined,
       selectedWorkflowId: undefined,

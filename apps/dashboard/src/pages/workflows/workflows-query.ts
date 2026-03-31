@@ -1,14 +1,22 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
-import type { WorkflowPageMode, WorkflowRailLifecycleFilter } from './workflows-page.support.js';
+import type {
+  WorkflowPageMode,
+  WorkflowRailLifecycleFilter,
+  WorkflowRailUpdatedWindow,
+} from './workflows-page.support.js';
 
 export function buildWorkflowRailQueryKey(input: {
   mode: WorkflowPageMode;
   search: string;
   needsActionOnly: boolean;
   lifecycleFilter: WorkflowRailLifecycleFilter;
+  playbookId: string | null;
+  updatedWithin: WorkflowRailUpdatedWindow;
 }) {
+  const playbookId = input.playbookId ?? null;
+  const updatedWithin = input.updatedWithin ?? 'all';
   return [
     'workflows',
     'rail',
@@ -16,6 +24,8 @@ export function buildWorkflowRailQueryKey(input: {
     input.search,
     input.needsActionOnly,
     input.lifecycleFilter,
+    playbookId,
+    updatedWithin,
   ] as const;
 }
 
