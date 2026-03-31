@@ -17,7 +17,7 @@ import {
 } from '../../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type { StructuredEntryDraft } from '../workspace-detail/workspace-detail-support.js';
+import type { StructuredEntryDraft } from '../workspaces/detail/workspace-detail-support.js';
 import {
   normalizeWorkItemPriority,
   validateWorkItemMetadataEntries,

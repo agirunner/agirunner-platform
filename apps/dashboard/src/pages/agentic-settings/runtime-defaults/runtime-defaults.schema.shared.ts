@@ -1,5 +1,5 @@
 import type { SectionDefinition } from './runtime-defaults.types.js';
-import { RUNTIME_IMAGE_BOOTSTRAP_COPY } from '../../lib/runtime-image-defaults.js';
+import { RUNTIME_IMAGE_BOOTSTRAP_COPY } from '../../../lib/runtime-image-defaults.js';
 
 export const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
 export const SPECIALIST_CONTEXT_STRATEGY_OPTIONS = [

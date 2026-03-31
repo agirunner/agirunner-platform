@@ -54,13 +54,13 @@ export const ArtifactPreviewPage = lazyWithRetry(() =>
 );
 
 export const WorkspaceListPage = lazyWithRetry(() =>
-  import('../pages/workspace-list/workspace-list-page.js').then((m) => ({
+  import('../pages/workspaces/list/workspace-list-page.js').then((m) => ({
     default: m.WorkspaceListPage,
   })),
 );
 
 export const WorkspaceDetailPage = lazyWithRetry(() =>
-  import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({
+  import('../pages/workspaces/detail/workspace-detail-page.js').then((m) => ({
     default: m.WorkspaceDetailPage,
   })),
 );

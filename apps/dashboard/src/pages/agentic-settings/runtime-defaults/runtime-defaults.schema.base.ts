@@ -2,7 +2,7 @@ import type { FieldDefinition } from './runtime-defaults.types.js';
 import {
   DEFAULT_RUNTIME_IMAGE_EXAMPLE,
   RUNTIME_IMAGE_BOOTSTRAP_COPY,
-} from '../../lib/runtime-image-defaults.js';
+} from '../../../lib/runtime-image-defaults.js';
 import {
   BASE_SECTION_DEFINITIONS,
   BOOLEAN_OPTIONS,
