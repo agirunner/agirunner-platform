@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowRailService } from '../../../src/services/workflow-operations/workflow-rail-service.js';
+import { WorkflowRailService } from '../../../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService recent mode', () => {
   it('builds recent rail rows from recent packets when recent mode is selected', async () => {

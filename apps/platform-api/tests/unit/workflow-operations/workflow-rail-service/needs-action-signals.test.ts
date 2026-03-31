@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowRailService } from '../../../src/services/workflow-operations/workflow-rail-service.js';
+import { WorkflowRailService } from '../../../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService needs-action signals', () => {
   it('does not flag needs action from posture alone when no concrete actionable counts or workflow actions exist', async () => {

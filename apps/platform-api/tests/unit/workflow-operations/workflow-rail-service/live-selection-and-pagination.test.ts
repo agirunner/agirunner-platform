@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowRailService } from '../../../src/services/workflow-operations/workflow-rail-service.js';
+import { WorkflowRailService } from '../../../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService live selection and pagination', () => {
   it('builds live rail rows with ongoing workflows split into the pinned ongoing rail section', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowRailService } from '../../../src/services/workflow-operations/workflow-rail-service.js';
+import { WorkflowRailService } from '../../../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService card robustness', () => {
   it('does not throw when a fresh workflow card is missing optional pulse or metrics fields', async () => {
