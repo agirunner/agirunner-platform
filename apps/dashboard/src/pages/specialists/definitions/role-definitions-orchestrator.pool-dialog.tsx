@@ -29,6 +29,10 @@ import {
   resolveFormFeedbackMessage,
 } from '../../../components/forms/form-feedback.js';
 import {
+  DEFAULT_RUNTIME_IMAGE_EXAMPLE,
+  ORCHESTRATOR_RUNTIME_IMAGE_BOOTSTRAP_COPY,
+} from '../../../lib/runtime-image-defaults.js';
+import {
   buildOrchestratorPoolDraft,
   listOrchestratorWorkerOptions,
   validateOrchestratorPoolDraft,
@@ -150,7 +154,7 @@ export function OrchestratorPoolDialog(props: {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, runtimeImage: event.target.value }))
                 }
-                placeholder="agirunner-runtime:local"
+                placeholder={DEFAULT_RUNTIME_IMAGE_EXAMPLE}
                 aria-invalid={hasAttemptedSave && validationErrors.runtimeImage ? true : undefined}
               />
               {hasAttemptedSave && validationErrors.runtimeImage ? (
@@ -159,7 +163,7 @@ export function OrchestratorPoolDialog(props: {
               <p className="text-xs leading-5 text-muted">
                 This image is different from the environment where your specialists execute their
                 tasks. This small alpine-based image is optimized for running the orchestrator
-                loop, not for executing complex tasks.
+                loop, not for executing complex tasks. {ORCHESTRATOR_RUNTIME_IMAGE_BOOTSTRAP_COPY}
               </p>
             </div>
             <div className="space-y-2">

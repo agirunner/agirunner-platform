@@ -74,6 +74,11 @@ already present on the `DEFAULT_ADMIN_API_KEY=...` line. Replace it with
 your own value before sharing the stack. The seed path expects it to
 start with `ab_admin_def`.
 
+The same bootstrap model applies to `RUNTIME_IMAGE`: it provides the
+initial runtime image for a fresh local stack, but later runtime-image
+changes belong in the dashboard or API instead of being forced back from
+`.env` on every restart.
+
 ## Repository Map
 
 ```text

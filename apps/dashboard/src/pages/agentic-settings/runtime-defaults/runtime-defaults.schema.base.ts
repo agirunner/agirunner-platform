@@ -1,5 +1,9 @@
 import type { FieldDefinition } from './runtime-defaults.types.js';
 import {
+  DEFAULT_RUNTIME_IMAGE_EXAMPLE,
+  RUNTIME_IMAGE_BOOTSTRAP_COPY,
+} from '../../lib/runtime-image-defaults.js';
+import {
   BASE_SECTION_DEFINITIONS,
   BOOLEAN_OPTIONS,
   ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS,
@@ -19,9 +23,10 @@ export const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_image',
     label: 'Image',
-    description: 'Image used for short-lived specialist agents.',
+    description:
+      `Image used for short-lived specialist agents. ${RUNTIME_IMAGE_BOOTSTRAP_COPY}`,
     configType: 'string',
-    placeholder: 'agirunner-runtime:local',
+    placeholder: DEFAULT_RUNTIME_IMAGE_EXAMPLE,
     section: 'runtime_containers',
   },
   {

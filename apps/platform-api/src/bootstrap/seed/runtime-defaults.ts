@@ -3,8 +3,19 @@ import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 import { RuntimeDefaultsService } from '../../services/runtime-defaults/runtime-defaults-service.js';
 import { seedDefaultPrompts } from './default-prompts.js';
 import { DASHBOARD_BACKED_RUNTIME_DEFAULTS } from './dashboard-backed-runtime-defaults.js';
+import {
+  DEFAULT_RUNTIME_IMAGE,
+  resolveSeedRuntimeImage,
+} from './runtime-image-default.js';
 
-const RUNTIME_DEFAULTS = [
+const SPECIALIST_RUNTIME_DEFAULT_IMAGE_KEY = 'specialist_runtime_default_image';
+
+type RuntimeDefaultsSeedService = Pick<
+  RuntimeDefaultsService,
+  'createDefault' | 'getByKey' | 'upsertDefault'
+>;
+
+const BASE_RUNTIME_DEFAULTS = [
   {
     configKey: 'global_max_specialists',
     configValue: '20',
@@ -13,8 +24,8 @@ const RUNTIME_DEFAULTS = [
       'Hard ceiling on concurrently active specialists. Each active specialist consumes one Specialist Agent and one Specialist Execution',
   },
   {
-    configKey: 'specialist_runtime_default_image',
-    configValue: 'agirunner-runtime:local',
+    configKey: SPECIALIST_RUNTIME_DEFAULT_IMAGE_KEY,
+    configValue: DEFAULT_RUNTIME_IMAGE,
     configType: 'string',
     description: 'Default image for Specialist Agents',
   },
@@ -424,21 +435,52 @@ const RUNTIME_DEFAULTS = [
 
 export async function seedRuntimeDefaultsAndPrompts(db: DatabaseQueryable): Promise<void> {
   const defaultsService = new RuntimeDefaultsService(db);
+  const runtimeImage = resolveSeedRuntimeImage(process.env.RUNTIME_IMAGE);
 
-  await seedRuntimeDefaults(defaultsService);
+  await seedRuntimeDefaults(defaultsService, runtimeImage);
   await seedDefaultPrompts(db);
 }
 
-export async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
-  for (const item of RUNTIME_DEFAULTS) {
+export function buildRuntimeDefaults(runtimeImage: string = DEFAULT_RUNTIME_IMAGE) {
+  return BASE_RUNTIME_DEFAULTS.map((item) =>
+    item.configKey === SPECIALIST_RUNTIME_DEFAULT_IMAGE_KEY
+      ? { ...item, configValue: runtimeImage }
+      : item,
+  );
+}
+
+export async function seedRuntimeDefaults(
+  service: RuntimeDefaultsSeedService,
+  runtimeImage: string = DEFAULT_RUNTIME_IMAGE,
+): Promise<void> {
+  for (const item of buildRuntimeDefaults(runtimeImage)) {
+    if (item.configKey === SPECIALIST_RUNTIME_DEFAULT_IMAGE_KEY) {
+      await seedBootstrapRuntimeImageDefault(service, item);
+      continue;
+    }
+
     await service.upsertDefault(DEFAULT_TENANT_ID, item);
   }
 
   await seedDashboardBackedRuntimeDefaults(service);
 }
 
-async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
+async function seedDashboardBackedRuntimeDefaults(
+  service: RuntimeDefaultsSeedService,
+): Promise<void> {
   for (const item of DASHBOARD_BACKED_RUNTIME_DEFAULTS) {
     await service.upsertDefault(DEFAULT_TENANT_ID, item);
   }
+}
+
+async function seedBootstrapRuntimeImageDefault(
+  service: RuntimeDefaultsSeedService,
+  item: ReturnType<typeof buildRuntimeDefaults>[number],
+): Promise<void> {
+  const existing = await service.getByKey(DEFAULT_TENANT_ID, item.configKey);
+  if (existing) {
+    return;
+  }
+
+  await service.createDefault(DEFAULT_TENANT_ID, item);
 }

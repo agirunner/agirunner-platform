@@ -166,6 +166,10 @@ cd agirunner-platform
 corepack pnpm install
 cp .env.example .env
 
+# For now, build the local runtime image once before bringing up the stack.
+git clone https://github.com/agirunner/agirunner-runtime ../agirunner-runtime
+docker build -t agirunner-runtime:local ../agirunner-runtime
+
 printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\n" \
   "$(openssl rand -hex 32)" \
   "$(openssl rand -hex 32)" \
@@ -176,7 +180,7 @@ corepack pnpm dev
 ```
 
 This path is for working on the platform repo directly. If you only want
-to run Agirunner locally, use the image-only stack in
+to run Agirunner locally, use the top-level stack in
 [`agirunner`](https://github.com/agirunner/agirunner) instead.
 
 Generate values with the command above, then paste them into `.env`
@@ -224,23 +228,34 @@ Security defaults in the local stack include:
 
 ### Runtime Image Strategy
 
-This repo's local Compose path is still developer-oriented. By default,
-it expects a local runtime image tag (`agirunner-runtime:local`).
-Keeping `agirunner-runtime` next to this repo is the easiest way to
-satisfy that default when you are iterating on the runtime itself.
-
-That is a contributor convenience, not the public product entry path.
-If you are working on the platform but not changing the runtime, point
-the local stack at the published runtime image instead.
-
-For local platform development without a sibling runtime checkout, set
-the runtime image explicitly:
+This repo's local Compose path reads one runtime-image setting from
+`.env`:
 
 ```env
-AGIRUNNER_DEFAULT_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
+RUNTIME_IMAGE=agirunner-runtime:local
 ```
 
-Use digest-pinned runtime images anywhere you care about reproducibility.
+The container manager uses that value as its bootstrap default, and the
+platform uses the same value when it seeds the first runtime-image
+records for a fresh tenant. After that, runtime image choices belong to
+the product: operators can override, rotate, or revoke them from the
+dashboard or API without editing `.env` again. Today the bootstrap
+default is `agirunner-runtime:local` because the public runtime image is
+not published yet.
+
+That is a contributor convenience, not the long-term product posture.
+Once the runtime image is published, switching the platform repo over to
+GHCR is a one-line `.env` change:
+
+```env
+RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
+```
+
+If you remove `RUNTIME_IMAGE` entirely, bootstrap falls back to
+`agirunner-runtime:local`. The `.env` value is there to pick the initial
+image family, not to lock the product forever. After first boot, review
+or override runtime images in the dashboard under runtime defaults and
+orchestrator pool settings.
 
 ## Platform Image Workflows
 

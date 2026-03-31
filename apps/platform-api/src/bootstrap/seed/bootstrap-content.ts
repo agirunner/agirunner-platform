@@ -1,6 +1,7 @@
 import type { DatabaseQueryable } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 import { UserService } from '../../services/user-service.js';
+import { resolveSeedRuntimeImage } from './runtime-image-default.js';
 
 export async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
   const existing = await db.query(
@@ -8,6 +9,8 @@ export async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<voi
     [DEFAULT_TENANT_ID],
   );
   if (existing.rowCount && existing.rowCount > 0) return;
+
+  const runtimeImage = resolveSeedRuntimeImage(process.env.RUNTIME_IMAGE);
 
   await db.query(
     `INSERT INTO worker_desired_state (
@@ -21,9 +24,9 @@ export async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<voi
         enabled,
         pool_kind
       )
-     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', '2', '256m', 1, true, 'orchestrator')
+     VALUES ($1, 'orchestrator-primary', 'orchestrator', $2, '2', '256m', 1, true, 'orchestrator')
      ON CONFLICT DO NOTHING`,
-    [DEFAULT_TENANT_ID],
+    [DEFAULT_TENANT_ID, runtimeImage],
   );
   console.info('[seed] Created default orchestrator worker (orchestrator-primary, 1 replica).');
 }

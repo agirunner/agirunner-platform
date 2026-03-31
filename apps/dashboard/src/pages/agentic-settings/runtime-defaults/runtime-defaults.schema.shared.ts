@@ -1,4 +1,5 @@
 import type { SectionDefinition } from './runtime-defaults.types.js';
+import { RUNTIME_IMAGE_BOOTSTRAP_COPY } from '../../lib/runtime-image-defaults.js';
 
 export const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
 export const SPECIALIST_CONTEXT_STRATEGY_OPTIONS = [
@@ -20,7 +21,7 @@ export const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'runtime_containers',
     title: 'Specialist agent defaults',
     description:
-      'Default image and resource limits for short-lived specialist agents that host the agent loop. This image is different from the environment where your specialists execute their tasks. This small alpine-based image is optimized for running the agentic loop, not for executing complex tasks.',
+      `Default image and resource limits for short-lived specialist agents that host the agent loop. This image is different from the environment where your specialists execute their tasks. This small alpine-based image is optimized for running the agentic loop, not for executing complex tasks. ${RUNTIME_IMAGE_BOOTSTRAP_COPY}`,
     defaultExpanded: true,
   },
   {

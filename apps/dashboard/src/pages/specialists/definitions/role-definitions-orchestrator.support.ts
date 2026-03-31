@@ -3,10 +3,10 @@ import type {
   FleetStatusResponse,
   FleetWorkerRecord,
 } from '../../../lib/api.js';
+import { DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL } from '../../../lib/runtime-image-defaults.js';
 import {
   ORCHESTRATOR_DEFAULT_CPU_LIMIT,
   ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
-  ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
 } from './role-definitions-orchestrator.defaults.js';
 
 export interface SystemDefaultRecord {
@@ -129,21 +129,27 @@ export function summarizeOrchestratorPool(
   workers: FleetWorkerRecord[] | undefined,
 ): OrchestratorPoolSummary {
   const pool = status?.worker_pools.find((entry) => entry.pool_kind === 'orchestrator');
-  const orchestratorWorkers = (workers ?? []).filter((worker) => worker.pool_kind === 'orchestrator');
+  const orchestratorWorkers = (workers ?? []).filter(
+    (worker) => worker.pool_kind === 'orchestrator',
+  );
   const runtimeImages = uniqueCompact(orchestratorWorkers.map((worker) => worker.runtime_image));
   const cpuLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.cpu_limit));
   const memoryLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.memory_limit));
 
   return {
     desiredWorkers: pool?.desired_workers ?? orchestratorWorkers.length,
-    desiredReplicas: pool?.desired_replicas ?? orchestratorWorkers.reduce((sum, worker) => sum + worker.replicas, 0),
+    desiredReplicas:
+      pool?.desired_replicas ??
+      orchestratorWorkers.reduce((sum, worker) => sum + worker.replicas, 0),
     enabledWorkers:
       pool?.enabled_workers ?? orchestratorWorkers.filter((worker) => worker.enabled).length,
     runningContainers:
       pool?.running_containers ??
       orchestratorWorkers.reduce((sum, worker) => sum + worker.actual.length, 0),
     runtimeLabel:
-      runtimeImages.length > 0 ? runtimeImages.join(', ') : ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+      runtimeImages.length > 0
+        ? runtimeImages.join(', ')
+        : DEFAULT_RUNTIME_IMAGE_BOOTSTRAP_LABEL,
     resourceLabel: summarizeResourceLabel(cpuLimits, memoryLimits),
   };
 }
@@ -175,7 +181,8 @@ export function summarizeOrchestratorReadiness(
     issues.push({
       id: 'prompt',
       title: 'Add the orchestrator baseline prompt.',
-      detail: 'Operators should activate a platform-instructions version before new workflows depend on orchestration decisions.',
+      detail:
+        'Operators should activate a platform-instructions version before new workflows depend on orchestration decisions.',
     });
   }
 
@@ -183,7 +190,8 @@ export function summarizeOrchestratorReadiness(
     issues.push({
       id: 'model',
       title: 'Assign an orchestrator model.',
-      detail: 'Choose a system default or orchestrator override so the control plane does not rely on an unset model route.',
+      detail:
+        'Choose a system default or orchestrator override so the control plane does not rely on an unset model route.',
     });
   }
 
@@ -191,13 +199,15 @@ export function summarizeOrchestratorReadiness(
     issues.push({
       id: 'pool',
       title: 'Enable the orchestrator agent pool.',
-      detail: 'Set at least one enabled agent with desired replicas so orchestrator tasks have capacity to run.',
+      detail:
+        'Set at least one enabled agent with desired replicas so orchestrator tasks have capacity to run.',
     });
   } else if (pool.runningContainers === 0) {
     issues.push({
       id: 'pool',
       title: 'Review orchestrator pool capacity.',
-      detail: 'Agents are configured but no orchestrator agents are running yet. Confirm the pool can actually start work.',
+      detail:
+        'Agents are configured but no orchestrator agents are running yet. Confirm the pool can actually start work.',
     });
   }
 
@@ -212,7 +222,8 @@ export function summarizeOrchestratorReadiness(
 
   return {
     headline: 'Needs attention',
-    detail: 'Resolve these orchestrator setup blockers before relying on this control plane for live workflows.',
+    detail:
+      'Resolve these orchestrator setup blockers before relying on this control plane for live workflows.',
     issues,
     isReady: false,
   };
@@ -247,7 +258,8 @@ export function summarizeOrchestratorControlSurfaces(
       id: 'pool',
       title: 'Pool and agent',
       summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
-      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. The Agentic Settings page controls the shared specialist agent and specialist execution envelope and safeguards.`,
+      detail:
+        'Orchestrator posture owns the primary orchestrator agent image and capacity. The Agentic Settings page controls the shared specialist agent and specialist execution envelope and safeguards.',
       href: '/config/orchestrator',
       label: 'Open orchestrator',
       secondaryHref: '/admin/agentic-settings',
@@ -296,5 +308,11 @@ function findModel(
 }
 
 function uniqueCompact(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))];
+  return [
+    ...new Set(
+      values
+        .filter((value): value is string => Boolean(value?.trim()))
+        .map((value) => value.trim()),
+    ),
+  ];
 }
