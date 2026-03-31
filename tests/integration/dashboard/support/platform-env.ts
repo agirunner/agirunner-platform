@@ -14,7 +14,7 @@ export const PLATFORM_API_URL = `http://localhost:${readPlatformEnv('PLATFORM_AP
 export const PLATFORM_API_CONTAINER_NAME = 'agirunner-platform-platform-api-1';
 export const PLATFORM_ARTIFACT_LOCAL_ROOT = readPlatformEnv(
   'ARTIFACT_LOCAL_ROOT',
-  resolve(REPO_ROOT, '.artifacts'),
+  resolve(REPO_ROOT, 'tmp/integration-artifacts'),
 );
 export const POSTGRES_CONTAINER_NAME = 'agirunner-platform-postgres-1';
 export const POSTGRES_DB = readPlatformEnv('POSTGRES_DB', 'agirunner');

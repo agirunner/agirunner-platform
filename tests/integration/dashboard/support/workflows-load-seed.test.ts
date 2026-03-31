@@ -69,6 +69,7 @@ describe('buildWorkflowLoadSeedSql', () => {
     expect(sql).not.toContain("'planned'");
     expect(sql).not.toContain("'completed'::public.workflow_state");
     expect(sql).not.toContain("'cancelled'::public.workflow_state");
+    expect(sql).toContain('seeded_heartbeat_guard');
   });
 
   it('builds configurable multi-work-item workflow plans for realistic perf seeding', () => {
@@ -98,4 +99,41 @@ describe('buildWorkflowLoadSeedSql', () => {
     expect(plan.briefs).toHaveLength(2);
     expect(plan.documents).toHaveLength(4);
   });
+
+  it('keeps seeded row ids unique at larger perf corpus sizes', () => {
+    const plan = buildWorkflowLoadSeedPlan({
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
+      workspaceName: 'Perf Workspace',
+      plannedPlaybookId: '00000000-0000-0000-0000-000000000003',
+      plannedPlaybookName: 'Planned Perf',
+      ongoingPlaybookId: '00000000-0000-0000-0000-000000000004',
+      ongoingPlaybookName: 'Ongoing Perf',
+      count: 50,
+      lifecycleMode: 'ongoing',
+      workItemsPerWorkflow: 2,
+      tasksPerWorkflow: 2,
+      deliverablesPerWorkflow: 1,
+      briefsPerWorkflow: 1,
+      turnsPerWorkflow: 1,
+      baseIso: '2026-02-01T00:00:00.000Z',
+    });
+
+    const ids = [
+      ...extractRowIds(plan.workflows),
+      ...extractRowIds(plan.stages),
+      ...extractRowIds(plan.workItems),
+      ...extractRowIds(plan.tasks),
+      ...extractRowIds(plan.briefs),
+      ...extractRowIds(plan.documents),
+    ];
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });
+
+function extractRowIds(rows: string[]): string[] {
+  return rows
+    .map((row) => row.match(/'([0-9a-f-]{36})'::uuid/iu)?.[1] ?? null)
+    .filter((value): value is string => value !== null);
+}

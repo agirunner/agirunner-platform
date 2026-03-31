@@ -99,6 +99,33 @@ export function buildFixturePurgeSql(): string {
      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
        AND current_task_id IN (SELECT id FROM fixture_tasks);
 
+    UPDATE public.workflows
+       SET state = 'cancelled'::public.workflow_state,
+           lifecycle = 'planned',
+           current_stage = COALESCE(current_stage, 'delivery'),
+           updated_at = NOW()
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND ${workflowFilter};
+
+    DELETE FROM public.workflow_activations
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.tasks
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND role = 'orchestrator'
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
     DELETE FROM public.integration_actions
      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
        AND task_id IN (

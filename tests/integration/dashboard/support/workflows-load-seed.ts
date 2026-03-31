@@ -1,4 +1,5 @@
 const DEFAULT_LOAD_BASE_ISO = '2026-02-01T00:00:00.000Z';
+const STABLE_UUID_SLOT_MULTIPLIER = 1_000_000n;
 
 const LOAD_STAGES = [
   { name: 'intake', goal: 'Clarify the request', position: 0 },
@@ -161,6 +162,26 @@ export function buildWorkflowLoadSeedPlan(input: WorkflowLoadSeedInput): Workflo
       )`);
       return taskId;
     });
+
+    if (workflow.lifecycle === 'ongoing') {
+      tasks.push(`(
+        ${sqlUuid(stableUuid(index, 9_000))},
+        ${sqlUuid(input.tenantId)},
+        ${sqlUuid(workflowId)},
+        ${sqlUuid(input.workspaceId)},
+        NULL,
+        ${sqlText(workflow.workItemStage)},
+        ${sqlText('Seed heartbeat guard')},
+        ${sqlText('seed-guard')},
+        'claimed'::task_state,
+        ${sqlTimestamp(createdAtIso)},
+        '{}'::jsonb,
+        ${sqlJsonValue({ seeded_heartbeat_guard: true })}::jsonb,
+        ${sqlTimestamp(createdAtIso)},
+        ${sqlTimestamp(createdAtIso)},
+        '{}'::jsonb
+      )`);
+    }
 
     for (let turnIndex = 0; turnIndex < turnsPerWorkflow; turnIndex += 1) {
       const taskId = taskIds[turnIndex % taskIds.length] ?? taskIds[0];
@@ -375,7 +396,7 @@ function buildWorkflowShape(profile: WorkflowLoadProfile) {
 }
 
 function stableUuid(index: number, slot: number): string {
-  const suffix = BigInt(index + 1) * 1000n + BigInt(slot);
+  const suffix = BigInt(index + 1) * STABLE_UUID_SLOT_MULTIPLIER + BigInt(slot);
   return `00000000-0000-4000-8000-${suffix.toString(16).padStart(12, '0').slice(-12)}`;
 }
 
