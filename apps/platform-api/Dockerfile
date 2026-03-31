@@ -24,8 +24,8 @@ ENV DATABASE_URL=
 ENV JWT_SECRET=
 ENV WEBHOOK_ENCRYPTION_KEY=
 COPY --from=build /app ./
-COPY --chmod=755 apps/platform-api/docker-entrypoint.sh /usr/local/bin/platform-api-entrypoint
-COPY --chmod=644 apps/platform-api/docker-entrypoint.lib.sh /usr/local/bin/docker-entrypoint.lib.sh
+COPY --chmod=755 apps/platform-api/docker/docker-entrypoint.sh /usr/local/bin/platform-api-entrypoint
+COPY --chmod=644 apps/platform-api/docker/docker-entrypoint.lib.sh /usr/local/bin/docker-entrypoint.lib.sh
 EXPOSE 8080
 ENTRYPOINT ["platform-api-entrypoint"]
 CMD ["node", "dist/src/index.js"]
