@@ -1,30 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog.js';
-import { Button } from '../../components/ui/button.js';
-import {
   dashboardApi,
   type DashboardTaskRecord,
-  type DashboardMissionControlWorkflowCard,
-  type DashboardWorkflowRailRow,
+  type DashboardWorkflowInputPacketRecord,
+  type DashboardWorkflowWorkItemRecord,
   type DashboardWorkflowWorkspacePacket,
 } from '../../lib/api.js';
-import { WorkflowsRail } from './workflows-rail.js';
 import {
-  describeHeaderAddWorkLabel,
   buildRepeatWorkflowLaunchSeed,
-  buildWorkflowsPageSearchParams,
   buildWorkflowsPageHref,
-  describeWorkflowWorkbenchScope,
+  buildWorkflowsPageSearchParams,
+  type WorkflowWorkbenchScopeDescriptor,
   readWorkflowsPageState,
   readWorkflowLaunchRequest,
   resolveHeaderAddWorkTargetWorkItemId,
@@ -33,35 +22,33 @@ import {
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
   type WorkflowsPageState,
+  describeWorkflowWorkbenchScope,
 } from './workflows-page.support.js';
 import {
-  readStoredWorkflowId,
   readStoredWorkflowRailHidden,
   readStoredWorkflowRailWidth,
   readStoredWorkflowWorkbenchFraction,
-  writeStoredWorkflowId,
   writeStoredWorkflowRailHidden,
   writeStoredWorkflowRailWidth,
   writeStoredWorkflowWorkbenchFraction,
 } from './workflows-page.storage.js';
+import {
+  deriveSelectedWorkflowRow,
+  handleWorkflowWorkItemLifecycleAction,
+  patchPageState,
+  useWorkflowRailSelectionSync,
+} from './workflows-page.controller.js';
 import { buildWorkflowRailQueryKey, buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
-import { WorkflowBoard } from './workflow-board.js';
-import { WorkflowLaunchDialog } from './workflow-launch-dialog.js';
 import {
-  buildWorkflowWorkspaceSplitClassName,
-  buildWorkflowWorkspaceSplitStyle,
-  buildWorkflowsShellClassName,
-  buildWorkflowsShellStyle,
+  beginWorkflowRailResize,
+  beginWorkflowWorkbenchResize,
   clampWorkflowRailWidthPx,
   clampWorkflowWorkbenchFraction,
   DEFAULT_WORKFLOW_RAIL_WIDTH_PX,
   DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
 } from './workflows-layout.js';
-import { WorkflowStateStrip } from './workflow-state-strip.js';
-import { WorkflowBottomWorkbench } from './workspace/workflow-bottom-workbench.js';
-import { WorkflowAddWorkDialog } from './workspace/workflow-add-work-dialog.js';
-import { WorkflowSteering } from './workspace/workflow-steering.js';
+import { WorkflowsPageView } from './workflows-page.view.js';
 
 const RAIL_PAGE_SIZE = 100;
 const ACTIVITY_PAGE_SIZE = 50;
@@ -145,28 +132,6 @@ export function WorkflowsPage(): JSX.Element {
 
   const handleClearWorkItemScope = () => {
     patchPageState(navigate, pageState, { workItemId: null });
-  };
-
-  const refreshWorkflowQueries = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['workflows'] });
-  };
-
-  const handleWorkItemLifecycleAction = async (
-    workItemId: string,
-    action: 'pause' | 'resume' | 'cancel',
-  ) => {
-    patchPageState(navigate, pageState, { workItemId });
-    if (!pageState.workflowId) {
-      return;
-    }
-    if (action === 'pause') {
-      await dashboardApi.pauseWorkflowWorkItem(pageState.workflowId, workItemId);
-    } else if (action === 'resume') {
-      await dashboardApi.resumeWorkflowWorkItem(pageState.workflowId, workItemId);
-    } else {
-      await dashboardApi.cancelWorkflowWorkItem(pageState.workflowId, workItemId);
-    }
-    await refreshWorkflowQueries();
   };
 
   const boardSelection = useMemo(
@@ -337,525 +302,196 @@ export function WorkflowsPage(): JSX.Element {
   );
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
-  useEffect(() => {
-    if (!railPacket || pageState.workflowId) {
-      return;
-    }
-    const selectableRows = [...railPacket.rows, ...railPacket.ongoing_rows];
-    if (selectableRows.length === 0) {
-      return;
-    }
-    const nextWorkflowId = resolveSelectedWorkflowId({
-      currentWorkflowId: pageState.workflowId,
-      rows: selectableRows,
-      selectedWorkflowId: railPacket.selected_workflow_id,
-      storedWorkflowId: readStoredWorkflowId(),
-    });
-    if (!nextWorkflowId) {
-      return;
-    }
-    patchPageState(navigate, pageState, {
-      workflowId: nextWorkflowId,
-    });
-  }, [navigate, pageState, railPacket]);
+  const openWorkflowLaunchDialog = () => {
+    setLaunchPlaybookId(null);
+    setLaunchWorkspaceId(null);
+    setLaunchWorkflowName(null);
+    setLaunchParameterDrafts({});
+    setIsLaunchOpen(true);
+  };
 
-  useEffect(() => {
-    if (!railPacket || !pageState.workflowId) {
-      return;
-    }
-    const selectableRows = [...railPacket.rows, ...railPacket.ongoing_rows];
-    if (selectableRows.some((row) => row.workflow_id === pageState.workflowId)) {
-      return;
-    }
-    if (selectedWorkflowRow && !workspaceQuery.isError && !workflowDetailQuery.isError) {
-      return;
-    }
-    const nextWorkflowId = resolveSelectedWorkflowId({
-      currentWorkflowId: null,
-      rows: selectableRows,
-      selectedWorkflowId: railPacket.selected_workflow_id,
-      storedWorkflowId: readStoredWorkflowId(),
+  const handleRailResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    beginWorkflowRailResize({ event, railWidthPx, setRailWidthPx });
+  };
+
+  const handleWorkbenchResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    beginWorkflowWorkbenchResize({
+      event,
+      splitContainer: workspaceSplitRef.current,
+      workbenchFraction,
+      setWorkbenchFraction,
     });
-    patchPageState(navigate, pageState, {
-      workflowId: nextWorkflowId,
-      workItemId: null,
-      tab: null,
-    });
-  }, [
+  };
+
+  useWorkflowRailSelectionSync({
     navigate,
     pageState,
     railPacket,
     selectedWorkflowRow,
-    workflowDetailQuery.isError,
-    workspaceQuery.isError,
-  ]);
-
-  useEffect(() => {
-    if (!pageState.workflowId) {
-      return;
-    }
-    writeStoredWorkflowId(pageState.workflowId);
-  }, [pageState.workflowId]);
-
-  return (
-    <>
-      <div
-        className={buildWorkflowsShellClassName(isRailHidden)}
-        style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
-      >
-        {!isRailHidden ? (
-          <WorkflowsRail
-            mode={pageState.mode}
-            search={pageState.search}
-            needsActionOnly={pageState.needsActionOnly}
-            ongoingOnly={pageState.ongoingOnly}
-            visibleCount={railPacket?.visible_count}
-            totalCount={railPacket?.total_count}
-            rows={railPacket?.rows ?? []}
-            ongoingRows={railPacket?.ongoing_rows ?? []}
-            selectedWorkflowId={pageState.workflowId}
-            selectedWorkflowRow={selectedWorkflowRow}
-            hasNextPage={hasMoreRailRows}
-            isLoading={railQuery.isLoading}
-            onModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
-            onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
-            onNeedsActionOnlyChange={(needsActionOnly) =>
-              patchPageState(navigate, pageState, { needsActionOnly })
-            }
-            onShowAllOngoing={() =>
-              patchPageState(navigate, pageState, { ongoingOnly: true })
-            }
-            onClearOngoingFilter={() =>
-              patchPageState(navigate, pageState, { ongoingOnly: false })
-            }
-            onSelectWorkflow={(workflowId) =>
-              patchPageState(navigate, pageState, { workflowId, workItemId: null })
-            }
-            onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
-            onCreateWorkflow={() => {
-              setLaunchPlaybookId(null);
-              setIsLaunchOpen(true);
-            }}
-          />
-        ) : null}
-        {!isRailHidden ? (
-          <div className="relative hidden lg:flex items-stretch justify-center">
-            <button
-              type="button"
-              aria-label="Resize workflows rail"
-              className="h-full w-full cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                const startX = event.clientX;
-                const startWidth = railWidthPx;
-                const handlePointerMove = (moveEvent: PointerEvent) => {
-                  const delta = moveEvent.clientX - startX;
-                  setRailWidthPx(clampWorkflowRailWidthPx(startWidth + delta));
-                };
-                const handlePointerUp = () => {
-                  window.removeEventListener('pointermove', handlePointerMove);
-                  window.removeEventListener('pointerup', handlePointerUp);
-                };
-                window.addEventListener('pointermove', handlePointerMove);
-                window.addEventListener('pointerup', handlePointerUp);
-              }}
-            />
-          </div>
-        ) : null}
-        <div className="grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-          <section
-            data-workflows-top-strip="true"
-            className="grid shrink-0 gap-2.5 sm:gap-3"
-          >
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
-                {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                {isRailHidden ? 'Show workflows' : 'Hide workflows'}
-              </Button>
-              {isRailHidden ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    setLaunchPlaybookId(null);
-                    setIsLaunchOpen(true);
-                  }}
-                >
-                  New Workflow
-                </Button>
-              ) : null}
-            </div>
-            {workflow && workspacePacket ? (
-               <WorkflowStateStrip
-                 workflow={workflow}
-                 stickyStrip={workspacePacket.sticky_strip}
-                 board={board}
-                 selectedScopeLabel={selectedScopeLabel}
-                addWorkLabel={describeHeaderAddWorkLabel({
-                  scopeKind: tabScope,
-                  lifecycle: workflow?.lifecycle,
-                })}
-                onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                 onAddWork={() => {
-                    setAddWorkTargetWorkItemId(
-                      resolveHeaderAddWorkTargetWorkItemId({
-                        scopeKind: tabScope,
-                        workItemId: boardSelection.workItemId,
-                      }),
-                    );
-                    setRepeatSourceWorkItemId(null);
-                    setIsAddWorkOpen(true);
-                  }}
-               />
-             ) : null}
-          </section>
-
-          {workflow && workspacePacket ? (
-            <div
-              ref={workspaceSplitRef}
-              className={buildWorkflowWorkspaceSplitClassName()}
-              style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
-            >
-              <section
-                data-workflows-board-frame="true"
-                className="flex h-full min-h-[11rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 p-0 shadow-sm sm:min-h-[15rem] lg:min-h-0"
-              >
-                <WorkflowBoard
-                  workflowId={workflow.id}
-                  board={board}
-                  workflowState={workflow.state}
-                  selectedWorkItemId={boardSelection.workItemId}
-                  boardMode={pageState.boardMode}
-                  onBoardModeChange={(boardMode) =>
-                    patchPageState(navigate, pageState, { boardMode })
-                  }
-                  onSelectWorkItem={handleSelectWorkItem}
-                  onWorkItemAction={({ workItemId, action }) => {
-                    switch (action) {
-                      case 'needs-action':
-                        patchPageState(navigate, pageState, { workItemId, tab: 'needs_action' });
-                        return;
-                      case 'steer':
-                        patchPageState(navigate, pageState, { workItemId, tab: 'details' });
-                        setSteeringTargetWorkItemId(workItemId);
-                        setIsSteeringOpen(true);
-                        return;
-                      case 'repeat':
-                        patchPageState(navigate, pageState, { workItemId });
-                        {
-                          const repeatLaunchSeed = buildRepeatWorkflowLaunchSeed({
-                            workflowState: workflow.state,
-                            playbookId: workflow.playbookId,
-                            workspaceId: workflow.workspaceId,
-                            workItemTitle:
-                              board?.work_items.find((item) => item.id === workItemId)?.title ?? null,
-                            workflowParameters:
-                              (workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined)
-                              ?? null,
-                          });
-                          if (repeatLaunchSeed) {
-                            setLaunchPlaybookId(repeatLaunchSeed.playbookId);
-                            setLaunchWorkspaceId(repeatLaunchSeed.workspaceId);
-                            setLaunchWorkflowName(repeatLaunchSeed.workflowName);
-                            setLaunchParameterDrafts(repeatLaunchSeed.parameterDrafts);
-                            setIsLaunchOpen(true);
-                            return;
-                          }
-                        }
-                        setAddWorkTargetWorkItemId(null);
-                        setRepeatSourceWorkItemId(workItemId);
-                        setIsAddWorkOpen(true);
-                        return;
-                      case 'pause':
-                      case 'resume':
-                      case 'cancel':
-                        void handleWorkItemLifecycleAction(workItemId, action);
-                        return;
-                    }
-                  }}
-                />
-              </section>
-              <div className="relative hidden lg:flex items-center justify-center">
-                <button
-                  type="button"
-                  aria-label="Resize workflow workbench"
-                  className="h-full w-full cursor-row-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
-                  onPointerDown={(event) => {
-                    const splitContainer = workspaceSplitRef.current;
-                    if (!splitContainer) {
-                      return;
-                    }
-                    event.preventDefault();
-                    const startY = event.clientY;
-                    const startFraction = workbenchFraction;
-                    const containerHeight = splitContainer.getBoundingClientRect().height;
-                    const handlePointerMove = (moveEvent: PointerEvent) => {
-                      const delta = moveEvent.clientY - startY;
-                      const nextFraction = clampWorkflowWorkbenchFraction(
-                        startFraction - (delta / Math.max(containerHeight, 1)),
-                      );
-                      setWorkbenchFraction(nextFraction);
-                    };
-                    const handlePointerUp = () => {
-                      window.removeEventListener('pointermove', handlePointerMove);
-                      window.removeEventListener('pointerup', handlePointerUp);
-                    };
-                    window.addEventListener('pointermove', handlePointerMove);
-                    window.addEventListener('pointerup', handlePointerUp);
-                  }}
-                />
-              </div>
-              <section
-                data-workflows-workbench-frame="true"
-                className="flex h-full min-h-[12rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 p-0 shadow-sm sm:min-h-[16rem] lg:min-h-0"
-              >
-                <WorkflowBottomWorkbench
-                  workflowId={workflow.id}
-                  workflow={workflow}
-                  stickyStrip={workspacePacket.sticky_strip}
-                  board={board}
-                  workflowName={workflow.name}
-                  packet={workspacePacket}
-                  activeTab={activeTab}
-                  selectedWorkItemId={boardSelection.workItemId}
-                  scopedWorkItemId={scopedWorkItemId}
-                  selectedWorkItemTitle={workItemTitle}
-                  selectedWorkItem={selectedWorkItem}
-                  selectedWorkItemTasks={selectedWorkItemTasks}
-                  inputPackets={inputPacketsQuery.data ?? []}
-                  workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
-                  scope={workbenchScope}
-                  isScopeLoading={isScopeLoading}
-                  onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                  onClearWorkItemScope={handleClearWorkItemScope}
-                  onOpenAddWork={(workItemId) => {
-                    if (workItemId !== undefined) {
-                      patchPageState(navigate, pageState, { workItemId: workItemId ?? null });
-                    }
-                    setAddWorkTargetWorkItemId(workItemId ?? null);
-                    setRepeatSourceWorkItemId(null);
-                    setIsAddWorkOpen(true);
-                  }}
-                  onLoadMoreActivity={() =>
-                    setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)
-                  }
-                  onLoadMoreDeliverables={() =>
-                    setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
-                  }
-                />
-              </section>
-            </div>
-          ) : (
-            <section
-              data-workflows-workbench-frame="true"
-              className="flex h-full min-h-[12rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 p-0 shadow-sm sm:min-h-[16rem] lg:min-h-0"
-            >
-                <EmptyWorkspaceState
-                  hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
-                onCreateWorkflow={() => {
-                  setLaunchPlaybookId(null);
-                  setLaunchWorkspaceId(null);
-                  setLaunchWorkflowName(null);
-                  setLaunchParameterDrafts({});
-                  setIsLaunchOpen(true);
-                }}
-              />
-            </section>
-          )}
-        </div>
-      </div>
-
-      <WorkflowLaunchDialog
-        isOpen={isLaunchOpen}
-        onOpenChange={(open) => {
-          setIsLaunchOpen(open);
-          if (!open) {
-            setLaunchPlaybookId(null);
-            setLaunchWorkspaceId(null);
-            setLaunchWorkflowName(null);
-            setLaunchParameterDrafts({});
-          }
-        }}
-        initialPlaybookId={launchPlaybookId}
-        initialWorkspaceId={launchWorkspaceId}
-        initialWorkflowName={launchWorkflowName}
-        initialParameterDrafts={launchParameterDrafts}
-        onLaunched={(workflowId) =>
-          patchPageState(navigate, pageState, {
-            workflowId,
-            workItemId: null,
-            tab: null,
-          })
-        }
-      />
-      {pageState.workflowId ? (
-        <>
-          <WorkflowAddWorkDialog
-            isOpen={isAddWorkOpen}
-            onOpenChange={(open) => {
-              setIsAddWorkOpen(open);
-              if (!open) {
-                setAddWorkTargetWorkItemId(null);
-                setRepeatSourceWorkItemId(null);
-              }
-            }}
-            workflowId={pageState.workflowId}
-            lifecycle={workflow?.lifecycle}
-            board={board}
-            inputPackets={inputPacketsQuery.data ?? []}
-            workItemId={addWorkTargetWorkItemId}
-            prefillSourceWorkItemId={repeatSourceWorkItemId}
-            workflowWorkspaceId={workflow?.workspaceId}
-          />
-          <Dialog
-            open={isSteeringOpen}
-            onOpenChange={(open) => {
-              setIsSteeringOpen(open);
-              if (!open) {
-                setSteeringTargetWorkItemId(null);
-              }
-            }}
-          >
-            <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Steer work item</DialogTitle>
-                <DialogDescription>
-                  Record guidance for the selected work item and wake the orchestrator on that scope.
-                </DialogDescription>
-              </DialogHeader>
-              {workflow && workspacePacket && steeringWorkItem ? (
-                <WorkflowSteering
-                  workflowId={workflow.id}
-                  workflowName={workflow.name}
-                  workflowState={workflow.state}
-                  boardColumns={board?.columns ?? []}
-                  selectedWorkItemId={steeringWorkItem.id}
-                  selectedWorkItemTitle={steeringWorkItem.title}
-                  selectedWorkItem={steeringWorkItem}
-                  scope={steeringScope}
-                  interventions={workspacePacket.steering.recent_interventions}
-                  messages={workspacePacket.steering.session.messages}
-                  sessionId={workspacePacket.steering.session.session_id}
-                  canAcceptRequest={workspacePacket.steering.steering_state.can_accept_request}
-                  onRecorded={() => {
-                    patchPageState(navigate, pageState, {
-                      workItemId: steeringWorkItem.id,
-                      tab: 'live_console',
-                    });
-                    setIsSteeringOpen(false);
-                    setSteeringTargetWorkItemId(null);
-                  }}
-                />
-              ) : null}
-            </DialogContent>
-          </Dialog>
-        </>
-      ) : null}
-    </>
-  );
-}
-
-function deriveSelectedWorkflowRow(
-  rows: DashboardWorkflowRailRow[],
-  ongoingRows: DashboardWorkflowRailRow[],
-  workflowId: string | null,
-  workflow: DashboardMissionControlWorkflowCard | null,
-): DashboardWorkflowRailRow | null {
-  if (!workflowId) {
-    return null;
-  }
-  const visibleRow = [...rows, ...ongoingRows].find((row) => row.workflow_id === workflowId);
-  if (visibleRow) {
-    return visibleRow;
-  }
-  if (!workflow) {
-    return null;
-  }
-  return {
-    workflow_id: workflow.id,
-    name: workflow.name,
-    state: workflow.state ?? null,
-    lifecycle: workflow.lifecycle ?? null,
-    current_stage: workflow.currentStage ?? null,
-    workspace_name: workflow.workspaceName ?? null,
-    playbook_name: workflow.playbookName ?? null,
-    posture: workflow.posture ?? null,
-    live_summary: workflow.pulse.summary,
-    last_changed_at: workflow.metrics.lastChangedAt ?? workflow.pulse.updatedAt ?? null,
-    needs_action:
-      workflow.attentionLane === 'needs_decision'
-      || workflow.attentionLane === 'needs_intervention'
-      || workflow.posture === 'needs_decision'
-      || workflow.posture === 'needs_intervention'
-      || workflow.posture === 'recoverable_needs_steering'
-      || workflow.posture === 'terminal_failed',
-    counts: {
-      active_task_count: workflow.metrics.activeTaskCount,
-      active_work_item_count: workflow.metrics.activeWorkItemCount,
-      blocked_work_item_count: workflow.metrics.blockedWorkItemCount,
-      open_escalation_count: workflow.metrics.openEscalationCount,
-      waiting_for_decision_count: workflow.metrics.waitingForDecisionCount,
-      failed_task_count: workflow.metrics.failedTaskCount,
-    },
-  };
-}
-
-function EmptyWorkflowsState(props: {
-  onCreateWorkflow(): void;
-}): JSX.Element {
-  return (
-    <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 p-8">
-      <div className="grid max-w-lg gap-4 text-center">
-        <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
-        <div className="grid gap-2">
-          <p className="text-xl font-semibold text-foreground">No workflows yet</p>
-          <p className="text-sm text-muted-foreground">
-            Start the first workflow to populate the live rail and open the workflow workspace automatically.
-          </p>
-        </div>
-        <div className="flex justify-center">
-          <Button type="button" onClick={props.onCreateWorkflow}>
-            New Workflow
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyWorkspaceState(props: {
-  hasWorkflows: boolean;
-  onCreateWorkflow(): void;
-}): JSX.Element {
-  if (!props.hasWorkflows) {
-    return <EmptyWorkflowsState onCreateWorkflow={props.onCreateWorkflow} />;
-  }
-
-  return (
-    <div className="flex min-h-[28rem] items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 p-8">
-      <div className="grid max-w-lg gap-3 text-center">
-        <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
-        <p className="text-lg font-semibold text-foreground">Select a workflow</p>
-        <p className="text-sm text-muted-foreground">
-          Choose a workflow from the left rail to open its board, details, needs action, live
-          console, and deliverables in one place.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function patchPageState(
-  navigate: ReturnType<typeof useNavigate>,
-  currentState: WorkflowsPageState,
-  patch: Partial<WorkflowsPageState>,
-): void {
-  const currentHref = buildWorkflowsPageHref({}, currentState);
-  const nextHref = buildWorkflowsPageHref(patch, currentState);
-  if (nextHref === currentHref) {
-    return;
-  }
-  navigate(nextHref, {
-    replace: true,
+    workflowDetailError: workflowDetailQuery.isError,
+    workspaceError: workspaceQuery.isError,
   });
+
+  return (
+    <WorkflowsPageView
+      activeTab={activeTab}
+      addWorkTargetWorkItemId={addWorkTargetWorkItemId}
+      board={board}
+      boardSelectionWorkItemId={boardSelection.workItemId}
+      deliverablesLimit={deliverablesLimit}
+      hasMoreRailRows={hasMoreRailRows}
+      inputPackets={(inputPacketsQuery.data ?? []) as DashboardWorkflowInputPacketRecord[]}
+      isAddWorkOpen={isAddWorkOpen}
+      isLaunchOpen={isLaunchOpen}
+      isRailHidden={isRailHidden}
+      isScopeLoading={isScopeLoading}
+      isSteeringOpen={isSteeringOpen}
+      launchParameterDrafts={launchParameterDrafts}
+      launchPlaybookId={launchPlaybookId}
+      launchWorkflowName={launchWorkflowName}
+      launchWorkspaceId={launchWorkspaceId}
+      pageState={pageState}
+      railLoading={railQuery.isLoading}
+      railOngoingRows={railPacket?.ongoing_rows ?? []}
+      railRows={railPacket?.rows ?? []}
+      railTotalCount={railPacket?.total_count}
+      railVisibleCount={railPacket?.visible_count}
+      railWidthPx={railWidthPx}
+      repeatSourceWorkItemId={repeatSourceWorkItemId}
+      scopedWorkItemId={scopedWorkItemId}
+      selectedScopeLabel={selectedScopeLabel}
+      selectedWorkItem={selectedWorkItem as DashboardWorkflowWorkItemRecord | null}
+      selectedWorkflowRow={selectedWorkflowRow}
+      selectedWorkItemTasks={selectedWorkItemTaskRecords as unknown as Record<string, unknown>[]}
+      steeringScope={steeringScope as WorkflowWorkbenchScopeDescriptor}
+      steeringTargetWorkItemId={steeringTargetWorkItemId}
+      steeringWorkItem={steeringWorkItem as DashboardWorkflowWorkItemRecord | null}
+      tabScope={tabScope}
+      workbenchFraction={workbenchFraction}
+      workbenchScope={workbenchScope as WorkflowWorkbenchScopeDescriptor}
+      workflow={workflow}
+      workflowParameters={
+        (workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null
+      }
+      workspacePacket={workspacePacket}
+      workspaceSplitRef={workspaceSplitRef}
+      workItemTitle={workItemTitle}
+      onAddWorkOpenChange={(open) => {
+        setIsAddWorkOpen(open);
+        if (!open) {
+          setAddWorkTargetWorkItemId(null);
+          setRepeatSourceWorkItemId(null);
+        }
+      }}
+      onBoardModeChange={(boardMode) => patchPageState(navigate, pageState, { boardMode })}
+      onClearOngoingFilter={() => patchPageState(navigate, pageState, { ongoingOnly: false })}
+      onClearWorkItemScope={handleClearWorkItemScope}
+      onCreateWorkflow={openWorkflowLaunchDialog}
+      onLaunched={(workflowId) =>
+        patchPageState(navigate, pageState, { workflowId, workItemId: null, tab: null })
+      }
+      onLaunchOpenChange={(open) => {
+        setIsLaunchOpen(open);
+        if (!open) {
+          setLaunchPlaybookId(null);
+          setLaunchWorkspaceId(null);
+          setLaunchWorkflowName(null);
+          setLaunchParameterDrafts({});
+        }
+      }}
+      onLoadMoreActivity={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)}
+      onLoadMoreDeliverables={() =>
+        setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
+      }
+      onLoadMoreRail={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
+      onNeedsActionOnlyChange={(needsActionOnly) =>
+        patchPageState(navigate, pageState, { needsActionOnly })
+      }
+      onOpenAddWork={(workItemId) => {
+        if (workItemId !== undefined) {
+          patchPageState(navigate, pageState, { workItemId: workItemId ?? null });
+        }
+        setAddWorkTargetWorkItemId(workItemId ?? null);
+        setRepeatSourceWorkItemId(null);
+        setIsAddWorkOpen(true);
+      }}
+      onRailModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
+      onRailResizePointerDown={handleRailResizePointerDown}
+      onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
+      onSelectWorkflow={(workflowId) =>
+        patchPageState(navigate, pageState, { workflowId, workItemId: null })
+      }
+      onSelectWorkItem={handleSelectWorkItem}
+      onShowAllOngoing={() => patchPageState(navigate, pageState, { ongoingOnly: true })}
+      onSteeringOpenChange={(open) => {
+        setIsSteeringOpen(open);
+        if (!open) {
+          setSteeringTargetWorkItemId(null);
+        }
+      }}
+      onSteeringRecorded={() => {
+        if (!steeringWorkItem) {
+          return;
+        }
+        patchPageState(navigate, pageState, {
+          workItemId: steeringWorkItem.id,
+          tab: 'live_console',
+        });
+        setIsSteeringOpen(false);
+        setSteeringTargetWorkItemId(null);
+      }}
+      onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
+      onToggleRail={() => setIsRailHidden((current) => !current)}
+      onWorkItemAction={({ workItemId, action }) => {
+        switch (action) {
+          case 'needs-action':
+            patchPageState(navigate, pageState, { workItemId, tab: 'needs_action' });
+            return;
+          case 'steer':
+            patchPageState(navigate, pageState, { workItemId, tab: 'details' });
+            setSteeringTargetWorkItemId(workItemId);
+            setIsSteeringOpen(true);
+            return;
+          case 'repeat':
+            patchPageState(navigate, pageState, { workItemId });
+            {
+              const repeatLaunchSeed = buildRepeatWorkflowLaunchSeed({
+                workflowState: workflow?.state ?? null,
+                playbookId: workflow?.playbookId ?? null,
+                workspaceId: workflow?.workspaceId ?? null,
+                workItemTitle:
+                  board?.work_items.find((item) => item.id === workItemId)?.title ?? null,
+                workflowParameters:
+                  (workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined)
+                  ?? null,
+              });
+              if (repeatLaunchSeed) {
+                setLaunchPlaybookId(repeatLaunchSeed.playbookId);
+                setLaunchWorkspaceId(repeatLaunchSeed.workspaceId);
+                setLaunchWorkflowName(repeatLaunchSeed.workflowName);
+                setLaunchParameterDrafts(repeatLaunchSeed.parameterDrafts);
+                setIsLaunchOpen(true);
+                return;
+              }
+            }
+            setAddWorkTargetWorkItemId(null);
+            setRepeatSourceWorkItemId(workItemId);
+            setIsAddWorkOpen(true);
+            return;
+          case 'pause':
+          case 'resume':
+          case 'cancel':
+            void handleWorkflowWorkItemLifecycleAction({
+              action,
+              navigate,
+              pageState,
+              queryClient,
+              workItemId,
+            });
+            return;
+        }
+      }}
+      onWorkbenchResizePointerDown={handleWorkbenchResizePointerDown}
+    />
+  );
 }

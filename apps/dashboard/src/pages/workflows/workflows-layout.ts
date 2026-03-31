@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 
 export const DEFAULT_WORKFLOW_RAIL_WIDTH_PX = 320;
 export const MIN_WORKFLOW_RAIL_WIDTH_PX = 296;
@@ -65,6 +65,54 @@ export function buildWorkflowWorkspaceSplitClassName(): string {
     'lg:overflow-hidden',
     `lg:grid-rows-[minmax(0,var(--workflow-board-track))_${WORKFLOW_SPLIT_GUTTER_REM}rem_minmax(0,var(--workflow-workbench-track))]`,
   ].join(' ');
+}
+
+export function beginWorkflowRailResize(input: {
+  event: ReactPointerEvent<HTMLButtonElement>;
+  railWidthPx: number;
+  setRailWidthPx(widthPx: number): void;
+}): void {
+  input.event.preventDefault();
+  const startX = input.event.clientX;
+  const startWidth = input.railWidthPx;
+  const handlePointerMove = (moveEvent: PointerEvent) => {
+    const delta = moveEvent.clientX - startX;
+    input.setRailWidthPx(clampWorkflowRailWidthPx(startWidth + delta));
+  };
+  const handlePointerUp = () => {
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+  };
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp);
+}
+
+export function beginWorkflowWorkbenchResize(input: {
+  event: ReactPointerEvent<HTMLButtonElement>;
+  splitContainer: HTMLDivElement | null;
+  workbenchFraction: number;
+  setWorkbenchFraction(fraction: number): void;
+}): void {
+  if (!input.splitContainer) {
+    return;
+  }
+  input.event.preventDefault();
+  const startY = input.event.clientY;
+  const startFraction = input.workbenchFraction;
+  const containerHeight = input.splitContainer.getBoundingClientRect().height;
+  const handlePointerMove = (moveEvent: PointerEvent) => {
+    const delta = moveEvent.clientY - startY;
+    const nextFraction = clampWorkflowWorkbenchFraction(
+      startFraction - delta / Math.max(containerHeight, 1),
+    );
+    input.setWorkbenchFraction(nextFraction);
+  };
+  const handlePointerUp = () => {
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+  };
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp);
 }
 
 export function clampWorkflowRailWidthPx(widthPx: number): number {
