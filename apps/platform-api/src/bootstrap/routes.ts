@@ -24,7 +24,7 @@ import { taskStreamRoutes } from '../api/routes/tasks/stream.routes.js';
 import { toolRoutes } from '../api/routes/tools.routes.js';
 import { webhookRoutes } from '../api/routes/webhooks.routes.js';
 import { workerRoutes } from '../api/routes/workers.routes.js';
-import { workspaceRoutes } from '../api/routes/workspaces.routes.js';
+import { workspaceRoutes } from '../api/routes/workspaces/workspaces.routes.js';
 import { runtimeCustomizationRoutes } from '../api/routes/platform-config/runtime-customization.routes.js';
 import { roleDefinitionRoutes } from '../api/routes/platform-config/role-definitions.routes.js';
 import { llmConfigRoutes } from '../api/routes/platform-config/llm-config.routes.js';

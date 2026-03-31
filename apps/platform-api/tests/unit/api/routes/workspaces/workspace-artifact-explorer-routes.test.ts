@@ -1,11 +1,11 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
 const listWorkspaceArtifacts = vi.fn();
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -20,7 +20,7 @@ vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../../src/services/workspace-artifact-explorer/workspace-artifact-explorer-service.js', () => ({
+vi.mock('../../../../../src/services/workspace-artifact-explorer/workspace-artifact-explorer-service.js', () => ({
   WorkspaceArtifactExplorerService: vi.fn().mockImplementation(() => ({
     listWorkspaceArtifacts,
   })),
@@ -41,7 +41,7 @@ describe('workspace artifact explorer routes', () => {
   });
 
   it('serves workspace-scoped artifact queries through the bounded explorer route', async () => {
-    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../../src/api/routes/workspaces/workspaces.routes.js');
 
     listWorkspaceArtifacts.mockResolvedValue({
       data: [],
@@ -115,7 +115,7 @@ describe('workspace artifact explorer routes', () => {
   });
 
   it('rejects invalid workspace artifact explorer query values', async () => {
-    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../../src/api/routes/workspaces/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
