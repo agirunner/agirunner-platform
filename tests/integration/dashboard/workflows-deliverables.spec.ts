@@ -243,17 +243,19 @@ function patchDeliverablesPayload(
   ];
 
   for (const deliverable of missingInProgressDeliverables) {
-    if (
-      !containsDeliverable(finalDeliverables, deliverable.descriptor_id)
-      && !containsDeliverable(inProgressDeliverables, deliverable.descriptor_id)
-      && !containsDeliverable(allDeliverables, deliverable.descriptor_id)
-      && !containsEquivalentDeliverable(finalDeliverables, deliverable)
-      && !containsEquivalentDeliverable(inProgressDeliverables, deliverable)
-      && !containsEquivalentDeliverable(allDeliverables, deliverable)
-    ) {
-      inProgressDeliverables.push(deliverable);
-      allDeliverables.push(deliverable);
+    if (upsertDeliverable(finalDeliverables, deliverable)) {
+      upsertDeliverable(allDeliverables, deliverable);
+      continue;
     }
+    if (upsertDeliverable(inProgressDeliverables, deliverable)) {
+      upsertDeliverable(allDeliverables, deliverable);
+      continue;
+    }
+    if (upsertDeliverable(allDeliverables, deliverable)) {
+      continue;
+    }
+    inProgressDeliverables.push(deliverable);
+    allDeliverables.push(deliverable);
   }
 
   deliverables.final_deliverables = finalDeliverables;
@@ -485,6 +487,33 @@ function containsEquivalentDeliverable(
     readOptionalString(entry.title) === title
     && readOptionalString(entry.descriptor_kind) === descriptorKind,
   );
+}
+
+function upsertDeliverable(
+  deliverables: Array<Record<string, unknown>>,
+  deliverable: Record<string, unknown>,
+): boolean {
+  const descriptorId = readOptionalString(deliverable.descriptor_id);
+  if (descriptorId) {
+    const exactIndex = deliverables.findIndex(
+      (entry) => readOptionalString(entry.descriptor_id) === descriptorId,
+    );
+    if (exactIndex !== -1) {
+      deliverables.splice(exactIndex, 1, deliverable);
+      return true;
+    }
+  }
+
+  const equivalentIndex = deliverables.findIndex((entry) =>
+    readOptionalString(entry.title) === readOptionalString(deliverable.title)
+    && readOptionalString(entry.descriptor_kind) === readOptionalString(deliverable.descriptor_kind),
+  );
+  if (equivalentIndex !== -1) {
+    deliverables.splice(equivalentIndex, 1, deliverable);
+    return true;
+  }
+
+  return false;
 }
 
 function asArray(value: unknown): Array<Record<string, unknown>> {
