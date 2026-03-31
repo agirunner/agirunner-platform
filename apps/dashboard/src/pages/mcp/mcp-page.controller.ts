@@ -10,7 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   DEFAULT_LIST_PAGE_SIZE,
   paginateListItems,
-} from '../../components/list-pagination.js';
+} from '../../components/list-pagination/list-pagination.js';
 import { toast } from '../../lib/toast.js';
 import type {
   DashboardRemoteMcpAuthorizeResult,

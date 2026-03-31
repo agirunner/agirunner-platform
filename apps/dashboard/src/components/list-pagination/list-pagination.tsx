@@ -1,13 +1,13 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { Button } from './ui/button.js';
+import { Button } from '../ui/button.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select.js';
+} from '../ui/select.js';
 
 export const LIST_PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 export const DEFAULT_LIST_PAGE_SIZE = LIST_PAGE_SIZE_OPTIONS[0];

@@ -13,7 +13,7 @@ import { DashboardSectionCard } from '../../components/layout/dashboard-section-
 import {
   ListPagination,
   type PaginatedListResult,
-} from '../../components/list-pagination.js';
+} from '../../components/list-pagination/list-pagination.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

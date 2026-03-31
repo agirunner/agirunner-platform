@@ -6,7 +6,7 @@ import {
   DEFAULT_LIST_PAGE_SIZE,
   ListPagination,
   paginateListItems,
-} from '../../components/list-pagination.js';
+} from '../../components/list-pagination/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';

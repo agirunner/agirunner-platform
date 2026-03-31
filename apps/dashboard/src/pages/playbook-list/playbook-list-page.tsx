@@ -15,7 +15,7 @@ import {
 import {
   DEFAULT_LIST_PAGE_SIZE,
   paginateListItems,
-} from '../../components/list-pagination.js';
+} from '../../components/list-pagination/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
