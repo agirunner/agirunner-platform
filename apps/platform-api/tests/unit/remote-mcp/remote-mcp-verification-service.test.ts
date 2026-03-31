@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { RemoteMcpVerificationService } from '../../src/services/remote-mcp-verification-service.js';
+import { RemoteMcpVerificationService } from '../../../src/services/remote-mcp-verification-service.js';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const SERVER_ID = '00000000-0000-0000-0000-000000000201';

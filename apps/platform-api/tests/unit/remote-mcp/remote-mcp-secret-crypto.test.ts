@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
 import {
   decryptRemoteMcpSecret,
   encryptRemoteMcpSecret,
   isRemoteMcpSecretEncrypted,
   normalizeStoredRemoteMcpSecret,
-} from '../../src/services/remote-mcp-secret-crypto.js';
+} from '../../../src/services/remote-mcp-secret-crypto.js';
 
 describe('remote-mcp-secret-crypto', () => {
   beforeEach(() => {

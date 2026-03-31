@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ValidationError } from '../../src/errors/domain-errors.js';
-import { exchangeAuthorizationCodeToken } from '../../src/services/remote-mcp-oauth-http.js';
-import { parseTokenResponse } from '../../src/services/remote-mcp-oauth-http-response.js';
+import { ValidationError } from '../../../src/errors/domain-errors.js';
+import { exchangeAuthorizationCodeToken } from '../../../src/services/remote-mcp-oauth-http.js';
+import { parseTokenResponse } from '../../../src/services/remote-mcp-oauth-http-response.js';
 
 describe('remote MCP OAuth HTTP token handling', () => {
   const originalFetch = globalThis.fetch;
