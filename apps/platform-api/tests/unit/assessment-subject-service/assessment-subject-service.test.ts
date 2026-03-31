@@ -4,14 +4,14 @@ const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
   logSafetynetTriggeredMock: vi.fn(),
 }));
 
-vi.mock('../../src/services/safetynet/logging.js', () => ({
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
 import {
   mergeAssessmentSubjectLinkage,
   SUBJECT_LINKAGE_INFERENCE_SAFETYNET,
-} from '../../src/services/assessment-subject-service.js';
+} from '../../../src/services/assessment-subject-service.js';
 
 describe('mergeAssessmentSubjectLinkage', () => {
   it('does not log a safetynet when only subject revision is defaulted', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { NotFoundError } from '../../src/errors/domain-errors.js';
-import { handleWorkerWebsocketMessageError } from '../../src/bootstrap/websocket.js';
+import { NotFoundError } from '../../../src/errors/domain-errors.js';
+import { handleWorkerWebsocketMessageError } from '../../../src/bootstrap/websocket.js';
 
 describe('handleWorkerWebsocketMessageError', () => {
   it('closes websocket + unregisters worker on NotFoundError heartbeat', () => {

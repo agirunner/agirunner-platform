@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { CircuitBreakerService } from '../../src/services/circuit-breaker-service.js';
+import { CircuitBreakerService } from '../../../src/services/circuit-breaker-service.js';
 
 function createMockPool() {
   return {

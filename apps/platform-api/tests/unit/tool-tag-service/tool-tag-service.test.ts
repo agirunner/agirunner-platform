@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ValidationError } from '../../src/errors/domain-errors.js';
-import { ToolTagService } from '../../src/services/tool-tag-service.js';
+import { ValidationError } from '../../../src/errors/domain-errors.js';
+import { ToolTagService } from '../../../src/services/tool-tag-service.js';
 
 function mockIdentity(tenantId = 'tenant-1') {
   return { tenantId, id: 'key-1', scope: 'admin' as const, ownerType: 'user' as const, ownerId: 'user-1', keyPrefix: 'ab_' };
