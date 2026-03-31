@@ -45,6 +45,30 @@ describe('workflows rail pagination helpers', () => {
       ),
     ).toBe(3);
   });
+
+  it('uses unique loaded rows when deciding whether another page is needed', () => {
+    expect(
+      getNextWorkflowRailPageParam(
+        createPage({
+          rows: [{ workflow_id: 'workflow-2', name: 'Workflow 2' }],
+          ongoing_rows: [{ workflow_id: 'workflow-ongoing', name: 'Workflow Ongoing', lifecycle: 'ongoing' }],
+          total_count: 4,
+        }),
+        [
+          createPage({
+            rows: [{ workflow_id: 'workflow-1', name: 'Workflow 1' }],
+            ongoing_rows: [{ workflow_id: 'workflow-ongoing', name: 'Workflow Ongoing', lifecycle: 'ongoing' }],
+            total_count: 4,
+          }),
+          createPage({
+            rows: [{ workflow_id: 'workflow-2', name: 'Workflow 2' }],
+            ongoing_rows: [{ workflow_id: 'workflow-ongoing', name: 'Workflow Ongoing', lifecycle: 'ongoing' }],
+            total_count: 4,
+          }),
+        ],
+      ),
+    ).toBe(3);
+  });
 });
 
 function createPage(input: {

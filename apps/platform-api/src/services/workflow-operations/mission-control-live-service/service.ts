@@ -15,6 +15,7 @@ import {
   pushOutput,
 } from './presentation.js';
 import {
+  countWorkflowRows,
   getLatestEventId,
   loadWorkflowOutputRows,
   loadWorkflowRows,
@@ -26,36 +27,36 @@ export class MissionControlLiveService {
 
   async countWorkflows(
     tenantId: string,
-    input: { lifecycleFilter?: 'all' | 'ongoing' | 'planned' } = {},
+    input: {
+      lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      search?: string;
+      needsActionOnly?: boolean;
+    } = {},
   ): Promise<number> {
-    const lifecycleFilter = normalizeLifecycleFilter(input.lifecycleFilter);
-    const result = lifecycleFilter === 'all'
-      ? await this.pool.query<{ total_count: number | string }>(
-        `SELECT COUNT(*)::int AS total_count
-           FROM workflows
-          WHERE tenant_id = $1`,
-        [tenantId],
-      )
-      : await this.pool.query<{ total_count: number | string }>(
-        `SELECT COUNT(*)::int AS total_count
-           FROM workflows
-          WHERE tenant_id = $1
-            AND lifecycle = $2`,
-        [tenantId, lifecycleFilter],
-      );
-    const rawTotal = result.rows[0]?.total_count;
-    return typeof rawTotal === 'string' ? Number(rawTotal) : Number(rawTotal ?? 0);
+    return countWorkflowRows(this.pool, tenantId, {
+      lifecycleFilter: normalizeLifecycleFilter(input.lifecycleFilter),
+      search: input.search,
+      needsActionOnly: input.needsActionOnly,
+    });
   }
 
   async getLive(
     tenantId: string,
-    input: { page?: number; perPage?: number; lifecycleFilter?: 'all' | 'ongoing' | 'planned' } = {},
+    input: {
+      page?: number;
+      perPage?: number;
+      lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      search?: string;
+      needsActionOnly?: boolean;
+    } = {},
   ): Promise<MissionControlLiveResponse> {
     const version = await this.buildVersion(tenantId);
     const workflows = await this.listWorkflowCards(tenantId, {
       page: input.page ?? 1,
       perPage: input.perPage ?? 100,
       lifecycleFilter: normalizeLifecycleFilter(input.lifecycleFilter),
+      search: input.search,
+      needsActionOnly: input.needsActionOnly,
       version,
     });
     return {
@@ -72,6 +73,8 @@ export class MissionControlLiveService {
       page?: number;
       perPage?: number;
       lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+      search?: string;
+      needsActionOnly?: boolean;
       version?: MissionControlReadModelVersion;
     } = {},
   ): Promise<MissionControlWorkflowCard[]> {

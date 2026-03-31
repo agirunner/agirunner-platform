@@ -60,7 +60,7 @@ export function WorkflowDetails(props: {
   });
 
   return (
-    <section className="flex min-h-full flex-col gap-4 pb-1 pr-1">
+    <section className="flex min-h-full flex-1 flex-col gap-4 pb-1 pr-1">
       <p className="text-sm text-foreground">{scope.latestStatus}</p>
 
       <div className="grid gap-4">

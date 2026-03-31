@@ -321,4 +321,46 @@ describe('WorkflowRailService live selection and pagination', () => {
       expect.objectContaining({ workflow_id: 'workflow-needs-action' }),
     ]);
   });
+
+  it('forwards search and needs-action filters into the live rail query and count path', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [],
+        attentionItems: [],
+      })),
+      countWorkflows: vi.fn(async () => 7),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    await service.getRail('tenant-1', {
+      mode: 'live',
+      page: 3,
+      perPage: 25,
+      search: 'release',
+      needsActionOnly: true,
+      lifecycleFilter: 'planned',
+    });
+
+    expect(liveService.getLive).toHaveBeenCalledWith('tenant-1', {
+      page: 3,
+      perPage: 25,
+      lifecycleFilter: 'planned',
+      search: 'release',
+      needsActionOnly: true,
+    });
+    expect(liveService.countWorkflows).toHaveBeenCalledWith('tenant-1', {
+      lifecycleFilter: 'planned',
+      search: 'release',
+      needsActionOnly: true,
+    });
+  });
 });

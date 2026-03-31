@@ -16,11 +16,21 @@ import {
 interface LiveRailSource {
   getLive(
     tenantId: string,
-    input?: { page?: number; perPage?: number; lifecycleFilter?: WorkflowRailLifecycleFilter },
+    input?: {
+      page?: number;
+      perPage?: number;
+      lifecycleFilter?: WorkflowRailLifecycleFilter;
+      search?: string;
+      needsActionOnly?: boolean;
+    },
   ): Promise<MissionControlLiveResponse>;
   countWorkflows?(
     tenantId: string,
-    input?: { lifecycleFilter?: WorkflowRailLifecycleFilter },
+    input?: {
+      lifecycleFilter?: WorkflowRailLifecycleFilter;
+      search?: string;
+      needsActionOnly?: boolean;
+    },
   ): Promise<number>;
   listWorkflowCards(
     tenantId: string,
@@ -85,9 +95,13 @@ export class WorkflowRailService {
         page: query.page ?? 1,
         perPage: query.perPage ?? 100,
         lifecycleFilter: query.lifecycleFilter ?? 'all',
+        search: query.search,
+        needsActionOnly: query.needsActionOnly,
       }),
       this.liveSource.countWorkflows?.(tenantId, {
         lifecycleFilter: query.lifecycleFilter ?? 'all',
+        search: query.search,
+        needsActionOnly: query.needsActionOnly,
       }) ?? Promise.resolve(0),
     ]);
     const selectedRow = query.selectedWorkflowId

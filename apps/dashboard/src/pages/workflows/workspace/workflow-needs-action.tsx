@@ -100,7 +100,7 @@ export function WorkflowNeedsAction(props: {
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-4 pb-1">
+    <div className="flex min-h-full flex-1 flex-col gap-4 pb-1">
       {visibleItems.length === 0 ? (
         <div className="grid gap-1 px-1 text-sm text-muted-foreground">
           <p>Nothing in this {scopeSubject} requires operator action right now.</p>
@@ -111,7 +111,7 @@ export function WorkflowNeedsAction(props: {
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-3 pr-1">
+        <div className="grid flex-1 content-start gap-3 pr-1">
           {visibleItems.map((item) => (
             <NeedsActionPacketCard
               key={item.action_id}
@@ -172,7 +172,7 @@ function NeedsActionPacketCard(props: {
   const dossier = buildNeedsActionDossier(props.item, visibleTargetKind);
 
   return (
-    <article className="grid gap-3 rounded-xl border border-border/60 bg-background/70 p-4">
+    <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-foreground">{props.item.label}</strong>
         <Badge variant="warning">{humanizeToken(visibleTargetKind)}</Badge>
@@ -213,7 +213,7 @@ function NeedsActionPacketCard(props: {
       </div>
 
       {activePromptAction ? (
-        <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-background/85 p-3 shadow-sm">
           <div className="grid gap-1">
             <p className="text-sm font-semibold text-foreground">{promptMeta.title}</p>
             {promptMeta.description ? (
@@ -227,6 +227,7 @@ function NeedsActionPacketCard(props: {
             rows={4}
             placeholder={promptMeta.placeholder}
             aria-invalid={Boolean(promptMessage)}
+            className="bg-background focus-visible:ring-sky-500 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive"
           />
           {promptMessage ? <p className="text-sm text-destructive">{promptMessage}</p> : null}
           <div className="flex justify-end gap-2">

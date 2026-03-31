@@ -36,10 +36,7 @@ export function getNextWorkflowRailPageParam(
   allPages: DashboardWorkflowRailPacket[],
 ): number | undefined {
   const totalCount = lastPage.total_count ?? 0;
-  const loadedCount = allPages.reduce(
-    (sum, page) => sum + page.rows.length + page.ongoing_rows.length,
-    0,
-  );
+  const loadedCount = countUniqueLoadedRows(allPages);
   return loadedCount < totalCount ? allPages.length + 1 : undefined;
 }
 
@@ -54,4 +51,14 @@ function dedupeRailRows(rows: DashboardWorkflowRailRow[]): DashboardWorkflowRail
     deduped.push(row);
   }
   return deduped;
+}
+
+function countUniqueLoadedRows(allPages: DashboardWorkflowRailPacket[]): number {
+  const seen = new Set<string>();
+  for (const page of allPages) {
+    for (const row of [...page.rows, ...page.ongoing_rows]) {
+      seen.add(row.workflow_id);
+    }
+  }
+  return seen.size;
 }
