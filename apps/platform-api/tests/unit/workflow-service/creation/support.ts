@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowCreationService } from '../../../src/services/workflow-service/workflow-creation-service.js';
+import { WorkflowCreationService } from '../../../../src/services/workflow-service/workflow-creation-service.js';
 
 export const IDENTITY = {
   tenantId: 'tenant-1',
