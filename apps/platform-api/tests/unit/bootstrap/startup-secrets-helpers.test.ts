@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertRequiredStartupSecrets } from '../../src/bootstrap/startup-secrets.js';
+import { assertRequiredStartupSecrets } from '../../../src/bootstrap/startup-secrets.js';
 
 describe('startup secret helpers', () => {
   it('rejects missing JWT_SECRET from the extracted helper module', () => {
