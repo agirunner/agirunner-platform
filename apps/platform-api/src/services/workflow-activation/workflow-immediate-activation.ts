@@ -1,11 +1,11 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
-import type { EventService } from './event/event-service.js';
+import type { EventService } from '../event/event-service.js';
 import {
   enqueueWorkflowActivationRecord,
   isPlaybookWorkflow,
   type WorkflowActivationEventRow,
-} from './workflow-activation/workflow-activation-record.js';
+} from './workflow-activation-record.js';
 
 export interface ImmediateWorkflowActivationDispatcher {
   dispatchActivation(

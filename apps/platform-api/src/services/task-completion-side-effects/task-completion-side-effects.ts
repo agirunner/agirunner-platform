@@ -4,8 +4,8 @@ import type { LogService } from '../../logging/log-service.js';
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../workflow-stage/planned-work-item-auto-close.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkItemContinuityService } from '../work-item-continuity-service/work-item-continuity-service.js';
-import { enqueueAndDispatchImmediateWorkflowActivation } from '../workflow-immediate-activation.js';
-import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
+import { enqueueAndDispatchImmediateWorkflowActivation } from '../workflow-activation/workflow-immediate-activation.js';
+import type { ImmediateWorkflowActivationDispatcher } from '../workflow-activation/workflow-immediate-activation.js';
 import type { PlaybookTaskParallelismService } from '../playbook/playbook-task-parallelism-service.js';
 import { applyDependentTaskCompletionSideEffects } from './dependency-resolution.js';
 import {

@@ -7,7 +7,7 @@ import type { WorkflowTaskDeliverablePromotionService } from '../workflow-delive
 import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
-} from '../workflow-immediate-activation.js';
+} from '../workflow-activation/workflow-immediate-activation.js';
 import type {
   SubmitTaskHandoffInput,
   TaskContextRow,
