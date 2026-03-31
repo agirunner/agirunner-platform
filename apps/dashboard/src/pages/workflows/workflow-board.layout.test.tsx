@@ -68,6 +68,19 @@ describe('WorkflowBoard layout', () => {
     expect(html).toContain('2 older hidden');
   });
 
+  it('keeps the two newest done items pinned even in active mode so completed work stays reachable', () => {
+    const html = renderWorkflowBoard({
+      board: createBoardWithRecentCompletion(),
+      boardMode: 'active',
+    });
+
+    expect(html).toContain('Completed packet 1');
+    expect(html).toContain('Completed packet 2');
+    expect(html.indexOf('Completed packet 1')).toBeLessThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 2')).toBeLessThan(html.indexOf('Recent completions'));
+    expect(html).toContain('2 older hidden');
+  });
+
   it('renders empty-lane copy inline instead of as a centered pseudo-card', () => {
     const html = renderWorkflowBoard();
 

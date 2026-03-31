@@ -27,8 +27,23 @@ read_workflow_activation_count() {
       -p "${POSTGRES_PORT}" \
       -U "${POSTGRES_USER}" \
       -d "${POSTGRES_DB}" \
-      -tAc 'select count(*) from workflow_activations;' \
+      -tAc "select count(*) from workflow_activations wa join workflows w on w.id = wa.workflow_id where w.tenant_id = '00000000-0000-0000-0000-000000000001'::uuid and coalesce(w.name, '') like 'E2E %';" \
     | tr -d '[:space:]'
+}
+
+clear_fixture_workflow_activations() {
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.env"
+  set +a
+  PGPASSWORD="${POSTGRES_PASSWORD}" \
+    psql \
+      -h "${POSTGRES_HOST:-127.0.0.1}" \
+      -p "${POSTGRES_PORT}" \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      -tAc "delete from workflow_activations where workflow_id in (select id from workflows where tenant_id = '00000000-0000-0000-0000-000000000001'::uuid and coalesce(name, '') like 'E2E %');" \
+    >/dev/null
 }
 
 assert_no_runtime_specialists() {
@@ -61,6 +76,7 @@ require_tool psql
 require_tool corepack
 
 assert_no_runtime_specialists
+clear_fixture_workflow_activations
 before_activation_count="$(read_workflow_activation_count)"
 
 export PLAYWRIGHT_SKIP_WEBSERVER="${PLAYWRIGHT_SKIP_WEBSERVER:-1}"
@@ -70,6 +86,7 @@ for arg in "$@"; do
 done
 corepack pnpm exec playwright test -c apps/dashboard/playwright.config.ts "${playwright_args[@]}"
 
+clear_fixture_workflow_activations
 after_activation_count="$(read_workflow_activation_count)"
 assert_no_runtime_specialists
 

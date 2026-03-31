@@ -99,7 +99,7 @@ test('prefills repeat work from the latest source input packet for non-terminal 
     stage_name: 'delivery',
     column_id: 'done',
     priority: 'high',
-    completed_at: '2026-03-30T12:00:00.000Z',
+    completed_at: new Date().toISOString(),
   });
   await createSeededWorkflowInputPacket({
     workflowId: scenario.needsActionWorkflow.id,

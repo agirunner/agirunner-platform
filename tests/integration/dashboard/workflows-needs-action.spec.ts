@@ -13,6 +13,7 @@ test('submits positive and negative approval responses from the workflow needs-a
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   let workspaceState = 0;
 
+  await routeStaticWorkflowStream(page, scenario.needsActionWorkflow.id);
   await routeNeedsActionWorkspace(page, scenario.needsActionWorkflow.id, () => (
     workspaceState === 0
       ? [buildApprovalItem({
@@ -83,6 +84,7 @@ test('submits positive and negative approval responses from the workflow needs-a
 test('validates and submits escalation guidance from the workflow needs-action UI', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  await routeStaticWorkflowStream(page, scenario.needsActionWorkflow.id);
   await routeNeedsActionMutation(
     page,
     `**/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/${scenario.needsActionWorkItem.id}/tasks/${scenario.needsActionEscalationTask.id}/resolve-escalation`,
@@ -161,6 +163,16 @@ async function routeNeedsActionMutation(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ data: { ok: true } }),
+    });
+  });
+}
+
+async function routeStaticWorkflowStream(page: Page, workflowId: string): Promise<void> {
+  await page.route(new RegExp(`/api/v1/operations/workflows/${workflowId}/stream(?:\\?.*)?$`), async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: ': seeded deterministic stream\n\n',
     });
   });
 }

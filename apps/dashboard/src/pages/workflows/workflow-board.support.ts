@@ -88,7 +88,11 @@ export function buildWorkflowBoardView(
     if (input.needsActionOnly && !isNeedsActionWorkItem(workItem)) {
       return false;
     }
-    if (input.boardMode === 'active' && isCompletedWorkItem(board.columns, workItem)) {
+    if (
+      input.boardMode === 'active'
+      && isCompletedWorkItem(board.columns, workItem)
+      && !board.columns.find((column) => column.id === displayColumnId)?.is_terminal
+    ) {
       return false;
     }
     return true;
@@ -289,12 +293,18 @@ function buildLaneView(
   const completedItems = workItems
     .filter((workItem) => isColumnCompletedWorkItem(column, workItem))
     .sort(compareCompletedWorkItemsNewestFirst);
-  const visibleCompletedItems =
+  const visibleTerminalCompletedItems =
     boardMode === 'all'
       ? completedItems
-      : boardMode === 'active_recent_complete'
-        ? completedItems.filter((workItem) => !workItem.completed_at || isRecentlyCompleted(workItem.completed_at))
-        : [];
+      : completedItems.filter((workItem) => !workItem.completed_at || isRecentlyCompleted(workItem.completed_at));
+  const visibleCompletedItems =
+    column.is_terminal
+      ? visibleTerminalCompletedItems
+      : boardMode === 'all'
+        ? completedItems
+        : boardMode === 'active_recent_complete'
+          ? visibleTerminalCompletedItems
+          : [];
 
   return {
     column,

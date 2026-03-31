@@ -17,6 +17,19 @@ export function clearFixtureWorkflowActivations(): void {
   `);
 }
 
+export async function settleFixtureWorkflowActivations(): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    clearFixtureWorkflowActivations();
+    const activationCount = countFixtureWorkflowActivations();
+    if (activationCount === 0) {
+      return;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 200);
+    });
+  }
+}
+
 export function assertSeededScenarioIsInert(): void {
   const activationCount = countFixtureWorkflowActivations();
   if (activationCount !== 0) {

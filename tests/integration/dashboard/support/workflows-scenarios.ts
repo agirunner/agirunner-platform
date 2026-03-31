@@ -27,7 +27,7 @@ import {
 } from './workflows-runtime.js';
 import {
   assertSeededScenarioIsInert,
-  clearFixtureWorkflowActivations,
+  settleFixtureWorkflowActivations,
 } from './workflows-validation.js';
 import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
@@ -348,7 +348,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     needsActionEscalationTask,
     failedWorkflow,
   };
-  clearFixtureWorkflowActivations();
+  await settleFixtureWorkflowActivations();
   assertSeededScenarioIsInert();
   return scenario;
 }

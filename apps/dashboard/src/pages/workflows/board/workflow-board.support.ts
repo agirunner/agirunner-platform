@@ -41,7 +41,7 @@ export function readPinnedCompletedCount(
   isTerminalLane: boolean | null | undefined,
   boardMode: WorkflowBoardMode,
 ): number {
-  if (!isTerminalLane || boardMode === 'active') {
+  if (!isTerminalLane) {
     return 0;
   }
   return 2;

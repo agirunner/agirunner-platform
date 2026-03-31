@@ -293,8 +293,8 @@ export function buildFixturePurgeSql(): string {
 
     DELETE FROM public.workflow_documents
      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
-       AND (
-         workflow_id IN (
+      AND (
+        workflow_id IN (
            SELECT id
              FROM public.workflows
             WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
@@ -305,6 +305,28 @@ export function buildFixturePurgeSql(): string {
              FROM public.workspaces
             WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
               AND ${workspaceFilter}
+         )
+       );
+
+    DELETE FROM public.workflow_artifacts
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND (
+         workflow_id IN (
+           SELECT id
+             FROM public.workflows
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND ${workflowFilter}
+         )
+         OR task_id IN (
+           SELECT id
+             FROM public.tasks
+            WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+              AND workflow_id IN (
+                SELECT id
+                  FROM public.workflows
+                 WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+                   AND ${workflowFilter}
+              )
          )
        );
 
@@ -341,6 +363,24 @@ export function buildFixturePurgeSql(): string {
             WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
               AND ${workspaceFilter}
          )
+       );
+
+    DELETE FROM public.workflow_steering_messages
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
+    DELETE FROM public.workflow_steering_sessions
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
        );
 
     DELETE FROM public.events

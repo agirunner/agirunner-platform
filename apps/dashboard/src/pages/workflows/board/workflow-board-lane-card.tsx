@@ -49,7 +49,7 @@ export function BoardLaneCard(props: {
   const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
   const collapsedCompletedCount =
     overflowCompletedItems.length + props.lane.hiddenCompletedCount;
-  const showCompletedSection = props.boardMode !== 'active' && collapsedCompletedCount > 0;
+  const showCompletedSection = collapsedCompletedCount > 0;
   const laneWorkItemCount =
     props.lane.activeItems.length + props.lane.visibleCompletedItems.length;
 
