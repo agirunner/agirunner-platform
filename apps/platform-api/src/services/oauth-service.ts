@@ -1,53 +1,45 @@
 import type { DatabasePool } from '../db/database.js';
 import { z } from 'zod';
-import { getOAuthProfile, type OAuthProviderProfile } from '../catalogs/oauth-profiles.js';
+import { getOAuthProfile } from '../catalogs/oauth-profiles.js';
 import {
-  normalizeStoredProviderSecret,
   storeOAuthToken,
-  storeProviderSecret,
   readOAuthToken,
   ProviderSecretDecryptionError,
 } from '../lib/oauth-crypto.js';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
 import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';
-import { NotFoundError, ServiceUnavailableError, ValidationError } from '../errors/domain-errors.js';
-
-const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
-const PROVIDER_ERROR_MAX_LENGTH = 160;
-const PROVIDER_REFRESH_REAUTH_PATTERNS = [
-  /\binvalid_grant\b/i,
-  /\brefresh token\b.*\binvalid\b/i,
-  /\brefresh token\b.*\bexpired\b/i,
-  /\brefresh token\b.*\brevoked\b/i,
-  /\breauthor/i,
-  /\bre-author/i,
-  /\bconsent_required\b/i,
-  /\blogin_required\b/i,
-] as const;
-
-interface OAuthConfig {
-  profile_id: string;
-  client_id: string | null;
-  authorize_url: string;
-  token_url: string | null;
-  scopes: string[];
-  base_url: string;
-  endpoint_type: string;
-  token_lifetime: string;
-  cost_model: string;
-  extra_authorize_params: Record<string, string>;
-}
-
-interface OAuthCredentials {
-  access_token: string;
-  refresh_token: string | null;
-  expires_at: number | null;
-  account_id: string | null;
-  email: string | null;
-  authorized_at: string;
-  authorized_by_user_id: string;
-  needs_reauth: boolean;
-}
+import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import {
+  buildImportedCredentials,
+  buildResolvedToken,
+  isCredentialAccessTokenUsable,
+  normalizeOAuthCredentials,
+} from './oauth-service-credentials.js';
+import {
+  buildOAuthRefreshUnavailableError,
+  buildOAuthTokenExchangeErrorMessage,
+  buildProviderCredentialsUnavailableError,
+  buildProviderReauthRequiredError,
+  buildProviderRefreshReauthSignal,
+  isProviderReauthRequiredFailure,
+  isProviderRefreshReauthStatus,
+} from './oauth-service-errors.js';
+import {
+  findOrCreateProvider,
+  getProviderById,
+  getRedirectUri,
+  markNeedsReauth,
+  seedStaticModels,
+  storeCredentials,
+  validateAndConsumeState,
+} from './oauth-service-store.js';
+import type {
+  OAuthConfig,
+  OAuthCredentials,
+  OAuthStatus,
+  ProviderRow,
+  ResolvedOAuthToken,
+} from './oauth-service-types.js';
 
 const importOAuthSessionSchema = z.object({
   profileId: z.string().min(1),
@@ -65,42 +57,7 @@ const importOAuthSessionSchema = z.object({
 });
 
 export type ImportOAuthSessionInput = z.infer<typeof importOAuthSessionSchema>;
-
-export interface ResolvedOAuthToken {
-  accessTokenSecret: string;
-  baseUrl: string;
-  endpointType: string;
-  extraHeadersSecret: string | null;
-}
-
-export interface OAuthStatus {
-  connected: boolean;
-  email: string | null;
-  authorizedAt: string | null;
-  expiresAt: string | null;
-  authorizedBy: string | null;
-  needsReauth: boolean;
-}
-
-interface ProviderRow {
-  [key: string]: unknown;
-  id: string;
-  tenant_id: string;
-  auth_mode: string;
-  oauth_config: OAuthConfig | null;
-  oauth_credentials: unknown;
-}
-
-interface StateRow {
-  [key: string]: unknown;
-  id: string;
-  tenant_id: string;
-  user_id: string;
-  profile_id: string;
-  state: string;
-  code_verifier: string;
-  flow_kind?: string;
-}
+export type { OAuthStatus, ResolvedOAuthToken } from './oauth-service-types.js';
 
 export class OAuthService {
   constructor(private readonly pool: DatabasePool) {}
@@ -112,7 +69,8 @@ export class OAuthService {
   ): Promise<{ providerId: string; email: string | null }> {
     const validated = importOAuthSessionSchema.parse(input);
     const profile = getOAuthProfile(validated.profileId);
-    const providerId = await this.findOrCreateProvider(
+    const providerId = await findOrCreateProvider(
+      this.pool,
       tenantId,
       profile,
       validated.providerName?.trim() || undefined,
@@ -126,7 +84,7 @@ export class OAuthService {
       [JSON.stringify(credentials), providerId],
     );
 
-    await this.seedStaticModels(tenantId, providerId, profile);
+    await seedStaticModels(this.pool, tenantId, providerId, profile);
 
     return { providerId, email: credentials.email };
   }
@@ -141,7 +99,7 @@ export class OAuthService {
     profileId: string,
   ): Promise<{ authorizeUrl: string }> {
     const profile = getOAuthProfile(profileId);
-    const redirectUri = this.getRedirectUri();
+    const redirectUri = getRedirectUri();
 
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -179,14 +137,14 @@ export class OAuthService {
     code: string,
     state: string,
   ): Promise<{ providerId: string; email: string | null }> {
-    const stateRow = await this.validateAndConsumeState(state);
+    const stateRow = await validateAndConsumeState(this.pool, state);
     const profile = getOAuthProfile(stateRow.profile_id);
 
     if (!profile.tokenUrl) {
       throw new ValidationError('OAuth profile missing token URL');
     }
 
-    const redirectUri = this.getRedirectUri();
+    const redirectUri = getRedirectUri();
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -224,7 +182,7 @@ export class OAuthService {
     }
 
     // Create provider only after successful token exchange
-    const providerId = await this.findOrCreateProvider(stateRow.tenant_id, profile);
+    const providerId = await findOrCreateProvider(this.pool, stateRow.tenant_id, profile);
 
     const credentials: OAuthCredentials = {
       access_token: storeOAuthToken(tokenData.access_token),
@@ -248,7 +206,7 @@ export class OAuthService {
       [JSON.stringify(credentials), providerId],
     );
 
-    await this.seedStaticModels(stateRow.tenant_id, providerId, profile);
+    await seedStaticModels(this.pool, stateRow.tenant_id, providerId, profile);
 
     return { providerId, email };
   }
@@ -296,9 +254,9 @@ export class OAuthService {
         throw new ValidationError('Provider missing OAuth configuration');
       }
 
-      if (creds.needs_reauth && this.isCredentialAccessTokenUsable(creds, config)) {
+      if (creds.needs_reauth && isCredentialAccessTokenUsable(creds, config)) {
         creds = { ...creds, needs_reauth: false };
-        await this.storeCredentials(client, providerId, creds);
+        await storeCredentials(client, providerId, creds);
       }
 
       if (creds.needs_reauth) {
@@ -309,14 +267,14 @@ export class OAuthService {
         );
       }
 
-      if (this.isCredentialAccessTokenUsable(creds, config)) {
+      if (isCredentialAccessTokenUsable(creds, config)) {
         await client.query('COMMIT');
         committed = true;
-        return this.buildResolvedToken(creds.access_token, config, creds.account_id);
+        return buildResolvedToken(creds.access_token, config, creds.account_id);
       }
 
       if (!creds.refresh_token) {
-        await this.markNeedsReauth(client, providerId);
+        await markNeedsReauth(client, providerId);
         await client.query('COMMIT');
         committed = true;
         throw buildProviderReauthRequiredError(providerId);
@@ -327,18 +285,18 @@ export class OAuthService {
         refreshed = await this.refreshToken(creds, config);
       } catch (error) {
         if (isProviderReauthRequiredFailure(error)) {
-          await this.markNeedsReauth(client, providerId);
+          await markNeedsReauth(client, providerId);
           await client.query('COMMIT');
           committed = true;
           throw buildProviderReauthRequiredError(providerId);
         }
         throw error;
       }
-      await this.storeCredentials(client, providerId, refreshed);
+      await storeCredentials(client, providerId, refreshed);
       await client.query('COMMIT');
       committed = true;
 
-      return this.buildResolvedToken(
+      return buildResolvedToken(
         refreshed.access_token,
         config,
         refreshed.account_id,
@@ -381,7 +339,7 @@ export class OAuthService {
   }
 
   async getStatus(providerId: string): Promise<OAuthStatus> {
-    const provider = await this.getProviderById(providerId);
+    const provider = await getProviderById(this.pool, providerId);
     if (provider.auth_mode !== 'oauth') {
       throw new ValidationError('Provider is not configured for OAuth');
     }
@@ -398,7 +356,7 @@ export class OAuthService {
       };
     }
 
-    const needsReauth = creds.needs_reauth && !this.isCredentialAccessTokenUsable(creds, provider.oauth_config);
+    const needsReauth = creds.needs_reauth && !isCredentialAccessTokenUsable(creds, provider.oauth_config);
 
     return {
       connected: !needsReauth,
@@ -487,414 +445,4 @@ export class OAuthService {
     };
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────
-
-  private async seedStaticModels(
-    tenantId: string,
-    providerId: string,
-    profile: OAuthProviderProfile,
-  ): Promise<void> {
-    for (const model of profile.staticModels) {
-      await this.pool.query(
-        `INSERT INTO llm_models (
-          tenant_id, provider_id, model_id, context_window, max_output_tokens,
-          supports_tool_use, supports_vision, endpoint_type, is_enabled,
-          input_cost_per_million_usd, output_cost_per_million_usd, reasoning_config
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        ON CONFLICT (tenant_id, provider_id, model_id) DO NOTHING`,
-        [
-          tenantId, providerId, model.modelId, model.contextWindow,
-          model.maxOutputTokens, model.supportsToolUse, model.supportsVision,
-          model.endpointType, true, null, null,
-          model.reasoningConfig ? JSON.stringify(model.reasoningConfig) : null,
-        ],
-      );
-    }
-  }
-
-  private buildResolvedToken(
-    accessTokenSecret: string,
-    config: OAuthConfig,
-    accountId: string | null,
-  ): ResolvedOAuthToken {
-    const extraHeaders: Record<string, string> = {};
-
-    if (config.profile_id === 'openai-codex' && accountId) {
-      extraHeaders['chatgpt-account-id'] = accountId;
-      extraHeaders['OpenAI-Beta'] = 'responses=experimental';
-    }
-
-    return {
-      accessTokenSecret,
-      baseUrl: config.base_url,
-      endpointType: config.endpoint_type,
-      extraHeadersSecret:
-        Object.keys(extraHeaders).length > 0
-          ? storeProviderSecret(JSON.stringify(extraHeaders))
-          : null,
-    };
-  }
-
-  private isTokenExpired(expiresAt: number | null): boolean {
-    if (expiresAt === null) return false;
-    return Date.now() >= expiresAt - EXPIRY_BUFFER_MS;
-  }
-
-  private isCredentialAccessTokenUsable(
-    creds: OAuthCredentials,
-    config: OAuthConfig | null,
-  ): boolean {
-    return config?.token_lifetime === 'permanent' || !this.isTokenExpired(creds.expires_at);
-  }
-
-  private async markNeedsReauth(
-    client: { query: DatabasePool['query'] },
-    providerId: string,
-  ): Promise<void> {
-    await client.query(
-      `UPDATE llm_providers
-       SET oauth_credentials = jsonb_set(
-         COALESCE(oauth_credentials, '{}'::jsonb),
-         '{needs_reauth}', 'true'
-       ), updated_at = NOW()
-       WHERE id = $1`,
-      [providerId],
-    );
-  }
-
-  private async storeCredentials(
-    client: { query: DatabasePool['query'] },
-    providerId: string,
-    credentials: OAuthCredentials,
-  ): Promise<void> {
-    await client.query(
-      `UPDATE llm_providers
-       SET oauth_credentials = $1, updated_at = NOW()
-       WHERE id = $2`,
-      [JSON.stringify(credentials), providerId],
-    );
-  }
-
-  private async findOrCreateProvider(
-    tenantId: string,
-    profile: OAuthProviderProfile,
-    providerName?: string,
-  ): Promise<string> {
-    const existing = await this.pool.query<ProviderRow>(
-      `SELECT id FROM llm_providers
-       WHERE tenant_id = $1 AND auth_mode = 'oauth'
-         AND oauth_config->>'profile_id' = $2`,
-      [tenantId, profile.profileId],
-    );
-
-    if (existing.rows.length > 0) {
-      return existing.rows[0].id;
-    }
-
-    const config: OAuthConfig = {
-      profile_id: profile.profileId,
-      client_id: profile.clientId,
-      authorize_url: profile.authorizeUrl,
-      token_url: profile.tokenUrl,
-      scopes: profile.scopes,
-      base_url: profile.baseUrl,
-      endpoint_type: profile.endpointType,
-      token_lifetime: profile.tokenLifetime,
-      cost_model: profile.costModel,
-      extra_authorize_params: profile.extraAuthorizeParams,
-    };
-
-    const result = await this.pool.query<ProviderRow>(
-      `INSERT INTO llm_providers
-        (tenant_id, name, base_url, auth_mode, oauth_config, metadata)
-       VALUES ($1, $2, $3, 'oauth', $4, $5)
-       RETURNING id`,
-      [
-        tenantId,
-        providerName ?? profile.displayName,
-        profile.baseUrl,
-        JSON.stringify(config),
-        JSON.stringify({ providerType: profile.providerType }),
-      ],
-    );
-    return result.rows[0].id;
-  }
-
-  private async getProviderById(providerId: string): Promise<ProviderRow> {
-    const result = await this.pool.query<ProviderRow>(
-      'SELECT * FROM llm_providers WHERE id = $1',
-      [providerId],
-    );
-    if (!result.rows[0]) throw new NotFoundError('LLM provider not found');
-    return result.rows[0];
-  }
-
-  private async validateAndConsumeState(state: string): Promise<StateRow> {
-    await this.pool.query(
-      'DELETE FROM oauth_states WHERE expires_at < NOW()',
-    );
-
-    const result = await this.pool.query<StateRow>(
-      `DELETE FROM oauth_states
-       WHERE state = $1 AND expires_at > NOW()
-       RETURNING *`,
-      [state],
-    );
-
-    if (!result.rows[0]) {
-      throw new ValidationError(
-        'Invalid or expired OAuth state. The authorization flow may have timed out. Please try again.',
-      );
-    }
-
-    return result.rows[0];
-  }
-
-  /**
-   * Redirect URI matches the OpenAI Codex CLI convention exactly:
-   * http://localhost:1455/auth/callback (hardcoded port, hardcoded path).
-   */
-  private getRedirectUri(): string {
-    return 'http://localhost:1455/auth/callback';
-  }
-}
-
-function buildProviderReauthRequiredError(providerId: string): ValidationError {
-  return new ValidationError(
-    'OAuth session expired. An admin must reconnect on the LLM Providers page.',
-    {
-      category: 'provider_reauth_required',
-      retryable: false,
-      recoverable: false,
-      recovery_hint: 'reconnect_oauth_provider',
-      recovery: {
-        status: 'operator_action_required',
-        reason: 'provider_reauth_required',
-        provider_id: providerId,
-      },
-    },
-  );
-}
-
-function buildProviderRefreshReauthSignal(): ValidationError {
-  return new ValidationError('OAuth refresh requires reauthorization.', {
-    category: 'provider_reauth_required',
-  });
-}
-
-function isProviderReauthRequiredFailure(error: unknown): boolean {
-  return error instanceof ValidationError && error.details?.category === 'provider_reauth_required';
-}
-
-function buildProviderCredentialsUnavailableError(): ServiceUnavailableError {
-  return new ServiceUnavailableError(
-    'Stored OAuth credentials are unavailable. Verify platform secret configuration before retrying.',
-    {
-      category: 'provider_credentials_unavailable',
-      retryable: false,
-      recoverable: false,
-    },
-  );
-}
-
-function buildOAuthRefreshUnavailableError(
-  status?: number,
-  rawDetail?: string,
-): ServiceUnavailableError {
-  const detail = sanitizeProviderErrorDetail(rawDetail ?? '');
-  const message = status == null
-    ? 'OAuth token refresh is temporarily unavailable.'
-    : detail
-      ? `OAuth token refresh is temporarily unavailable (${status}): ${detail}`
-      : `OAuth token refresh is temporarily unavailable (${status}).`;
-  return new ServiceUnavailableError(message, {
-    category: 'provider_oauth_refresh_unavailable',
-    retryable: true,
-    recoverable: true,
-  });
-}
-
-function isProviderRefreshReauthStatus(status: number, rawDetail: string): boolean {
-  if (status !== 400 && status !== 401 && status !== 403) {
-    return false;
-  }
-  const normalized = rawDetail.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  return PROVIDER_REFRESH_REAUTH_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
-function buildImportedCredentials(
-  input: ImportOAuthSessionInput['credentials'],
-  defaultUserId: string,
-): OAuthCredentials {
-  return {
-    access_token: normalizeStoredProviderSecret(input.accessToken.trim()),
-    refresh_token: normalizeNullableSecret(input.refreshToken),
-    expires_at: normalizeImportedExpiry(input.expiresAt),
-    account_id: normalizeNullableString(input.accountId),
-    email: normalizeNullableString(input.email),
-    authorized_at: input.authorizedAt ?? new Date().toISOString(),
-    authorized_by_user_id: input.authorizedByUserId?.trim() || defaultUserId,
-    needs_reauth: input.needsReauth ?? false,
-  };
-}
-
-function normalizeNullableSecret(value: string | null | undefined): string | null {
-  if (!value || value.trim() === '') {
-    return null;
-  }
-  return normalizeStoredProviderSecret(value.trim());
-}
-
-function normalizeNullableString(value: string | null | undefined): string | null {
-  if (!value || value.trim() === '') {
-    return null;
-  }
-  return value.trim();
-}
-
-function normalizeImportedExpiry(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value === 'number') {
-    return normalizeEpochTimestamp(value);
-  }
-
-  const numericValue = Number(value);
-  if (Number.isFinite(numericValue) && value.trim() !== '') {
-    return normalizeEpochTimestamp(numericValue);
-  }
-
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    throw new ValidationError('OAuth import expiresAt must be a unix timestamp or ISO date string');
-  }
-  return parsed;
-}
-
-function normalizeOAuthCredentials(value: unknown): OAuthCredentials | null {
-  const record = asRecord(value);
-  if (!record) {
-    return null;
-  }
-
-  const accessToken = readString(record, 'access_token', 'accessToken');
-  const authorizedAt = readString(record, 'authorized_at', 'authorizedAt');
-  const authorizedByUserId = readString(record, 'authorized_by_user_id', 'authorizedByUserId');
-  if (!accessToken || !authorizedAt || !authorizedByUserId) {
-    return null;
-  }
-
-  return {
-    access_token: normalizeStoredProviderSecret(accessToken),
-    refresh_token: normalizeOptionalSecret(record, 'refresh_token', 'refreshToken'),
-    expires_at: normalizeStoredExpiry(record, 'expires_at', 'expiresAt'),
-    account_id: readNullableString(record, 'account_id', 'accountId'),
-    email: readNullableString(record, 'email'),
-    authorized_at: authorizedAt,
-    authorized_by_user_id: authorizedByUserId,
-    needs_reauth: readBoolean(record, 'needs_reauth', 'needsReauth'),
-  };
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function readString(record: Record<string, unknown>, ...keys: string[]): string | null {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim() !== '') {
-      return value.trim();
-    }
-  }
-  return null;
-}
-
-function readNullableString(record: Record<string, unknown>, ...keys: string[]): string | null {
-  return readString(record, ...keys);
-}
-
-function normalizeOptionalSecret(record: Record<string, unknown>, ...keys: string[]): string | null {
-  const value = readString(record, ...keys);
-  return value ? normalizeStoredProviderSecret(value) : null;
-}
-
-function normalizeStoredExpiry(record: Record<string, unknown>, ...keys: string[]): number | null {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return normalizeEpochTimestamp(value);
-    }
-    if (typeof value === 'string' && value.trim() !== '') {
-      const numericValue = Number(value);
-      if (Number.isFinite(numericValue)) {
-        return normalizeEpochTimestamp(numericValue);
-      }
-      const parsed = Date.parse(value);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return null;
-}
-
-function readBoolean(record: Record<string, unknown>, ...keys: string[]): boolean {
-  for (const key of keys) {
-    if (record[key] === true) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function normalizeEpochTimestamp(value: number): number | null {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-  if (Math.abs(value) < 1_000_000_000_000) {
-    return Math.trunc(value * 1000);
-  }
-  return Math.trunc(value);
-}
-
-function buildOAuthTokenExchangeErrorMessage(status: number, rawDetail: string): string {
-  const sanitized = sanitizeProviderErrorDetail(rawDetail);
-  if (!sanitized) {
-    return `OAuth token exchange failed with status ${status}`;
-  }
-  return `OAuth token exchange failed with status ${status}: ${sanitized}`;
-}
-
-function sanitizeProviderErrorDetail(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/g, ' ');
-  if (!normalized) {
-    return null;
-  }
-  if (containsSecretLikeValue(normalized)) {
-    return null;
-  }
-  const truncated =
-    normalized.length > PROVIDER_ERROR_MAX_LENGTH
-      ? `${normalized.slice(0, PROVIDER_ERROR_MAX_LENGTH - 1)}...`
-      : normalized;
-  return truncated;
-}
-
-function containsSecretLikeValue(value: string): boolean {
-  return (
-    /(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|bearer|api[_-]?key|password|secret)/i.test(value)
-    || /enc:v\d+:/i.test(value)
-    || /secret:[A-Z0-9_:-]+/i.test(value)
-    || /Bearer\s+\S+/i.test(value)
-    || /\b(?:sk|rk|ghp|ghu|github_pat)_[A-Za-z0-9_-]{8,}\b/.test(value)
-    || /[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(value)
-  );
 }
