@@ -1,4 +1,4 @@
-import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -11,27 +11,14 @@ import {
 } from '../../lib/api.js';
 import {
   buildRepeatWorkflowLaunchSeed,
-  buildWorkflowsPageHref,
-  buildWorkflowsPageSearchParams,
   type WorkflowWorkbenchScopeDescriptor,
   readWorkflowsPageState,
   readWorkflowLaunchRequest,
-  resolveHeaderAddWorkTargetWorkItemId,
-  resolveSelectedWorkflowId,
   workspacePacketMatchesScope,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
-  type WorkflowsPageState,
   describeWorkflowWorkbenchScope,
 } from './workflows-page.support.js';
-import {
-  readStoredWorkflowRailHidden,
-  readStoredWorkflowRailWidth,
-  readStoredWorkflowWorkbenchFraction,
-  writeStoredWorkflowRailHidden,
-  writeStoredWorkflowRailWidth,
-  writeStoredWorkflowWorkbenchFraction,
-} from './workflows-page.storage.js';
 import {
   deriveSelectedWorkflowRow,
   handleWorkflowWorkItemLifecycleAction,
@@ -43,17 +30,11 @@ import { useWorkflowRailData } from './workflows-rail-query.js';
 import { buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
 import {
-  beginWorkflowRailResize,
-  beginWorkflowWorkbenchResize,
-  clampWorkflowRailWidthPx,
-  clampWorkflowWorkbenchFraction,
-  DEFAULT_WORKFLOW_RAIL_WIDTH_PX,
-  DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
-} from './workflows-layout.js';
+  ACTIVITY_PAGE_SIZE,
+  DELIVERABLES_PAGE_SIZE,
+  useWorkflowsPageShell,
+} from './workflows-page.shell.js';
 import { WorkflowsPageView } from './workflows-page.view.js';
-
-const ACTIVITY_PAGE_SIZE = 50;
-const DELIVERABLES_PAGE_SIZE = 12;
 
 export function WorkflowsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -71,64 +52,50 @@ export function WorkflowsPage(): JSX.Element {
     () => readWorkflowLaunchRequest(searchParams),
     [searchParams],
   );
-  const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
-  const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
-  const [isLaunchOpen, setIsLaunchOpen] = useState(false);
-  const [launchPlaybookId, setLaunchPlaybookId] = useState<string | null>(null);
-  const [launchWorkspaceId, setLaunchWorkspaceId] = useState<string | null>(null);
-  const [launchWorkflowName, setLaunchWorkflowName] = useState<string | null>(null);
-  const [launchParameterDrafts, setLaunchParameterDrafts] = useState<Record<string, string>>({});
-  const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
-  const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
-  const [repeatSourceWorkItemId, setRepeatSourceWorkItemId] = useState<string | null>(null);
-  const [isSteeringOpen, setIsSteeringOpen] = useState(false);
-  const [steeringTargetWorkItemId, setSteeringTargetWorkItemId] = useState<string | null>(null);
-  const [isRailHidden, setIsRailHidden] = useState(readStoredWorkflowRailHidden());
-  const [railWidthPx, setRailWidthPx] = useState(
-    clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
-  );
-  const [workbenchFraction, setWorkbenchFraction] = useState(
-    clampWorkflowWorkbenchFraction(
-      readStoredWorkflowWorkbenchFraction() ?? DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
-    ),
-  );
   const lastWorkspacePacketRef = useRef<DashboardWorkflowWorkspacePacket | null>(null);
-  const workspaceSplitRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setActivityLimit(ACTIVITY_PAGE_SIZE);
-    setDeliverablesLimit(DELIVERABLES_PAGE_SIZE);
-  }, [pageState.workflowId, pageState.workItemId]);
-
-  useEffect(() => {
-    if (!launchRequest.isRequested) {
-      return;
-    }
-    setLaunchPlaybookId(launchRequest.playbookId);
-    setLaunchWorkspaceId(null);
-    setLaunchWorkflowName(null);
-    setLaunchParameterDrafts({});
-    setIsLaunchOpen(true);
-    navigate(buildWorkflowsPageHref({}, pageState), { replace: true });
-  }, [launchRequest.isRequested, launchRequest.playbookId, navigate, pageState]);
-
-  useEffect(() => {
-    writeStoredWorkflowRailHidden(isRailHidden);
-  }, [isRailHidden]);
-  useEffect(() => {
-    writeStoredWorkflowRailWidth(railWidthPx);
-  }, [railWidthPx]);
-  useEffect(() => {
-    writeStoredWorkflowWorkbenchFraction(workbenchFraction);
-  }, [workbenchFraction]);
-
-  const handleSelectWorkItem = (workItemId: string) => {
-    patchPageState(navigate, pageState, { workItemId, tab: 'details' });
-  };
-
-  const handleClearWorkItemScope = () => {
-    patchPageState(navigate, pageState, { workItemId: null });
-  };
+  const {
+    activityLimit,
+    addWorkTargetWorkItemId,
+    deliverablesLimit,
+    handleAddWorkOpenChange,
+    handleClearWorkItemScope,
+    handleLaunchOpenChange,
+    handleRailResizePointerDown,
+    handleSelectWorkItem,
+    handleSteeringOpenChange,
+    handleWorkbenchResizePointerDown,
+    isAddWorkOpen,
+    isLaunchOpen,
+    isRailHidden,
+    isSteeringOpen,
+    launchParameterDrafts,
+    launchPlaybookId,
+    launchWorkflowName,
+    launchWorkspaceId,
+    openWorkflowLaunchDialog,
+    railWidthPx,
+    repeatSourceWorkItemId,
+    setActivityLimit,
+    setAddWorkTargetWorkItemId,
+    setDeliverablesLimit,
+    setIsAddWorkOpen,
+    setIsLaunchOpen,
+    setIsRailHidden,
+    setIsSteeringOpen,
+    setLaunchParameterDrafts,
+    setLaunchPlaybookId,
+    setLaunchWorkflowName,
+    setLaunchWorkspaceId,
+    setRepeatSourceWorkItemId,
+    setSteeringTargetWorkItemId,
+    steeringTargetWorkItemId,
+    workbenchFraction,
+    workspaceSplitRef,
+  } = useWorkflowsPageShell({
+    launchRequest,
+    navigate,
+    pageState,
+  });
 
   const boardSelection = useMemo(
     () => ({
@@ -290,27 +257,6 @@ export function WorkflowsPage(): JSX.Element {
   );
   const hasMoreRailRows = Boolean(railQuery.hasNextPage);
 
-  const openWorkflowLaunchDialog = () => {
-    setLaunchPlaybookId(null);
-    setLaunchWorkspaceId(null);
-    setLaunchWorkflowName(null);
-    setLaunchParameterDrafts({});
-    setIsLaunchOpen(true);
-  };
-
-  const handleRailResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    beginWorkflowRailResize({ event, railWidthPx, setRailWidthPx });
-  };
-
-  const handleWorkbenchResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    beginWorkflowWorkbenchResize({
-      event,
-      splitContainer: workspaceSplitRef.current,
-      workbenchFraction,
-      setWorkbenchFraction,
-    });
-  };
-
   useWorkflowRailSelectionSync({
     navigate,
     pageState,
@@ -365,13 +311,7 @@ export function WorkflowsPage(): JSX.Element {
       workspacePacket={workspacePacket}
       workspaceSplitRef={workspaceSplitRef}
       workItemTitle={workItemTitle}
-      onAddWorkOpenChange={(open) => {
-        setIsAddWorkOpen(open);
-        if (!open) {
-          setAddWorkTargetWorkItemId(null);
-          setRepeatSourceWorkItemId(null);
-        }
-      }}
+      onAddWorkOpenChange={handleAddWorkOpenChange}
       onBoardModeChange={(boardMode) => patchPageState(navigate, pageState, { boardMode })}
       onLifecycleFilterChange={(lifecycleFilter) =>
         patchPageState(navigate, pageState, { lifecycleFilter })
@@ -384,15 +324,7 @@ export function WorkflowsPage(): JSX.Element {
       onLaunched={(workflowId) =>
         patchPageState(navigate, pageState, { workflowId, workItemId: null, tab: null })
       }
-      onLaunchOpenChange={(open) => {
-        setIsLaunchOpen(open);
-        if (!open) {
-          setLaunchPlaybookId(null);
-          setLaunchWorkspaceId(null);
-          setLaunchWorkflowName(null);
-          setLaunchParameterDrafts({});
-        }
-      }}
+      onLaunchOpenChange={handleLaunchOpenChange}
       onLoadMoreActivity={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)}
       onLoadMoreDeliverables={() =>
         setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
@@ -423,12 +355,7 @@ export function WorkflowsPage(): JSX.Element {
         patchPageState(navigate, pageState, { workflowId, workItemId: null })
       }
       onSelectWorkItem={handleSelectWorkItem}
-      onSteeringOpenChange={(open) => {
-        setIsSteeringOpen(open);
-        if (!open) {
-          setSteeringTargetWorkItemId(null);
-        }
-      }}
+      onSteeringOpenChange={handleSteeringOpenChange}
       onSteeringRecorded={() => {
         if (!steeringWorkItem) {
           return;
