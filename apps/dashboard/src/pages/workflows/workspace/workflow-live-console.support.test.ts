@@ -308,6 +308,31 @@ describe('workflow live console support', () => {
     ).toBe('calling file_read(path="task context")');
   });
 
+  it('normalizes predecessor handoff logical paths into brief terminology', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-predecessor-path',
+          headline:
+            'Policy Assessor: calling file_read(logical_path="context/predecessor-handoff.md")',
+          summary: 'Working through the next execution step.',
+        }),
+      ),
+    ).toBe('calling file_read(logical_path="predecessor brief")');
+  });
+
+  it('normalizes residual handoff wording in visible dashboard console text', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-brief-terminology',
+          headline: 'Wait for the architecture lead handoff before routing implementation.',
+          summary: 'Wait for the architecture lead handoff before routing implementation.',
+        }),
+      ),
+    ).toBe('Wait for the architecture lead brief before routing implementation.');
+  });
+
   it('keeps helper action rows with safe args while still suppressing empty fallbacks', () => {
     const items = [
       createItem({

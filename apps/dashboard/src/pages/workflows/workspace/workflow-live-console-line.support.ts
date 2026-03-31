@@ -64,7 +64,7 @@ export function normalizeWorkflowConsoleText(value: string): string {
       .trim();
   }
 
-  return normalized.replace(/\s+/g, ' ').trim();
+  return normalizeWorkflowBriefTerminology(normalized.replace(/\s+/g, ' ').trim());
 }
 
 export function getWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleItem): string {
@@ -452,7 +452,7 @@ function describeLogicalContextPath(path: string): string | null {
     case 'predecessor_handoff.json':
     case 'predecessor-handoff.json':
     case 'predecessor-handoff.md':
-      return 'predecessor handoff';
+      return 'predecessor brief';
     case 'orchestrator-context.json':
     case 'orchestrator-context.md':
       return 'orchestrator context';
@@ -462,4 +462,18 @@ function describeLogicalContextPath(path: string): string | null {
     default:
       return null;
   }
+}
+
+function normalizeWorkflowBriefTerminology(value: string): string {
+  return value
+    .replace(/\bpolicy assessment handoff\b/gi, 'policy assessment brief')
+    .replace(/\blatest implementation handoff\b/gi, 'latest implementation brief')
+    .replace(/\blatest handoff\b/gi, 'latest brief')
+    .replace(/\bpredecessor handoff\b/gi, 'predecessor brief')
+    .replace(/\barchitecture lead handoff\b/gi, 'architecture lead brief')
+    .replace(/\bwriting the handoff\b/gi, 'writing the brief')
+    .replace(/\bwrite the handoff\b/gi, 'write the brief')
+    .replace(/\b[Tt]he handoff is blocked\b/g, (match) => (
+      match.startsWith('T') ? 'The brief is blocked' : 'the brief is blocked'
+    ));
 }
