@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import type {
   CreateSpecialistSkillInput,
   UpdateSpecialistSkillInput,
-} from '../../services/specialist-skill-service.js';
+} from '../../../services/specialist-skill-service.js';
 
 export const specialistSkillRoutes: FastifyPluginAsync = async (app) => {
   app.get(

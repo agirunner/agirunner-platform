@@ -1,15 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import type {
   CreateProviderInput,
   UpdateProviderInput,
   CreateModelInput,
   UpdateModelInput,
-} from '../../services/model-catalog-service.js';
-import { LlmDiscoveryService } from '../../services/llm-discovery-service.js';
-import { getOAuthProfile } from '../../catalogs/oauth-profiles.js';
+} from '../../../services/model-catalog-service.js';
+import { LlmDiscoveryService } from '../../../services/llm-discovery-service.js';
+import { getOAuthProfile } from '../../../catalogs/oauth-profiles.js';
 
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = app.modelCatalogService;

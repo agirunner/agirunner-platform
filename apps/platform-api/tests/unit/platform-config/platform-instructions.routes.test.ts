@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -36,7 +36,7 @@ describe('platform instruction routes', () => {
 
   it('returns a validation error when platform instructions include secret material', async () => {
     const { platformInstructionRoutes } = await import(
-      '../../src/api/routes/platform-instructions.routes.js'
+      '../../../src/api/routes/platform-config/platform-instructions.routes.js'
     );
     const connect = vi.fn();
 

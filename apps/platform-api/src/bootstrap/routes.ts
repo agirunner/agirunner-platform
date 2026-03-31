@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { agentRoutes } from '../api/routes/agents.routes.js';
-import { agenticSettingsRoutes } from '../api/routes/agentic-settings.routes.js';
+import { agenticSettingsRoutes } from '../api/routes/platform-config/agentic-settings.routes.js';
 import { a2aRoutes } from '../api/routes/a2a.routes.js';
 import { acpRoutes } from '../api/routes/acp.routes.js';
 import { approvalQueueRoutes } from '../api/routes/approval-queue.routes.js';
@@ -16,7 +16,7 @@ import { safetynetRoutes } from '../api/routes/safetynet.routes.js';
 import { workflowRoutes } from '../api/routes/workflows.routes.js';
 import { workflowActivationRoutes } from '../api/routes/workflow-activations.routes.js';
 import { orchestratorConfigRoutes } from '../api/routes/orchestrator-config.routes.js';
-import { platformInstructionRoutes } from '../api/routes/platform-instructions.routes.js';
+import { platformInstructionRoutes } from '../api/routes/platform-config/platform-instructions.routes.js';
 import { taskRoutes } from '../api/routes/tasks.routes.js';
 import { taskArtifactRoutes } from '../api/routes/task-platform/artifacts.routes.js';
 import { taskPlatformRoutes } from '../api/routes/task-platform/routes.js';
@@ -25,11 +25,11 @@ import { toolRoutes } from '../api/routes/tools.routes.js';
 import { webhookRoutes } from '../api/routes/webhooks.routes.js';
 import { workerRoutes } from '../api/routes/workers.routes.js';
 import { workspaceRoutes } from '../api/routes/workspaces.routes.js';
-import { runtimeCustomizationRoutes } from '../api/routes/runtime-customization.routes.js';
-import { roleDefinitionRoutes } from '../api/routes/role-definitions.routes.js';
-import { llmConfigRoutes } from '../api/routes/llm-config.routes.js';
-import { runtimeDefaultsRoutes } from '../api/routes/runtime-defaults.routes.js';
-import { runtimeConfigRoutes } from '../api/routes/runtime-config.routes.js';
+import { runtimeCustomizationRoutes } from '../api/routes/platform-config/runtime-customization.routes.js';
+import { roleDefinitionRoutes } from '../api/routes/platform-config/role-definitions.routes.js';
+import { llmConfigRoutes } from '../api/routes/platform-config/llm-config.routes.js';
+import { runtimeDefaultsRoutes } from '../api/routes/platform-config/runtime-defaults.routes.js';
+import { runtimeConfigRoutes } from '../api/routes/platform-config/runtime-config.routes.js';
 import { executionLogRoutes } from '../api/routes/execution-logs.routes.js';
 import { fleetRoutes } from '../api/routes/fleet.routes.js';
 import { userRoutes } from '../api/routes/users.routes.js';
@@ -42,7 +42,7 @@ import { playbookRoutes } from '../api/routes/playbooks.routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control.routes.js';
 import { remoteMcpServerRoutes } from '../api/routes/remote-mcp/servers.routes.js';
 import { remoteMcpOAuthClientProfileRoutes } from '../api/routes/remote-mcp/oauth-client-profiles.routes.js';
-import { specialistSkillRoutes } from '../api/routes/specialist-skills.routes.js';
+import { specialistSkillRoutes } from '../api/routes/platform-config/specialist-skills.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);

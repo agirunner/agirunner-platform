@@ -1,13 +1,13 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { ValidationError } from '../../errors/domain-errors.js';
-import { sanitizeSecretLikeValue } from '../../services/secret-redaction.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { ValidationError } from '../../../errors/domain-errors.js';
+import { sanitizeSecretLikeValue } from '../../../services/secret-redaction.js';
 import {
   RuntimeCustomizationProxyClient,
   type RuntimeCustomizationProxyResponse,
-} from '../../runtime/customization-proxy-client.js';
+} from '../../../runtime/customization-proxy-client.js';
 
 const requestBodySchema = z.record(z.unknown());
 const buildIdSchema = z.object({ id: z.string().min(1) });

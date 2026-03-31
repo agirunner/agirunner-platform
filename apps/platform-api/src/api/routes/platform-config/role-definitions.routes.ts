@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 import type {
   CreateRoleInput,
   UpdateRoleInput,
-} from '../../services/role-definition-service.js';
+} from '../../../services/role-definition-service.js';
 
 export const roleDefinitionRoutes: FastifyPluginAsync = async (app) => {
   const service = app.roleDefinitionService;

@@ -1,11 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { isSecretLikeKey } from '../../services/secret-redaction.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import { isSecretLikeKey } from '../../../services/secret-redaction.js';
 import type {
   CreateRuntimeDefaultInput,
   UpdateRuntimeDefaultInput,
-} from '../../services/runtime-defaults-service.js';
+} from '../../../services/runtime-defaults-service.js';
 
 export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
   const service = app.runtimeDefaultsService;

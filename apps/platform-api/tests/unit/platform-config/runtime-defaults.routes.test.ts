@@ -1,10 +1,10 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
-import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
+import { registerErrorHandler } from '../../../src/errors/error-handler.js';
+import { RuntimeDefaultsService } from '../../../src/services/runtime-defaults-service.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -48,7 +48,7 @@ describe('runtime defaults routes', () => {
   });
 
   it('redacts secret-bearing runtime defaults on list responses', async () => {
-    const { runtimeDefaultsRoutes } = await import('../../src/api/routes/runtime-defaults.routes.js');
+    const { runtimeDefaultsRoutes } = await import('../../../src/api/routes/platform-config/runtime-defaults.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -72,7 +72,7 @@ describe('runtime defaults routes', () => {
   });
 
   it('redacts secret-bearing runtime defaults on single-read responses', async () => {
-    const { runtimeDefaultsRoutes } = await import('../../src/api/routes/runtime-defaults.routes.js');
+    const { runtimeDefaultsRoutes } = await import('../../../src/api/routes/platform-config/runtime-defaults.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -96,7 +96,7 @@ describe('runtime defaults routes', () => {
   });
 
   it('logs config changes after runtime-default upsert', async () => {
-    const { runtimeDefaultsRoutes } = await import('../../src/api/routes/runtime-defaults.routes.js');
+    const { runtimeDefaultsRoutes } = await import('../../../src/api/routes/platform-config/runtime-defaults.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -156,7 +156,7 @@ describe('runtime defaults routes', () => {
   });
 
   it('logs config changes after runtime-default patch', async () => {
-    const { runtimeDefaultsRoutes } = await import('../../src/api/routes/runtime-defaults.routes.js');
+    const { runtimeDefaultsRoutes } = await import('../../../src/api/routes/platform-config/runtime-defaults.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -214,7 +214,7 @@ describe('runtime defaults routes', () => {
   });
 
   it('logs redacted config changes after runtime-default delete', async () => {
-    const { runtimeDefaultsRoutes } = await import('../../src/api/routes/runtime-defaults.routes.js');
+    const { runtimeDefaultsRoutes } = await import('../../../src/api/routes/platform-config/runtime-defaults.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
