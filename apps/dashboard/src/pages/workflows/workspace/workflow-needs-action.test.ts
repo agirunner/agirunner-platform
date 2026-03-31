@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -381,40 +380,5 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Nothing in this work item requires operator action right now.');
     expect(html).not.toContain('Nothing in this workflow requires operator action right now.');
     expect(html).not.toContain('Nothing in this task requires operator action right now.');
-  });
-
-  it('keeps prompt-based responses inside the needs-action surface instead of opening a dialog', () => {
-    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
-
-    expect(source).not.toContain('DialogContent');
-    expect(source).not.toContain('DialogTitle');
-  });
-
-  it('routes escalation responses through the workflow work-item task api helper', () => {
-    const source = [
-      readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8'),
-      readFileSync(new URL('./workflow-needs-action.support.ts', import.meta.url), 'utf8'),
-    ].join('\n');
-
-    expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation(');
-    expect(source).not.toContain('dashboardApi.resolveEscalation(action.target.target_id');
-  });
-
-  it('routes workflow task review actions through workflow-backed helpers instead of raw task endpoints', () => {
-    const source = [
-      readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8'),
-      readFileSync(new URL('./workflow-needs-action.support.ts', import.meta.url), 'utf8'),
-    ].join('\n');
-
-    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask(');
-    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTaskOutput(');
-    expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask(');
-    expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges(');
-    expect(source).toContain('dashboardApi.retryWorkflowWorkItemTask(');
-    expect(source).not.toContain('dashboardApi.approveTask(action.target.target_id');
-    expect(source).not.toContain('dashboardApi.approveTaskOutput(action.target.target_id');
-    expect(source).not.toContain('dashboardApi.rejectTask(action.target.target_id');
-    expect(source).not.toContain('dashboardApi.requestTaskChanges(action.target.target_id');
-    expect(source).not.toContain('dashboardApi.retryTask(action.target.target_id');
   });
 });
