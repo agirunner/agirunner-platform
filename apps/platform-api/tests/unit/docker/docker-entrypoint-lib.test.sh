@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLATFORM_API_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PLATFORM_API_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 LIB_PATH="${PLATFORM_API_DIR}/docker/docker-entrypoint.lib.sh"
 
 fail() {
