@@ -24,7 +24,7 @@ import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
-import { AgenticSettingsService } from '../services/agentic-settings-service.js';
+import { AgenticSettingsService } from '../services/platform-config/agentic-settings-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/execution-environment/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete/destructive-delete-service.js';

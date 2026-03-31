@@ -6,7 +6,7 @@ import type { LogLevelCache } from './logging/execution/log-level-cache.js';
 import type { LogService } from './logging/log-service.js';
 import type { LogStreamService } from './logging/log-stream-service.js';
 import type { ApiKeyService } from './services/api-key-service.js';
-import type { AgenticSettingsService } from './services/agentic-settings-service.js';
+import type { AgenticSettingsService } from './services/platform-config/agentic-settings-service.js';
 import type { EventStreamService } from './services/event/event-stream-service.js';
 import type { EventService } from './services/event/event-service.js';
 import type { ExecutionEnvironmentCatalogService } from './services/execution-environment/catalog-service.js';
