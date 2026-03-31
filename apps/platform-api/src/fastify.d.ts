@@ -24,7 +24,7 @@ import type { WorkflowLiveConsoleService } from './services/workflow-operations/
 import type { WorkflowOperationsStreamService } from './services/workflow-operations/workflow-operations-stream-service.js';
 import type { WorkflowRailService } from './services/workflow-operations/workflow-rail-service.js';
 import type { WorkflowWorkspaceService } from './services/workflow-operations/workflow-workspace-service.js';
-import type { ContainerInventoryService } from './services/container-inventory-service.js';
+import type { ContainerInventoryService } from './services/execution-environment/container-inventory-service.js';
 import type { WorkspaceService } from './services/workspace-service.js';
 import type { WorkspaceArtifactFileService } from './services/workspace-artifact-file-service.js';
 import type { PlaybookService } from './services/playbook-service.js';

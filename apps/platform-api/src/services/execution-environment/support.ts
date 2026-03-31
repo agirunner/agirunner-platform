@@ -4,7 +4,7 @@ import {
   assertValidContainerCpu,
   assertValidContainerImage,
   assertValidContainerMemory,
-} from '../container-resource-validation.js';
+} from './container-resource-validation.js';
 import {
   buildExecutionEnvironmentAgentHint,
   EXECUTION_ENVIRONMENT_CONTRACT_VERSION,

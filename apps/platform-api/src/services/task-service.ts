@@ -24,7 +24,7 @@ import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { HandoffService } from './handoff-service.js';
-import { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
+import { ExecutionContainerLeaseService } from './execution-environment/execution-container-lease-service.js';
 
 export class TaskService {
   private readonly queryService: TaskQueryService;

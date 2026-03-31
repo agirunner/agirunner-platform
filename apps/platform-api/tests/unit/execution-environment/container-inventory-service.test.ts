@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ContainerInventoryService,
   type LiveContainerInventoryInput,
-} from '../../../src/services/container-inventory-service.js';
+} from '../../../src/services/execution-environment/container-inventory-service.js';
 
 function createMockPool() {
   return { query: vi.fn() };

@@ -3,7 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { LogService } from '../../logging/log-service.js';
 import type { TaskState } from '../../orchestration/task-state-machine.js';
 import type { ArtifactService } from '../artifact-service.js';
-import type { ExecutionContainerLeaseService } from '../execution-container-lease-service.js';
+import type { ExecutionContainerLeaseService } from '../execution-environment/execution-container-lease-service.js';
 import type { EventService } from '../event-service.js';
 import type { HandoffService } from '../handoff-service.js';
 import type { PlaybookTaskParallelismService } from '../playbook-task-parallelism-service.js';

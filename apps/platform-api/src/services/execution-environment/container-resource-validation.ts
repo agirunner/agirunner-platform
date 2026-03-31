@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/domain-errors.js';
+import { ValidationError } from '../../errors/domain-errors.js';
 
 const MEMORY_ALLOCATION_PATTERN =
   /^\d+(?:\.\d+)?(?:b|k|m|g|t|p|e|kb|mb|gb|tb|pb|eb|ki|mi|gi|ti|pi|ei|kib|mib|gib|tib|pib|eib)$/i;

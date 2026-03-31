@@ -1,4 +1,4 @@
-import type { DatabaseQueryable } from '../db/database.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 
 const ACTIVE_WORKER_TASK_STATES = ['claimed', 'in_progress'] as const;
 const ZERO_TIME_ISO = '0001-01-01T00:00:00Z';

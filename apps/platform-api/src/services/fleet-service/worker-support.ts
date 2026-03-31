@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 import { ValidationError } from '../../errors/domain-errors.js';
-import { assertValidContainerCpu, assertValidContainerImage, assertValidContainerMemory } from '../container-resource-validation.js';
+import {
+  assertValidContainerCpu,
+  assertValidContainerImage,
+  assertValidContainerMemory,
+} from '../execution-environment/container-resource-validation.js';
 
 const DEFAULT_SPECIALIST_CPU_LIMIT = '2';
 const DEFAULT_SPECIALIST_MEMORY_LIMIT = '256m';
@@ -286,4 +290,3 @@ function validateLlmSecretRef(value: string | undefined): void {
     throw new ValidationError('llmApiKeySecretRef must use secret: references');
   }
 }
-

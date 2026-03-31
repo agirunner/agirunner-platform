@@ -4,7 +4,7 @@ import {
   assertValidContainerCpu,
   assertValidContainerImage,
   assertValidContainerMemory,
-} from '../../../src/services/container-resource-validation.js';
+} from '../../../src/services/execution-environment/container-resource-validation.js';
 
 describe('container resource validation', () => {
   it('accepts standard image refs', () => {

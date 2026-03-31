@@ -26,7 +26,7 @@ import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { AgenticSettingsService } from '../services/agentic-settings-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
-import { ContainerInventoryService } from '../services/container-inventory-service.js';
+import { ContainerInventoryService } from '../services/execution-environment/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/execution-environment/container-manager-verifier.js';
 import { listWorkflowDocuments } from '../services/document-reference/document-reference-service.js';
