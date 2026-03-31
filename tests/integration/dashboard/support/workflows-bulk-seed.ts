@@ -52,13 +52,14 @@ interface WorkflowBulkWorkflowRowInput {
 }
 
 function buildBulkWorkflowValueRow(input: WorkflowBulkWorkflowRowInput): string {
+  const state = readBulkWorkflowState(input.index);
   return `(
       gen_random_uuid(),
       ${sqlUuid(input.tenantId)},
       ${sqlUuid(input.workspaceId)},
       ${sqlUuid(input.playbookId)},
       ${sqlText(`E2E Bulk Workflow ${String(input.index).padStart(4, '0')}`)},
-      'pending'::public.workflow_state,
+      ${sqlText(state)}::public.workflow_state,
       'planned',
       ${sqlJsonValue({ workflow_goal: `Keep workflow ${input.index} visible in the workflows rail.` })}::jsonb,
       '{}'::jsonb,
@@ -81,4 +82,15 @@ function sqlTimestamp(value: string): string {
 
 function sqlJsonValue(value: unknown): string {
   return sqlText(JSON.stringify(value));
+}
+
+function readBulkWorkflowState(index: number): 'completed' | 'cancelled' | 'failed' {
+  switch (index % 3) {
+    case 1:
+      return 'cancelled';
+    case 2:
+      return 'failed';
+    default:
+      return 'completed';
+  }
 }

@@ -105,7 +105,7 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
     playbookId: scenario.plannedPlaybook.id,
     workspaceId: scenario.workspace.id,
     lifecycle: 'planned',
-    state: 'pending',
+    state: 'completed',
     parameters: {
       workflow_goal: 'Force a fresh workflow into the live rail ordering.',
     },

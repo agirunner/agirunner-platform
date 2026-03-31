@@ -302,7 +302,7 @@ function FilterToggleButton(props: {
       className={cn(
         'inline-flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
         props.isActive
-          ? 'border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50'
+          ? 'border-sky-300/80 bg-sky-100/90 text-sky-950 shadow-sm dark:border-sky-400/50 dark:bg-sky-400/15 dark:text-sky-50'
           : 'border-border bg-background text-foreground hover:bg-border/30',
       )}
       onClick={props.onClick}

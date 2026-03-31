@@ -100,7 +100,7 @@ export function WorkflowNeedsAction(props: {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4 pb-1">
       {visibleItems.length === 0 ? (
         <div className="grid gap-1 px-1 text-sm text-muted-foreground">
           <p>Nothing in this {scopeSubject} requires operator action right now.</p>
@@ -111,7 +111,7 @@ export function WorkflowNeedsAction(props: {
           ) : null}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="grid gap-3 pr-1">
           {visibleItems.map((item) => (
             <NeedsActionPacketCard
               key={item.action_id}

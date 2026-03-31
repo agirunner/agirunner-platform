@@ -238,5 +238,7 @@ function ToggleFilter(props: { label: string; isActive: boolean; onClick(): void
 }
 
 function readNeutralFilterButtonClassName(isActive: boolean): string {
-  return isActive ? 'border-foreground/20 bg-transparent shadow-none' : '';
+  return isActive
+    ? 'border-sky-300/80 bg-sky-100/90 text-sky-950 shadow-sm hover:bg-sky-100 dark:border-sky-400/50 dark:bg-sky-400/15 dark:text-sky-50 dark:hover:bg-sky-400/20'
+    : 'border-border bg-background/80 hover:border-border hover:bg-muted/30';
 }

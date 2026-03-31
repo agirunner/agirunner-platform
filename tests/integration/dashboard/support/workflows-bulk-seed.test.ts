@@ -27,5 +27,7 @@ describe('buildBulkWorkflowInsertSql', () => {
     expect(sql).toContain('E2E Bulk Workflow 0001');
     expect(sql).toContain('2026-01-01T00:00:02.000Z');
     expect(sql).toContain('2026-01-01T00:00:01.000Z');
+    expect(sql).toContain("'completed'::public.workflow_state");
+    expect(sql).toContain("'cancelled'::public.workflow_state");
   });
 });

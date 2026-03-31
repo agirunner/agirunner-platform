@@ -46,6 +46,27 @@ clear_fixture_workflow_activations() {
     >/dev/null
 }
 
+settle_fixture_workflow_activations() {
+  local attempt
+  local activation_count
+  local confirmation_count
+
+  for attempt in $(seq 1 15); do
+    clear_fixture_workflow_activations
+    activation_count="$(read_workflow_activation_count)"
+    if [[ "$activation_count" == "0" ]]; then
+      sleep 0.2
+      confirmation_count="$(read_workflow_activation_count)"
+      if [[ "$confirmation_count" == "0" ]]; then
+        return 0
+      fi
+    fi
+    sleep 0.2
+  done
+
+  return 1
+}
+
 assert_no_runtime_specialists() {
   local runtime_count
   runtime_count="$(count_runtime_specialists)"
@@ -76,7 +97,10 @@ require_tool psql
 require_tool corepack
 
 assert_no_runtime_specialists
-clear_fixture_workflow_activations
+if ! settle_fixture_workflow_activations; then
+  echo "Non-live integration guard failed: workflow_activations would not settle to zero before the run." >&2
+  exit 1
+fi
 before_activation_count="$(read_workflow_activation_count)"
 
 export PLAYWRIGHT_SKIP_WEBSERVER="${PLAYWRIGHT_SKIP_WEBSERVER:-1}"
@@ -86,7 +110,10 @@ for arg in "$@"; do
 done
 corepack pnpm exec playwright test -c apps/dashboard/playwright.config.ts "${playwright_args[@]}"
 
-clear_fixture_workflow_activations
+if ! settle_fixture_workflow_activations; then
+  echo "Non-live integration guard failed: workflow_activations would not settle to zero after the run." >&2
+  exit 1
+fi
 after_activation_count="$(read_workflow_activation_count)"
 assert_no_runtime_specialists
 

@@ -429,6 +429,15 @@ export function buildFixturePurgeSql(): string {
             AND ${workflowFilter}
        );
 
+    DELETE FROM public.workflow_activations
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND ${workflowFilter}
+       );
+
     DELETE FROM public.tasks
      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
        AND workflow_id IN (
@@ -447,7 +456,7 @@ export function buildFixturePurgeSql(): string {
             AND ${workflowFilter}
        );
 
-    DELETE FROM public.workflow_activations
+    DELETE FROM public.tasks
      WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
        AND workflow_id IN (
          SELECT id

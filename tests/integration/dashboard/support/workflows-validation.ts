@@ -18,11 +18,18 @@ export function clearFixtureWorkflowActivations(): void {
 }
 
 export async function settleFixtureWorkflowActivations(): Promise<void> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  let zeroCountStreak = 0;
+
+  for (let attempt = 0; attempt < 15; attempt += 1) {
     clearFixtureWorkflowActivations();
     const activationCount = countFixtureWorkflowActivations();
     if (activationCount === 0) {
-      return;
+      zeroCountStreak += 1;
+      if (zeroCountStreak >= 2) {
+        return;
+      }
+    } else {
+      zeroCountStreak = 0;
     }
     await new Promise((resolve) => {
       setTimeout(resolve, 200);
