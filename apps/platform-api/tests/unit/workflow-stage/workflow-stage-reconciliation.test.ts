@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { reconcilePlannedWorkflowStages } from '../../src/services/workflow-stage-reconciliation.js';
+import { reconcilePlannedWorkflowStages } from '../../../src/services/workflow-stage-reconciliation.js';
 
 describe('reconcilePlannedWorkflowStages', () => {
   it('derives the active planned stage from normalized stage rows without writing workflow.current_stage', async () => {

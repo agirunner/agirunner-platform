@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { gateRequiresSupersession } from '../../src/services/workflow-stage-gate-revisions.js';
+import { gateRequiresSupersession } from '../../../src/services/workflow-stage-gate-revisions.js';
 
 describe('workflow-stage-gate-revisions', () => {
   it('supersedes stale gates by default when the subject revision advances', () => {

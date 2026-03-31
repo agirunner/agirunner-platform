@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toGateResponse } from '../../src/services/workflow-stage-gate-service.js';
+import { toGateResponse } from '../../../src/services/workflow-stage-gate-service.js';
 
 describe('workflow stage gate service', () => {
   it('adds continuation metrics when a decision and resume activation are present', () => {
