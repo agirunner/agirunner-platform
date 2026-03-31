@@ -1,6 +1,6 @@
 import type { DatabasePool } from '../../db/database.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
-import { loadGateResumeHistory } from '../gate-resume-history.js';
+import { loadGateResumeHistory } from './gate-resume-history.js';
 import { toTaskApproval } from './mappers.js';
 import {
   queryGate,
