@@ -493,7 +493,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
             page: input?.page,
             per_page: input?.perPage,
             needs_action_only: input?.needsActionOnly ? 'true' : undefined,
-            ongoing_only: input?.ongoingOnly ? 'true' : undefined,
+            lifecycle: input?.lifecycleFilter && input.lifecycleFilter !== 'all'
+              ? input.lifecycleFilter
+              : undefined,
             search: input?.search,
             workflow_id: input?.workflowId,
           })}`,

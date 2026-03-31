@@ -24,7 +24,7 @@ describe('workflows page support', () => {
       tab: null,
       search: '',
       needsActionOnly: false,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       boardMode: 'active_recent_complete',
     });
   });
@@ -34,7 +34,7 @@ describe('workflows page support', () => {
       readWorkflowsPageState(
         '/workflows/workflow-9',
         new URLSearchParams(
-          'mode=history&work_item_id=work-item-2&task_id=task-4&tab=history&search=release&needs_action_only=1&ongoing_only=true&board_mode=all',
+          'mode=history&work_item_id=work-item-2&task_id=task-4&tab=history&search=release&needs_action_only=1&lifecycle=ongoing&board_mode=all',
         ),
       ),
     ).toEqual({
@@ -44,7 +44,7 @@ describe('workflows page support', () => {
       tab: 'live_console',
       search: 'release',
       needsActionOnly: true,
-      ongoingOnly: true,
+      lifecycleFilter: 'ongoing',
       boardMode: 'all',
     });
   });
@@ -64,7 +64,7 @@ describe('workflows page support', () => {
       tab: 'details',
       search: '',
       needsActionOnly: false,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       boardMode: 'active_recent_complete',
     });
   });
@@ -78,11 +78,11 @@ describe('workflows page support', () => {
         tab: 'deliverables',
         search: 'release readiness',
         needsActionOnly: true,
-        ongoingOnly: true,
+        lifecycleFilter: 'ongoing',
         boardMode: 'all',
       }),
     ).toBe(
-      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
+      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&lifecycle=ongoing&board_mode=all',
     );
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
   });

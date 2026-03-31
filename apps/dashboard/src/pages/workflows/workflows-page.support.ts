@@ -9,6 +9,7 @@ export {
   resolveWorkflowTabScope,
   type WorkflowBoardMode,
   type WorkflowLaunchRequest,
+  type WorkflowRailLifecycleFilter,
   type WorkflowPageMode,
   type WorkflowsPageState,
   type WorkflowTabScope,

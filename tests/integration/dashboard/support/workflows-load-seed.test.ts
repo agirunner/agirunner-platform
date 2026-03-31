@@ -47,4 +47,24 @@ describe('buildWorkflowLoadSeedSql', () => {
     expect(sql).toContain('E2E Perf Workflow 00001');
     expect(sql).toContain('E2E Perf Workflow 00007');
   });
+
+  it('can seed an ongoing-only workflow corpus for rail stress checks', () => {
+    const sql = buildWorkflowLoadSeedSql({
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
+      workspaceName: 'Perf Workspace',
+      plannedPlaybookId: '00000000-0000-0000-0000-000000000003',
+      plannedPlaybookName: 'Planned Perf',
+      ongoingPlaybookId: '00000000-0000-0000-0000-000000000004',
+      ongoingPlaybookName: 'Ongoing Perf',
+      count: 3,
+      lifecycleMode: 'ongoing',
+      baseIso: '2026-02-01T00:00:00.000Z',
+    });
+
+    expect(sql).toContain("'ongoing'");
+    expect(sql).not.toContain("'planned'");
+    expect(sql).not.toContain("'completed'::public.workflow_state");
+    expect(sql).not.toContain("'cancelled'::public.workflow_state");
+  });
 });

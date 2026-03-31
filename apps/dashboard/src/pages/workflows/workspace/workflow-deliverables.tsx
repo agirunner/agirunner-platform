@@ -31,7 +31,7 @@ export function WorkflowDeliverables(props: {
   );
 
   return (
-    <div className="grid gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-foreground">Deliverables</p>

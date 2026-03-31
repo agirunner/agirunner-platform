@@ -16,9 +16,12 @@ import {
 interface LiveRailSource {
   getLive(
     tenantId: string,
-    input?: { page?: number; perPage?: number },
+    input?: { page?: number; perPage?: number; lifecycleFilter?: WorkflowRailLifecycleFilter },
   ): Promise<MissionControlLiveResponse>;
-  countWorkflows?(tenantId: string): Promise<number>;
+  countWorkflows?(
+    tenantId: string,
+    input?: { lifecycleFilter?: WorkflowRailLifecycleFilter },
+  ): Promise<number>;
   listWorkflowCards(
     tenantId: string,
     input?: { workflowIds?: string[]; page?: number; perPage?: number },
@@ -39,12 +42,14 @@ interface HistoryRailSource {
 export interface WorkflowRailQuery {
   mode: WorkflowRailMode;
   needsActionOnly?: boolean;
-  ongoingOnly?: boolean;
+  lifecycleFilter?: WorkflowRailLifecycleFilter;
   search?: string;
   page?: number;
   perPage?: number;
   selectedWorkflowId?: string;
 }
+
+export type WorkflowRailLifecycleFilter = 'all' | 'ongoing' | 'planned';
 
 export class WorkflowRailService {
   constructor(
@@ -79,8 +84,11 @@ export class WorkflowRailService {
       this.liveSource.getLive(tenantId, {
         page: query.page ?? 1,
         perPage: query.perPage ?? 100,
+        lifecycleFilter: query.lifecycleFilter ?? 'all',
       }),
-      this.liveSource.countWorkflows?.(tenantId) ?? Promise.resolve(0),
+      this.liveSource.countWorkflows?.(tenantId, {
+        lifecycleFilter: query.lifecycleFilter ?? 'all',
+      }) ?? Promise.resolve(0),
     ]);
     const selectedRow = query.selectedWorkflowId
       ? await this.readSelectedLiveRow(tenantId, query.selectedWorkflowId)
@@ -205,10 +213,13 @@ function pinSelectedRow(
 
 function applyRailFilters(rows: WorkflowRailRow[], query: WorkflowRailQuery): WorkflowRailRow[] {
   return rows.filter((row) => {
-    if (query.needsActionOnly && !row.needs_action) {
+    if (query.lifecycleFilter === 'ongoing' && row.lifecycle !== 'ongoing') {
       return false;
     }
-    if (query.ongoingOnly && row.lifecycle !== 'ongoing') {
+    if (query.lifecycleFilter === 'planned' && row.lifecycle !== 'planned') {
+      return false;
+    }
+    if (query.needsActionOnly && !row.needs_action) {
       return false;
     }
     if (!query.search) {

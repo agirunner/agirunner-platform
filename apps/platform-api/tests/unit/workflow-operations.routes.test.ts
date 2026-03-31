@@ -96,7 +96,7 @@ describe('workflow operations routes v2', () => {
     expect(workflowOperationsRailService.getRail).toHaveBeenCalledWith('tenant-1', {
       mode: 'live',
       needsActionOnly: true,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       search: undefined,
       page: 1,
       perPage: 100,
@@ -120,7 +120,7 @@ describe('workflow operations routes v2', () => {
     expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledWith('tenant-1', {
       mode: 'live',
       needsActionOnly: false,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       search: undefined,
       afterCursor: 'workflow-operations:41',
       selectedWorkflowId: undefined,
@@ -421,7 +421,7 @@ describe('workflow operations routes v2', () => {
     expect(workflowOperationsRailService.getRail).toHaveBeenCalledWith('tenant-1', {
       mode: 'live',
       needsActionOnly: false,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       search: undefined,
       page: 1,
       perPage: 100,
@@ -430,7 +430,7 @@ describe('workflow operations routes v2', () => {
     expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledWith('tenant-1', {
       mode: 'live',
       needsActionOnly: false,
-      ongoingOnly: false,
+      lifecycleFilter: 'all',
       search: undefined,
       afterCursor: undefined,
       selectedWorkflowId: undefined,

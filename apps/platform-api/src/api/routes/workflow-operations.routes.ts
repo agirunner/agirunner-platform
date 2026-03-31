@@ -17,6 +17,16 @@ function readRailMode(value: unknown): WorkflowRailMode {
   return value === 'recent' || value === 'history' ? value : 'live';
 }
 
+function readRailLifecycleFilter(
+  value: unknown,
+  legacyOngoingOnly?: unknown,
+): 'all' | 'ongoing' | 'planned' {
+  if (value === 'ongoing' || value === 'planned') {
+    return value;
+  }
+  return readBooleanFlag(legacyOngoingOnly) ? 'ongoing' : 'all';
+}
+
 function prefersSse(request: { headers: Record<string, unknown> }): boolean {
   const accept = request.headers.accept;
   return typeof accept === 'string' && accept.includes('text/event-stream');
@@ -65,6 +75,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       page?: string;
       per_page?: string;
       needs_action_only?: string;
+      lifecycle?: string;
       ongoing_only?: string;
       search?: string;
       workflow_id?: string;
@@ -77,7 +88,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         data: await app.workflowOperationsRailService.getRail(request.auth!.tenantId, {
           mode: readRailMode(query.mode),
           needsActionOnly: readBooleanFlag(query.needs_action_only),
-          ongoingOnly: readBooleanFlag(query.ongoing_only),
+          lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
           search: query.search,
           page: readPositiveInt(query.page, 1),
           perPage: readPositiveInt(query.per_page, 100),
@@ -164,6 +175,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     query: {
       mode?: string;
       needs_action_only?: string;
+      lifecycle?: string;
       ongoing_only?: string;
       search?: string;
       after_cursor?: string;
@@ -179,7 +191,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     const batch = await app.workflowOperationsStreamService.buildRailBatch(request.auth!.tenantId, {
       mode: readRailMode(query.mode),
       needsActionOnly: readBooleanFlag(query.needs_action_only),
-      ongoingOnly: readBooleanFlag(query.ongoing_only),
+      lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
       search: query.search,
       selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
       afterCursor: query.after_cursor,
@@ -195,7 +207,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         .buildRailBatch(request.auth!.tenantId, {
           mode: readRailMode(query.mode),
           needsActionOnly: readBooleanFlag(query.needs_action_only),
-          ongoingOnly: readBooleanFlag(query.ongoing_only),
+          lifecycleFilter: readRailLifecycleFilter(query.lifecycle, query.ongoing_only),
           search: query.search,
           selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
           afterCursor: currentCursor,

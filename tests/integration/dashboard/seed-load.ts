@@ -51,6 +51,7 @@ async function main(): Promise<void> {
     ongoingPlaybookId: ongoingPlaybook.id,
     ongoingPlaybookName: ongoingPlaybook.name ?? `E2E Workflow Perf Ongoing ${suffix}`,
     count: args.workflows,
+    lifecycleMode: args.lifecycle,
     turnsPerWorkflow: args.turns,
     briefsPerWorkflow: args.briefs,
   });
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
     planned_playbook_id: plannedPlaybook.id,
     ongoing_playbook_id: ongoingPlaybook.id,
     reset: args.reset,
+    lifecycle: args.lifecycle,
     turns_per_workflow: args.turns,
     briefs_per_workflow: args.briefs,
   }, null, 2)}\n`);
@@ -155,6 +157,7 @@ function parseArgs(argv: string[]): {
   let turns = 2;
   let briefs = 1;
   let reset = true;
+  let lifecycle: 'mixed' | 'ongoing' | 'planned' = 'mixed';
 
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
@@ -171,6 +174,10 @@ function parseArgs(argv: string[]): {
         briefs = readPositiveInt(argv[index + 1], briefs);
         index += 1;
         break;
+      case '--lifecycle':
+        lifecycle = readLifecycle(argv[index + 1], lifecycle);
+        index += 1;
+        break;
       case '--no-reset':
         reset = false;
         break;
@@ -179,12 +186,21 @@ function parseArgs(argv: string[]): {
     }
   }
 
-  return { workflows, turns, briefs, reset };
+  return { workflows, turns, briefs, reset, lifecycle };
 }
 
 function readPositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readLifecycle(
+  value: string | undefined,
+  fallback: 'mixed' | 'ongoing' | 'planned',
+): 'mixed' | 'ongoing' | 'planned' {
+  return value === 'ongoing' || value === 'planned' || value === 'mixed'
+    ? value
+    : fallback;
 }
 
 void main().catch((error: unknown) => {

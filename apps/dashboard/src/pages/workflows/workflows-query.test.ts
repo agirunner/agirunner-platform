@@ -9,7 +9,7 @@ describe('workflows query keys', () => {
         mode: 'live',
         search: '',
         needsActionOnly: false,
-        ongoingOnly: false,
+        lifecycleFilter: 'all',
       }),
     ).toEqual([
       'workflows',
@@ -17,21 +17,21 @@ describe('workflows query keys', () => {
       'live',
       '',
       false,
-      false,
+      'all',
     ]);
     expect(
       buildWorkflowRailQueryKey({
         mode: 'live',
         search: '',
         needsActionOnly: false,
-        ongoingOnly: false,
+        lifecycleFilter: 'all',
       }),
     ).toEqual(
       buildWorkflowRailQueryKey({
         mode: 'live',
         search: '',
         needsActionOnly: false,
-        ongoingOnly: false,
+        lifecycleFilter: 'all',
       }),
     );
   });

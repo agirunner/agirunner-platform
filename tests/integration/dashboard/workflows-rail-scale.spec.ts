@@ -15,10 +15,11 @@ import {
 
 test('keeps the selected workflow stable while the rail grows and reorders', async ({ page }) => {
   const scenario = await seedWorkflowsScenario({ bulkWorkflowCount: 205 });
-  const requestedRailPageSizes = new Set<number>();
+  const requestedRailPages = new Set<number>();
   const railResponseSummaries: Array<{
     status: number;
-    perPage: number | null;
+    page: number | null;
+    lifecycle: string | null;
     rowCount: number;
     ongoingRowCount: number;
     totalCount: number | null;
@@ -31,9 +32,9 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
     if (url.pathname !== '/api/v1/operations/workflows') {
       return;
     }
-    const perPage = Number(url.searchParams.get('per_page') ?? '');
-    if (Number.isInteger(perPage) && perPage > 0) {
-      requestedRailPageSizes.add(perPage);
+    const pageNumber = Number(url.searchParams.get('page') ?? '');
+    if (Number.isInteger(pageNumber) && pageNumber > 0) {
+      requestedRailPages.add(pageNumber);
     }
   });
   page.on('response', async (response) => {
@@ -44,7 +45,7 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
     if (url.pathname !== '/api/v1/operations/workflows') {
       return;
     }
-    const perPage = Number(url.searchParams.get('per_page') ?? '');
+    const pageNumber = Number(url.searchParams.get('page') ?? '');
     const payload = await response.json() as {
       data?: {
         rows?: Array<unknown>;
@@ -54,7 +55,8 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
     };
     railResponseSummaries.push({
       status: response.status(),
-      perPage: Number.isInteger(perPage) && perPage > 0 ? perPage : null,
+      page: Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null,
+      lifecycle: url.searchParams.get('lifecycle'),
       rowCount: payload.data?.rows?.length ?? 0,
       ongoingRowCount: payload.data?.ongoing_rows?.length ?? 0,
       totalCount: payload.data?.total_count ?? null,
@@ -85,8 +87,8 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
   await expect
     .poll(
       () =>
-        railResponseSummaries.find((summary) => summary.perPage === 100)?.rowCount
-        ?? railResponseSummaries.find((summary) => summary.perPage === 100)?.ongoingRowCount
+        railResponseSummaries.find((summary) => summary.page === 1)?.rowCount
+        ?? railResponseSummaries.find((summary) => summary.page === 1)?.ongoingRowCount
         ?? 0,
       {
         message: `Expected the browser rail request to return data. Seen responses: ${JSON.stringify(railResponseSummaries)}`,
@@ -94,7 +96,7 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
     )
     .toBeGreaterThan(0);
 
-  await revealWorkflowInRail(page, 'E2E Bulk Workflow 0104', requestedRailPageSizes);
+  await revealWorkflowInRail(page, 'E2E Bulk Workflow 0104', requestedRailPages);
   await workflowRailButton(page, 'E2E Bulk Workflow 0104').click();
   await expect(workflowWorkspaceHeading(page, 'E2E Bulk Workflow 0104')).toBeVisible();
 
@@ -115,7 +117,7 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
 async function revealWorkflowInRail(
   page: Page,
   workflowName: string,
-  requestedRailPageSizes: ReadonlySet<number>,
+  requestedRailPages: ReadonlySet<number>,
 ): Promise<void> {
   const scrollRegion = page.locator('[data-workflows-rail-scroll-region="true"]');
   await expect
@@ -143,13 +145,21 @@ async function revealWorkflowInRail(
   expect(scrolledMetrics.scrollTop).toBeGreaterThan(0);
 
   await expect
+    .poll(() => (requestedRailPages.has(2) ? 1 : 0), {
+      message: 'Expected rail pagination to request page 2 instead of resetting the first page.',
+    })
+    .toBe(1);
+
+  await expect
     .poll(async () => {
-      await scrollRegion.evaluate((element) => {
-        element.scrollTop = element.scrollHeight;
-      });
-      return requestedRailPageSizes.has(200) ? 1 : 0;
+      const metrics = await scrollRegion.evaluate((element) => ({
+        scrollTop: element.scrollTop,
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+      }));
+      return metrics.scrollTop > 0 && metrics.scrollHeight > metrics.clientHeight ? 1 : 0;
     }, {
-      message: 'Expected rail pagination to request a larger workflow page.',
+      message: 'Expected rail scroll position to stay away from the top after pagination.',
     })
     .toBe(1);
 

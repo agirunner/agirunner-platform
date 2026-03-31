@@ -157,7 +157,7 @@ export function WorkflowsPage(): JSX.Element {
         page: pageParam,
         perPage: RAIL_PAGE_SIZE,
         needsActionOnly: pageState.needsActionOnly,
-        ongoingOnly: pageState.ongoingOnly,
+        lifecycleFilter: pageState.lifecycleFilter,
         search: pageState.search,
       }),
     getNextPageParam: getNextWorkflowRailPageParam,
@@ -212,7 +212,7 @@ export function WorkflowsPage(): JSX.Element {
     mode: pageState.mode,
     search: pageState.search,
     needsActionOnly: pageState.needsActionOnly,
-    ongoingOnly: pageState.ongoingOnly,
+    lifecycleFilter: pageState.lifecycleFilter,
   });
   useWorkflowWorkspaceRealtime(queryClient, {
     workflowId: pageState.workflowId,
@@ -389,7 +389,9 @@ export function WorkflowsPage(): JSX.Element {
         }
       }}
       onBoardModeChange={(boardMode) => patchPageState(navigate, pageState, { boardMode })}
-      onClearOngoingFilter={() => patchPageState(navigate, pageState, { ongoingOnly: false })}
+      onLifecycleFilterChange={(lifecycleFilter) =>
+        patchPageState(navigate, pageState, { lifecycleFilter })
+      }
       onClearWorkItemScope={handleClearWorkItemScope}
       onCreateWorkflow={openWorkflowLaunchDialog}
       onLaunched={(workflowId) =>
@@ -431,7 +433,6 @@ export function WorkflowsPage(): JSX.Element {
         patchPageState(navigate, pageState, { workflowId, workItemId: null })
       }
       onSelectWorkItem={handleSelectWorkItem}
-      onShowAllOngoing={() => patchPageState(navigate, pageState, { ongoingOnly: true })}
       onSteeringOpenChange={(open) => {
         setIsSteeringOpen(open);
         if (!open) {

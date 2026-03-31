@@ -2604,7 +2604,7 @@ export interface DashboardApi {
     page?: number;
     perPage?: number;
     needsActionOnly?: boolean;
-    ongoingOnly?: boolean;
+    lifecycleFilter?: 'all' | 'ongoing' | 'planned';
     search?: string;
     workflowId?: string;
   }): Promise<DashboardWorkflowRailPacket>;

@@ -23,6 +23,7 @@ export interface WorkflowLoadSeedInput {
   ongoingPlaybookId: string;
   ongoingPlaybookName: string;
   count: number;
+  lifecycleMode?: 'mixed' | 'ongoing' | 'planned';
   baseIso?: string;
   turnsPerWorkflow?: number;
   briefsPerWorkflow?: number;
@@ -45,7 +46,7 @@ export function buildWorkflowLoadSeedSql(input: WorkflowLoadSeedInput): string {
   const documents: string[] = [];
 
   for (let index = 0; index < input.count; index += 1) {
-    const profile = resolveProfile(index);
+    const profile = resolveProfile(index, input.lifecycleMode);
     const workflowId = stableUuid(index, 1);
     const workItemId = stableUuid(index, 2);
     const taskId = stableUuid(index, 3);
@@ -262,8 +263,16 @@ function readExecutionLogPartitionStatements(baseTimeMs: number, count: number):
   return [...dates].sort().map((date) => `SELECT create_execution_logs_partition(${sqlText(date)}::date);`);
 }
 
-function resolveProfile(index: number): WorkflowLoadProfile {
-  const profiles: WorkflowLoadProfile[] = ['active', 'approval', 'paused', 'completed', 'cancelled', 'failed', 'escalated'];
+function resolveProfile(
+  index: number,
+  lifecycleMode: WorkflowLoadSeedInput['lifecycleMode'] = 'mixed',
+): WorkflowLoadProfile {
+  const profiles: WorkflowLoadProfile[] =
+    lifecycleMode === 'ongoing'
+      ? ['active', 'approval', 'paused', 'escalated']
+      : lifecycleMode === 'planned'
+        ? ['completed', 'cancelled', 'failed']
+        : ['active', 'approval', 'paused', 'completed', 'cancelled', 'failed', 'escalated'];
   return profiles[index % profiles.length] ?? 'active';
 }
 

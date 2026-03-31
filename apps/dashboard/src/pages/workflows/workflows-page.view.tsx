@@ -78,7 +78,6 @@ type WorkflowsPageViewProps = {
   workItemTitle: string | null;
   onAddWorkOpenChange(open: boolean): void;
   onBoardModeChange(boardMode: WorkflowsPageState['boardMode']): void;
-  onClearOngoingFilter(): void;
   onClearWorkItemScope(): void;
   onCreateWorkflow(): void;
   onLaunched(workflowId: string): void;
@@ -88,12 +87,12 @@ type WorkflowsPageViewProps = {
   onLoadMoreRail(): void;
   onNeedsActionOnlyChange(needsActionOnly: boolean): void;
   onOpenAddWork(workItemId: string | null | undefined): void;
+  onLifecycleFilterChange(lifecycleFilter: 'all' | 'ongoing' | 'planned'): void;
   onRailModeChange(mode: WorkflowsPageState['mode']): void;
   onRailResizePointerDown(event: PointerEvent<HTMLButtonElement>): void;
   onSearchChange(search: string): void;
   onSelectWorkflow(workflowId: string): void;
   onSelectWorkItem(workItemId: string): void;
-  onShowAllOngoing(): void;
   onSteeringOpenChange(open: boolean): void;
   onSteeringRecorded(): void;
   onTabChange(tab: WorkflowWorkbenchTab): void;
@@ -117,7 +116,7 @@ export function WorkflowsPageView(props: WorkflowsPageViewProps): JSX.Element {
             mode={props.pageState.mode}
             search={props.pageState.search}
             needsActionOnly={props.pageState.needsActionOnly}
-            ongoingOnly={props.pageState.ongoingOnly}
+            lifecycleFilter={props.pageState.lifecycleFilter}
             visibleCount={props.railVisibleCount}
             totalCount={props.railTotalCount}
             rows={props.railRows}
@@ -127,10 +126,9 @@ export function WorkflowsPageView(props: WorkflowsPageViewProps): JSX.Element {
             hasNextPage={props.hasMoreRailRows}
             isLoading={props.railLoading}
             onModeChange={props.onRailModeChange}
+            onLifecycleFilterChange={props.onLifecycleFilterChange}
             onSearchChange={props.onSearchChange}
             onNeedsActionOnlyChange={props.onNeedsActionOnlyChange}
-            onShowAllOngoing={props.onShowAllOngoing}
-            onClearOngoingFilter={props.onClearOngoingFilter}
             onSelectWorkflow={props.onSelectWorkflow}
             onLoadMore={props.onLoadMoreRail}
             onCreateWorkflow={props.onCreateWorkflow}

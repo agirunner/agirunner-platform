@@ -6,7 +6,7 @@ import { processSseBuffer } from '../../lib/sse.js';
 import type { DashboardWorkflowOperationsStreamBatch } from '../../lib/api.js';
 import { clearSession, readSession, writeSession } from '../../lib/session.js';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
-import type { WorkflowPageMode } from './workflows-page.support.js';
+import type { WorkflowPageMode, WorkflowRailLifecycleFilter } from './workflows-page.support.js';
 import {
   applyRailStreamBatch,
   applyWorkspaceStreamBatch,
@@ -37,7 +37,7 @@ export function useWorkflowRailRealtime(
     mode: WorkflowPageMode;
     search: string;
     needsActionOnly: boolean;
-    ongoingOnly: boolean;
+    lifecycleFilter: WorkflowRailLifecycleFilter;
   },
 ): void {
   useEffect(() => {
@@ -50,7 +50,7 @@ export function useWorkflowRailRealtime(
               mode: input.mode,
               search: input.search,
               needsActionOnly: input.needsActionOnly,
-              ongoingOnly: input.ongoingOnly,
+              lifecycleFilter: input.lifecycleFilter,
             }),
           },
           (previous) => applyRailStreamBatch(previous as never, batch),
@@ -62,11 +62,11 @@ export function useWorkflowRailRealtime(
             mode: input.mode,
             search: input.search,
             needsActionOnly: input.needsActionOnly,
-            ongoingOnly: input.ongoingOnly,
+            lifecycleFilter: input.lifecycleFilter,
           }),
         }),
     });
-  }, [input.mode, input.needsActionOnly, input.ongoingOnly, input.search, queryClient]);
+  }, [input.lifecycleFilter, input.mode, input.needsActionOnly, input.search, queryClient]);
 }
 
 export function useWorkflowWorkspaceRealtime(
@@ -301,7 +301,7 @@ function buildRailStreamPath(input: {
   mode: WorkflowPageMode;
   search: string;
   needsActionOnly: boolean;
-  ongoingOnly: boolean;
+  lifecycleFilter: WorkflowRailLifecycleFilter;
 }): string {
   const params = new URLSearchParams();
   params.set('mode', input.mode);
@@ -311,8 +311,8 @@ function buildRailStreamPath(input: {
   if (input.needsActionOnly) {
     params.set('needs_action_only', 'true');
   }
-  if (input.ongoingOnly) {
-    params.set('ongoing_only', 'true');
+  if (input.lifecycleFilter !== 'all') {
+    params.set('lifecycle', input.lifecycleFilter);
   }
   return `/api/v1/operations/workflows/stream?${params.toString()}`;
 }

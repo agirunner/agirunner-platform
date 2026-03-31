@@ -67,25 +67,38 @@ interface DocumentOutputRow {
 export class MissionControlLiveService {
   constructor(private readonly pool: DatabasePool) {}
 
-  async countWorkflows(tenantId: string): Promise<number> {
-    const result = await this.pool.query<{ total_count: number | string }>(
-      `SELECT COUNT(*)::int AS total_count
-         FROM workflows
-        WHERE tenant_id = $1`,
-      [tenantId],
-    );
+  async countWorkflows(
+    tenantId: string,
+    input: { lifecycleFilter?: 'all' | 'ongoing' | 'planned' } = {},
+  ): Promise<number> {
+    const lifecycleFilter = normalizeLifecycleFilter(input.lifecycleFilter);
+    const result = lifecycleFilter === 'all'
+      ? await this.pool.query<{ total_count: number | string }>(
+        `SELECT COUNT(*)::int AS total_count
+           FROM workflows
+          WHERE tenant_id = $1`,
+        [tenantId],
+      )
+      : await this.pool.query<{ total_count: number | string }>(
+        `SELECT COUNT(*)::int AS total_count
+           FROM workflows
+          WHERE tenant_id = $1
+            AND lifecycle = $2`,
+        [tenantId, lifecycleFilter],
+      );
     const rawTotal = result.rows[0]?.total_count;
     return typeof rawTotal === 'string' ? Number(rawTotal) : Number(rawTotal ?? 0);
   }
 
   async getLive(
     tenantId: string,
-    input: { page?: number; perPage?: number } = {},
+    input: { page?: number; perPage?: number; lifecycleFilter?: 'all' | 'ongoing' | 'planned' } = {},
   ): Promise<MissionControlLiveResponse> {
     const version = await this.buildVersion(tenantId);
     const workflows = await this.listWorkflowCards(tenantId, {
       page: input.page ?? 1,
       perPage: input.perPage ?? 100,
+      lifecycleFilter: normalizeLifecycleFilter(input.lifecycleFilter),
       version,
     });
     return {
@@ -101,6 +114,7 @@ export class MissionControlLiveService {
       workflowIds?: string[];
       page?: number;
       perPage?: number;
+      lifecycleFilter?: 'all' | 'ongoing' | 'planned';
       version?: MissionControlReadModelVersion;
     } = {},
   ): Promise<MissionControlWorkflowCard[]> {
@@ -254,7 +268,12 @@ export class MissionControlLiveService {
 
   private async loadWorkflowRows(
     tenantId: string,
-    input: { workflowIds?: string[]; page?: number; perPage?: number },
+    input: {
+      workflowIds?: string[];
+      page?: number;
+      perPage?: number;
+      lifecycleFilter?: 'all' | 'ongoing' | 'planned';
+    },
   ): Promise<WorkflowRow[]> {
     if (input.workflowIds && input.workflowIds.length > 0) {
       const result = await this.pool.query<WorkflowRow>(
@@ -275,18 +294,33 @@ export class MissionControlLiveService {
     const page = input.page ?? 1;
     const perPage = input.perPage ?? 100;
     const offset = (page - 1) * perPage;
-    const result = await this.pool.query<WorkflowRow>(
-      `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
-              ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
-              w.parameters, w.context, w.updated_at
-         FROM workflows w
-         LEFT JOIN workspaces ws ON ws.tenant_id = w.tenant_id AND ws.id = w.workspace_id
-         LEFT JOIN playbooks pb ON pb.tenant_id = w.tenant_id AND pb.id = w.playbook_id
-        WHERE w.tenant_id = $1
-        ORDER BY w.updated_at DESC
-        LIMIT $2 OFFSET $3`,
-      [tenantId, perPage, offset],
-    );
+    const lifecycleFilter = normalizeLifecycleFilter(input.lifecycleFilter);
+    const result = lifecycleFilter === 'all'
+      ? await this.pool.query<WorkflowRow>(
+        `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
+                ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
+                w.parameters, w.context, w.updated_at
+           FROM workflows w
+           LEFT JOIN workspaces ws ON ws.tenant_id = w.tenant_id AND ws.id = w.workspace_id
+           LEFT JOIN playbooks pb ON pb.tenant_id = w.tenant_id AND pb.id = w.playbook_id
+          WHERE w.tenant_id = $1
+          ORDER BY w.updated_at DESC
+          LIMIT $2 OFFSET $3`,
+        [tenantId, perPage, offset],
+      )
+      : await this.pool.query<WorkflowRow>(
+        `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
+                ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
+                w.parameters, w.context, w.updated_at
+           FROM workflows w
+           LEFT JOIN workspaces ws ON ws.tenant_id = w.tenant_id AND ws.id = w.workspace_id
+           LEFT JOIN playbooks pb ON pb.tenant_id = w.tenant_id AND pb.id = w.playbook_id
+          WHERE w.tenant_id = $1
+            AND w.lifecycle = $2
+          ORDER BY w.updated_at DESC
+          LIMIT $3 OFFSET $4`,
+        [tenantId, lifecycleFilter, perPage, offset],
+      );
     return result.rows;
   }
 
@@ -430,6 +464,15 @@ export class MissionControlLiveService {
 
     return new Map(result.rows.map((row) => [row.workflow_id, row]));
   }
+}
+
+function normalizeLifecycleFilter(
+  value: 'all' | 'ongoing' | 'planned' | undefined,
+): 'all' | 'ongoing' | 'planned' {
+  if (value === 'ongoing' || value === 'planned') {
+    return value;
+  }
+  return 'all';
 }
 
 function buildWorkflowCard(

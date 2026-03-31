@@ -1,4 +1,5 @@
 export type WorkflowPageMode = 'live' | 'recent';
+export type WorkflowRailLifecycleFilter = 'all' | 'ongoing' | 'planned';
 export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'
@@ -19,7 +20,7 @@ export interface WorkflowsPageState {
   tab: WorkflowWorkbenchTab | null;
   search: string;
   needsActionOnly: boolean;
-  ongoingOnly: boolean;
+  lifecycleFilter: WorkflowRailLifecycleFilter;
   boardMode: WorkflowBoardMode;
 }
 
@@ -30,7 +31,7 @@ const DEFAULT_STATE: WorkflowsPageState = {
   tab: null,
   search: '',
   needsActionOnly: false,
-  ongoingOnly: false,
+  lifecycleFilter: 'all',
   boardMode: 'active_recent_complete',
 };
 
@@ -51,7 +52,10 @@ export function readWorkflowsPageState(
       readOptionalValue(searchParams.get('q')) ??
       '',
     needsActionOnly: readBooleanFlag(searchParams.get('needs_action_only')),
-    ongoingOnly: readBooleanFlag(searchParams.get('ongoing_only')),
+    lifecycleFilter: readLifecycleFilter(
+      searchParams.get('lifecycle') ?? searchParams.get('l'),
+      searchParams.get('ongoing_only'),
+    ),
     boardMode: readBoardMode(searchParams.get('board_mode')),
   };
 }
@@ -84,8 +88,8 @@ export function buildWorkflowsPageSearchParams(
   if (nextState.needsActionOnly) {
     next.set('needs_action_only', '1');
   }
-  if (nextState.ongoingOnly) {
-    next.set('ongoing_only', '1');
+  if (nextState.lifecycleFilter !== DEFAULT_STATE.lifecycleFilter) {
+    next.set('lifecycle', nextState.lifecycleFilter);
   }
   if (nextState.boardMode !== DEFAULT_STATE.boardMode) {
     next.set('board_mode', nextState.boardMode);
@@ -186,6 +190,19 @@ function readBoardMode(value: string | null): WorkflowBoardMode {
 
 function readBooleanFlag(value: string | null): boolean {
   return value === '1' || value === 'true';
+}
+
+function readLifecycleFilter(
+  value: string | null,
+  legacyOngoingOnly: string | null,
+): WorkflowRailLifecycleFilter {
+  if (value === 'ongoing' || value === 'planned') {
+    return value;
+  }
+  if (readBooleanFlag(legacyOngoingOnly)) {
+    return 'ongoing';
+  }
+  return DEFAULT_STATE.lifecycleFilter;
 }
 
 function readOptionalValue(value: string | null): string | null {
