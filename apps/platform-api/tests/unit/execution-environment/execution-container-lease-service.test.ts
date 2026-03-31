@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ExecutionContainerLeaseService } from '../../src/services/execution-container-lease-service.js';
+import { ExecutionContainerLeaseService } from '../../../src/services/execution-container-lease-service.js';
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
