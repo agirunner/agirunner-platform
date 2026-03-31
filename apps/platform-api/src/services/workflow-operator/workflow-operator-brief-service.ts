@@ -8,7 +8,7 @@ import {
   resolveWorkflowOperatorExecutionContext,
   type ResolvedWorkflowOperatorExecutionContext,
 } from './workflow-operator-execution-context.js';
-import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableService } from '../workflow-deliverable-service.js';
+import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableService } from '../workflow-deliverables/workflow-deliverable-service.js';
 import {
   sanitizeLinkedIdList,
   sanitizeOperatorDetailedBrief,

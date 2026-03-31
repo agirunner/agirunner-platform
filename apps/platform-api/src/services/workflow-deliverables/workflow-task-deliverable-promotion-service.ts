@@ -1,4 +1,4 @@
-import type { DatabaseQueryable } from '../db/database.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableRecord, WorkflowDeliverableService } from './workflow-deliverable-service.js';
 
 const CANONICAL_DELIVERABLE_PACKET_KIND = 'deliverable_packet';

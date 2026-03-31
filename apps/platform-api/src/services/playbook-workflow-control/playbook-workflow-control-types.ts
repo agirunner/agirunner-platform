@@ -2,7 +2,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { EventService } from '../event/event-service.js';
-import type { WorkflowDeliverableService } from '../workflow-deliverable-service.js';
+import type { WorkflowDeliverableService } from '../workflow-deliverables/workflow-deliverable-service.js';
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
 import type { WorkflowStateService } from '../workflow-state-service.js';

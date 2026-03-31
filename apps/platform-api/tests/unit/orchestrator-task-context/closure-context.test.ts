@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context.js';
+import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context/orchestrator-task-context.js';
 
 describe('buildOrchestratorTaskContext', () => {
   it('surfaces the latest activation checkpoint from task metadata', async () => {

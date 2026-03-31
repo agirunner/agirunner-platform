@@ -4,7 +4,7 @@ import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.j
 import type {
   CreateSpecialistSkillInput,
   UpdateSpecialistSkillInput,
-} from '../../../services/specialist-skill-service.js';
+} from '../../../services/specialist/specialist-skill-service.js';
 
 export const specialistSkillRoutes: FastifyPluginAsync = async (app) => {
   app.get(

@@ -1,12 +1,12 @@
 import type { DatabaseQueryable } from '../../db/database.js';
 import { listTaskDocuments } from '../document-reference/document-reference-service.js';
-import { buildOrchestratorTaskContext } from '../orchestrator-task-context.js';
+import { buildOrchestratorTaskContext } from '../orchestrator-task-context/orchestrator-task-context.js';
 import { resolveRelevantHandoffs } from '../predecessor-handoff-resolver.js';
 import { buildSpecialistExecutionBrief } from '../specialist-execution-brief-service/specialist-execution-brief-service.js';
 import {
   readSpecialistRoleCapabilities,
   type SpecialistRoleCapabilities,
-} from '../specialist-capability-service.js';
+} from '../specialist/specialist-capability-service.js';
 import { loadWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import {
   applyTaskContextAnchor,

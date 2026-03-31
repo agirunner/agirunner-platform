@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context.js';
+import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context/orchestrator-task-context.js';
 
 describe('buildOrchestratorTaskContext', () => {
   it('derives pending specialist dispatches for open work items that have no open matching task', async () => {

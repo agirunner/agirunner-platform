@@ -3,7 +3,7 @@ import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 import type { LogService } from '../../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
 import type { EventService } from '../event/event-service.js';
-import type { WorkflowTaskDeliverablePromotionService } from '../workflow-task-deliverable-promotion-service.js';
+import type { WorkflowTaskDeliverablePromotionService } from '../workflow-deliverables/workflow-task-deliverable-promotion-service.js';
 import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,

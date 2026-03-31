@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { MissionControlOutputDescriptor } from '../mission-control-types.js';
-import type { WorkflowDeliverableRecord } from '../../workflow-deliverable-service.js';
+import type { WorkflowDeliverableRecord } from '../../workflow-deliverables/workflow-deliverable-service.js';
 import type { WorkflowWorkspacePacket } from '../workflow-operations-types.js';
 import type { WorkspaceDeliverablesPacket } from './workflow-workspace-types.js';
 import {

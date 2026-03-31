@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
-import { type SpecialistRoleCapabilities } from '../specialist-capability-service.js';
+import { type SpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';
 import {
   asRecord,
   compactWorkflowBriefVariables,

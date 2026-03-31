@@ -5,7 +5,7 @@ import {
   defaultColumnId,
   parsePlaybookDefinition,
 } from '../../orchestration/playbook-model.js';
-import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverable-lifecycle-service.js';
+import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverables/workflow-deliverable-lifecycle-service.js';
 import type { EventService } from '../event/event-service.js';
 import {
   readOptionalText,

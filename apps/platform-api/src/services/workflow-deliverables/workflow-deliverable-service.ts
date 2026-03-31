@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import {
   sanitizeDeliverableContentPreview,
   sanitizeDeliverablePreviewCapabilities,
@@ -13,7 +13,7 @@ import {
   sanitizeDeliverableTargets,
   sanitizeOptionalText,
   sanitizeRequiredText,
-} from './workflow-operator/workflow-operator-record-sanitization.js';
+} from '../workflow-operator/workflow-operator-record-sanitization.js';
 
 interface WorkflowDeliverableRow {
   id: string;

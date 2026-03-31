@@ -3,7 +3,7 @@ import {
   buildRemoteMcpAvailabilitySection,
   buildSpecialistSkillInstructionSection,
   type SpecialistRoleCapabilities,
-} from '../specialist-capability-service.js';
+} from '../specialist/specialist-capability-service.js';
 import { buildWorkflowInstructionLayer } from '../workflow-instruction-layer/workflow-instruction-layer.js';
 import { TASK_CONTEXT_LOG_VERSION } from './task-context-constants.js';
 import {

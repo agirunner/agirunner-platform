@@ -4,7 +4,7 @@ vi.mock('../../../src/services/document-reference/document-reference-service.js'
   listTaskDocuments: vi.fn(async () => []),
 }));
 
-vi.mock('../../../src/services/orchestrator-task-context.js', () => ({
+vi.mock('../../../src/services/orchestrator-task-context/orchestrator-task-context.js', () => ({
   buildOrchestratorTaskContext: vi.fn(async () => null),
 }));
 

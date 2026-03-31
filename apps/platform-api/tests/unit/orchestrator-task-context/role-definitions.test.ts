@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context.js';
+import { buildOrchestratorTaskContext } from '../../../src/services/orchestrator-task-context/orchestrator-task-context.js';
 
 describe('buildOrchestratorTaskContext', () => {
   it('adds dynamic playbook role definitions with names and descriptions', async () => {

@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowDeliverableService } from '../../../src/services/workflow-deliverable-service.js';
+import { WorkflowDeliverableService } from '../../../../src/services/workflow-deliverables/workflow-deliverable-service.js';
 
 export const IDENTITY = {
   id: 'key-1',

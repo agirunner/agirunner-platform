@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import type { DatabaseQueryable } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 
 const createSkillSchema = z
   .object({

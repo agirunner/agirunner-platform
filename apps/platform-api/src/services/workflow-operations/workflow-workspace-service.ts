@@ -1,5 +1,5 @@
 import type { WorkflowService } from '../workflow-service/workflow-service.js';
-import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
+import type { WorkflowDeliverableRecord } from '../workflow-deliverables/workflow-deliverable-service.js';
 import type {
   WorkflowInterventionService,
 } from '../workflow-intervention-service.js';

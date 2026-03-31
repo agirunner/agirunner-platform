@@ -12,8 +12,8 @@ import {
   parseArtifactCatalogArtifactId,
 } from '../../../services/artifacts/artifact-catalog-service.js';
 import { HandoffService } from '../../../services/handoff-service/handoff-service.js';
-import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';
-import { WorkflowTaskDeliverablePromotionService } from '../../../services/workflow-task-deliverable-promotion-service.js';
+import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
+import { WorkflowTaskDeliverablePromotionService } from '../../../services/workflow-deliverables/workflow-task-deliverable-promotion-service.js';
 import {
   completionCalloutsSchema,
   guidedClosureSuggestedActionSchema,

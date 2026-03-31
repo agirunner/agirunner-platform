@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowTaskDeliverablePromotionService } from '../../../src/services/workflow-task-deliverable-promotion-service.js';
+import { WorkflowTaskDeliverablePromotionService } from '../../../../src/services/workflow-deliverables/workflow-task-deliverable-promotion-service.js';
 
 export function createDeliverableService() {
   return {

@@ -14,7 +14,7 @@ import { TaskAgentScopeService } from '../../../services/task/task-agent-scope-s
 import { WorkItemContinuityService } from '../../../services/work-item-continuity-service/work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
-import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';
+import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-tool-result-service.js';
 

@@ -43,11 +43,11 @@ import type { RemoteMcpOAuthClientProfileService } from './services/remote-mcp/o
 import type { RemoteMcpServerService } from './services/remote-mcp/servers/remote-mcp-server-service.js';
 import type { RemoteMcpOAuthService } from './services/remote-mcp/oauth/remote-mcp-oauth-service.js';
 import type { RemoteMcpVerificationService } from './services/remote-mcp/verification/remote-mcp-verification-service.js';
-import type { SpecialistSkillService } from './services/specialist-skill-service.js';
+import type { SpecialistSkillService } from './services/specialist/specialist-skill-service.js';
 import type { ToolTagService } from './services/tool-tag-service.js';
 import type { WorkflowService } from './services/workflow-service/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation/workflow-activation-service.js';
-import type { WorkflowDeliverableService } from './services/workflow-deliverable-service.js';
+import type { WorkflowDeliverableService } from './services/workflow-deliverables/workflow-deliverable-service.js';
 import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
 import type { WorkflowOperatorBriefService } from './services/workflow-operator/workflow-operator-brief-service.js';

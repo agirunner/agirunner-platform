@@ -14,7 +14,7 @@ import {
   mergeCompletionCallouts,
   normalizeCompletionCalloutsInput,
 } from './types.js';
-import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverable-lifecycle-service.js';
+import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverables/workflow-deliverable-lifecycle-service.js';
 import {
   buildReplayConflictOperatorGuidance,
   type ReplayConflictOperatorField,

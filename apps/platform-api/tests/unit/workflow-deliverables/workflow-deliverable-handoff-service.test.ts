@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowDeliverableHandoffService } from '../../../src/services/workflow-deliverable-handoff-service.js';
+import { WorkflowDeliverableHandoffService } from '../../../src/services/workflow-deliverables/workflow-deliverable-handoff-service.js';
 
 describe('WorkflowDeliverableHandoffService', () => {
   it('lists the latest completed work-item handoffs with normalized optional fields', async () => {

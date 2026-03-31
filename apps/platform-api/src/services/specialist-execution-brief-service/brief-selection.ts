@@ -1,4 +1,4 @@
-import { type SpecialistRoleCapabilities } from '../specialist-capability-service.js';
+import { type SpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';
 import { roleConfigOwnsRepositorySurface } from '../tool-tag-service.js';
 
 interface ExecutionBriefRef {

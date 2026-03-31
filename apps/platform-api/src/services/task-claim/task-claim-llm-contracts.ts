@@ -6,7 +6,7 @@ import type { ResolvedRoleConfig } from '../model-catalog/model-catalog-service.
 import {
   type SpecialistRemoteMcpServerCapability,
   type SpecialistRoleCapabilities,
-} from '../specialist-capability-service.js';
+} from '../specialist/specialist-capability-service.js';
 import { createClaimCredentialHandle } from './task-claim-credential-handles.js';
 import { compactRecord } from './task-claim-task-payload.js';
 import { isRecord, resolveNativeSearchMode } from './task-claim-common.js';
