@@ -1,7 +1,7 @@
 import type { ArtifactPreviewReturnSource } from '../../lib/artifact-navigation.js';
-import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
-import { buildWorkflowOperatorPermalink } from '../../pages/work-shared/task-operator-flow.js';
-import { buildTaskDetailHref } from '../../pages/work-shared/work-href-support.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowOperatorPermalink } from '../work-shared/task-operator-flow.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 
 import { MAX_INLINE_ARTIFACT_PREVIEW_BYTES } from './artifact-preview-support.js';
 
