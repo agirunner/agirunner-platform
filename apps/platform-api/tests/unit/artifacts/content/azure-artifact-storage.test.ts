@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { AzureArtifactStorage } from '../../src/content/azure-artifact-storage.js';
+import { AzureArtifactStorage } from '../../../../src/content/azure-artifact-storage.js';
 
 class FakeAzureBlobClient {
   uploaded?: { data: Buffer; contentType: string };

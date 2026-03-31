@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
-import { S3ArtifactStorage } from '../../src/content/s3-artifact-storage.js';
+import { S3ArtifactStorage } from '../../../../src/content/s3-artifact-storage.js';
 
 describe('S3ArtifactStorage', () => {
   it('stores objects and returns deterministic metadata', async () => {

@@ -1,11 +1,11 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { createArtifactStorage } from '../../src/content/storage-factory.js';
-import { AzureArtifactStorage } from '../../src/content/azure-artifact-storage.js';
-import { GcsArtifactStorage } from '../../src/content/gcs-artifact-storage.js';
-import { LocalArtifactStorage } from '../../src/content/local-artifact-storage.js';
-import { S3ArtifactStorage } from '../../src/content/s3-artifact-storage.js';
+import { createArtifactStorage } from '../../../../src/content/storage-factory.js';
+import { AzureArtifactStorage } from '../../../../src/content/azure-artifact-storage.js';
+import { GcsArtifactStorage } from '../../../../src/content/gcs-artifact-storage.js';
+import { LocalArtifactStorage } from '../../../../src/content/local-artifact-storage.js';
+import { S3ArtifactStorage } from '../../../../src/content/s3-artifact-storage.js';
 
 const localArtifactRoot = resolve('tmp/test-artifacts');
 const ignoredArtifactRoot = resolve('tmp/ignored');

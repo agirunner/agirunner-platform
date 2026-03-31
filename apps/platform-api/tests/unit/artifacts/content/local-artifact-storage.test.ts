@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { LocalArtifactStorage } from '../../src/content/local-artifact-storage.js';
+import { LocalArtifactStorage } from '../../../../src/content/local-artifact-storage.js';
 
 describe('LocalArtifactStorage', () => {
   afterEach(() => {
