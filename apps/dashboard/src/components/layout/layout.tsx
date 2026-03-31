@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { dashboardApi, type DashboardSearchResult } from '../../lib/api.js';
-import { cn } from '../../lib/utils.js';
 import { clearSession, readSession } from '../../lib/auth/session.js';
 import { readTheme } from '../../app/theme.js';
-import { BreadcrumbBar } from './breadcrumb-bar.js';
-import { Dialog, DialogDescription, DialogContent, DialogTitle } from '../ui/dialog.js';
-import {
-  CommandPaletteDialog,
-  readActiveElement,
-  restoreFocusToElement,
-} from './layout-command-palette.js';
+import { readActiveElement } from './layout-command-palette.js';
+import { DashboardLayoutShell } from './layout-shell.js';
 import {
   buildCommandPaletteSections,
   clearRecentCommandPaletteItems,
@@ -33,9 +27,7 @@ import {
   COMMAND_PALETTE_QUICK_LINKS,
   NAV_SECTIONS,
   readDesktopSidebarCollapsedState,
-  SIDEBAR_SHELL_CLASSES,
 } from './layout-nav.js';
-import { MobileTopBar, SidebarPanel } from './layout-sidebar.js';
 
 interface LayoutProps {
   onToggleTheme: () => void;
@@ -381,111 +373,47 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   }
 
   return (
-    <div className="flex h-dvh min-h-screen overflow-hidden">
-      <MobileTopBar
-        isMobileMenuOpen={isMobileMenuOpen}
-        searchOpen={searchOpen}
-        mobileMenuTriggerRef={mobileMenuTriggerRef}
-        mobileSearchButtonRef={mobileSearchButtonRef}
-        onOpenMobileMenu={openMobileMenu}
-        onOpenSearchPalette={openSearchPalette}
-      />
-
-      <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className={cn(
-            'left-0 top-0 h-dvh w-64 max-w-none translate-x-0 translate-y-0 gap-0 rounded-none p-0 shadow-2xl lg:hidden',
-            SIDEBAR_SHELL_CLASSES,
-          )}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            mobileMenuCloseButtonRef.current?.focus();
-          }}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            if (skipMobileMenuRestoreRef.current) {
-              skipMobileMenuRestoreRef.current = false;
-              return;
-            }
-            restoreFocusToElement(mobileMenuRestoreFocusRef.current) ||
-              restoreFocusToElement(mobileMenuTriggerRef.current);
-          }}
-        >
-          <DialogTitle className="sr-only">Navigation menu</DialogTitle>
-          <DialogDescription className="sr-only">
-            Browse workspace sections and account actions.
-          </DialogDescription>
-          <SidebarPanel
-            isMobile
-            currentSection={currentSection}
-            searchOpen={searchOpen}
-            isDark={isDark}
-            isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
-            desktopSearchButtonRef={desktopSearchButtonRef}
-            mobileMenuCloseButtonRef={mobileMenuCloseButtonRef}
-            onOpenSearchPalette={openSearchPalette}
-            onCloseMobileMenu={closeMobileMenu}
-            onToggleDesktopSidebar={toggleDesktopSidebar}
-            onToggleTheme={onToggleTheme}
-            onLogout={logout}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <aside className={cn('hidden flex-col lg:flex', SIDEBAR_SHELL_CLASSES)}>
-        <SidebarPanel
-          isMobile={false}
-          currentSection={currentSection}
-          searchOpen={searchOpen}
-          isDark={isDark}
-          isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
-          desktopSearchButtonRef={desktopSearchButtonRef}
-          mobileMenuCloseButtonRef={mobileMenuCloseButtonRef}
-          onOpenSearchPalette={openSearchPalette}
-          onCloseMobileMenu={closeMobileMenu}
-          onToggleDesktopSidebar={toggleDesktopSidebar}
-          onToggleTheme={onToggleTheme}
-          onLogout={logout}
-        />
-      </aside>
-
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
-          <BreadcrumbBar />
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-            <Outlet />
-          </div>
-        </div>
-      </main>
-
-      <CommandPaletteDialog
-        open={searchOpen}
-        shouldSearchWorkspace={shouldSearchWorkspace}
-        searchQuery={searchQuery}
-        searchStatus={searchStatus}
-        activePaletteIndex={activePaletteIndex}
-        searchInputRef={searchInputRef}
-        desktopSearchButtonRef={desktopSearchButtonRef}
-        mobileSearchButtonRef={mobileSearchButtonRef}
-        searchRestoreFocusRef={searchRestoreFocusRef}
-        paletteItemRefs={paletteItemRefs}
-        visiblePaletteItems={visiblePaletteItems}
-        visiblePaletteRows={visiblePaletteRows}
-        paletteState={paletteState}
-        onOpenChange={(nextOpen) => {
-          if (nextOpen) {
-            setSearchOpen(true);
-            return;
-          }
-          closeSearchPalette();
-        }}
-        onSearchQueryChange={setSearchQuery}
-        onInputKeyDown={handlePaletteInputKeyDown}
-        onActivePaletteIndexChange={setActivePaletteIndex}
-        onNavigateToPaletteItem={navigateToPaletteItem}
-      />
-    </div>
+    <DashboardLayoutShell
+      isMobileMenuOpen={isMobileMenuOpen}
+      searchOpen={searchOpen}
+      currentSection={currentSection}
+      isDark={isDark}
+      isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
+      shouldSearchWorkspace={shouldSearchWorkspace}
+      searchQuery={searchQuery}
+      searchStatus={searchStatus}
+      activePaletteIndex={activePaletteIndex}
+      visiblePaletteItems={visiblePaletteItems}
+      visiblePaletteRows={visiblePaletteRows}
+      paletteState={paletteState}
+      desktopSearchButtonRef={desktopSearchButtonRef}
+      mobileMenuTriggerRef={mobileMenuTriggerRef}
+      mobileSearchButtonRef={mobileSearchButtonRef}
+      mobileMenuCloseButtonRef={mobileMenuCloseButtonRef}
+      searchInputRef={searchInputRef}
+      paletteItemRefs={paletteItemRefs}
+      searchRestoreFocusRef={searchRestoreFocusRef}
+      mobileMenuRestoreFocusRef={mobileMenuRestoreFocusRef}
+      skipMobileMenuRestoreRef={skipMobileMenuRestoreRef}
+      onOpenMobileMenu={openMobileMenu}
+      onCloseMobileMenu={closeMobileMenu}
+      onOpenSearchPalette={openSearchPalette}
+      onMobileMenuOpenChange={setIsMobileMenuOpen}
+      onToggleDesktopSidebar={toggleDesktopSidebar}
+      onToggleTheme={onToggleTheme}
+      onLogout={logout}
+      onSearchOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          setSearchOpen(true);
+          return;
+        }
+        closeSearchPalette();
+      }}
+      onSearchQueryChange={setSearchQuery}
+      onInputKeyDown={handlePaletteInputKeyDown}
+      onActivePaletteIndexChange={setActivePaletteIndex}
+      onNavigateToPaletteItem={navigateToPaletteItem}
+    />
   );
 }
 
