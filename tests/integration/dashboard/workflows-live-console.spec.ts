@@ -36,6 +36,40 @@ test('seeds the selected workflow workspace with backend-backed live console and
   expect(payload.data.briefs.items.some((item) => item.headline.includes('Shift handoff'))).toBeTruthy();
 });
 
+test('keeps task-linked briefs visible when the selected work item is attributed only through its child task', async ({ page }) => {
+  const scenario = await seedWorkflowsScenario();
+  const response = await fetch(
+    `${PLATFORM_API_URL}/api/v1/operations/workflows/${scenario.ongoingWorkflow.id}/workspace?tab_scope=selected_work_item&work_item_id=${scenario.ongoingSecondaryWorkItem.id}`,
+    {
+      headers: {
+        authorization: `Bearer ${ADMIN_API_KEY}`,
+      },
+    },
+  );
+  expect(response.ok).toBeTruthy();
+  const payload = await response.json() as {
+    data: {
+      briefs: { total_count: number; items: Array<{ headline: string }> };
+      bottom_tabs: { counts: { briefs: number } };
+    };
+  };
+
+  expect(payload.data.briefs.total_count).toBe(1);
+  expect(payload.data.bottom_tabs.counts.briefs).toBe(1);
+  expect(payload.data.briefs.items.map((item) => item.headline)).toContain('Overflow queue brief');
+
+  await loginToWorkflows(page);
+  await workflowRailButton(page, 'E2E Ongoing Intake').click();
+  await page
+    .locator('[data-work-item-card="true"]')
+    .filter({ hasText: 'Triage overflow queue' })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Live Console' }).click();
+
+  await expect(page.getByText('Overflow queue brief')).toBeVisible();
+});
+
 test('surfaces new live console headlines when the stream receives fresh workflow events', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
   await loginToWorkflows(page);

@@ -67,6 +67,11 @@ interface ActionableTaskRecord {
   escalation_context_packet: Record<string, unknown> | null;
 }
 
+interface WorkflowTaskBindingRecord {
+  id: string;
+  work_item_id: string | null;
+}
+
 interface TaskActionSource {
   listTasks(
     tenantId: string,
@@ -139,13 +144,18 @@ export class WorkflowWorkspaceService {
     input: WorkflowWorkspaceQuery = {},
   ): Promise<WorkflowWorkspacePacket> {
     const selectedScope = resolveSelectedScope(input);
+    const shouldFilterSelectedScope =
+      selectedScope.scope_kind === 'selected_work_item' || selectedScope.scope_kind === 'selected_task';
     const scopedWorkItemId =
-      selectedScope.scope_kind === 'selected_work_item' || selectedScope.scope_kind === 'selected_task'
+      shouldFilterSelectedScope
         ? selectedScope.work_item_id
         : undefined;
     const scopedTaskId = selectedScope.scope_kind === 'selected_task'
       ? selectedScope.task_id
       : undefined;
+    const briefScope = shouldFilterSelectedScope
+      ? { workItemId: undefined, taskId: undefined }
+      : { workItemId: scopedWorkItemId ?? undefined, taskId: scopedTaskId ?? undefined };
     const [
       workflow,
       board,
@@ -157,6 +167,7 @@ export class WorkflowWorkspaceService {
       interventions,
       sessions,
       actionableTasks,
+      workflowTaskBindings,
       gates,
     ] =
       await Promise.all([
@@ -171,8 +182,8 @@ export class WorkflowWorkspaceService {
         }),
         this.briefsService?.getBriefs(tenantId, workflowId, {
           limit: input.briefsLimit,
-          workItemId: scopedWorkItemId ?? undefined,
-          taskId: scopedTaskId ?? undefined,
+          workItemId: briefScope.workItemId,
+          taskId: briefScope.taskId,
           after: input.briefsAfter,
         }) ?? Promise.resolve(null),
         this.historyService.getHistory(tenantId, workflowId, {
@@ -189,6 +200,11 @@ export class WorkflowWorkspaceService {
         this.interventionService.listWorkflowInterventions(tenantId, workflowId),
         this.steeringSessionService.listSessions(tenantId, workflowId),
         loadActionableTasks(this.taskActionSource, tenantId, workflowId, scopedWorkItemId ?? null),
+        loadWorkflowTaskBindings(
+          shouldFilterSelectedScope ? this.taskActionSource : undefined,
+          tenantId,
+          workflowId,
+        ),
         loadWorkflowGates(this.gateActionSource, tenantId, workflowId),
       ]);
 
@@ -216,9 +232,14 @@ export class WorkflowWorkspaceService {
       ...workspaceDeliverables.final_deliverables,
       ...workspaceDeliverables.in_progress_deliverables,
     ];
+    const boardTaskToWorkItemIds = mergeTaskToWorkItemMaps(
+      buildBoardTaskToWorkItemMap(board as Record<string, unknown>),
+      buildTaskToWorkItemMap(workflowTaskBindings),
+    );
     const effectiveBriefs = filterBriefsForSelectedScope(
       briefs ?? buildEmptyBriefsPacket(history),
       selectedScope,
+      boardTaskToWorkItemIds,
     );
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
     const scopedInterventions = filterSteeringInterventionsForSelectedScope(interventions, selectedScope);
@@ -244,7 +265,7 @@ export class WorkflowWorkspaceService {
       normalizedLiveConsole,
       selectedScope,
       readBoardWorkItemIds(board as Record<string, unknown>),
-      buildBoardTaskToWorkItemMap(board as Record<string, unknown>),
+      boardTaskToWorkItemIds,
     );
     const bottomTabs = buildBottomTabs(
       needsAction.total_count,
@@ -892,6 +913,27 @@ function buildBoardTaskToWorkItemMap(board: Record<string, unknown>): Map<string
   return taskToWorkItemIds;
 }
 
+function buildTaskToWorkItemMap(tasks: WorkflowTaskBindingRecord[]): Map<string, string> {
+  const taskToWorkItemIds = new Map<string, string>();
+  for (const task of tasks) {
+    if (task.work_item_id) {
+      taskToWorkItemIds.set(task.id, task.work_item_id);
+    }
+  }
+  return taskToWorkItemIds;
+}
+
+function mergeTaskToWorkItemMaps(
+  primary: ReadonlyMap<string, string>,
+  fallback: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const merged = new Map(fallback);
+  for (const [taskId, workItemId] of primary.entries()) {
+    merged.set(taskId, workItemId);
+  }
+  return merged;
+}
+
 function mergeSteeringMessagesIntoLiveConsole(
   packet: WorkflowWorkspacePacket['live_console'],
   messages: WorkflowSteeringMessageRecord[],
@@ -1033,8 +1075,11 @@ function filterHistoryForSelectedScope(
 function filterBriefsForSelectedScope(
   packet: WorkflowWorkspacePacket['briefs'],
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
 ): WorkflowWorkspacePacket['briefs'] {
-  const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
+  const filteredItems = packet.items.filter((item) =>
+    matchesScopedBriefRecord(item, selectedScope, workflowTaskToWorkItemIds),
+  );
   if (filteredItems.length === packet.items.length) {
     return packet;
   }
@@ -1061,6 +1106,20 @@ function matchesScopedRecord(
   }
 
   return matchesWorkItemScope(item, selectedScope.work_item_id);
+}
+
+function matchesScopedBriefRecord(
+  item: Pick<WorkflowBriefItem, 'work_item_id' | 'task_id' | 'linked_target_ids'>,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
+): boolean {
+  if (selectedScope.scope_kind === 'workflow') {
+    return true;
+  }
+  if (selectedScope.scope_kind === 'selected_task') {
+    return matchesTaskScope(item, selectedScope.task_id);
+  }
+  return matchesWorkItemScopeViaTask(item, selectedScope.work_item_id, workflowTaskToWorkItemIds);
 }
 
 function readPacketTotalCount(
@@ -1107,6 +1166,34 @@ function matchesWorkItemScope(
   }
 
   return item.work_item_id === workItemId || item.linked_target_ids.includes(workItemId);
+}
+
+function matchesWorkItemScopeViaTask(
+  item: Pick<WorkflowBriefItem, 'work_item_id' | 'task_id' | 'linked_target_ids'>,
+  workItemId: string | null,
+  workflowTaskToWorkItemIds: ReadonlyMap<string, string>,
+): boolean {
+  if (matchesWorkItemScope(item, workItemId)) {
+    return true;
+  }
+  if (!workItemId) {
+    return false;
+  }
+  const targetTaskIds = new Set<string>();
+  if (item.task_id) {
+    targetTaskIds.add(item.task_id);
+  }
+  for (const targetId of item.linked_target_ids) {
+    if (workflowTaskToWorkItemIds.has(targetId)) {
+      targetTaskIds.add(targetId);
+    }
+  }
+  for (const taskId of targetTaskIds) {
+    if (workflowTaskToWorkItemIds.get(taskId) === workItemId) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function buildHistoryGroupsFromItems(items: WorkflowHistoryItem[]): WorkflowWorkspacePacket['history']['groups'] {
@@ -1287,6 +1374,33 @@ async function loadActionableTasks(
     .sort(compareActionableTasks);
 }
 
+async function loadWorkflowTaskBindings(
+  taskActionSource: TaskActionSource | undefined,
+  tenantId: string,
+  workflowId: string,
+): Promise<WorkflowTaskBindingRecord[]> {
+  if (!taskActionSource) {
+    return [];
+  }
+  const pageSize = 200;
+  const bindings: WorkflowTaskBindingRecord[] = [];
+  for (let page = 1; page < 100; page += 1) {
+    const result = await taskActionSource.listTasks(tenantId, {
+      workflow_id: workflowId,
+      page,
+      per_page: pageSize,
+    });
+    const normalizedPage = result.data
+      .map(normalizeWorkflowTaskBinding)
+      .filter((task): task is WorkflowTaskBindingRecord => task !== null);
+    bindings.push(...normalizedPage);
+    if (result.data.length < pageSize) {
+      break;
+    }
+  }
+  return bindings;
+}
+
 function normalizeActionableTask(record: Record<string, unknown>): ActionableTaskRecord | null {
   const id = readOptionalString(record.id);
   const title = readOptionalString(record.title);
@@ -1315,6 +1429,17 @@ function normalizeActionableTask(record: Record<string, unknown>): ActionableTas
     escalation_context: readOptionalString(metadata.escalation_context),
     escalation_work_so_far: readOptionalString(metadata.escalation_work_so_far),
     escalation_context_packet: readOptionalRecord(metadata.escalation_context_packet),
+  };
+}
+
+function normalizeWorkflowTaskBinding(record: Record<string, unknown>): WorkflowTaskBindingRecord | null {
+  const id = readOptionalString(record.id);
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    work_item_id: readOptionalString(record.work_item_id),
   };
 }
 

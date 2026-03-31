@@ -58,7 +58,20 @@ interface WorkflowBoardSource {
   getWorkflowBoard(tenantId: string, workflowId: string): Promise<Record<string, unknown>>;
 }
 
+interface TaskBindingSource {
+  listTasks(
+    tenantId: string,
+    query: {
+      workflow_id?: string;
+      page: number;
+      per_page: number;
+    },
+  ): Promise<{ data: Array<Record<string, unknown>> }>;
+}
+
 const ENHANCED_EXECUTION_LOG_CATEGORIES = ['agent_loop', 'task_lifecycle'] as const;
+const TASK_BINDING_PAGE_SIZE = 100;
+const MAX_TASK_BINDING_PAGES = 100;
 
 const ENHANCED_AGENT_LOOP_OPERATIONS = [
   'agent.think',
@@ -81,6 +94,7 @@ export class WorkflowLiveConsoleService {
     visibilityModeSource: VisibilityModeSource,
     private readonly executionTurnSource?: ExecutionTurnSource,
     private readonly workflowBoardSource?: WorkflowBoardSource,
+    private readonly taskBindingSource?: TaskBindingSource,
   ) {
     this.visibilityModeSource = visibilityModeSource;
   }
@@ -94,7 +108,7 @@ export class WorkflowLiveConsoleService {
     const briefScope = shouldFilterSelectedScope(input)
       ? { workItemId: undefined, taskId: undefined }
       : input;
-    const [version, briefs, workflowSettings, workflowBoard] = await Promise.all([
+    const [version, briefs, workflowSettings, workflowBoard, workflowTaskBindings] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -108,6 +122,9 @@ export class WorkflowLiveConsoleService {
       shouldFilterSelectedScope(input) && this.workflowBoardSource
         ? this.workflowBoardSource.getWorkflowBoard(tenantId, workflowId)
         : Promise.resolve(null),
+      shouldFilterSelectedScope(input)
+        ? loadWorkflowTaskBindings(this.taskBindingSource, tenantId, workflowId)
+        : Promise.resolve([]),
     ]);
     const executionTurns = await this.listExecutionTurns(
       tenantId,
@@ -122,7 +139,10 @@ export class WorkflowLiveConsoleService {
           items,
           toSelectedScope(input),
           readWorkflowWorkItemIds(workflowBoard),
-          readWorkflowTaskToWorkItemIds(workflowBoard),
+          mergeTaskToWorkItemMaps(
+            readWorkflowTaskToWorkItemIds(workflowBoard),
+            buildTaskToWorkItemIds(workflowTaskBindings),
+          ),
         )
       : items;
     const page = paginateOrderedItems(scopedItems, limit, input.after, (item) => ({
@@ -413,6 +433,54 @@ function readWorkflowTaskToWorkItemIds(
     }
   }
   return taskToWorkItemIds;
+}
+
+function buildTaskToWorkItemIds(
+  taskBindings: Array<Record<string, unknown>>,
+): ReadonlyMap<string, string> {
+  const taskToWorkItemIds = new Map<string, string>();
+  for (const task of taskBindings) {
+    const taskId = readOptionalString(task.id);
+    const workItemId = readOptionalString(task.work_item_id);
+    if (taskId && workItemId) {
+      taskToWorkItemIds.set(taskId, workItemId);
+    }
+  }
+  return taskToWorkItemIds;
+}
+
+function mergeTaskToWorkItemMaps(
+  primary: ReadonlyMap<string, string>,
+  fallback: ReadonlyMap<string, string>,
+): ReadonlyMap<string, string> {
+  const merged = new Map(fallback);
+  for (const [taskId, workItemId] of primary.entries()) {
+    merged.set(taskId, workItemId);
+  }
+  return merged;
+}
+
+async function loadWorkflowTaskBindings(
+  taskBindingSource: TaskBindingSource | undefined,
+  tenantId: string,
+  workflowId: string,
+): Promise<Array<Record<string, unknown>>> {
+  if (!taskBindingSource) {
+    return [];
+  }
+  const bindings: Array<Record<string, unknown>> = [];
+  for (let page = 1; page <= MAX_TASK_BINDING_PAGES; page += 1) {
+    const result = await taskBindingSource.listTasks(tenantId, {
+      workflow_id: workflowId,
+      page,
+      per_page: TASK_BINDING_PAGE_SIZE,
+    });
+    bindings.push(...result.data);
+    if (result.data.length < TASK_BINDING_PAGE_SIZE) {
+      break;
+    }
+  }
+  return bindings;
 }
 
 function shouldHumanizeSourceLabel(value: string): boolean {

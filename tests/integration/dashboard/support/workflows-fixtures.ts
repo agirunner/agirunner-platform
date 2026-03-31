@@ -42,6 +42,7 @@ export interface SeededWorkflowsScenario {
   plannedWorkflow: ApiRecord;
   ongoingWorkflow: ApiRecord;
   ongoingWorkItem: ApiRecord;
+  ongoingSecondaryWorkItem: ApiRecord;
   pausedWorkflow: ApiRecord;
   pausedWorkItem: ApiRecord;
   cancelledWorkflow: ApiRecord;
@@ -172,6 +173,34 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
   await appendWorkflowEvent(ongoingWorkflow.id, 'workflow.handoff_recorded', {
     headline: 'Shift handoff',
     summary: 'Workflow Created',
+  });
+  const ongoingSecondaryWorkItem = await createWorkItem(ongoingWorkflow.id, {
+    title: 'Triage overflow queue',
+    goal: 'Keep overflow intake work moving.',
+    acceptance_criteria: 'Overflow intake remains attributable in scoped operator history.',
+    stage_name: 'intake',
+    column_id: SEED_BOARD_COLUMNS.active,
+    owner_role: 'intake-analyst',
+    priority: 'high',
+  });
+  const ongoingSecondaryTask = await createTask({
+    workflowId: ongoingWorkflow.id,
+    workspaceId: workspace.id,
+    workItemId: ongoingSecondaryWorkItem.id,
+    stageName: 'intake',
+    title: 'Triage overflow queue',
+    role: 'intake-analyst',
+    state: 'in_progress',
+    description: 'Seeded overflow intake task for scoped brief attribution coverage.',
+  });
+  await appendWorkflowBrief({
+    workflowId: ongoingWorkflow.id,
+    executionContextId: ongoingSecondaryTask.id,
+    headline: 'Overflow queue brief',
+    summary: 'Task-linked brief for the overflow intake work item.',
+    sourceKind: 'specialist',
+    sourceRoleName: 'Intake Analyst',
+    linkedTargetIds: [ongoingWorkflow.id, ongoingSecondaryTask.id],
   });
 
   const pausedWorkflow = await createWorkflowViaApi({
@@ -336,6 +365,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     plannedWorkflow,
     ongoingWorkflow,
     ongoingWorkItem,
+    ongoingSecondaryWorkItem,
     pausedWorkflow,
     pausedWorkItem,
     cancelledWorkflow,
@@ -596,13 +626,19 @@ export async function appendWorkflowExecutionTurn(input: {
 
 async function appendWorkflowBrief(input: {
   workflowId: string;
-  workItemId: string;
+  workItemId?: string;
+  taskId?: string;
   executionContextId: string;
   headline: string;
   summary: string;
   sourceKind: string;
   sourceRoleName: string;
+  linkedTargetIds?: string[];
 }): Promise<void> {
+  const requestId = `playwright-brief:${input.workflowId}:${input.executionContextId}:${createHash('sha1')
+    .update(input.headline)
+    .digest('hex')
+    .slice(0, 12)}`;
   runPsql(`
     INSERT INTO public.workflow_operator_briefs (
       id, tenant_id, workflow_id, work_item_id, task_id,
@@ -616,9 +652,9 @@ async function appendWorkflowBrief(input: {
       '${randomUUID()}'::uuid,
       '${DEFAULT_TENANT_ID}'::uuid,
       ${sqlUuid(input.workflowId)},
-      ${sqlUuid(input.workItemId)},
-      NULL,
-      ${sqlText(`playwright-brief:${input.workflowId}`)},
+      ${input.workItemId ? sqlUuid(input.workItemId) : 'NULL'},
+      ${input.taskId ? sqlUuid(input.taskId) : 'NULL'},
+      ${sqlText(requestId)},
       ${sqlText(input.executionContextId)},
       'milestone',
       'workflow_timeline',
@@ -632,7 +668,7 @@ async function appendWorkflowBrief(input: {
         status_kind: 'handoff',
         summary: input.summary,
       })}::jsonb,
-      ${sqlJsonValue([input.workflowId, input.workItemId])}::jsonb,
+      ${sqlJsonValue(input.linkedTargetIds ?? [input.workflowId, input.workItemId].filter(Boolean))}::jsonb,
       1,
       '[]'::jsonb,
       '[]'::jsonb,

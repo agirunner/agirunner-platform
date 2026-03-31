@@ -277,6 +277,7 @@ export async function buildApp() {
     workflowSettingsService,
     logService,
     workflowService,
+    taskService,
   );
   const workflowDeliverableHandoffService = new WorkflowDeliverableHandoffService(pool);
   const workflowDeliverableLifecycleService = new WorkflowDeliverableLifecycleService(pool);
