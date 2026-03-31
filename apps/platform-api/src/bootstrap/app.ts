@@ -18,7 +18,7 @@ import { createLoggedService } from '../logging/create-logged-service.js';
 import { LogService } from '../logging/log-service.js';
 import { LogLevelCache } from '../logging/log-level-cache.js';
 import { LogStreamService } from '../logging/log-stream-service.js';
-import { registerRequestLogger } from '../logging/request-logger.js';
+import { registerRequestLogger } from '../logging/request/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';

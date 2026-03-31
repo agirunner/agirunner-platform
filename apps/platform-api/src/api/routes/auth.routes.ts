@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity } from '../../auth/api-key.js';
 import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.js';
 import { UnauthorizedError } from '../../errors/domain-errors.js';
-import { logAuthEvent } from '../../logging/auth-log.js';
+import { logAuthEvent } from '../../logging/request/auth-log.js';
 
 const tokenExchangeSchema = z
   .object({

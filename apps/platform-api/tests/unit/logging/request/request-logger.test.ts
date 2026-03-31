@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { registerRequestLogger } from '../../src/logging/request-logger.js';
+import { registerRequestLogger } from '../../../../src/logging/request/request-logger.js';
 
 describe('request logger', () => {
   it('strips query strings before writing request log payloads', async () => {

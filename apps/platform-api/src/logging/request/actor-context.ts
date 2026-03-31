@@ -1,4 +1,4 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
 
 export interface ActorContext {
   type: 'user' | 'agent' | 'worker' | 'api_key' | 'system';

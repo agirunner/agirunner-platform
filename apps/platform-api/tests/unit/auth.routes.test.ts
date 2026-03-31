@@ -22,7 +22,7 @@ const loggingMocks = vi.hoisted(() => ({
 
 vi.mock('../../src/auth/api-key.js', () => authMocks);
 vi.mock('../../src/auth/jwt.js', () => jwtMocks);
-vi.mock('../../src/logging/auth-log.js', () => loggingMocks);
+vi.mock('../../src/logging/request/auth-log.js', () => loggingMocks);
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');

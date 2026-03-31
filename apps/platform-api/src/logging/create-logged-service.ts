@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { getRequestContext } from '../observability/request-context.js';
-import { actorFromAuth } from './actor-context.js';
+import { actorFromAuth } from './request/actor-context.js';
 import type { LogService } from './log-service.js';
 import { SERVICE_REGISTRY } from './service-registry.js';
 

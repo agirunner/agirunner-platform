@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { LogService } from './log-service.js';
-import { actorFromAuth } from './actor-context.js';
+import { actorFromAuth } from './request/actor-context.js';
 import { getRequestContext } from '../observability/request-context.js';
 import type { RelevantHandoffResolution } from '../services/predecessor-handoff-resolver.js';
 

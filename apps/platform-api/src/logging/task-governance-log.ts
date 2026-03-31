@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { DatabaseQueryable } from '../db/database.js';
 import type { LogService } from './log-service.js';
-import { actorFromAuth } from './actor-context.js';
+import { actorFromAuth } from './request/actor-context.js';
 import { getRequestContext } from '../observability/request-context.js';
 
 interface LogTaskGovernanceTransitionInput {

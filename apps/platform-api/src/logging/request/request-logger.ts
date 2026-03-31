@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 
-import { getRequestContext } from '../observability/request-context.js';
+import { getRequestContext } from '../../observability/request-context.js';
 import { actorFromAuth } from './actor-context.js';
-import type { LogService } from './log-service.js';
+import type { LogService } from '../log-service.js';
 
 const SKIP_PATHS = new Set([
   // Health / metrics — internal probes, no observability value
