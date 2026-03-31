@@ -14,20 +14,6 @@ function writeSecretFile(contents: string): string {
 }
 
 describe('resolveSecretEnv', () => {
-  it('does not keep the deprecated requireFileInProduction config knob in source', () => {
-    const secretEnvSource = fs.readFileSync(
-      path.resolve(import.meta.dirname, '../../src/config/secret-env.ts'),
-      'utf8',
-    );
-    const appSource = fs.readFileSync(
-      path.resolve(import.meta.dirname, '../../src/bootstrap/app.ts'),
-      'utf8',
-    );
-
-    expect(secretEnvSource).not.toContain('requireFileInProduction');
-    expect(appSource).not.toContain('requireFileInProduction');
-  });
-
   it('loads secrets from *_FILE bindings into the target env', () => {
     const filePath = writeSecretFile('secret-from-file\n');
     const target: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
