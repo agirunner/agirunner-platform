@@ -16,7 +16,7 @@ test('renders supported deliverable types and artifact actions at workflow scope
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  await workbench.getByRole('button', { name: 'Deliverables' }).click();
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
   await expect(workbench.getByText('Showing all deliverables recorded across this workflow')).toBeVisible();
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();
@@ -65,7 +65,7 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  await workbench.getByRole('button', { name: 'Deliverables' }).click();
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
   await expect(workbench.getByText('Showing only deliverables recorded for Prepare blocked release brief.')).toBeVisible();
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();

@@ -19,13 +19,17 @@ test('redirects into Workflows and defaults the workbench by workflow posture', 
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
   await expect(page.locator('h2').filter({ hasText: 'E2E Ongoing Intake' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Live Console' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Details' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Live Console' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Details' })).toBeVisible();
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
-  await expect(page.getByRole('button', { name: 'Needs Action', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('tab', { name: /^Details$/ }).first()).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: /^Needs Action/ }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Deliverables' }).click();
+  await page.getByRole('tab', { name: 'Deliverables' }).click();
   await expect(
     page.getByText('Showing all deliverables recorded across this workflow'),
   ).toBeVisible();

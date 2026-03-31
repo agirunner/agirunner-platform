@@ -15,7 +15,7 @@ test('keeps Details as the default workbench tab and scopes it to the selected w
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
 
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  await expect(workbench.getByRole('button', { name: 'Details' })).toBeVisible();
+  await expect(workbench.getByRole('tab', { name: 'Details' })).toBeVisible();
   await expect(workbench.getByText(/^Workflow$/)).toBeVisible();
   await expect(workbench.getByText('What was asked')).toBeVisible();
   await expect(workbench.getByText('brief.md', { exact: true })).toBeVisible();

@@ -14,6 +14,8 @@ test('restores workflow scope, selected work item, and tab state across refresh 
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
   await expect(page).toHaveURL(/workflows\/.+\?work_item_id=.*tab=details/);
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await expect(workbench.getByRole('tablist')).toBeVisible();
+  await expect(workbench.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true');
   await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
   await expect(workbench.getByText(/what was asked/i)).toBeVisible();
 
@@ -21,7 +23,7 @@ test('restores workflow scope, selected work item, and tab state across refresh 
   await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
   await expect(workbench.getByText(/what was asked/i)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Live Console' }).click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
   await expect(page).toHaveURL(/tab=live_console/);
 });
 

@@ -60,6 +60,8 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.isScopeLoading
     ? undefined
     : props.packet.live_console.total_count ?? counts.live_console_activity;
+  const activeTabId = `workflow-workbench-tab-${activeTab}`;
+  const activePanelId = `workflow-workbench-panel-${activeTab}`;
   const tabPanelShellClassName = 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden';
   const liveConsoleTabPanelContentClassName =
     'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4';
@@ -81,25 +83,37 @@ export function WorkflowBottomWorkbench(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 gap-1.5 overflow-x-auto px-3 pb-2.5 pt-2 sm:flex-wrap sm:overflow-visible">
+      <div
+        role="tablist"
+        aria-label="Workflow workbench tabs"
+        className="flex min-w-0 gap-1.5 overflow-x-auto px-3 pb-2.5 pt-2 sm:flex-wrap sm:overflow-visible"
+      >
         <WorkbenchTabButton
+          tabId="workflow-workbench-tab-details"
+          panelId="workflow-workbench-panel-details"
           label="Details"
           isActive={activeTab === 'details'}
           onClick={() => props.onTabChange('details')}
         />
         <WorkbenchTabButton
+          tabId="workflow-workbench-tab-needs_action"
+          panelId="workflow-workbench-panel-needs_action"
           label="Needs Action"
           count={counts.needs_action}
           isActive={activeTab === 'needs_action'}
           onClick={() => props.onTabChange('needs_action')}
         />
         <WorkbenchTabButton
+          tabId="workflow-workbench-tab-live_console"
+          panelId="workflow-workbench-panel-live_console"
           label="Live Console"
           count={liveConsoleCount}
           isActive={activeTab === 'live_console'}
           onClick={() => props.onTabChange('live_console')}
         />
         <WorkbenchTabButton
+          tabId="workflow-workbench-tab-deliverables"
+          panelId="workflow-workbench-panel-deliverables"
           label="Deliverables"
           count={counts.deliverables}
           isActive={activeTab === 'deliverables'}
@@ -107,7 +121,13 @@ export function WorkflowBottomWorkbench(props: {
         />
       </div>
 
-      <div className={tabPanelShellClassName}>
+      <div
+        id={activePanelId}
+        role="tabpanel"
+        aria-labelledby={activeTabId}
+        data-workflows-workbench-panel={activeTab}
+        className={tabPanelShellClassName}
+      >
         {activeTab === 'live_console' ? (
           <div className={liveConsoleTabPanelContentClassName}>
             <WorkflowLiveConsole
@@ -161,6 +181,8 @@ export function WorkflowBottomWorkbench(props: {
 }
 
 function WorkbenchTabButton(props: {
+  tabId: string;
+  panelId: string;
   label: string;
   count?: number;
   isActive: boolean;
@@ -168,6 +190,11 @@ function WorkbenchTabButton(props: {
 }): JSX.Element {
   return (
     <button
+      id={props.tabId}
+      role="tab"
+      aria-selected={props.isActive}
+      aria-controls={props.panelId}
+      tabIndex={props.isActive ? 0 : -1}
       type="button"
       className={
         props.isActive

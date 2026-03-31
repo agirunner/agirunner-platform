@@ -65,7 +65,7 @@ test('keeps task-linked briefs visible when the selected work item is attributed
     .filter({ hasText: 'Triage overflow queue' })
     .first()
     .click();
-  await page.getByRole('button', { name: 'Live Console' }).click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
 
   await expect(page.getByText('Overflow queue brief')).toBeVisible();
 });
@@ -75,7 +75,7 @@ test('surfaces new live console headlines when the stream receives fresh workflo
   await loginToWorkflows(page);
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
-  await page.getByRole('button', { name: 'Live Console' }).click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
   await expect(page.getByText('Initial execution burst')).toBeVisible();
   await expect(page.getByText('Shift handoff')).toBeVisible();
   await expect(page.getByRole('button', { name: 'New updates' })).toHaveCount(0);

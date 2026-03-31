@@ -24,7 +24,7 @@ test('recovers from a dropped workflow stream and backfills later updates', asyn
   );
   await loginToWorkflows(page);
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
-  await page.getByRole('button', { name: 'Live Console' }).click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
   await expect(page.getByText('Initial execution burst')).toBeVisible();
 
   const reconnectedStream = page.waitForResponse((response) =>

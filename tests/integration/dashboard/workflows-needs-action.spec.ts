@@ -53,7 +53,7 @@ test('submits positive and negative approval responses from the workflow needs-a
   await loginToWorkflows(page);
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  await workbench.getByRole('button', { name: /Needs Action/ }).click();
+  await workbench.getByRole('tab', { name: /Needs Action/ }).click();
 
   await expect(workbench.getByText('Approve release packet.', { exact: true })).toBeVisible();
   await workbench.getByRole('button', { name: 'Approve' }).click();
@@ -95,7 +95,7 @@ test('validates and submits escalation guidance from the workflow needs-action U
   await loginToWorkflows(page);
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  await workbench.getByRole('button', { name: /Needs Action/ }).click();
+  await workbench.getByRole('tab', { name: /Needs Action/ }).click();
 
   await expect(workbench.getByText('Resolve escalation', { exact: true })).toBeVisible();
   await expect(workbench.getByText('submit_handoff replay mismatch conflict')).toBeVisible();
