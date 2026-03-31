@@ -5,6 +5,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SUITE_DIR="$ROOT_DIR/tests/integration/dashboard"
 cd "$ROOT_DIR"
 
+env_file_path() {
+  if [[ -f "$ROOT_DIR/.env" ]]; then
+    printf '%s\n' "$ROOT_DIR/.env"
+    return 0
+  fi
+  if [[ -f "$ROOT_DIR/.env.example" ]]; then
+    printf '%s\n' "$ROOT_DIR/.env.example"
+    return 0
+  fi
+  echo "Missing .env and .env.example at $ROOT_DIR" >&2
+  exit 1
+}
+
 require_tool() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing required tool: $1" >&2
@@ -17,9 +30,11 @@ count_runtime_specialists() {
 }
 
 read_workflow_activation_count() {
+  local env_file
+  env_file="$(env_file_path)"
   set -a
-  # shellcheck disable=SC1091
-  source "$ROOT_DIR/.env"
+  # shellcheck disable=SC1090
+  source "$env_file"
   set +a
   PGPASSWORD="${POSTGRES_PASSWORD}" \
     psql \
@@ -32,9 +47,11 @@ read_workflow_activation_count() {
 }
 
 clear_fixture_workflow_activations() {
+  local env_file
+  env_file="$(env_file_path)"
   set -a
-  # shellcheck disable=SC1091
-  source "$ROOT_DIR/.env"
+  # shellcheck disable=SC1090
+  source "$env_file"
   set +a
   PGPASSWORD="${POSTGRES_PASSWORD}" \
     psql \
@@ -96,31 +113,38 @@ require_tool docker
 require_tool psql
 require_tool corepack
 
-assert_no_runtime_specialists
-if ! settle_fixture_workflow_activations; then
-  echo "Non-live integration guard failed: workflow_activations would not settle to zero before the run." >&2
-  exit 1
-fi
-before_activation_count="$(read_workflow_activation_count)"
-
 export PLAYWRIGHT_SKIP_WEBSERVER="${PLAYWRIGHT_SKIP_WEBSERVER:-1}"
 export ARTIFACT_LOCAL_ROOT="${ARTIFACT_LOCAL_ROOT:-${ROOT_DIR}/tmp/integration-artifacts}"
+
+if [[ "$PLAYWRIGHT_SKIP_WEBSERVER" == "1" ]]; then
+  assert_no_runtime_specialists
+  if ! settle_fixture_workflow_activations; then
+    echo "Non-live integration guard failed: workflow_activations would not settle to zero before the run." >&2
+    exit 1
+  fi
+  before_activation_count="$(read_workflow_activation_count)"
+else
+  before_activation_count=""
+fi
+
 playwright_args=()
 for arg in "$@"; do
   playwright_args+=("$(normalize_spec_arg "$arg")")
 done
 corepack pnpm exec playwright test -c apps/dashboard/playwright.config.ts "${playwright_args[@]}"
 
-if ! settle_fixture_workflow_activations; then
-  echo "Non-live integration guard failed: workflow_activations would not settle to zero after the run." >&2
-  exit 1
-fi
-after_activation_count="$(read_workflow_activation_count)"
-assert_no_runtime_specialists
+if [[ "$PLAYWRIGHT_SKIP_WEBSERVER" == "1" ]]; then
+  if ! settle_fixture_workflow_activations; then
+    echo "Non-live integration guard failed: workflow_activations would not settle to zero after the run." >&2
+    exit 1
+  fi
+  after_activation_count="$(read_workflow_activation_count)"
+  assert_no_runtime_specialists
 
-if [[ "$after_activation_count" != "$before_activation_count" ]]; then
-  echo "Non-live integration guard failed: workflow_activations changed during the run." >&2
-  echo "Before: $before_activation_count" >&2
-  echo "After:  $after_activation_count" >&2
-  exit 1
+  if [[ "$after_activation_count" != "$before_activation_count" ]]; then
+    echo "Non-live integration guard failed: workflow_activations changed during the run." >&2
+    echo "Before: $before_activation_count" >&2
+    echo "After:  $after_activation_count" >&2
+    exit 1
+  fi
 fi

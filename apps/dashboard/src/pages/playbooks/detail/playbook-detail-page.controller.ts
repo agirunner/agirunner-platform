@@ -8,6 +8,7 @@ import {
 } from '../../../components/forms/form-feedback.js';
 import {
   dashboardApi,
+  type DashboardCommunityCatalogPlaybookOrigin,
   type DashboardDeleteImpactSummary,
   type DashboardPlaybookDeleteImpact,
   type DashboardPlaybookRecord,
@@ -83,6 +84,20 @@ export function usePlaybookDetailPageController() {
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
+  });
+  const playbookOriginQuery = useQuery({
+    queryKey: ['playbook-community-catalog-origin', playbookId],
+    queryFn: async (): Promise<DashboardCommunityCatalogPlaybookOrigin | null> => {
+      try {
+        return await dashboardApi.getCommunityCatalogPlaybookOrigin(playbookId);
+      } catch (error) {
+        if (isMissingCommunityCatalogOriginError(error)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    enabled: playbookId.length > 0,
   });
   const playbookDeleteImpactQuery = useQuery({
     queryKey: ['playbook-delete-impact', playbookId],
@@ -314,6 +329,7 @@ export function usePlaybookDetailPageController() {
     permanentDeleteOpen,
     playbook,
     playbookDeleteImpactQuery,
+    playbookOrigin: playbookOriginQuery.data ?? null,
     playbookQuery,
     playbookId,
     revisionDeleteBlocked,
@@ -328,6 +344,10 @@ export function usePlaybookDetailPageController() {
     slug,
     updateMutation,
   };
+}
+
+function isMissingCommunityCatalogOriginError(error: unknown): boolean {
+  return error instanceof Error && /\bHTTP 404\b/i.test(error.message);
 }
 
 export function describePlaybookLifecycle(lifecycle: PlaybookLifecycle): string {

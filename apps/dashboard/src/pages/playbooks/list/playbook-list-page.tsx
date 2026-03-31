@@ -39,6 +39,7 @@ import {
   type PlaybookLifecycleFilter,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
+import { PlaybookCommunityImportDialog } from './playbook-community-import-dialog.js';
 import { PlaybookLibrarySection } from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'ongoing';
@@ -48,6 +49,7 @@ export function PlaybookListPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [createMode, setCreateMode] = useState(false);
+  const [communityImportOpen, setCommunityImportOpen] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [outcome, setOutcome] = useState('');
@@ -333,10 +335,15 @@ export function PlaybookListPage(): JSX.Element {
         navHref="/design/playbooks"
         description="Create and manage playbooks that define workflow guidance, team structure, and workflow goals."
         actions={
-          <Button onClick={openCreateWorkspace}>
-            <Plus className="h-4 w-4" />
-            New Playbook
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setCommunityImportOpen(true)}>
+              Add Community Playbooks
+            </Button>
+            <Button onClick={openCreateWorkspace}>
+              <Plus className="h-4 w-4" />
+              New Playbook
+            </Button>
+          </div>
         }
       />
 
@@ -381,6 +388,11 @@ export function PlaybookListPage(): JSX.Element {
           setPage(1);
         }}
         onToggleActive={(family) => toggleActiveMutation.mutate(family)}
+      />
+
+      <PlaybookCommunityImportDialog
+        isOpen={communityImportOpen}
+        onOpenChange={setCommunityImportOpen}
       />
     </div>
   );

@@ -43,6 +43,7 @@ export function PlaybookDetailPage(): JSX.Element {
     permanentDeleteOpen,
     playbook,
     playbookDeleteImpactQuery,
+    playbookOrigin,
     playbookQuery,
     revisionDeleteBlocked,
     revisionDiff,
@@ -75,6 +76,7 @@ export function PlaybookDetailPage(): JSX.Element {
         isActive={isActive}
         message={message}
         onSave={handleSave}
+        playbookOrigin={playbookOrigin}
         playbook={playbook}
       />
 

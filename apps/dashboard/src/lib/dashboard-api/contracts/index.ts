@@ -5,4 +5,5 @@ export * from './workflow.js';
 export * from './configuration.js';
 export * from './artifacts.js';
 export * from './fleet-logs.js';
+export * from './community-catalog.js';
 export * from './api-surface.js';

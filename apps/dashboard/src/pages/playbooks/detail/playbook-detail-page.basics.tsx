@@ -14,7 +14,10 @@ import {
 } from '../../../components/ui/select.js';
 import { Switch } from '../../../components/ui/switch.js';
 import { Textarea } from '../../../components/ui/textarea.js';
-import type { DashboardPlaybookRecord } from '../../../lib/api.js';
+import type {
+  DashboardCommunityCatalogPlaybookOrigin,
+  DashboardPlaybookRecord,
+} from '../../../lib/api.js';
 import { buildWorkflowsLaunchHref } from '../../workflows/workflows-page.support.js';
 import {
   describePlaybookLifecycle,
@@ -28,6 +31,7 @@ export function PlaybookDetailHero(props: {
   isActive: boolean;
   message: string | null;
   onSave(): void;
+  playbookOrigin: DashboardCommunityCatalogPlaybookOrigin | null;
   playbook: DashboardPlaybookRecord;
 }): JSX.Element {
   return (
@@ -63,6 +67,14 @@ export function PlaybookDetailHero(props: {
               <span>{formatDate(props.playbook.updated_at)}</span>
             </div>
           </div>
+          {props.playbookOrigin ? (
+            <p className="text-xs text-muted">
+              Imported from Community Catalog: {props.playbookOrigin.catalogName}{' '}
+              {props.playbookOrigin.catalogVersion
+                ? `v${props.playbookOrigin.catalogVersion}`
+                : ''}
+            </p>
+          ) : null}
           <p className="max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted">
             Edit the playbook definition, workflow guidance, and workflow goals for this revision.
           </p>

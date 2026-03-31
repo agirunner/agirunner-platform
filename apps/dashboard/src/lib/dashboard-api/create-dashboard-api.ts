@@ -23,6 +23,7 @@ import { createDashboardApiMethodsGroup2 } from './create-dashboard-api/methods-
 import { createDashboardApiMethodsGroup3 } from './create-dashboard-api/methods-group-3.js';
 import { createDashboardApiMethodsGroup4 } from './create-dashboard-api/methods-group-4.js';
 import { createDashboardApiMethodsGroup5 } from './create-dashboard-api/methods-group-5.js';
+import { createDashboardApiMethodsGroup6 } from './create-dashboard-api/methods-group-6.js';
 import type * as Contracts from './contracts.js';
 
 type DashboardAgentRecord = Contracts.DashboardAgentRecord;
@@ -343,6 +344,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     ...createDashboardApiMethodsGroup3(methodContext),
     ...createDashboardApiMethodsGroup4(methodContext),
     ...createDashboardApiMethodsGroup5(methodContext),
+    ...createDashboardApiMethodsGroup6(methodContext),
   } as DashboardApi;
 }
 
