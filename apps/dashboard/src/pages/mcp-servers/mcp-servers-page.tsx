@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
-import { MetricCard } from '../specialists/role-definitions-list.js';
+import { MetricCard } from '../specialists/definitions/role-definitions-list.js';
 import {
   buildSubmitLabel,
   resolveDeviceAuthorizationUrl,

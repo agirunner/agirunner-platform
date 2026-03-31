@@ -93,9 +93,9 @@ export const AgenticSettingsPage = lazyWithRetry(() =>
   })),
 );
 
-export const ExecutionEnvironmentsPage = lazyWithRetry(() =>
-  import('../pages/execution-environments/execution-environments-page.js').then((m) => ({
-    default: m.ExecutionEnvironmentsPage,
+export const EnvironmentsPage = lazyWithRetry(() =>
+  import('../pages/environments/environments-page.js').then((m) => ({
+    default: m.EnvironmentsPage,
   })),
 );
 

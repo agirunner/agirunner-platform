@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import { toast } from '../../lib/toast.js';
-import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
+import { DeleteRoleDialog } from './definitions/role-definitions-delete-dialog.js';
 import {
   fetchRemoteMcpServers,
   fetchRoles,
@@ -19,16 +19,16 @@ import {
   saveRole,
   fetchToolCatalog,
   fetchExecutionEnvironments,
-} from './role-definitions-page.api.js';
-import { useRolePageOrchestratorState } from './role-definitions-page.orchestrator.js';
+} from './definitions/role-definitions-page.api.js';
+import { useRolePageOrchestratorState } from './definitions/role-definitions-page.orchestrator.js';
 import {
   countRoleStateSummary,
   createRoleForm,
   formatRoleDeleteError,
   type RoleDefinition,
-} from './role-definitions-page.support.js';
-import { RoleDialog } from './role-definitions-dialog.js';
-import { MetricCard, RoleRow } from './role-definitions-list.js';
+} from './definitions/role-definitions-page.support.js';
+import { RoleDialog } from './definitions/role-definitions-dialog.js';
+import { MetricCard, RoleRow } from './definitions/role-definitions-list.js';
 
 export function SpecialistsPage(): JSX.Element {
   const queryClient = useQueryClient();

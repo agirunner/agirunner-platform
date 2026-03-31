@@ -29,7 +29,7 @@ import {
   AgenticSettingsPage,
   ApiKeysPage,
   ArtifactPreviewPage,
-  ExecutionEnvironmentsPage,
+  EnvironmentsPage,
   isChunkLoadError,
   LiveContainersPage,
   LiveLogsPage,
@@ -201,7 +201,7 @@ export function App(): JSX.Element {
                 path="/platform/runtimes"
                 element={<Navigate to="/admin/agentic-settings" replace />}
               />
-              <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
+              <Route path="/platform/environments" element={<EnvironmentsPage />} />
               <Route
                 path="/platform/operations"
                 element={<Navigate to="/admin/platform-settings" replace />}

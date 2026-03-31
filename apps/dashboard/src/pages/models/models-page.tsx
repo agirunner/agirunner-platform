@@ -7,29 +7,29 @@ import { DashboardPageHeader } from '../../components/layout/dashboard-page-head
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { buildAssignmentSummaryCards } from './llm-providers-page-assignment-summary.js';
-import { RoleAssignmentsSection } from './llm-providers-page-assignments-section.js';
+import { buildAssignmentSummaryCards } from './assignments/assignment-summary.js';
+import { RoleAssignmentsSection } from './assignments/assignments-section.js';
 import {
   AssignmentSummaryCards,
   DIALOG_ALERT_CLASS_NAME,
   ERROR_PANEL_STYLE,
-} from './llm-providers-page.chrome.js';
-import { ModelCatalog } from './llm-providers-page-catalog.js';
+} from './models-page.chrome.js';
+import { ModelCatalog } from './model-catalog.js';
 import {
   buildAssignmentRoleRows,
   formatContextWindow,
   getProviderTypeDefaults,
   reasoningBadgeVariant,
   reasoningLabel,
-} from './llm-providers-page.defaults.js';
-import { AddProviderDialog, ConnectOAuthDialog } from './llm-providers-page-provider-dialogs.js';
+} from './models-page.defaults.js';
+import { AddProviderDialog, ConnectOAuthDialog } from './providers/provider-dialogs.js';
 import {
   DeleteProviderDialog,
   OAuthProviderCard,
   ProviderCard,
-} from './llm-providers-page-provider-cards.js';
-import type { AssignmentSurfaceSummaryCard } from './llm-providers-page.support.js';
-import type { ProviderDeleteTarget } from './llm-providers-page.types.js';
+} from './providers/provider-cards.js';
+import type { AssignmentSurfaceSummaryCard } from './models-page.support.js';
+import type { ProviderDeleteTarget } from './models-page.types.js';
 
 export {
   buildAssignmentRoleRows,

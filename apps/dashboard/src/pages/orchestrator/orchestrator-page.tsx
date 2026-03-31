@@ -3,8 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import {
   OrchestratorControlPlane,
-} from '../specialists/role-definitions-orchestrator.js';
-import { useRolePageOrchestratorState } from '../specialists/role-definitions-page.orchestrator.js';
+} from '../specialists/definitions/role-definitions-orchestrator.js';
+import { useRolePageOrchestratorState } from '../specialists/definitions/role-definitions-page.orchestrator.js';
 
 export function OrchestratorPage(): JSX.Element {
   const orchestratorState = useRolePageOrchestratorState();
