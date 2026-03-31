@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
 
 export const orchestratorConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = app.orchestratorConfigService;
