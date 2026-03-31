@@ -12,7 +12,7 @@ import { readWorkerDispatchAckTimeoutMs } from '../../../services/platform-timin
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 import { TaskAgentScopeService } from '../../../services/task-agent-scope-service.js';
 import { WorkItemContinuityService } from '../../../services/work-item-continuity-service/work-item-continuity-service.js';
-import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../../services/workflow-state-service.js';

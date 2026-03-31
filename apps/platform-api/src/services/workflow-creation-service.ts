@@ -8,7 +8,7 @@ import {
 } from '../orchestration/playbook-model.js';
 import { resolveWorkflowConfig } from './config-hierarchy-service.js';
 import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
-import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from './workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event/event-service.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';

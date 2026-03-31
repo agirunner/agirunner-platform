@@ -15,7 +15,7 @@ import {
 } from '../../../services/event/event-query-service.js';
 import { HandoffService } from '../../../services/handoff-service/handoff-service.js';
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
-import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowChainingService } from '../../../services/workflow-chaining-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverable-service.js';

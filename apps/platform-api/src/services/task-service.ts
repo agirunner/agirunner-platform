@@ -21,7 +21,7 @@ import { RoleDefinitionService } from './role-definition/role-definition-service
 import { PlaybookTaskParallelismService } from './playbook/playbook-task-parallelism-service.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import { WorkItemContinuityService } from './work-item-continuity-service/work-item-continuity-service.js';
-import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from './workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { HandoffService } from './handoff-service/handoff-service.js';
 import { ExecutionContainerLeaseService } from './execution-environment/execution-container-lease-service.js';

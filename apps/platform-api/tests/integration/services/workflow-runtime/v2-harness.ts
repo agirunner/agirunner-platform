@@ -12,7 +12,7 @@ import { RoleDefinitionService } from '../../../../src/services/role-definition/
 import { TaskService } from '../../../../src/services/task-service.js';
 import { WorkerConnectionHub } from '../../../../src/services/workers/worker-connection-hub.js';
 import { WorkerService } from '../../../../src/services/workers/worker-service.js';
-import { WorkflowActivationDispatchService } from '../../../../src/services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../../../../src/services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../../src/services/workflow-activation/workflow-activation-service.js';
 import { WorkflowService } from '../../../../src/services/workflow-service.js';
 import type { TestDatabase } from '../../db/postgres.js';

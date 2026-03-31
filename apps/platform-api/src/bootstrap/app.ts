@@ -71,7 +71,7 @@ import { WorkerConnectionHub } from '../services/workers/worker-connection-hub.j
 import { WorkerService } from '../services/workers/worker-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
 import { WorkflowActivationService } from '../services/workflow-activation/workflow-activation-service.js';
-import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowDeliverableService } from '../services/workflow-deliverable-service.js';
 import { WorkflowDeliverableHandoffService } from '../services/workflow-deliverable-handoff-service.js';
 import { WorkflowDeliverableLifecycleService } from '../services/workflow-deliverable-lifecycle-service.js';

@@ -59,7 +59,7 @@ vi.mock('../../../src/services/workflow-stage/workflow-stage-projection.js', asy
 
 import {
   WorkflowActivationDispatchService as WorkflowActivationDispatchServiceClass,
-} from '../../../src/services/workflow-activation-dispatch-service.js';
+} from '../../../src/services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 
 const WorkflowActivationDispatchService = WorkflowActivationDispatchServiceClass;
 

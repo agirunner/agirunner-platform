@@ -8,7 +8,7 @@ import { GovernanceService } from '../services/governance-service.js';
 import { readLifecycleMonitorTimingDefaults } from '../services/platform-timing-defaults.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerService } from '../services/workers/worker-service.js';
-import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
+import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 
 export interface LifecycleMonitor {
   stop: () => void;

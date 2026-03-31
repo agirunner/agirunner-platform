@@ -1,10 +1,10 @@
-import type { DatabaseClient } from '../db/database.js';
+import type { DatabaseClient } from '../../db/database.js';
 
-import { ActivationRecoveryStore } from './workflow-activation-dispatch/recovery-store.js';
-import { recoverStaleActivation } from './workflow-activation-dispatch/recovery-runner.js';
-import { ActivationStateStore } from './workflow-activation-dispatch/activation-state-store.js';
-import { ActivationTaskStore } from './workflow-activation-dispatch/task-store.js';
-import { dispatchActivation as dispatchActivationRunner } from './workflow-activation-dispatch/dispatch-runner.js';
+import { ActivationRecoveryStore } from './recovery-store.js';
+import { recoverStaleActivation } from './recovery-runner.js';
+import { ActivationStateStore } from './activation-state-store.js';
+import { ActivationTaskStore } from './task-store.js';
+import { dispatchActivation as dispatchActivationRunner } from './dispatch-runner.js';
 import {
   buildActivationSummary,
   buildDispatchEligibilityCondition,
@@ -18,7 +18,7 @@ import {
   normalizeFailedActivationError,
   readTaskDispatchAttempt,
   readTaskDispatchToken,
-} from './workflow-activation-dispatch/helpers.js';
+} from './helpers.js';
 import {
   ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES,
   ACTIVE_ORCHESTRATOR_TASK_STATES,
@@ -33,12 +33,12 @@ import {
   type HeartbeatCandidateRow,
   type QueuedActivationRow,
   type RecoveryCandidateRow,
-} from './workflow-activation-dispatch/types.js';
+} from './types.js';
 
 export type {
   ActivationRecoveryDetail,
   ActivationRecoveryResult,
-} from './workflow-activation-dispatch/types.js';
+} from './types.js';
 
 export class WorkflowActivationDispatchService {
   private readonly activationStateStore: ActivationStateStore;
