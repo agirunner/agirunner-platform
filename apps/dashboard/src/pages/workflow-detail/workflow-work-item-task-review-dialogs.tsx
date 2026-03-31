@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DashboardAgentRecord } from '../../lib/api.js';
-import { SearchableCombobox, type ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
+import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
@@ -17,31 +17,11 @@ import {
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
-
-function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
-  return [...agents].sort((left, right) => agentDisplayName(left).localeCompare(agentDisplayName(right)));
-}
-
-function agentDisplayName(agent: DashboardAgentRecord): string {
-  return agent.name?.trim() || agent.id;
-}
-
-function describeAgent(agent: DashboardAgentRecord): string {
-  const parts = [agent.status?.trim() || 'unknown'];
-  if (agent.worker_id) {
-    parts.push(`agent ${agent.worker_id}`);
-  }
-  return parts.join(' • ');
-}
-
-function buildAgentItems(agents: DashboardAgentRecord[]): ComboboxItem[] {
-  return agents.map((agent) => ({
-    id: agent.id,
-    label: agentDisplayName(agent),
-    subtitle: describeAgent(agent),
-    status: agent.status === 'active' ? 'active' : agent.status === 'completed' ? 'completed' : agent.status === 'failed' ? 'failed' : 'pending',
-  }));
-}
+import {
+  agentDisplayName,
+  buildAgentItems,
+  sortAgents,
+} from './workflow-work-item-task-review-dialogs.support.js';
 
 export function StepChangesDialog(props: {
   isOpen: boolean;
@@ -202,25 +182,6 @@ export function StepEscalationDialog(props: {
       </DialogContent>
     </Dialog>
   );
-}
-
-export function formatOutputOverrideDraft(output: unknown): string {
-  if (output === undefined) {
-    return '{}';
-  }
-  return JSON.stringify(output, null, 2);
-}
-
-export function parseOutputOverrideDraft(draft: string): unknown {
-  const trimmed = draft.trim();
-  if (!trimmed) {
-    throw new Error('Add replacement output JSON before overriding the stored packet.');
-  }
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    throw new Error('Output override must be valid JSON.');
-  }
 }
 
 export function StepOutputOverrideDialog(props: {

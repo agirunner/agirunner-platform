@@ -66,9 +66,11 @@ import {
   StepEscalationDialog,
   StepOutputOverrideDialog,
   WorkItemReassignDialog,
+} from './workflow-work-item-task-review-dialogs.js';
+import {
   formatOutputOverrideDraft,
   parseOutputOverrideDraft,
-} from './workflow-work-item-task-review-dialogs.js';
+} from './workflow-work-item-task-review-dialogs.support.js';
 import {
   buildWorkItemRecoveryBrief,
   buildWorkItemBreadcrumbs,

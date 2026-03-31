@@ -14,9 +14,11 @@ import {
   StepManualEscalationDialog,
   StepOutputOverrideDialog,
   WorkItemReassignDialog,
+} from '../workflow-detail/workflow-work-item-task-review-dialogs.js';
+import {
   formatOutputOverrideDraft,
   parseOutputOverrideDraft,
-} from '../workflow-detail/workflow-work-item-task-review-dialogs.js';
+} from '../workflow-detail/workflow-work-item-task-review-dialogs.support.js';
 import { resolveStatus, type Task } from './task-detail-page.model.js';
 
 export function TaskActionButtons({ task }: { task: Task }): JSX.Element {
