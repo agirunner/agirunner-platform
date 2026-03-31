@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkItemService } from '../../src/services/work-item-service.js';
+import { WorkItemService } from '../../../src/services/work-item-service.js';
 
 describe('WorkItemService work-item memory support', () => {
   it('returns only current memory keys whose latest write belongs to the work item', async () => {

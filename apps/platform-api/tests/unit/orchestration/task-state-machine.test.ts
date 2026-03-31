@@ -4,7 +4,7 @@ import {
   canTransitionState,
   normalizeTaskState,
   toStoredTaskState,
-} from '../../src/orchestration/task-state-machine.js';
+} from '../../../src/orchestration/task-state-machine.js';
 
 const states = [
   'pending',

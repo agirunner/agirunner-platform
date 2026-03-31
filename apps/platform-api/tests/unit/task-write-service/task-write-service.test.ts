@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TaskWriteService, buildTaskWriteService } from './task-write-service/task-write-service-test-support.js';
+import { TaskWriteService, buildTaskWriteService } from './task-write-service-test-support.js';
 
 describe('task-write-service test support', () => {
   it('loads the task write service harness', () => {
@@ -8,4 +8,4 @@ describe('task-write-service test support', () => {
   });
 });
 
-export * from './task-write-service/task-write-service-test-support.js';
+export * from './task-write-service-test-support.js';

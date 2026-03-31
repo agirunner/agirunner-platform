@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/services/platform-timing-defaults.js', async () => {
-  const actual = await vi.importActual<typeof import('../../src/services/platform-timing-defaults.js')>(
-    '../../src/services/platform-timing-defaults.js',
+vi.mock('../../../src/services/platform-timing-defaults.js', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/services/platform-timing-defaults.js')>(
+    '../../../src/services/platform-timing-defaults.js',
   );
   return {
     ...actual,
@@ -21,8 +21,8 @@ import {
   runHeartbeatPruneTick,
   runWorkflowActivationDispatchTick,
   startLifecycleMonitor,
-} from '../../src/jobs/lifecycle-monitor.js';
-import { readLifecycleMonitorTimingDefaults } from '../../src/services/platform-timing-defaults.js';
+} from '../../../src/jobs/lifecycle-monitor.js';
+import { readLifecycleMonitorTimingDefaults } from '../../../src/services/platform-timing-defaults.js';
 
 describe('startLifecycleMonitor', () => {
   afterEach(() => {

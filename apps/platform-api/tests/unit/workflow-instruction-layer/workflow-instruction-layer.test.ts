@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWorkflowInstructionLayer } from '../../src/services/workflow-instruction-layer.js';
+import { buildWorkflowInstructionLayer } from '../../../src/services/workflow-instruction-layer.js';
 
 describe('buildWorkflowInstructionLayer', () => {
   it('returns null when no playbook definition is available', () => {

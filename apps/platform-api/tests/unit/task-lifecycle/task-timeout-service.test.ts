@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TaskTimeoutService } from '../../src/services/task-timeout-service.js';
+import { TaskTimeoutService } from '../../../src/services/task-timeout-service.js';
 
 describe('TaskTimeoutService timeout signal lifecycle', () => {
   it('queues cancel signal and marks timeout grace metadata for in-progress worker task', async () => {

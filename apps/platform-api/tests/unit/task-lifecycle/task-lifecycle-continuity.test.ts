@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConflictError } from '../../src/errors/domain-errors.js';
-import { TaskLifecycleService } from '../../src/services/task-lifecycle-service.js';
+import { ConflictError } from '../../../src/errors/domain-errors.js';
+import { TaskLifecycleService } from '../../../src/services/task-lifecycle-service.js';
 
 describe('TaskLifecycleService continuity hooks', () => {
   it('records continuity when requesting changes on a linked work item', async () => {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { metricsRegistry } from '../../src/observability/metrics.js';
-import { logSafetynetTriggered } from '../../src/services/safetynet/logging.js';
+import { metricsRegistry } from '../../../src/observability/metrics.js';
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
 import {
   PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,
   PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID,
@@ -13,7 +13,7 @@ import {
   PLATFORM_ORCHESTRATOR_SUBJECT_LINKAGE_INFERENCE_ID,
   getSafetynetEntry,
   mustGetSafetynetEntry,
-} from '../../src/services/safetynet/registry.js';
+} from '../../../src/services/safetynet/registry.js';
 
 describe('platform safetynet registry', () => {
   afterEach(() => {

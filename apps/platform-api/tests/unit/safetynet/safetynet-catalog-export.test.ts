@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { serializeSafetynetCatalog } from '../../src/services/safetynet/catalog.js';
-import { listSafetynetEntries } from '../../src/services/safetynet/registry.js';
+import { serializeSafetynetCatalog } from '../../../src/services/safetynet/catalog.js';
+import { listSafetynetEntries } from '../../../src/services/safetynet/registry.js';
 
 describe('platform safetynet catalog export', () => {
   it('serializes the registered entries with design field names', () => {
