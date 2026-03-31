@@ -31,6 +31,63 @@ import type {
   UpdateWorkflowDocumentInput,
   Worker,
 } from './types.js';
+import type { ClientTransport, Query, RequestOptions } from './client/core.js';
+import { exchangeApiKey, refreshSession } from './client/auth.js';
+import {
+  claimTask,
+  completeTask,
+  createTask,
+  failTask,
+  getTask,
+  getTaskMemory,
+  listTaskArtifactCatalog,
+  listTaskArtifacts,
+  listTasks,
+  listWorkflowWorkItemEvents,
+  listWorkflowWorkItemTasks,
+  patchTaskMemory,
+} from './client/tasks.js';
+import {
+  cancelWorkflow,
+  createWorkflow,
+  createWorkflowDocument,
+  createWorkflowWorkItem,
+  deleteWorkflowDocument,
+  getResolvedWorkflowConfig,
+  getWorkflow,
+  getWorkflowBoard,
+  getWorkflowWorkItem,
+  listWorkflowActivations,
+  listWorkflowDocuments,
+  listWorkflowStages,
+  listWorkflowWorkItems,
+  listWorkflows,
+  updateWorkflowDocument,
+  updateWorkflowWorkItem,
+} from './client/workflows.js';
+import {
+  createPlanningWorkflow,
+  getWorkspace,
+  getWorkspaceTimeline,
+  listWorkspaces,
+  patchWorkspaceMemory,
+} from './client/workspaces.js';
+import {
+  archivePlaybook,
+  createPlaybook,
+  deletePlaybook,
+  getPlaybook,
+  listPlaybooks,
+  replacePlaybook,
+  restorePlaybook,
+  updatePlaybook,
+} from './client/playbooks.js';
+import {
+  getApprovalQueue,
+  listAgents,
+  listWorkers,
+  paginate,
+} from './client/admin.js';
 
 export class PlatformApiError extends Error {
   readonly status: number;
@@ -50,17 +107,20 @@ export interface PlatformClientOptions {
   fetcher?: typeof fetch;
 }
 
-type Query = Record<string, string | number | boolean | undefined>;
-
 export class PlatformApiClient {
   private readonly baseUrl: string;
   private accessToken?: string;
   private readonly fetcher: typeof fetch;
+  private readonly transport: ClientTransport;
 
   constructor(options: PlatformClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, '');
     this.accessToken = options.accessToken;
     this.fetcher = options.fetcher ?? ((input, init) => globalThis.fetch(input, init));
+    this.transport = {
+      request: this.request.bind(this),
+      withQuery: this.withQuery.bind(this),
+    };
   }
 
   setAccessToken(token: string): void {
@@ -68,43 +128,23 @@ export class PlatformApiClient {
   }
 
   async exchangeApiKey(apiKey: string, persistentSession = true): Promise<AuthTokenResponse> {
-    const response = await this.request<ApiDataResponse<AuthTokenResponse>>('/api/v1/auth/token', {
-      method: 'POST',
-      body: {
-        api_key: apiKey,
-        persistent_session: persistentSession,
-      },
-      includeAuth: false,
-    });
-    return response.data;
+    return exchangeApiKey(this.transport, apiKey, persistentSession);
   }
 
   async refreshSession(): Promise<{ token: string }> {
-    const response = await this.request<ApiDataResponse<{ token: string }>>(
-      '/api/v1/auth/refresh',
-      {
-        method: 'POST',
-        includeAuth: false,
-      },
-    );
-    return response.data;
+    return refreshSession(this.transport);
   }
 
   async listTasks(query: Query = {}): Promise<ApiListResponse<Task>> {
-    return this.request<ApiListResponse<Task>>(this.withQuery('/api/v1/tasks', query));
+    return listTasks(this.transport, query);
   }
 
   async getTask(taskId: string): Promise<Task> {
-    const response = await this.request<ApiDataResponse<Task>>(`/api/v1/tasks/${taskId}`);
-    return response.data;
+    return getTask(this.transport, taskId);
   }
 
   async createTask(payload: CreateTaskInput): Promise<Task> {
-    const response = await this.request<ApiDataResponse<Task>>('/api/v1/tasks', {
-      method: 'POST',
-      body: payload,
-    });
-    return response.data;
+    return createTask(this.transport, payload);
   }
 
   async claimTask(payload: {
@@ -115,76 +155,41 @@ export class PlatformApiClient {
     playbook_id?: string;
     include_context?: boolean;
   }): Promise<Task | null> {
-    const response = await this.request<Response | ApiDataResponse<Task>>('/api/v1/tasks/claim', {
-      method: 'POST',
-      body: payload,
-      allowNoContent: true,
-    });
-
-    if (response instanceof Response) {
-      return null;
-    }
-
-    return response.data;
+    return claimTask(this.transport, payload);
   }
 
   async completeTask(taskId: string, output: unknown): Promise<Task> {
-    const response = await this.request<ApiDataResponse<Task>>(`/api/v1/tasks/${taskId}/complete`, {
-      method: 'POST',
-      body: { output },
-    });
-    return response.data;
+    return completeTask(this.transport, taskId, output);
   }
 
   async failTask(taskId: string, error: Record<string, unknown>): Promise<Task> {
-    const response = await this.request<ApiDataResponse<Task>>(`/api/v1/tasks/${taskId}/fail`, {
-      method: 'POST',
-      body: { error },
-    });
-    return response.data;
+    return failTask(this.transport, taskId, error);
   }
 
   async listWorkflows(query: Query = {}): Promise<ApiListResponse<Workflow>> {
-    return this.request<ApiListResponse<Workflow>>(this.withQuery('/api/v1/workflows', query));
+    return listWorkflows(this.transport, query);
   }
 
   async getWorkflow(workflowId: string): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workflows/${workflowId}`,
-    );
-    return response.data;
+    return getWorkflow(this.transport, workflowId);
   }
 
   async getResolvedWorkflowConfig(
     workflowId: string,
     showLayers = false,
   ): Promise<ResolvedWorkflowConfig> {
-    const suffix = showLayers ? '?show_layers=true' : '';
-    const response = await this.request<ApiDataResponse<ResolvedWorkflowConfig>>(
-      `/api/v1/workflows/${workflowId}/config/resolved${suffix}`,
-    );
-    return response.data;
+    return getResolvedWorkflowConfig(this.transport, workflowId, showLayers);
   }
 
   async listWorkflowDocuments(workflowId: string): Promise<ResolvedDocumentReference[]> {
-    const response = await this.request<ApiDataResponse<ResolvedDocumentReference[]>>(
-      `/api/v1/workflows/${workflowId}/documents`,
-    );
-    return response.data;
+    return listWorkflowDocuments(this.transport, workflowId);
   }
 
   async createWorkflowDocument(
     workflowId: string,
     payload: CreateWorkflowDocumentInput,
   ): Promise<ResolvedDocumentReference> {
-    const response = await this.request<ApiDataResponse<ResolvedDocumentReference>>(
-      `/api/v1/workflows/${workflowId}/documents`,
-      {
-        method: 'POST',
-        body: payload,
-      },
-    );
-    return response.data;
+    return createWorkflowDocument(this.transport, workflowId, payload);
   }
 
   async updateWorkflowDocument(
@@ -192,66 +197,34 @@ export class PlatformApiClient {
     logicalName: string,
     payload: UpdateWorkflowDocumentInput,
   ): Promise<ResolvedDocumentReference> {
-    const response = await this.request<ApiDataResponse<ResolvedDocumentReference>>(
-      `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
-      {
-        method: 'PATCH',
-        body: payload,
-      },
-    );
-    return response.data;
+    return updateWorkflowDocument(this.transport, workflowId, logicalName, payload);
   }
 
   async deleteWorkflowDocument(workflowId: string, logicalName: string): Promise<void> {
-    await this.request<Response>(
-      `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
-      {
-        method: 'DELETE',
-        allowNoContent: true,
-      },
-    );
+    return deleteWorkflowDocument(this.transport, workflowId, logicalName);
   }
 
   async createWorkflow(payload: CreateWorkflowInput): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>('/api/v1/workflows', {
-      method: 'POST',
-      body: payload,
-    });
-    return response.data;
+    return createWorkflow(this.transport, payload);
   }
 
   async cancelWorkflow(workflowId: string): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workflows/${workflowId}/cancel`,
-      {
-        method: 'POST',
-      },
-    );
-    return response.data;
+    return cancelWorkflow(this.transport, workflowId);
   }
 
   async getWorkflowBoard(workflowId: string): Promise<WorkflowBoard> {
-    const response = await this.request<ApiDataResponse<WorkflowBoard>>(
-      `/api/v1/workflows/${workflowId}/board`,
-    );
-    return response.data;
+    return getWorkflowBoard(this.transport, workflowId);
   }
 
   async listWorkflowStages(workflowId: string): Promise<WorkflowStage[]> {
-    const response = await this.request<ApiDataResponse<WorkflowStage[]>>(
-      `/api/v1/workflows/${workflowId}/stages`,
-    );
-    return response.data;
+    return listWorkflowStages(this.transport, workflowId);
   }
 
   async listWorkflowWorkItems(
     workflowId: string,
     query: ListWorkflowWorkItemsQuery = {},
   ): Promise<WorkflowWorkItem[]> {
-    const response = await this.request<ApiDataResponse<WorkflowWorkItem[]>>(
-      this.withQuery(`/api/v1/workflows/${workflowId}/work-items`, query as Query),
-    );
-    return response.data;
+    return listWorkflowWorkItems(this.transport, workflowId, query);
   }
 
   async getWorkflowWorkItem(
@@ -259,17 +232,11 @@ export class PlatformApiClient {
     workItemId: string,
     query: GetWorkflowWorkItemQuery = {},
   ): Promise<WorkflowWorkItem> {
-    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
-      this.withQuery(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, query as Query),
-    );
-    return response.data;
+    return getWorkflowWorkItem(this.transport, workflowId, workItemId, query);
   }
 
   async listWorkflowWorkItemTasks(workflowId: string, workItemId: string): Promise<Task[]> {
-    const response = await this.request<ApiDataResponse<Task[]>>(
-      `/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks`,
-    );
-    return response.data;
+    return listWorkflowWorkItemTasks(this.transport, workflowId, workItemId);
   }
 
   async listWorkflowWorkItemEvents(
@@ -277,24 +244,14 @@ export class PlatformApiClient {
     workItemId: string,
     limit = 100,
   ): Promise<PlatformEvent[]> {
-    const response = await this.request<ApiDataResponse<PlatformEvent[]>>(
-      `/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`,
-    );
-    return response.data;
+    return listWorkflowWorkItemEvents(this.transport, workflowId, workItemId, limit);
   }
 
   async createWorkflowWorkItem(
     workflowId: string,
     payload: CreateWorkflowWorkItemInput,
   ): Promise<WorkflowWorkItem> {
-    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
-      `/api/v1/workflows/${workflowId}/work-items`,
-      {
-        method: 'POST',
-        body: payload,
-      },
-    );
-    return response.data;
+    return createWorkflowWorkItem(this.transport, workflowId, payload);
   }
 
   async updateWorkflowWorkItem(
@@ -302,168 +259,84 @@ export class PlatformApiClient {
     workItemId: string,
     payload: UpdateWorkflowWorkItemInput,
   ): Promise<WorkflowWorkItem> {
-    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
-      `/api/v1/workflows/${workflowId}/work-items/${workItemId}`,
-      {
-        method: 'PATCH',
-        body: payload,
-      },
-    );
-    return response.data;
+    return updateWorkflowWorkItem(this.transport, workflowId, workItemId, payload);
   }
 
   async listWorkflowActivations(workflowId: string): Promise<WorkflowActivation[]> {
-    const response = await this.request<ApiDataResponse<WorkflowActivation[]>>(
-      `/api/v1/workflows/${workflowId}/activations`,
-    );
-    return response.data;
+    return listWorkflowActivations(this.transport, workflowId);
   }
 
   async listWorkspaces(query: Query = {}): Promise<ApiListResponse<Workspace>> {
-    return this.request<ApiListResponse<Workspace>>(this.withQuery('/api/v1/workspaces', query));
+    return listWorkspaces(this.transport, query);
   }
 
   async getWorkspace(workspaceId: string): Promise<Workspace> {
-    const response = await this.request<ApiDataResponse<Workspace>>(`/api/v1/workspaces/${workspaceId}`);
-    return response.data;
+    return getWorkspace(this.transport, workspaceId);
   }
 
   async patchWorkspaceMemory(
     workspaceId: string,
     payload: { key: string; value: unknown },
   ): Promise<Workspace> {
-    const response = await this.request<ApiDataResponse<Workspace>>(
-      `/api/v1/workspaces/${workspaceId}/memory`,
-      {
-        method: 'PATCH',
-        body: payload,
-      },
-    );
-    return response.data;
+    return patchWorkspaceMemory(this.transport, workspaceId, payload);
   }
 
   async getWorkspaceTimeline(workspaceId: string): Promise<WorkspaceTimelineEntry[]> {
-    const response = await this.request<ApiDataResponse<WorkspaceTimelineEntry[]>>(
-      `/api/v1/workspaces/${workspaceId}/timeline`,
-    );
-    return response.data;
+    return getWorkspaceTimeline(this.transport, workspaceId);
   }
 
   async createPlanningWorkflow(
     workspaceId: string,
     payload: { brief: string; name?: string },
   ): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workspaces/${workspaceId}/planning-workflow`,
-      {
-        method: 'POST',
-        body: payload,
-      },
-    );
-    return response.data;
+    return createPlanningWorkflow(this.transport, workspaceId, payload);
   }
 
   async listPlaybooks(): Promise<Playbook[]> {
-    const response = await this.request<ApiDataResponse<Playbook[]>>('/api/v1/playbooks');
-    return response.data;
+    return listPlaybooks(this.transport);
   }
 
   async getPlaybook(playbookId: string): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>(
-      `/api/v1/playbooks/${playbookId}`,
-    );
-    return response.data;
+    return getPlaybook(this.transport, playbookId);
   }
 
   async createPlaybook(payload: CreatePlaybookInput): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>('/api/v1/playbooks', {
-      method: 'POST',
-      body: payload,
-    });
-    return response.data;
+    return createPlaybook(this.transport, payload);
   }
 
   async updatePlaybook(playbookId: string, payload: UpdatePlaybookInput): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>(
-      `/api/v1/playbooks/${playbookId}`,
-      {
-        method: 'PATCH',
-        body: payload,
-      },
-    );
-    return response.data;
+    return updatePlaybook(this.transport, playbookId, payload);
   }
 
   async replacePlaybook(playbookId: string, payload: CreatePlaybookInput): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>(
-      `/api/v1/playbooks/${playbookId}`,
-      {
-        method: 'PUT',
-        body: payload,
-      },
-    );
-    return response.data;
+    return replacePlaybook(this.transport, playbookId, payload);
   }
 
   async archivePlaybook(playbookId: string): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>(
-      `/api/v1/playbooks/${playbookId}/archive`,
-      {
-        method: 'PATCH',
-        body: { archived: true },
-      },
-    );
-    return response.data;
+    return archivePlaybook(this.transport, playbookId);
   }
 
   async restorePlaybook(playbookId: string): Promise<Playbook> {
-    const response = await this.request<ApiDataResponse<Playbook>>(
-      `/api/v1/playbooks/${playbookId}/archive`,
-      {
-        method: 'PATCH',
-        body: { archived: false },
-      },
-    );
-    return response.data;
+    return restorePlaybook(this.transport, playbookId);
   }
 
   async deletePlaybook(playbookId: string): Promise<{ id: string; deleted: true }> {
-    const response = await this.request<ApiDataResponse<{ id: string; deleted: true }>>(
-      `/api/v1/playbooks/${playbookId}`,
-      {
-        method: 'DELETE',
-      },
-    );
-    return response.data;
+    return deletePlaybook(this.transport, playbookId);
   }
 
   async listTaskArtifacts(taskId: string): Promise<TaskArtifact[]> {
-    const response = await this.request<ApiDataResponse<TaskArtifact[]>>(
-      `/api/v1/tasks/${taskId}/artifacts`,
-    );
-    return response.data;
+    return listTaskArtifacts(this.transport, taskId);
   }
 
   async getTaskMemory(taskId: string, key?: string): Promise<TaskMemory> {
-    const path = key
-      ? this.withQuery(`/api/v1/tasks/${taskId}/memory`, { key })
-      : `/api/v1/tasks/${taskId}/memory`;
-    const response = await this.request<ApiDataResponse<TaskMemory>>(path);
-    return response.data;
+    return getTaskMemory(this.transport, taskId, key);
   }
 
   async patchTaskMemory(
     taskId: string,
     payload: { key: string; value: unknown },
   ): Promise<Workspace> {
-    const response = await this.request<ApiDataResponse<Workspace>>(
-      `/api/v1/tasks/${taskId}/memory`,
-      {
-        method: 'PATCH',
-        body: payload,
-      },
-    );
-    return response.data;
+    return patchTaskMemory(this.transport, taskId, payload);
   }
 
   async listTaskArtifactCatalog(
@@ -475,48 +348,26 @@ export class PlatformApiClient {
       limit?: number;
     } = {},
   ): Promise<TaskArtifactCatalogEntry[]> {
-    const response = await this.request<ApiDataResponse<TaskArtifactCatalogEntry[]>>(
-      this.withQuery(`/api/v1/tasks/${taskId}/artifact-catalog`, query),
-    );
-    return response.data;
+    return listTaskArtifactCatalog(this.transport, taskId, query);
   }
 
   async getApprovalQueue(): Promise<ApprovalQueue> {
-    const response = await this.request<ApiDataResponse<ApprovalQueue>>('/api/v1/approvals');
-    return response.data;
+    return getApprovalQueue(this.transport);
   }
 
   async listWorkers(): Promise<Worker[]> {
-    const response = await this.request<ApiDataResponse<Worker[]>>('/api/v1/workers');
-    return response.data;
+    return listWorkers(this.transport);
   }
 
   async listAgents(): Promise<Agent[]> {
-    const response = await this.request<ApiDataResponse<Agent[]>>('/api/v1/agents');
-    return response.data;
+    return listAgents(this.transport);
   }
 
   async paginate<T>(
     fetchPage: (query: Query) => Promise<ApiListResponse<T>>,
     options: { perPage?: number; startPage?: number } = {},
   ): Promise<T[]> {
-    const perPage = options.perPage ?? 50;
-    let page = options.startPage ?? 1;
-    const all: T[] = [];
-
-    while (true) {
-      const response = await fetchPage({ page, per_page: perPage });
-      all.push(...response.data);
-
-      const totalPages = Number(response.pagination?.total_pages ?? page);
-      if (page >= totalPages || response.data.length === 0) {
-        break;
-      }
-
-      page += 1;
-    }
-
-    return all;
+    return paginate(fetchPage, options);
   }
 
   private withQuery(path: string, query: Query): string {
@@ -533,13 +384,7 @@ export class PlatformApiClient {
 
   private async request<T>(
     path: string,
-    options: {
-      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-      body?: unknown;
-      token?: string;
-      includeAuth?: boolean;
-      allowNoContent?: boolean;
-    } = {},
+    options: RequestOptions = {},
   ): Promise<T> {
     const shouldIncludeAuth = options.includeAuth ?? true;
     const token = options.token ?? this.accessToken;

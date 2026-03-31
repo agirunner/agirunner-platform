@@ -1,3 +1,9 @@
+import { exchangeApiKey, refreshSession } from './client/auth.js';
+import { claimTask, completeTask, createTask, failTask, getTask, getTaskMemory, listTaskArtifactCatalog, listTaskArtifacts, listTasks, listWorkflowWorkItemEvents, listWorkflowWorkItemTasks, patchTaskMemory, } from './client/tasks.js';
+import { cancelWorkflow, createWorkflow, createWorkflowDocument, createWorkflowWorkItem, deleteWorkflowDocument, getResolvedWorkflowConfig, getWorkflow, getWorkflowBoard, getWorkflowWorkItem, listWorkflowActivations, listWorkflowDocuments, listWorkflowStages, listWorkflowWorkItems, listWorkflows, updateWorkflowDocument, updateWorkflowWorkItem, } from './client/workflows.js';
+import { createPlanningWorkflow, getWorkspace, getWorkspaceTimeline, listWorkspaces, patchWorkspaceMemory, } from './client/workspaces.js';
+import { archivePlaybook, createPlaybook, deletePlaybook, getPlaybook, listPlaybooks, replacePlaybook, restorePlaybook, updatePlaybook, } from './client/playbooks.js';
+import { getApprovalQueue, listAgents, listWorkers, paginate, } from './client/admin.js';
 export class PlatformApiError extends Error {
     status;
     responseBody;
@@ -12,284 +18,159 @@ export class PlatformApiClient {
     baseUrl;
     accessToken;
     fetcher;
+    transport;
     constructor(options) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '');
         this.accessToken = options.accessToken;
         this.fetcher = options.fetcher ?? ((input, init) => globalThis.fetch(input, init));
+        this.transport = {
+            request: this.request.bind(this),
+            withQuery: this.withQuery.bind(this),
+        };
     }
     setAccessToken(token) {
         this.accessToken = token;
     }
     async exchangeApiKey(apiKey, persistentSession = true) {
-        const response = await this.request('/api/v1/auth/token', {
-            method: 'POST',
-            body: {
-                api_key: apiKey,
-                persistent_session: persistentSession,
-            },
-            includeAuth: false,
-        });
-        return response.data;
+        return exchangeApiKey(this.transport, apiKey, persistentSession);
     }
     async refreshSession() {
-        const response = await this.request('/api/v1/auth/refresh', {
-            method: 'POST',
-            includeAuth: false,
-        });
-        return response.data;
+        return refreshSession(this.transport);
     }
     async listTasks(query = {}) {
-        return this.request(this.withQuery('/api/v1/tasks', query));
+        return listTasks(this.transport, query);
     }
     async getTask(taskId) {
-        const response = await this.request(`/api/v1/tasks/${taskId}`);
-        return response.data;
+        return getTask(this.transport, taskId);
     }
     async createTask(payload) {
-        const response = await this.request('/api/v1/tasks', {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createTask(this.transport, payload);
     }
     async claimTask(payload) {
-        const response = await this.request('/api/v1/tasks/claim', {
-            method: 'POST',
-            body: payload,
-            allowNoContent: true,
-        });
-        if (response instanceof Response) {
-            return null;
-        }
-        return response.data;
+        return claimTask(this.transport, payload);
     }
     async completeTask(taskId, output) {
-        const response = await this.request(`/api/v1/tasks/${taskId}/complete`, {
-            method: 'POST',
-            body: { output },
-        });
-        return response.data;
+        return completeTask(this.transport, taskId, output);
     }
     async failTask(taskId, error) {
-        const response = await this.request(`/api/v1/tasks/${taskId}/fail`, {
-            method: 'POST',
-            body: { error },
-        });
-        return response.data;
+        return failTask(this.transport, taskId, error);
     }
     async listWorkflows(query = {}) {
-        return this.request(this.withQuery('/api/v1/workflows', query));
+        return listWorkflows(this.transport, query);
     }
     async getWorkflow(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}`);
-        return response.data;
+        return getWorkflow(this.transport, workflowId);
     }
     async getResolvedWorkflowConfig(workflowId, showLayers = false) {
-        const suffix = showLayers ? '?show_layers=true' : '';
-        const response = await this.request(`/api/v1/workflows/${workflowId}/config/resolved${suffix}`);
-        return response.data;
+        return getResolvedWorkflowConfig(this.transport, workflowId, showLayers);
     }
     async listWorkflowDocuments(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/documents`);
-        return response.data;
+        return listWorkflowDocuments(this.transport, workflowId);
     }
     async createWorkflowDocument(workflowId, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/documents`, {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createWorkflowDocument(this.transport, workflowId, payload);
     }
     async updateWorkflowDocument(workflowId, logicalName, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`, {
-            method: 'PATCH',
-            body: payload,
-        });
-        return response.data;
+        return updateWorkflowDocument(this.transport, workflowId, logicalName, payload);
     }
     async deleteWorkflowDocument(workflowId, logicalName) {
-        await this.request(`/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`, {
-            method: 'DELETE',
-            allowNoContent: true,
-        });
+        return deleteWorkflowDocument(this.transport, workflowId, logicalName);
     }
     async createWorkflow(payload) {
-        const response = await this.request('/api/v1/workflows', {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createWorkflow(this.transport, payload);
     }
     async cancelWorkflow(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/cancel`, {
-            method: 'POST',
-        });
-        return response.data;
+        return cancelWorkflow(this.transport, workflowId);
     }
     async getWorkflowBoard(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/board`);
-        return response.data;
+        return getWorkflowBoard(this.transport, workflowId);
     }
     async listWorkflowStages(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/stages`);
-        return response.data;
+        return listWorkflowStages(this.transport, workflowId);
     }
     async listWorkflowWorkItems(workflowId, query = {}) {
-        const response = await this.request(this.withQuery(`/api/v1/workflows/${workflowId}/work-items`, query));
-        return response.data;
+        return listWorkflowWorkItems(this.transport, workflowId, query);
     }
     async getWorkflowWorkItem(workflowId, workItemId, query = {}) {
-        const response = await this.request(this.withQuery(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, query));
-        return response.data;
+        return getWorkflowWorkItem(this.transport, workflowId, workItemId, query);
     }
     async listWorkflowWorkItemTasks(workflowId, workItemId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks`);
-        return response.data;
+        return listWorkflowWorkItemTasks(this.transport, workflowId, workItemId);
     }
     async listWorkflowWorkItemEvents(workflowId, workItemId, limit = 100) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`);
-        return response.data;
+        return listWorkflowWorkItemEvents(this.transport, workflowId, workItemId, limit);
     }
     async createWorkflowWorkItem(workflowId, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items`, {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createWorkflowWorkItem(this.transport, workflowId, payload);
     }
     async updateWorkflowWorkItem(workflowId, workItemId, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, {
-            method: 'PATCH',
-            body: payload,
-        });
-        return response.data;
+        return updateWorkflowWorkItem(this.transport, workflowId, workItemId, payload);
     }
     async listWorkflowActivations(workflowId) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/activations`);
-        return response.data;
+        return listWorkflowActivations(this.transport, workflowId);
     }
     async listWorkspaces(query = {}) {
-        return this.request(this.withQuery('/api/v1/workspaces', query));
+        return listWorkspaces(this.transport, query);
     }
     async getWorkspace(workspaceId) {
-        const response = await this.request(`/api/v1/workspaces/${workspaceId}`);
-        return response.data;
+        return getWorkspace(this.transport, workspaceId);
     }
     async patchWorkspaceMemory(workspaceId, payload) {
-        const response = await this.request(`/api/v1/workspaces/${workspaceId}/memory`, {
-            method: 'PATCH',
-            body: payload,
-        });
-        return response.data;
+        return patchWorkspaceMemory(this.transport, workspaceId, payload);
     }
     async getWorkspaceTimeline(workspaceId) {
-        const response = await this.request(`/api/v1/workspaces/${workspaceId}/timeline`);
-        return response.data;
+        return getWorkspaceTimeline(this.transport, workspaceId);
     }
     async createPlanningWorkflow(workspaceId, payload) {
-        const response = await this.request(`/api/v1/workspaces/${workspaceId}/planning-workflow`, {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createPlanningWorkflow(this.transport, workspaceId, payload);
     }
     async listPlaybooks() {
-        const response = await this.request('/api/v1/playbooks');
-        return response.data;
+        return listPlaybooks(this.transport);
     }
     async getPlaybook(playbookId) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}`);
-        return response.data;
+        return getPlaybook(this.transport, playbookId);
     }
     async createPlaybook(payload) {
-        const response = await this.request('/api/v1/playbooks', {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
+        return createPlaybook(this.transport, payload);
     }
     async updatePlaybook(playbookId, payload) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
-            method: 'PATCH',
-            body: payload,
-        });
-        return response.data;
+        return updatePlaybook(this.transport, playbookId, payload);
     }
     async replacePlaybook(playbookId, payload) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
-            method: 'PUT',
-            body: payload,
-        });
-        return response.data;
+        return replacePlaybook(this.transport, playbookId, payload);
     }
     async archivePlaybook(playbookId) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}/archive`, {
-            method: 'PATCH',
-            body: { archived: true },
-        });
-        return response.data;
+        return archivePlaybook(this.transport, playbookId);
     }
     async restorePlaybook(playbookId) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}/archive`, {
-            method: 'PATCH',
-            body: { archived: false },
-        });
-        return response.data;
+        return restorePlaybook(this.transport, playbookId);
     }
     async deletePlaybook(playbookId) {
-        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
-            method: 'DELETE',
-        });
-        return response.data;
+        return deletePlaybook(this.transport, playbookId);
     }
     async listTaskArtifacts(taskId) {
-        const response = await this.request(`/api/v1/tasks/${taskId}/artifacts`);
-        return response.data;
+        return listTaskArtifacts(this.transport, taskId);
     }
     async getTaskMemory(taskId, key) {
-        const path = key
-            ? this.withQuery(`/api/v1/tasks/${taskId}/memory`, { key })
-            : `/api/v1/tasks/${taskId}/memory`;
-        const response = await this.request(path);
-        return response.data;
+        return getTaskMemory(this.transport, taskId, key);
     }
     async patchTaskMemory(taskId, payload) {
-        const response = await this.request(`/api/v1/tasks/${taskId}/memory`, {
-            method: 'PATCH',
-            body: payload,
-        });
-        return response.data;
+        return patchTaskMemory(this.transport, taskId, payload);
     }
     async listTaskArtifactCatalog(taskId, query = {}) {
-        const response = await this.request(this.withQuery(`/api/v1/tasks/${taskId}/artifact-catalog`, query));
-        return response.data;
+        return listTaskArtifactCatalog(this.transport, taskId, query);
     }
     async getApprovalQueue() {
-        const response = await this.request('/api/v1/approvals');
-        return response.data;
+        return getApprovalQueue(this.transport);
     }
     async listWorkers() {
-        const response = await this.request('/api/v1/workers');
-        return response.data;
+        return listWorkers(this.transport);
     }
     async listAgents() {
-        const response = await this.request('/api/v1/agents');
-        return response.data;
+        return listAgents(this.transport);
     }
     async paginate(fetchPage, options = {}) {
-        const perPage = options.perPage ?? 50;
-        let page = options.startPage ?? 1;
-        const all = [];
-        while (true) {
-            const response = await fetchPage({ page, per_page: perPage });
-            all.push(...response.data);
-            const totalPages = Number(response.pagination?.total_pages ?? page);
-            if (page >= totalPages || response.data.length === 0) {
-                break;
-            }
-            page += 1;
-        }
-        return all;
+        return paginate(fetchPage, options);
     }
     withQuery(path, query) {
         const search = new URLSearchParams();
