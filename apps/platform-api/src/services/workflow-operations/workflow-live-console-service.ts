@@ -122,6 +122,7 @@ export class WorkflowLiveConsoleService {
           items,
           toSelectedScope(input),
           readWorkflowWorkItemIds(workflowBoard),
+          readWorkflowTaskToWorkItemIds(workflowBoard),
         )
       : items;
     const page = paginateOrderedItems(scopedItems, limit, input.after, (item) => ({
@@ -381,6 +382,37 @@ function readWorkflowWorkItemIds(board: Record<string, unknown> | null): string[
   return workItems
     .map((item) => asRecord(item).id)
     .filter(isNonEmptyString);
+}
+
+function readWorkflowTaskToWorkItemIds(
+  board: Record<string, unknown> | null,
+): ReadonlyMap<string, string> {
+  if (!board) {
+    return new Map();
+  }
+  const workItems = board.work_items;
+  if (!Array.isArray(workItems)) {
+    return new Map();
+  }
+  const taskToWorkItemIds = new Map<string, string>();
+  for (const workItem of workItems) {
+    const workItemRecord = asRecord(workItem);
+    const workItemId = readOptionalString(workItemRecord.id);
+    if (!workItemId) {
+      continue;
+    }
+    const tasks = workItemRecord.tasks;
+    if (!Array.isArray(tasks)) {
+      continue;
+    }
+    for (const task of tasks) {
+      const taskId = readOptionalString(asRecord(task).id);
+      if (taskId) {
+        taskToWorkItemIds.set(taskId, workItemId);
+      }
+    }
+  }
+  return taskToWorkItemIds;
 }
 
 function shouldHumanizeSourceLabel(value: string): boolean {

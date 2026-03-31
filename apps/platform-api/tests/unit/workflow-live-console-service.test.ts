@@ -1826,6 +1826,125 @@ describe('WorkflowLiveConsoleService', () => {
     expect(result.total_count).toBe(3);
   });
 
+  it('keeps uuid task-target execution turns in selected work-item scope when the board maps that task back to the work item', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+      workflowBoardSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const selectedTaskId = '4fcd3b55-450c-4379-80ec-c49ac77d7f27';
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [],
+            pagination: {
+              has_more: false,
+              next_cursor: null,
+              prev_cursor: null,
+              per_page: 500,
+            },
+          };
+        }
+        return {
+          data: [
+            {
+              id: 'log-selected-via-task-target',
+              source: 'runtime',
+              category: 'agent_loop',
+              level: 'debug',
+              operation: 'agent.act',
+              status: 'completed',
+              payload: {
+                tool: 'submit_handoff',
+                input: {
+                  successor_context:
+                    'The selected work item can now continue from the predecessor review output.',
+                  recommended_next_actions: [
+                    {
+                      target_type: 'task',
+                      target_id: selectedTaskId,
+                      action_code: 'continue_selected_work_item',
+                    },
+                  ],
+                },
+              },
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              work_item_id: null,
+              task_id: null,
+              stage_name: 'review',
+              is_orchestrator_task: false,
+              task_title: 'Submit predecessor handoff',
+              role: 'intake-analyst',
+              actor_type: 'runtime',
+              actor_name: 'Intake Analyst',
+              resource_name: null,
+              created_at: '2026-03-28T08:00:30.000Z',
+            },
+          ],
+          pagination: {
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
+            per_page: 500,
+          },
+        };
+      }),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:02:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+      {
+        getWorkflowBoard: vi.fn(async () => ({
+          work_items: [
+            {
+              id: 'work-item-1',
+              tasks: [{ id: selectedTaskId }, { id: '9ab5a263-682a-4d1a-bb08-118d8da6b4a5' }],
+            },
+            {
+              id: 'work-item-2',
+              tasks: [{ id: 'fba5fd53-d453-4a73-8fef-30aa3452286d' }],
+            },
+          ],
+        })),
+      } as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      limit: 10,
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'execution-log:log-selected-via-task-target',
+        linked_target_ids: expect.arrayContaining(['workflow-1', selectedTaskId]),
+        scope_binding: 'structured_target',
+      }),
+    ]);
+    expect(result.total_count).toBe(1);
+  });
+
   it('passes selected scope filters through to execution-log queries', async () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
