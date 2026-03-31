@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { matchesSubscription, processSseBuffer, resetEventTransportForTests, subscribeToEvents } from './sse.js';
-import { clearSession, writeSession } from './session.js';
+import { clearSession, writeSession } from './auth/session.js';
 
 function mockBrowserStorage() {
   const localStore = new Map<string, string>();

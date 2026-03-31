@@ -1,5 +1,5 @@
 import type * as Contracts from '../contracts.js';
-import { clearSession, readSession, writeSession } from '../../session.js';
+import { clearSession, readSession, writeSession } from '../../auth/session.js';
 
 import {
   buildMissionControlQuery,

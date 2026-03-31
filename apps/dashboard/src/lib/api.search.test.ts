@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDashboardApi } from './api.js';
 import { resetDashboardApiTestEnvironment } from './dashboard-api/create-dashboard-api.test-support.js';
-import { writeSession } from './session.js';
+import { writeSession } from './auth/session.js';
 
 describe('dashboard global search', () => {
   beforeEach(() => {

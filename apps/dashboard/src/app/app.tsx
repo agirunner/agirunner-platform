@@ -11,13 +11,13 @@ import {
 } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout/layout.js';
-import { resolveAuthCallbackSession } from '../lib/auth-callback.js';
+import { resolveAuthCallbackSession } from '../lib/auth/auth-callback.js';
 import {
   completeSsoBrowserSession,
   hasDashboardSession,
   resolveAuthCallbackRedirect,
-} from '../lib/auth-session.js';
-import { clearSession, readSession } from '../lib/session.js';
+} from '../lib/auth/auth-session.js';
+import { clearSession, readSession } from '../lib/auth/session.js';
 import {
   buildWorkflowDiagnosticsHref,
   buildWorkflowsLaunchHref,

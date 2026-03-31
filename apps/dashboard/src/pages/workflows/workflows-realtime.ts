@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 
-import { readCookieValue } from '../../lib/auth-callback.js';
+import { readCookieValue } from '../../lib/auth/auth-callback.js';
 import { processSseBuffer } from '../../lib/sse.js';
 import type { DashboardWorkflowOperationsStreamBatch } from '../../lib/api.js';
-import { clearSession, readSession, writeSession } from '../../lib/session.js';
+import { clearSession, readSession, writeSession } from '../../lib/auth/session.js';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
 import type { WorkflowPageMode, WorkflowRailLifecycleFilter } from './workflows-page.support.js';
 import {

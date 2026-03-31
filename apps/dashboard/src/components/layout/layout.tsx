@@ -5,7 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { dashboardApi, type DashboardSearchResult } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
-import { clearSession, readSession } from '../../lib/session.js';
+import { clearSession, readSession } from '../../lib/auth/session.js';
 import { readTheme } from '../../app/theme.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
 import { Dialog, DialogDescription, DialogContent, DialogTitle } from '../ui/dialog.js';

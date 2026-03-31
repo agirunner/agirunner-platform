@@ -1,4 +1,4 @@
-import { readSession } from '../../lib/session.js';
+import { readSession } from '../../lib/auth/session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 

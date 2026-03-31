@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clearSession, readSession, writeSession } from '../../lib/session.js';
+import { clearSession, readSession, writeSession } from '../../lib/auth/session.js';
 import {
   applyRailStreamBatch,
   applyWorkspaceStreamBatch,

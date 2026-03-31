@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDashboardApi } from '../api.js';
-import { writeSession } from '../session.js';
+import { writeSession } from '../auth/session.js';
 
 import {
   createDashboardApiClientStub,

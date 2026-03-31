@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Trash2, Lock, Unlock } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
-import { readSession } from '../../lib/session.js';
+import { readSession } from '../../lib/auth/session.js';
 import { Button } from '../ui/button.js';
 import {
   Select,

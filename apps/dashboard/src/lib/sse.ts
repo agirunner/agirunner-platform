@@ -1,4 +1,4 @@
-import { readSession } from './session.js';
+import { readSession } from './auth/session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const EVENTS_PATH = '/api/v1/events/stream';

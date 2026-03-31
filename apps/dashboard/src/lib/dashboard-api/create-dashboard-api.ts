@@ -1,6 +1,6 @@
 import { PlatformApiClient } from '@agirunner/sdk';
 
-import { clearSession, readSession, writeSession } from '../session.js';
+import { clearSession, readSession, writeSession } from '../auth/session.js';
 
 import { normalizeWorkspaceSpecRecord } from './contracts.js';
 import {

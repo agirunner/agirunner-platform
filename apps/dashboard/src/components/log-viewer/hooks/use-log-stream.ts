@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../../../lib/api.js';
-import { readSession } from '../../../lib/session.js';
+import { readSession } from '../../../lib/auth/session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const RATE_WINDOW_MS = 5_000;

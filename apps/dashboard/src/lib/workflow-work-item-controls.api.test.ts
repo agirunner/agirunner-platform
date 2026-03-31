@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createDashboardApi } from './dashboard-api/create-dashboard-api.js';
-import { clearSession, writeSession } from './session.js';
+import { clearSession, writeSession } from './auth/session.js';
 
 describe('dashboard api workflow work-item lifecycle controls', () => {
   it('posts work-item pause/resume/cancel lifecycle actions with generated request ids', async () => {
