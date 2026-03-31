@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SpecialistCapabilityService } from '../../src/services/specialist-capability-service.js';
+import { SpecialistCapabilityService } from '../../../src/services/specialist-capability-service.js';
 
 function createMockPool() {
   return {
