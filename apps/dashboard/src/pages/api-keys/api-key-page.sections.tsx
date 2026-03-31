@@ -11,7 +11,7 @@ import {
   formatDateLabel,
   formatExpiryLabel,
   formatRelativeTimestamp,
-} from '../governance-shared/governance-lifecycle.support.js';
+} from './api-key-lifecycle.support.js';
 import {
   scopeLabel,
   scopeName,

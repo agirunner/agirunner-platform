@@ -1,6 +1,6 @@
 import { Badge } from '../../components/ui/badge.js';
 
-export function GovernanceReviewField(props: {
+export function ApiKeyReviewField(props: {
   label: string;
   value: string;
   title?: string;

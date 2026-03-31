@@ -6,9 +6,9 @@ import {
   formatExpiryLabel,
   formatRelativeTimestamp,
   isWithinDays,
-} from './governance-lifecycle.support.js';
+} from './api-key-lifecycle.support.js';
 
-describe('governance lifecycle support', () => {
+describe('api key lifecycle support', () => {
   afterEach(() => {
     vi.useRealTimers();
   });

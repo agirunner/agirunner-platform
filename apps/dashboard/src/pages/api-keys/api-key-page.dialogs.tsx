@@ -26,12 +26,12 @@ import {
 } from '../../components/ui/select.js';
 import { dashboardApi, type DashboardApiKeyRecord } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { GovernanceReviewField } from '../governance-shared/governance-review-field.js';
+import { ApiKeyReviewField } from './api-key-review-field.js';
 import {
   formatAbsoluteTimestamp,
   formatExpiryLabel,
   formatRelativeTimestamp,
-} from '../governance-shared/governance-lifecycle.support.js';
+} from './api-key-lifecycle.support.js';
 import { scopeDescription, scopeLabel } from './api-key-page.support.js';
 
 type OperatorScope = 'admin' | 'service';
@@ -269,22 +269,22 @@ export function RevokeConfirmDialog(props: {
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 sm:grid-cols-2">
-          <GovernanceReviewField label="Key prefix" value={`${props.record.key_prefix}...`} mono />
-          <GovernanceReviewField
+          <ApiKeyReviewField label="Key prefix" value={`${props.record.key_prefix}...`} mono />
+          <ApiKeyReviewField
             label="Scope"
             value={scopeLabel(props.record.scope)}
           />
-          <GovernanceReviewField
+          <ApiKeyReviewField
             label="Expiry"
             value={formatExpiryLabel(props.record.expires_at)}
             title={formatAbsoluteTimestamp(props.record.expires_at)}
           />
-          <GovernanceReviewField
+          <ApiKeyReviewField
             label="Last used"
             value={formatRelativeTimestamp(props.record.last_used_at)}
             title={formatAbsoluteTimestamp(props.record.last_used_at)}
           />
-          <GovernanceReviewField
+          <ApiKeyReviewField
             label="Created"
             value={formatRelativeTimestamp(props.record.created_at)}
             title={formatAbsoluteTimestamp(props.record.created_at)}

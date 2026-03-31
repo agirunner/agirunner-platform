@@ -1,6 +1,6 @@
 import type { DashboardApiKeyRecord } from '../../lib/api.js';
 
-import { isWithinDays } from '../governance-shared/governance-lifecycle.support.js';
+import { isWithinDays } from './api-key-lifecycle.support.js';
 
 const OPERATOR_SCOPES = new Set(['admin', 'service']);
 
