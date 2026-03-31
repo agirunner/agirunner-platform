@@ -26,17 +26,17 @@ This README is procedure-first. It explains:
 
 ## Layout
 
-- [env/local.env.example](/home/mark/codex/agirunner-platform/tests/live/env/local.env.example)
+- [`env/local.env.example`](./env/local.env.example)
   - local secret/config template
-- [run.sh](/home/mark/codex/agirunner-platform/tests/live/run.sh)
+- [`run.sh`](./run.sh)
   - the only supported public entrypoint for live-test setup and execution
-- [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json)
+- [`live_test_tracker.json`](./live_test_tracker.json)
   - authoritative default-batch scenario order plus explicit-only scenarios
-- [library](/home/mark/codex/agirunner-platform/tests/live/library)
+- [`library/`](./library)
   - test-owned playbooks, roles, repo seeds, host seeds, skills, remote MCP fixtures
-- [lib](/home/mark/codex/agirunner-platform/tests/live/lib)
+- [`lib/`](./lib)
   - shared Python helpers for API bootstrap and scenario execution
-- [tests](/home/mark/codex/agirunner-platform/tests/live/tests)
+- [`tests/`](./tests)
   - focused helper tests for fixture parsing, catalog integrity, and capability-proof logic
 
 Internal harness implementation files remain under:
@@ -61,22 +61,22 @@ These are observation-oriented seeds for the Workflows UI campaign, not part of 
 Run them one at a time with explicit `--scenario` invocations while capturing Workflows UI evidence.
 
 `workflows-steering-live` and `workflows-redrive-live` are currently meant to provide truthful live precursor state for manual operator observation during a headed dashboard pass.
-The shared helper in [workflows_ui_evidence.py](/home/mark/codex/agirunner-platform/tests/live/lib/workflows_ui_evidence.py) summarizes runner exit code, output presence, DB evidence, runtime cleanup, fatal logs, and optional deliverables provenance payloads from the resulting run artifact.
+The shared helper in [workflows_ui_evidence.py](./lib/workflows_ui_evidence.py) summarizes runner exit code, output presence, DB evidence, runtime cleanup, fatal logs, and optional deliverables provenance payloads from the resulting run artifact.
 
 Helper verification command:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 python3 tests/live/tests/workflows_ui_evidence_test.py
 ```
 
 ## Prerequisites
 
 - Run from the canonical repo on `main`:
-  - [agirunner-platform](/home/mark/codex/agirunner-platform)
+  - `agirunner-platform`
 - Docker and Docker Compose must be available.
 - The sibling repos expected by the harness must exist:
-  - `/home/mark/codex/agirunner-runtime`
+  - `../agirunner-runtime`
   - a local fixtures clone, defaulting to `../agirunner-test-fixtures` unless `FIXTURES_REPO_PATH` overrides it
 - The local stack ports used by the harness must be free:
   - platform API default `8080`
@@ -87,7 +87,7 @@ python3 tests/live/tests/workflows_ui_evidence_test.py
 Copy the example env and fill it in:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 cp tests/live/env/local.env.example tests/live/env/local.env
 ```
 
@@ -136,7 +136,7 @@ Important notes:
 If you need to normalize the env-provided OAuth JSON shape:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 bash tests/live/run.sh --normalize-oauth-session
 ```
 
@@ -147,7 +147,7 @@ That command rewrites the env snapshot format only. It does not read the live DB
 Full tracker batch with automatic bootstrap/reuse:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 bash tests/live/run.sh
 ```
 
@@ -193,7 +193,7 @@ Shared bootstrap and scenario execution still use the internal scripts below. `r
 What it does:
 
 1. loads `tests/live/env/local.env`
-2. builds the runtime image from `/home/mark/codex/agirunner-runtime`
+2. builds the runtime image from the sibling `../agirunner-runtime` checkout
 3. hard-resets the fixtures repo checkout to its default branch
 4. tears down the default compose stack with volumes
 5. rebuilds and brings the stack back up
@@ -201,8 +201,8 @@ What it does:
 7. verifies the live container secrets match `tests/live/env/local.env`
 8. seeds provider defaults, model assignments, roles, playbooks, capability fixtures, and execution-environment registry through platform APIs
 9. writes shared bootstrap output to:
-   - [bootstrap/context.json](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/context.json)
-   - [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/api-trace/api.ndjson)
+   - `tests/live/results/bootstrap/context.json`
+   - `tests/live/results/bootstrap/api-trace/api.ndjson`
 10. records the runtime-calculated shared bootstrap fingerprint in `bootstrap/context.json`
 
 This is the full rebuild/reseed path. Use it when:
@@ -233,7 +233,7 @@ What the runner does:
 3. checks whether the shared bootstrap can be reused
 4. if reuse is not valid, runs `scripts/prepare-live-test-shared-environment.sh`
 5. runs `scripts/prepare-live-test-run.sh <scenario>`
-6. starts the workflow through [lib/run_workflow_scenario.py](/home/mark/codex/agirunner-platform/tests/live/lib/run_workflow_scenario.py)
+6. starts the workflow through [`lib/run_workflow_scenario.py`](./lib/run_workflow_scenario.py)
 7. writes final scenario output to:
    - `tests/live/results/<scenario>/workflow-run.json`
 
@@ -251,7 +251,7 @@ The fingerprint is calculated on every `run.sh` invocation and then persisted in
 If you want to inspect or debug the per-scenario setup separately from the actual workflow run:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 bash tests/live/run.sh --prepare-only --scenario sdlc-assessment-approve
 ```
 
@@ -287,7 +287,7 @@ bash tests/live/run.sh --failed-only
 
 The batch runner:
 
-- uses [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json) order when no explicit scenario names are provided
+- uses [`live_test_tracker.json`](./live_test_tracker.json) order when no explicit scenario names are provided
 - performs one shared bootstrap first
 - runs serially by default and concurrently only when you opt into a higher `--concurrency`
 - logs `START <scenario>` when a scenario launches
@@ -299,12 +299,12 @@ The batch runner:
 
 Default artifact root:
 
-- [/tests/live/results](/home/mark/codex/agirunner-platform/tests/live/results)
+- `tests/live/results/`
 
 Shared bootstrap artifacts:
 
-- [bootstrap/context.json](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/context.json)
-- [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/api-trace/api.ndjson)
+- `tests/live/results/bootstrap/context.json`
+- `tests/live/results/bootstrap/api-trace/api.ndjson`
 
 Per-scenario artifacts:
 
@@ -435,7 +435,7 @@ Always fix generic platform/runtime/prompt/harness causes before reaching for sc
 
 ## Scenario Contract
 
-Each scenario JSON under [scenarios](/home/mark/codex/agirunner-platform/tests/live/scenarios) defines:
+Each scenario JSON under [`scenarios/`](./scenarios) defines:
 
 - `profile`
   - fixture profile under `tests/live/library/<profile>/`
@@ -474,7 +474,7 @@ Runnable harness entrypoints stay under `tests/live/`, `tests/live/scripts/`, an
 The kept helper tests are:
 
 ```bash
-cd /home/mark/codex/agirunner-platform
+cd /path/to/agirunner-platform
 python3 tests/live/tests/live_test_api.test.py
 python3 tests/live/tests/live_test_catalog.test.py
 python3 tests/live/tests/scenario_config.test.py

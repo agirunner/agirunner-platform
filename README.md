@@ -172,6 +172,11 @@ In the default local Compose setup, the dashboard login screen is also
 prefilled with `DEFAULT_ADMIN_API_KEY`, so you usually only need to
 confirm it and sign in.
 
+If you created `.env` by copying `.env.example`, the admin key is the
+`DEFAULT_ADMIN_API_KEY=...` value in that file. Replace it with your own
+bootstrap key before sharing the environment. The first-boot seed path
+expects that value to start with `ab_admin_def`.
+
 The platform API runs migrations and seed/bootstrap work during startup,
 so there is no separate `db:migrate` command to run in the root
 workspace.
@@ -203,13 +208,20 @@ Security defaults in the local stack include:
 
 ### Runtime Image Strategy
 
-The platform expects the runtime repository next to it during local
-development and defaults to a locally built runtime image.
+Today, the default local Compose path still expects a local runtime
+image tag (`agirunner-runtime:local`). Keeping `agirunner-runtime` next
+to this repo is the easiest way to satisfy that current developer
+default when you are iterating on the runtime itself.
+
+That is a local-development convenience, not the intended long-term
+deployment model. The direction of the stack is to point the platform at
+a pinned published runtime image, with the sibling runtime checkout only
+needed when you are actively changing the runtime.
 
 For release or staging environments, set the runtime image explicitly:
 
 ```env
-AGIRUNNER_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime@sha256:...
+AGIRUNNER_DEFAULT_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime@sha256:...
 ```
 
 Use digest-pinned runtime images anywhere you care about reproducibility.

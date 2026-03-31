@@ -56,6 +56,11 @@ After startup:
 The platform API applies migrations and seed/bootstrap work during
 startup, so there is no separate root-level migration command to run.
 
+If you created `.env` from `.env.example`, the bootstrap admin key is
+already present on the `DEFAULT_ADMIN_API_KEY=...` line. Replace it with
+your own value before sharing the stack. The seed path expects it to
+start with `ab_admin_def`.
+
 ## Repository Map
 
 ```text
