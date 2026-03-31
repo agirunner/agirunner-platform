@@ -36,11 +36,13 @@ describe('LogStreamService lifecycle and reconnect behavior', () => {
     const firstClient = {
       query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       on: vi.fn(),
+      removeAllListeners: vi.fn(),
       release: vi.fn(),
     };
     const secondClient = {
       query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       on: vi.fn(),
+      removeAllListeners: vi.fn(),
       release: vi.fn(),
     };
     const pool = {
@@ -71,11 +73,13 @@ describe('LogStreamService lifecycle and reconnect behavior', () => {
     const firstClient = {
       query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       on: vi.fn(),
+      removeAllListeners: vi.fn(),
       release: vi.fn(),
     };
     const secondClient = {
       query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
       on: vi.fn(),
+      removeAllListeners: vi.fn(),
       release: vi.fn(),
     };
     const pool = {

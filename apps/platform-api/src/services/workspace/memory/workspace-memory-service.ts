@@ -1,4 +1,4 @@
-import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { ApiKeyIdentity } from '../../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../../db/database.js';
 import { ValidationError } from '../../../errors/domain-errors.js';
 import type { EventService } from '../../event/event-service.js';

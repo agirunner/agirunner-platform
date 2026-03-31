@@ -1,4 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import type { PoolClient } from 'pg';
 import { sanitizeEventRow } from './event-service.js';
 
 interface EventFilters {
@@ -26,7 +27,7 @@ export interface StreamEvent {
 }
 
 export class EventStreamService {
-  private listenerClient: DatabaseClient | null = null;
+  private listenerClient: PoolClient | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private nextSubscriberId = 1;
   private readonly subscribers = new Map<

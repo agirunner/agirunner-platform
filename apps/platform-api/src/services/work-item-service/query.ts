@@ -14,14 +14,10 @@ import {
   toWorkItemReadModel,
 } from './shared.js';
 import { workItemColumnList } from './types.js';
-
-interface WorkItemMemoryEntry {
-  [key: string]: unknown;
-}
-
-interface WorkItemMemoryHistoryEntry {
-  [key: string]: unknown;
-}
+import type {
+  WorkItemMemoryEntry,
+  WorkItemMemoryHistoryEntry,
+} from '../workspace/memory/workspace-memory-scope-service.js';
 
 export async function listWorkflowWorkItems(
   deps: WorkItemServiceDependencies,

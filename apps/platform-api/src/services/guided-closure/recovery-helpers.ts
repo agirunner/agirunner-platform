@@ -17,7 +17,6 @@ import {
 import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverables/workflow-deliverable-lifecycle-service.js';
 import {
   buildReplayConflictOperatorGuidance,
-  type ReplayConflictOperatorField,
 } from './recovery-helpers/replay-conflict-guidance.js';
 
 export interface RerunTaskWithCorrectedBriefInput {
@@ -64,15 +63,8 @@ interface RecoveryWorkItemRow {
   updated_at: Date;
 }
 
-export interface ReplayConflictOperatorField {
-  field: string;
-  persisted_value: string | null;
-  submitted_value: string | null;
-  operator_message: string;
-}
-
 export { buildReplayConflictOperatorGuidance };
-export type { ReplayConflictOperatorField };
+export type { ReplayConflictOperatorField } from './recovery-helpers/replay-conflict-guidance.js';
 
 export class GuidedClosureRecoveryHelpersService {
   constructor(private readonly deps: GuidedClosureRecoveryHelpersDependencies) {}

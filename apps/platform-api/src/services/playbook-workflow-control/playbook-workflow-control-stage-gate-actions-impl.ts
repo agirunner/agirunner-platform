@@ -13,6 +13,7 @@ import type {
   StageGateDecisionInput,
   StageGateRequestInput,
   WorkflowStageGateRow,
+  WorkflowStageRow,
 } from './playbook-workflow-control-types.js';
 import {
   isFollowOnGateDecisionAllowed,

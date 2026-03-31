@@ -1,6 +1,6 @@
-import type { PlaybookService } from '../playbook-service.js';
-import type { RoleDefinitionService } from '../role-definition-service.js';
-import type { SpecialistSkillService } from '../specialist-skill-service.js';
+import type { PlaybookService } from '../playbook/playbook-service.js';
+import type { RoleDefinitionService } from '../role-definition/role-definition-service.js';
+import type { SpecialistSkillService } from '../specialist/specialist-skill-service.js';
 import type { CommunityCatalogPersistence } from './community-catalog-persistence.js';
 import type { CommunityCatalogSourceService } from './community-catalog-source.js';
 import type {

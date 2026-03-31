@@ -4,11 +4,11 @@ const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
   logSafetynetTriggeredMock: vi.fn(),
 }));
 
-vi.mock('../../src/services/safetynet/logging.js', () => ({
+vi.mock('../../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
-import { WorkflowActivationService } from '../../../src/services/workflow-activation/workflow-activation-service.js';
+import { WorkflowActivationService } from '../../../../src/services/workflow-activation/workflow-activation-service.js';
 
 const identity = {
   id: 'key-1',

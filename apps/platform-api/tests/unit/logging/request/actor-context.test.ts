@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { actorFromAuth } from '../../../../src/logging/request/actor-context.js';
-import type { ApiKeyIdentity } from '../../../src/auth/api-key.js';
+import type { ApiKeyIdentity } from '../../../../src/auth/api-key.js';
 
 describe('actorFromAuth', () => {
   it('returnsSystemActorWhenAuthIsUndefined', () => {

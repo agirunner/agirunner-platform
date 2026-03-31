@@ -23,15 +23,18 @@ export function createOrchestratorControlApp(
 ) {
   const app = fastify();
   registerErrorHandler(app);
-  app.decorate('pgPool', pool);
-  app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
-  app.decorate('eventService', { emit: vi.fn(async () => undefined) });
-  app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
-  app.decorate('taskService', taskService);
+  app.decorate('pgPool', pool as never);
+  app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+  app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+  app.decorate(
+    'workflowService',
+    { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() } as never,
+  );
+  app.decorate('taskService', taskService as never);
   app.decorate('workspaceService', {
     patchWorkspaceMemory: vi.fn(),
     removeWorkspaceMemory: vi.fn(),
-  });
+  } as never);
   return app;
 }
 

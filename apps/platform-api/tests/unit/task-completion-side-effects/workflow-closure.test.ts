@@ -164,8 +164,10 @@ describe('task completion workflow closure', () => {
       client as never,
     );
 
-    expect(
-      eventService.emit.mock.calls.some((call) => (call[0] as { type?: string }).type === 'work_item.completed'),
-    ).toBe(false);
+    const eventCalls = eventService.emit.mock.calls as unknown as Array<[
+      { type?: string },
+      ...unknown[],
+    ]>;
+    expect(eventCalls.some(([event]) => event.type === 'work_item.completed')).toBe(false);
   });
 });

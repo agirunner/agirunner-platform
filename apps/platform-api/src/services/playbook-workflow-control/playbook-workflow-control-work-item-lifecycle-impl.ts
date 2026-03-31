@@ -17,6 +17,7 @@ import type {
   CompleteWorkflowWorkItemInput,
   ResolveWorkflowWorkItemEscalationInput,
   UpdateWorkflowWorkItemInput,
+  WorkflowWorkItemRow,
 } from './playbook-workflow-control-types.js';
 import {
   buildWorkItemUpdatePayload,

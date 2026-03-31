@@ -17,7 +17,8 @@ describe('workflow list query shape', () => {
       needsActionOnly: false,
     });
 
-    const [sqlArg] = query.mock.calls.at(0) ?? [];
+    const queryCalls = query.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const [sqlArg] = queryCalls.at(0) ?? [];
     const sql = String(sqlArg ?? '');
 
     expect(sql).not.toContain('task_summary AS');
@@ -39,7 +40,8 @@ describe('workflow list query shape', () => {
       needsActionOnly: true,
     });
 
-    const [sqlArg] = query.mock.calls.at(0) ?? [];
+    const queryCalls = query.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const [sqlArg] = queryCalls.at(0) ?? [];
     const sql = String(sqlArg ?? '');
 
     expect(sql).toContain('task_summary AS');

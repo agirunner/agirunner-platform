@@ -92,16 +92,16 @@ export async function createManagedTaskMessageHarness(options: {
 
   const app = fastify();
   registerErrorHandler(app);
-  app.decorate('pgPool', pool);
-  app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
-  app.decorate('eventService', { emit });
-  app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
-  app.decorate('workerConnectionHub', { sendToWorker });
-  app.decorate('taskService', taskService);
+  app.decorate('pgPool', pool as never);
+  app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+  app.decorate('eventService', { emit } as never);
+  app.decorate('workflowService', { getWorkflowBudget: vi.fn() } as never);
+  app.decorate('workerConnectionHub', { sendToWorker } as never);
+  app.decorate('taskService', taskService as never);
   app.decorate('workspaceService', {
     patchWorkspaceMemory: vi.fn(),
     removeWorkspaceMemory: vi.fn(),
-  });
+  } as never);
 
   await app.register(orchestratorControlRoutes);
 

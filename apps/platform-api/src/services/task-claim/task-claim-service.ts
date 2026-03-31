@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import { AgentBusyError, ForbiddenError, NotFoundError } from '../../errors/domain-errors.js';
 import { readOAuthToken, readProviderSecret } from '../../lib/oauth-crypto.js';
-import { assertValidTransition } from '../../orchestration/task-state-machine.js';
+import { assertValidTransition, normalizeTaskState } from '../../orchestration/task-state-machine.js';
 import {
   computeToolMatch,
   readAgentToolRequirements,
@@ -193,7 +193,8 @@ export class TaskClaimService {
               workItemId:
                 typeof candidate.work_item_id === 'string' ? candidate.work_item_id : null,
               isOrchestratorTask: candidate.is_orchestrator_task === true,
-              currentState: candidate.state as Parameters<typeof assertValidTransition>[1],
+              currentState:
+                typeof candidate.state === 'string' ? normalizeTaskState(candidate.state) : null,
             },
             client,
           ))

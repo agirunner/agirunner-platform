@@ -1,6 +1,6 @@
 import fastify from 'fastify';
 import { resolve } from 'node:path';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 

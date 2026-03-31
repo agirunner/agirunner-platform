@@ -122,7 +122,7 @@ export async function applyGateDecisionImpl(this: any,
   definition: PlaybookDefinition,
   client?: DatabaseClient,
 ) {
-  const db = client ?? this.deps.pool;
+  const db: DatabaseClient | DatabasePool = client ?? this.deps.pool;
   const decisionState =
     input.action === 'approve'
       ? { gate_status: 'approved', status: 'active', iterations: stage.iteration_count }

@@ -23,7 +23,6 @@ import {
   readOptionalString,
   sanitizeHandoffRecord,
   sanitizeHandoffValue,
-  normalizeUUIDString,
   normalizeRecord,
 } from './handoff-service.response.js';
 import {

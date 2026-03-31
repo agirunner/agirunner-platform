@@ -1,7 +1,11 @@
 
 import type { DatabaseClient } from '../../db/database.js';
 import { ValidationError } from '../../errors/domain-errors.js';
-import type { WorkflowWorkItemRow } from './playbook-workflow-control-types.js';
+import type {
+  BlockingStageWorkItemRow,
+  BlockingTaskRow,
+  WorkflowWorkItemRow,
+} from './playbook-workflow-control-types.js';
 import {
   COMPLETION_BLOCKING_NEXT_ACTIONS,
   TERMINAL_TASK_STATES,

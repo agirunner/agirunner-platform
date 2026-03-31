@@ -1,4 +1,4 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
 interface SubjectRef {
   kind: 'task' | 'work_item' | 'handoff' | 'branch';

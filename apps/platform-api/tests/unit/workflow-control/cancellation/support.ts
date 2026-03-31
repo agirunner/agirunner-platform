@@ -21,8 +21,9 @@ export function makeCancellationService(overrides?: {
   const client = overrides?.client ?? makeTransactionClient(vi.fn());
   return new WorkflowCancellationService({
     pool: { connect: vi.fn(async () => client) } as never,
-    eventService: overrides?.eventService ?? { emit: vi.fn(async () => undefined) },
-    stateService: overrides?.stateService ?? { recomputeWorkflowState: vi.fn(async () => 'cancelled') },
+    eventService: (overrides?.eventService ?? { emit: vi.fn(async () => undefined) }) as never,
+    stateService:
+      (overrides?.stateService ?? { recomputeWorkflowState: vi.fn(async () => 'cancelled') }) as never,
     resolveCancelSignalGracePeriodMs: async () => 60_000,
     workerConnectionHub: overrides?.workerConnectionHub as never,
     getWorkflow: overrides?.getWorkflow ?? vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),

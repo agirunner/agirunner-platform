@@ -107,9 +107,9 @@ export async function createExecutionLogsApp(
   const app = fastify();
   const logService = createExecutionLogsLogService(overrides);
 
-  app.decorate('config', { EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 1000 });
-  app.decorate('logStreamService', { subscribe: vi.fn(() => () => {}) });
-  app.decorate('logService', logService);
+  app.decorate('config', { EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 1000 } as never);
+  app.decorate('logStreamService', { subscribe: vi.fn(() => () => {}) } as never);
+  app.decorate('logService', logService as never);
   registerErrorHandler(app);
   await app.register(executionLogRoutes);
 

@@ -4,6 +4,7 @@ export function createMockPool() {
   const mockClient = {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
     on: vi.fn(),
+    removeAllListeners: vi.fn(),
     release: vi.fn(),
   };
   return {

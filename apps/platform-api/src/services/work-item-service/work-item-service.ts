@@ -3,7 +3,11 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
-import { WorkspaceMemoryScopeService } from '../workspace/memory/workspace-memory-scope-service.js';
+import {
+  WorkspaceMemoryScopeService,
+  type WorkItemMemoryEntry,
+  type WorkItemMemoryHistoryEntry,
+} from '../workspace/memory/workspace-memory-scope-service.js';
 import { createWorkItem } from './mutation.js';
 import {
   getWorkItemMemory,
@@ -75,7 +79,7 @@ export class WorkItemService {
     tenantId: string,
     workflowId: string,
     workItemId: string,
-  ): Promise<{ entries: unknown[] }> {
+  ): Promise<{ entries: WorkItemMemoryEntry[] }> {
     return getWorkItemMemory(this.deps, tenantId, workflowId, workItemId);
   }
 
@@ -84,7 +88,7 @@ export class WorkItemService {
     workflowId: string,
     workItemId: string,
     limit: number,
-  ): Promise<{ history: unknown[] }> {
+  ): Promise<{ history: WorkItemMemoryHistoryEntry[] }> {
     return getWorkItemMemoryHistory(this.deps, tenantId, workflowId, workItemId, limit);
   }
 

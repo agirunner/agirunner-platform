@@ -6,9 +6,9 @@ import {
   clearAssessmentExpectationState,
   persistOrchestratorFinishStateState,
 } from './state-operations.js';
+import type { OrchestratorFinishStateUpdate } from './types.js';
 
 export type {
-  OrchestratorFinishStateUpdate,
   WorkItemCompletionOutcome,
 } from './types.js';
 

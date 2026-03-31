@@ -42,11 +42,11 @@ import type {
 
 export class HandoffService {
   constructor(
-    private readonly pool: DatabasePool,
-    private readonly logService?: LogService,
-    private readonly eventService?: EventService,
-    private readonly activationDispatchService?: ImmediateWorkflowActivationDispatcher,
-    private readonly deliverablePromotionService?: Pick<WorkflowTaskDeliverablePromotionService, 'promoteFromHandoff'>,
+    readonly pool: DatabasePool,
+    readonly logService?: LogService,
+    readonly eventService?: EventService,
+    readonly activationDispatchService?: ImmediateWorkflowActivationDispatcher,
+    readonly deliverablePromotionService?: Pick<WorkflowTaskDeliverablePromotionService, 'promoteFromHandoff'>,
   ) {}
 
   async assertRequiredTaskHandoffBeforeCompletion(

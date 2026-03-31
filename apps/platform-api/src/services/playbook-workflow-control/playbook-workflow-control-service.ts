@@ -218,119 +218,147 @@ export class PlaybookWorkflowControlService {
     }
   }
 
-  private async requestStageGateApprovalInTransaction(...args: any[]) {
+  private async requestStageGateApprovalInTransaction(
+    ...args: Parameters<typeof requestStageGateApprovalInTransactionImpl>
+  ) {
     return requestStageGateApprovalInTransactionImpl.apply(this, args);
   }
 
-  private async actOnStageGateInTransaction(...args: any[]) {
+  private async actOnStageGateInTransaction(...args: Parameters<typeof actOnStageGateInTransactionImpl>) {
     return actOnStageGateInTransactionImpl.apply(this, args);
   }
 
-  private async actOnGateInTransaction(...args: any[]) {
+  private async actOnGateInTransaction(...args: Parameters<typeof actOnGateInTransactionImpl>) {
     return actOnGateInTransactionImpl.apply(this, args);
   }
 
-  private async advanceStageInTransaction(...args: any[]) {
+  private async advanceStageInTransaction(...args: Parameters<typeof advanceStageInTransactionImpl>) {
     return advanceStageInTransactionImpl.apply(this, args);
   }
 
-  private async completeOpenCheckpointWorkItems(...args: any[]) {
+  private async completeOpenCheckpointWorkItems(
+    ...args: Parameters<typeof completeOpenCheckpointWorkItemsImpl>
+  ) {
     return completeOpenCheckpointWorkItemsImpl.apply(this, args);
   }
 
-  private async assertStageHasNoBlockingAssessmentResolution(...args: any[]) {
+  private async assertStageHasNoBlockingAssessmentResolution(
+    ...args: Parameters<typeof assertStageHasNoBlockingAssessmentResolutionImpl>
+  ) {
     return assertStageHasNoBlockingAssessmentResolutionImpl.apply(this, args);
   }
 
-  private async assertNoPendingBlockingContinuation(...args: any[]) {
+  private async assertNoPendingBlockingContinuation(
+    ...args: Parameters<typeof assertNoPendingBlockingContinuationImpl>
+  ) {
     return assertNoPendingBlockingContinuationImpl.apply(this, args);
   }
 
-  private async assertWorkItemHasNoActiveTasks(...args: any[]) {
+  private async assertWorkItemHasNoActiveTasks(
+    ...args: Parameters<typeof assertWorkItemHasNoActiveTasksImpl>
+  ) {
     return assertWorkItemHasNoActiveTasksImpl.apply(this, args);
   }
 
-  private async assertStageHasNoPendingBlockingContinuation(...args: any[]) {
+  private async assertStageHasNoPendingBlockingContinuation(
+    ...args: Parameters<typeof assertStageHasNoPendingBlockingContinuationImpl>
+  ) {
     return assertStageHasNoPendingBlockingContinuationImpl.apply(this, args);
   }
 
-  private async assertWorkflowHasNoActiveNonOrchestratorTasks(...args: any[]) {
+  private async assertWorkflowHasNoActiveNonOrchestratorTasks(
+    ...args: Parameters<typeof assertWorkflowHasNoActiveNonOrchestratorTasksImpl>
+  ) {
     return assertWorkflowHasNoActiveNonOrchestratorTasksImpl.apply(this, args);
   }
 
-  private async completeWorkflowInTransaction(...args: any[]) {
+  private async completeWorkflowInTransaction(...args: Parameters<typeof completeWorkflowInTransactionImpl>) {
     return completeWorkflowInTransactionImpl.apply(this, args);
   }
 
-  private async loadWorkflow(...args: any[]) {
+  private async loadWorkflow(...args: Parameters<typeof loadWorkflowImpl>) {
     return loadWorkflowImpl.apply(this, args);
   }
 
-  private async loadWorkItem(...args: any[]) {
+  private async loadWorkItem(...args: Parameters<typeof loadWorkItemImpl>) {
     return loadWorkItemImpl.apply(this, args);
   }
 
-  private async loadWorkflowCompletionCallouts(...args: any[]) {
+  private async loadWorkflowCompletionCallouts(
+    ...args: Parameters<typeof loadWorkflowCompletionCalloutsImpl>
+  ) {
     return loadWorkflowCompletionCalloutsImpl.apply(this, args);
   }
 
-  private async updateWorkItemInTransaction(...args: any[]) {
+  private async updateWorkItemInTransaction(...args: Parameters<typeof updateWorkItemInTransactionImpl>) {
     return updateWorkItemInTransactionImpl.apply(this, args);
   }
 
-  private async completeWorkItemInTransaction(...args: any[]) {
+  private async completeWorkItemInTransaction(
+    ...args: Parameters<typeof completeWorkItemInTransactionImpl>
+  ) {
     return completeWorkItemInTransactionImpl.apply(this, args);
   }
 
-  private async resolveWorkItemEscalationInTransaction(...args: any[]) {
+  private async resolveWorkItemEscalationInTransaction(
+    ...args: Parameters<typeof resolveWorkItemEscalationInTransactionImpl>
+  ) {
     return resolveWorkItemEscalationInTransactionImpl.apply(this, args);
   }
 
-  private async assertWorkItemHasNoBlockingAssessmentResolution(...args: any[]) {
+  private async assertWorkItemHasNoBlockingAssessmentResolution(
+    ...args: Parameters<typeof assertWorkItemHasNoBlockingAssessmentResolutionImpl>
+  ) {
     return assertWorkItemHasNoBlockingAssessmentResolutionImpl.apply(this, args);
   }
 
-  private async hasSatisfiedPendingHandoff(...args: any[]) {
+  private async hasSatisfiedPendingHandoff(...args: Parameters<typeof hasSatisfiedPendingHandoffImpl>) {
     return hasSatisfiedPendingHandoffImpl.apply(this, args);
   }
 
-  private async assertValidParentChange(...args: any[]) {
+  private async assertValidParentChange(...args: Parameters<typeof assertValidParentChangeImpl>) {
     return assertValidParentChangeImpl.apply(this, args);
   }
 
-  private async loadStage(...args: any[]) {
+  private async loadStage(...args: Parameters<typeof loadStageImpl>) {
     return loadStageImpl.apply(this, args);
   }
 
-  private async loadAwaitingGate(...args: any[]) {
+  private async loadAwaitingGate(...args: Parameters<typeof loadAwaitingGateImpl>) {
     return loadAwaitingGateImpl.apply(this, args);
   }
 
-  private async loadAwaitingGateById(...args: any[]) {
+  private async loadAwaitingGateById(...args: Parameters<typeof loadAwaitingGateByIdImpl>) {
     return loadAwaitingGateByIdImpl.apply(this, args);
   }
 
-  private async loadGateById(...args: any[]) {
+  private async loadGateById(...args: Parameters<typeof loadGateByIdImpl>) {
     return loadGateByIdImpl.apply(this, args);
   }
 
-  private async loadLatestGateForStage(...args: any[]) {
+  private async loadLatestGateForStage(...args: Parameters<typeof loadLatestGateForStageImpl>) {
     return loadLatestGateForStageImpl.apply(this, args);
   }
 
-  private async loadGateRequestChangeTargets(...args: any[]) {
+  private async loadGateRequestChangeTargets(
+    ...args: Parameters<typeof loadGateRequestChangeTargetsImpl>
+  ) {
     return loadGateRequestChangeTargetsImpl.apply(this, args);
   }
 
-  private async reactivateApprovedStageIfAwaitingGate(...args: any[]) {
+  private async reactivateApprovedStageIfAwaitingGate(
+    ...args: Parameters<typeof reactivateApprovedStageIfAwaitingGateImpl>
+  ) {
     return reactivateApprovedStageIfAwaitingGateImpl.apply(this, args);
   }
 
-  private async hasNewGateRelatedHandoffSinceGateDecision(...args: any[]) {
+  private async hasNewGateRelatedHandoffSinceGateDecision(
+    ...args: Parameters<typeof hasNewGateRelatedHandoffSinceGateDecisionImpl>
+  ) {
     return hasNewGateRelatedHandoffSinceGateDecisionImpl.apply(this, args);
   }
 
-  private async applyGateDecision(...args: any[]) {
+  private async applyGateDecision(...args: Parameters<typeof applyGateDecisionImpl>) {
     return applyGateDecisionImpl.apply(this, args);
   }
 

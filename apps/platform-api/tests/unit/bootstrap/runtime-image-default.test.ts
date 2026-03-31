@@ -88,8 +88,8 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
             config_value: 'existing-image',
             config_type: 'string',
             description: 'existing',
-            created_at: '2026-03-31T00:00:00Z',
-            updated_at: '2026-03-31T00:00:00Z',
+            created_at: new Date('2026-03-31T00:00:00Z'),
+            updated_at: new Date('2026-03-31T00:00:00Z'),
           } as const)
         : null;
     },
@@ -109,8 +109,8 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
         config_value: input.configValue,
         config_type: input.configType,
         description: null,
-        created_at: '2026-03-31T00:00:00Z',
-        updated_at: '2026-03-31T00:00:00Z',
+        created_at: new Date('2026-03-31T00:00:00Z'),
+        updated_at: new Date('2026-03-31T00:00:00Z'),
       };
     },
     async upsertDefault(
@@ -128,8 +128,8 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
         config_value: input.configValue,
         config_type: input.configType,
         description: null,
-        created_at: '2026-03-31T00:00:00Z',
-        updated_at: '2026-03-31T00:00:00Z',
+        created_at: new Date('2026-03-31T00:00:00Z'),
+        updated_at: new Date('2026-03-31T00:00:00Z'),
       };
     },
   };

@@ -3,7 +3,9 @@ import { ensureWorkflowBranch } from '../workflow-operations/workflow-branch-ser
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type {
+  CheckpointPredecessorRow,
   CreateWorkItemInput,
+  NonTerminalTaskStateCountRow,
   ParentWorkItemBranchRow,
 } from './types.js';
 import {

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { seedDefaultTenant } from '../../../src/db/seed.js';
 import { seedConfigTables } from '../../../src/bootstrap/seed.js';
-import { BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG } from '../../../src/services/execution-environment-starters.js';
+import { BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG } from '../../../src/services/execution-environment/starters.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
