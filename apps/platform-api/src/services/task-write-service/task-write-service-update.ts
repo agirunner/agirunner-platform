@@ -1,5 +1,5 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 import { assertNoPlaintextSecrets } from './task-write-service.helpers.js';
 import type { TaskWriteDependencies } from './task-write-service.types.js';
 

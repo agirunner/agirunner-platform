@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildTaskContext } from '../../src/services/task-context-service.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
 import { registerWorker } from '../../src/services/worker-registration-service.js';
-import { TaskWriteService } from '../../src/services/task-write-service.js';
+import { TaskWriteService } from '../../src/services/task-write-service/task-write-service.js';
 import { WorkflowStateService } from '../../src/services/workflow-state-service.js';
 import { WorkflowCancellationService } from '../../src/services/workflow-cancellation-service.js';
 import { authenticateApiKey, withScope } from '../../src/auth/fastify-auth-hook.js';

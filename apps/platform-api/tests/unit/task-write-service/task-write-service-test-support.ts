@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import * as TaskWriteServiceModule from '../../../src/services/task-write-service.js';
+import * as TaskWriteServiceModule from '../../../src/services/task-write-service/task-write-service.js';
 import * as DomainErrors from '../../../src/errors/domain-errors.js';
 
 const { readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ vi.mock('../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
-import type { TaskWriteDependencies } from '../../../src/services/task-write-service.types.js';
+import type { TaskWriteDependencies } from '../../../src/services/task-write-service/task-write-service.types.js';
 
 export const ConflictError = DomainErrors.ConflictError;
 export const ValidationError = DomainErrors.ValidationError;

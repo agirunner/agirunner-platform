@@ -1,8 +1,8 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { isOperatorScope } from '../auth/scope.js';
-import type { CreateTaskInput } from './task-service.types.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { isOperatorScope } from '../../auth/scope.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 import type { ParentTaskRow, TaskWriteDependencies } from './task-write-service.types.js';
 
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;

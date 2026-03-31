@@ -1,12 +1,12 @@
-import { isOperatorScope } from '../auth/scope.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { isOperatorScope } from '../../auth/scope.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
-} from './runtime-default-values.js';
-import type { CreateTaskInput } from './task-service.types.js';
+} from '../runtime-default-values.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowMutationGuardRow, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
 import {
   asNullableString,
@@ -20,7 +20,7 @@ import {
 import {
   ACTIVE_TASK_DUPLICATE_GUARD_STATES,
   REUSABLE_TASK_DUPLICATE_GUARD_STATES,
-} from './task-write-service/task-write-service-duplicate-guard-states.js';
+} from './task-write-service-duplicate-guard-states.js';
 
 export class TaskWriteCreateGuards {
   constructor(private readonly deps: TaskWriteDependencies) {}

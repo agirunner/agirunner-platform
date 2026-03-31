@@ -1,6 +1,6 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import type { CreateTaskInput } from './task-service.types.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 import { TaskWriteCreateService } from './task-write-service-create.js';
 import { TaskWriteUpdateService } from './task-write-service-update.js';
 import type { TaskWriteDependencies } from './task-write-service.types.js';

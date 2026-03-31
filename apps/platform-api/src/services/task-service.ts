@@ -15,7 +15,7 @@ import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
-import { TaskWriteService } from './task-write-service.js';
+import { TaskWriteService } from './task-write-service/task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';

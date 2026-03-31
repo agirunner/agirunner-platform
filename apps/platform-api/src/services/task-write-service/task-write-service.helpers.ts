@@ -1,12 +1,12 @@
-import { ConflictError, ValidationError } from '../errors/domain-errors.js';
-import { areJsonValuesEquivalent } from './json-equivalence.js';
-import { resolveWorkspaceStorageBinding, buildGitRemoteResourceBindings } from './workspace-storage.js';
+import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
+import { areJsonValuesEquivalent } from '../json-equivalence.js';
+import { resolveWorkspaceStorageBinding, buildGitRemoteResourceBindings } from '../workspace-storage.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
-import type { CreateTaskInput } from './task-service.types.js';
+} from '../safetynet/registry.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 
 export const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;

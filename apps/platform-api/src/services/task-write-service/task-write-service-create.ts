@@ -1,15 +1,15 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { logSafetynetTriggered } from './safetynet/logging.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
-} from './safetynet/registry.js';
+} from '../safetynet/registry.js';
 import { TaskWriteCreateDefaults } from './task-write-service-create-defaults.js';
 import { TaskWriteCreateGuards } from './task-write-service-create-guards.js';
 import { TaskWriteParentPolicies } from './task-write-service-create-parent.js';
-import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
+import { readTemplateLifecyclePolicy } from '../task-lifecycle-policy.js';
 import {
   assertMatchingCreateTaskReplay,
   assertNoPlaintextSecrets,
@@ -20,7 +20,7 @@ import {
   selectPersistedSubjectLinkage,
   stripRedactedTaskSecretPlaceholders,
 } from './task-write-service.helpers.js';
-import type { CreateTaskInput } from './task-service.types.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 import type { TaskWriteDependencies } from './task-write-service.types.js';
 
 const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(

@@ -1,12 +1,12 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import { mergeLifecyclePolicy, readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
+import { mergeLifecyclePolicy, readTemplateLifecyclePolicy } from '../task-lifecycle-policy.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
   TASK_MAX_ITERATIONS_RUNTIME_KEY,
-} from './runtime-default-values.js';
+} from '../runtime-default-values.js';
 import {
   DEFAULT_REPOSITORY_TASK_TEMPLATE,
   asNullableString,
@@ -15,9 +15,9 @@ import {
   normalizeResourceBindings,
   stripWorkspaceStorageOverrides,
 } from './task-write-service.helpers.js';
-import type { CreateTaskInput } from './task-service.types.js';
+import type { CreateTaskInput } from '../task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
-import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
+import { resolveWorkspaceStorageBinding } from '../workspace-storage.js';
 
 export class TaskWriteCreateDefaults {
   constructor(private readonly deps: TaskWriteDependencies) {}
