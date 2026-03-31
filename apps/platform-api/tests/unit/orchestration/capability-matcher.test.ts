@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareClaimPriority, isCapabilitySubset } from '../../src/orchestration/capability-matcher.js';
+import { compareClaimPriority, isCapabilitySubset } from '../../../src/orchestration/capability-matcher.js';
 
 describe('capability matching', () => {
   it('returns true when required set is subset of offered set', () => {

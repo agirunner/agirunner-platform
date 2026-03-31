@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GovernanceService } from '../../src/services/governance-service.js';
+import { GovernanceService } from '../../../src/services/governance-service.js';
 
 function createMockPool() {
   return {

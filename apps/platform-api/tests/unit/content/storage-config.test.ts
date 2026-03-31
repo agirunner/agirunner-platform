@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { buildArtifactStorageConfig } from '../../src/content/storage-config.js';
+import { buildArtifactStorageConfig } from '../../../src/content/storage-config.js';
 
 const gcpKeyFile = resolve('fixtures/gcp.json');
 

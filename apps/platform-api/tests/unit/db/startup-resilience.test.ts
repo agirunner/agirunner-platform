@@ -7,7 +7,7 @@ import {
   registerPoolErrorLogging,
   runDatabaseListenerStartupWithRetry,
   runDatabaseStartupWithRetry,
-} from '../../src/db/startup-resilience.js';
+} from '../../../src/db/startup-resilience.js';
 
 describe('startup resilience', () => {
   it('classifies transient database startup failures as retryable', () => {

@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../src/errors/error-handler.js';
 
 describe('error handler fallback codes', () => {
   const apps: Array<Awaited<ReturnType<typeof Fastify>>> = [];

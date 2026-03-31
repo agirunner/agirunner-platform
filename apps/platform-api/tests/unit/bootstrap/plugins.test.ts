@@ -5,7 +5,7 @@ import {
   applyArtifactPreviewHeaders,
   isRealtimeTransportRoute,
   rateLimitKeyGenerator,
-} from '../../src/bootstrap/plugins.js';
+} from '../../../src/bootstrap/plugins.js';
 
 function createRequest(overrides: Partial<FastifyRequest>): FastifyRequest {
   return {

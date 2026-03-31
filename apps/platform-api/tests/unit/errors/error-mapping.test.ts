@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConflictError, CycleDetectedError, ForbiddenError, RateLimitedError, ServiceUnavailableError, UnauthorizedError, ValidationError } from '../../src/errors/domain-errors.js';
-import { mapErrorToHttpStatus } from '../../src/errors/http-errors.js';
+import { ConflictError, CycleDetectedError, ForbiddenError, RateLimitedError, ServiceUnavailableError, UnauthorizedError, ValidationError } from '../../../src/errors/domain-errors.js';
+import { mapErrorToHttpStatus } from '../../../src/errors/http-errors.js';
 
 describe('error mapping', () => {
   it('maps known domain errors', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { MeteringService } from '../../src/services/metering-service.js';
+import { MeteringService } from '../../../src/services/metering-service.js';
 
 function createMockPool() {
   return {

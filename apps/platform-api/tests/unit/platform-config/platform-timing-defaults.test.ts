@@ -8,7 +8,7 @@ import {
   readTaskCancelSignalGracePeriodMs,
   readWorkerSupervisionTimingDefaults,
   readWorkflowActivationTimingDefaults,
-} from '../../src/services/platform-timing-defaults.js';
+} from '../../../src/services/platform-timing-defaults.js';
 
 describe('platform timing defaults', () => {
   it('reads workflow activation timings from runtime defaults storage', async () => {

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { taskHandoffs } from '../../src/db/schema/task-handoffs.js';
-import { workflowStageGates } from '../../src/db/schema/workflow-stage-gates.js';
-import { workflowSubjectEscalations } from '../../src/db/schema/workflow-subject-escalations.js';
-import { workflowToolResults } from '../../src/db/schema/workflow-tool-results.js';
-import { workflowActivations } from '../../src/db/schema/workflow-activations.js';
-import { workflows } from '../../src/db/schema/workflows.js';
-import { workflowWorkItems } from '../../src/db/schema/workflow-work-items.js';
+import { taskHandoffs } from '../../../src/db/schema/task-handoffs.js';
+import { workflowStageGates } from '../../../src/db/schema/workflow-stage-gates.js';
+import { workflowSubjectEscalations } from '../../../src/db/schema/workflow-subject-escalations.js';
+import { workflowToolResults } from '../../../src/db/schema/workflow-tool-results.js';
+import { workflowActivations } from '../../../src/db/schema/workflow-activations.js';
+import { workflows } from '../../../src/db/schema/workflows.js';
+import { workflowWorkItems } from '../../../src/db/schema/workflow-work-items.js';
 import {
   completionCalloutsSchema,
   guidedClosureMutationResponseSchema,
-} from '../../src/services/guided-closure/types.js';
+} from '../../../src/services/guided-closure/types.js';
 
 describe('guided closure contracts', () => {
   it('adds structured completion callouts to workflows and work items', () => {

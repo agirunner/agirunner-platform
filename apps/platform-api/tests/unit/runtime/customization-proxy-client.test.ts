@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage } from 'node:http';
 
 import { describe, expect, it } from 'vitest';
 
-import { RuntimeCustomizationProxyClient } from '../../src/runtime/customization-proxy-client.js';
+import { RuntimeCustomizationProxyClient } from '../../../src/runtime/customization-proxy-client.js';
 
 async function withHttpServer(
   handler: (

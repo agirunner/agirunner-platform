@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   isRecoverableNotAppliedResult,
   runIdempotentMutation,
-} from '../../src/api/routes/orchestrator-control/shared.js';
+} from '../../../../../src/api/routes/orchestrator-control/shared.js';
 
 describe('orchestrator control shared helpers', () => {
   it('detects recoverable not applied mutation results', () => {

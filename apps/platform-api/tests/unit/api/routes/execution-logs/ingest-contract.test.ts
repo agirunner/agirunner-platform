@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ingestEntrySchema } from '../../src/api/routes/execution-logs.routes.js';
+import { ingestEntrySchema } from '../../../../../src/api/routes/execution-logs.routes.js';
 
 function createEntry() {
   return {
