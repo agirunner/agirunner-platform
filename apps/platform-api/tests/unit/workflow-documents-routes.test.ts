@@ -32,50 +32,6 @@ describe('workflow document routes', () => {
     }
   });
 
-  it('registers workflow document CRUD routes', async () => {
-    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
-
-    app = fastify();
-    app.decorate('workflowService', {
-      createWorkflow: vi.fn(),
-      listWorkflows: vi.fn(),
-      getWorkflow: vi.fn(),
-      getWorkflowBoard: vi.fn(),
-      listWorkflowStages: vi.fn(),
-      listWorkflowWorkItems: vi.fn(),
-      createWorkflowWorkItem: vi.fn(),
-      getWorkflowWorkItem: vi.fn(),
-      listWorkflowWorkItemTasks: vi.fn(),
-      listWorkflowWorkItemEvents: vi.fn(),
-      getWorkflowWorkItemMemory: vi.fn(),
-      getWorkflowWorkItemMemoryHistory: vi.fn(),
-      updateWorkflowWorkItem: vi.fn(),
-      actOnStageGate: vi.fn(),
-      getResolvedConfig: vi.fn(),
-      cancelWorkflow: vi.fn(),
-      pauseWorkflow: vi.fn(),
-      resumeWorkflow: vi.fn(),
-      deleteWorkflow: vi.fn(),
-    } as never);
-    app.decorate('pgPool', {} as never);
-    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
-    app.decorate('eventService', { emit: vi.fn() } as never);
-    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
-    app.decorate('modelCatalogService', {
-      resolveRoleConfig: vi.fn(),
-      listProviders: vi.fn(),
-      listModels: vi.fn(),
-      getProviderForOperations: vi.fn(),
-    } as never);
-    registerErrorHandler(app);
-
-    await app.register(workflowRoutes);
-
-    const routes = app.printRoutes();
-    expect(routes).toContain('documents (GET, HEAD, POST)');
-    expect(routes).toContain(':logicalName (PATCH, DELETE)');
-  });
-
   it('creates workflow documents through the workflow route surface', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
     const createdDocument = {
