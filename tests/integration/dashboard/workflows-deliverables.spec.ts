@@ -139,3 +139,43 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   await expect(inlineCard.getByText('operator checkpoint 80')).toBeVisible();
   await expect(inlineCard.getByText('Tail marker: INLINE-END')).toBeVisible();
 });
+
+test('keeps deliverable browser columns aligned across final and interim rows', async ({ page }) => {
+  await seedWorkflowDeliverablesScenario();
+  await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
+
+  const finalCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
+  const interimCard = workbench.locator('article').filter({ hasText: 'Export directory' }).first();
+
+  const finalHeaderMetrics = await finalCard.locator('th').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        left: Math.round(box.left),
+        right: Math.round(box.right),
+      };
+    }),
+  );
+  const interimHeaderMetrics = await interimCard.locator('th').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        left: Math.round(box.left),
+        right: Math.round(box.right),
+      };
+    }),
+  );
+
+  expect(finalHeaderMetrics).toHaveLength(4);
+  expect(interimHeaderMetrics).toHaveLength(4);
+
+  for (let index = 0; index < finalHeaderMetrics.length; index += 1) {
+    expect(Math.abs(finalHeaderMetrics[index]!.left - interimHeaderMetrics[index]!.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(finalHeaderMetrics[index]!.right - interimHeaderMetrics[index]!.right)).toBeLessThanOrEqual(1);
+  }
+});

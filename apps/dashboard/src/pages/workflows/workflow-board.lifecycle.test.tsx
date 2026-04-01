@@ -122,7 +122,7 @@ describe('WorkflowBoard lifecycle', () => {
             metadata: {
               cancel_requested_at: '2026-03-30T04:05:00.000Z',
             },
-            completed_at: '2026-03-30T04:05:00.000Z',
+            completed_at: new Date().toISOString(),
           },
         ],
       },
@@ -156,5 +156,59 @@ describe('WorkflowBoard lifecycle', () => {
     expect(html).toContain('Publish terminal brief');
     expect(html.indexOf('>Done</p>')).toBeLessThan(html.indexOf('Publish terminal brief'));
     expect(html).not.toContain('>Cancelled<');
+  });
+
+  it('does not advertise active specialist progress for terminal work items that still have stale task previews', () => {
+    const html = renderWorkflowBoard({
+      board: {
+        columns: [
+          { id: 'planned', label: 'Planned' },
+          { id: 'done', label: 'Done', is_terminal: true },
+        ],
+        work_items: [
+          {
+            id: 'work-item-2',
+            workflow_id: 'workflow-1',
+            stage_name: 'delivery',
+            title: 'Implement fix for 60-second audit export timeout',
+            priority: 'high',
+            column_id: 'done',
+            completed_at: new Date().toISOString(),
+            task_count: 3,
+          },
+        ],
+        active_stages: ['delivery'],
+        awaiting_gate_count: 0,
+        stage_summary: [],
+      },
+      workflowState: 'active',
+      boardMode: 'all',
+      selectedWorkItemId: 'work-item-2',
+      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+        [
+          'work-item-2',
+          {
+            tasks: [
+              {
+                id: 'task-stale-orchestrator',
+                title: 'Implement fix for 60-second audit export timeout',
+                role: 'orchestrator',
+                state: 'in_progress',
+                workItemId: 'work-item-2',
+                workItemTitle: 'Implement fix for 60-second audit export timeout',
+                stageName: 'delivery',
+              },
+            ],
+            hasActiveOrchestratorTask: true,
+          },
+        ],
+      ]),
+    });
+
+    expect(html).toContain('Implement fix for 60-second audit export timeout');
+    expect(html).not.toContain('Working now:');
+    expect(html).not.toContain('Active specialist');
+    expect(html).not.toContain('1 working');
+    expect(html).not.toContain('Orchestrator working');
   });
 });

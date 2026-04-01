@@ -40,7 +40,10 @@ export function WorkflowStateStrip(props: {
       <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)] xl:items-start xl:gap-6">
         <section className="grid gap-2.5 sm:gap-3">
           <div className="grid gap-2">
-            <p className="text-[11px] text-muted-foreground">
+            <div
+              data-workflow-header-meta="true"
+              className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground"
+            >
               <span>Playbook</span>
               {headerState.playbookLabel ? (
                 <>
@@ -59,13 +62,15 @@ export function WorkflowStateStrip(props: {
               ) : null}
               <span>{' · '}</span>
               <span>{headerState.updatedLabel}</span>
-            </p>
+              {props.workflow.lifecycle === 'ongoing' ? (
+                <Badge variant="outline">Ongoing</Badge>
+              ) : null}
+            </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h2 className="truncate text-base font-semibold text-foreground">{props.workflow.name}</h2>
               <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
                 {isPausedWorkflow ? 'Workflow paused' : headerState.postureLabel}
               </Badge>
-              {props.workflow.lifecycle === 'ongoing' ? <Badge variant="outline">Ongoing</Badge> : null}
             </div>
             {selectedScopeLine ? <p className="text-sm text-muted-foreground">{selectedScopeLine}</p> : null}
           </div>

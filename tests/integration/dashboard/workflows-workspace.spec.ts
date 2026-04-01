@@ -5,6 +5,7 @@ import {
   workflowRailButton,
 } from './support/workflows-auth.js';
 import {
+  createTask,
   seedWorkflowsScenario,
   setWorkflowState,
 } from './support/workflows-fixtures.js';
@@ -91,6 +92,49 @@ test('shows cancelled workflows as terminal and removes workflow lifecycle contr
   await expect(stateStrip.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   await expect(cancelledCard).toBeVisible();
   await expect(cancelledCard.locator('.inline-flex').filter({ hasText: /^Cancelled$/ }).first()).toBeVisible();
+});
+
+test('shows the ongoing lifecycle badge in the workflow metadata row', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Ongoing Intake').click();
+
+  const stateStrip = page.locator('[data-workflows-top-strip="true"]');
+  const headerMeta = stateStrip.locator('[data-workflow-header-meta="true"]');
+
+  await expect(headerMeta).toContainText('Playbook');
+  await expect(headerMeta).toContainText('Updated');
+  await expect(headerMeta.locator('.inline-flex').filter({ hasText: /^Ongoing$/ }).first()).toBeVisible();
+});
+
+test('suppresses stale in-progress task copy for terminal work-item cards', async ({ page }) => {
+  const scenario = await seedWorkflowsScenario();
+  await createTask({
+    workflowId: scenario.cancelledWorkflow.id,
+    workspaceId: scenario.workspace.id,
+    workItemId: scenario.cancelledWorkItem.id,
+    stageName: 'delivery',
+    title: 'Implement fix for 60-second audit export timeout',
+    role: 'orchestrator',
+    state: 'in_progress',
+    description: 'Stale deterministic task used to prove terminal cards do not show active copy.',
+  });
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Cancelled Packet Review').click();
+
+  const board = page.locator('[data-workflows-board-frame="true"]');
+  const cancelledCard = board
+    .locator('[data-work-item-card="true"]')
+    .filter({ hasText: 'Cancelled packet review' })
+    .first();
+
+  await expect(cancelledCard).toBeVisible();
+  await expect(cancelledCard).not.toContainText('Working now:');
+  await expect(cancelledCard).not.toContainText('Active specialist');
+  await expect(cancelledCard).not.toContainText('In Progress');
+  await expect(cancelledCard).not.toContainText('Orchestrator working');
 });
 
 test('humanizes orchestrator-only in-flight workflows in the rail and workspace header', async ({ page }) => {

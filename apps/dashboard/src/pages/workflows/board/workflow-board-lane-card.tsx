@@ -145,12 +145,17 @@ function BoardWorkItemCard(props: {
     action: WorkflowBoardWorkItemAction;
   }): void;
 }): JSX.Element {
+  const isHistoricalWorkItem =
+    Boolean(props.workItem.completed_at) || isCancelledWorkItem(props.workItem, props.workflowState);
+  const displayTaskSummary = isHistoricalWorkItem
+    ? filterHistoricalTaskSummary(props.taskSummary)
+    : props.taskSummary;
   const currentStateSummary = buildWorkflowBoardWorkItemSummary(
     props.workItem,
-    props.taskSummary,
+    displayTaskSummary,
   );
-  const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(props.taskSummary);
-  const taskStatusSummary = buildTaskStatusSummary(props.taskSummary);
+  const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(displayTaskSummary);
+  const taskStatusSummary = buildTaskStatusSummary(displayTaskSummary);
   const workItemControls = readWorkItemCardControls(
     props.workItem,
     props.workflowState,
@@ -220,7 +225,7 @@ function BoardWorkItemCard(props: {
               {isPausedWorkflowWorkItem(props.workItem) ? (
                 <Badge variant="secondary">Paused</Badge>
               ) : null}
-              {props.taskSummary.hasActiveOrchestratorTask ? (
+              {displayTaskSummary.hasActiveOrchestratorTask ? (
                 <Badge variant="secondary">Orchestrator working</Badge>
               ) : null}
             </div>
@@ -272,9 +277,9 @@ function BoardWorkItemCard(props: {
           </div>
         ) : null}
 
-        {props.taskSummary.tasks.length > 0 ? (
+        {displayTaskSummary.tasks.length > 0 ? (
           <WorkflowBoardTaskStack
-            tasks={props.taskSummary.tasks}
+            tasks={displayTaskSummary.tasks}
             collapsible={!isSelected ? false : undefined}
             defaultOpen={isSelected}
             laneWorkItemCount={props.laneWorkItemCount}
@@ -297,4 +302,13 @@ function readWorkItemCardBodyClassName(laneWorkItemCount: number): string {
 
 function renderLaneEmptyState(message: string): JSX.Element {
   return <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>;
+}
+
+function filterHistoricalTaskSummary(
+  taskSummary: WorkflowTaskPreviewSummary,
+): WorkflowTaskPreviewSummary {
+  return {
+    hasActiveOrchestratorTask: false,
+    tasks: taskSummary.tasks.filter((task) => task.state === 'completed'),
+  };
 }
