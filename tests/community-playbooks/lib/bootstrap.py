@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from bootstrap_key import resolve_provider_model_defaults
 from common import (
     create_api_client,
     read_env,
@@ -16,6 +15,7 @@ from common import (
     suite_root,
     write_json_file,
 )
+from bootstrap_key import resolve_provider_model_defaults
 from community_catalog_api import CommunityCatalogApi
 from seed_live_test_environment import (
     clear_assignments,
