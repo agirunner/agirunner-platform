@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
 
 
 SENSITIVE_KEYS = {
@@ -44,16 +43,23 @@ def _redact_credential_urls(text: str) -> str:
 
 def _strip_url_userinfo(match: re.Match[str]) -> str:
     candidate = match.group(0)
-    parsed = urlsplit(candidate)
-    if "@" not in parsed.netloc or not parsed.hostname:
+    scheme, separator, remainder = candidate.partition("://")
+    if separator == "":
         return candidate
 
-    hostname = parsed.hostname
-    if ":" in hostname and not hostname.startswith("["):
-        hostname = f"[{hostname}]"
+    boundary = len(remainder)
+    for marker in ("/", "?", "#"):
+        marker_index = remainder.find(marker)
+        if marker_index >= 0:
+            boundary = min(boundary, marker_index)
 
-    netloc = hostname
-    if parsed.port is not None:
-        netloc = f"{netloc}:{parsed.port}"
+    authority = remainder[:boundary]
+    suffix = remainder[boundary:]
+    if "@" not in authority:
+        return candidate
 
-    return urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    _, _, stripped_authority = authority.rpartition("@")
+    if stripped_authority == "":
+        return candidate
+
+    return f"{scheme}{separator}{stripped_authority}{suffix}"

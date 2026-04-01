@@ -36,6 +36,16 @@ class LiveTestRedactionTests(unittest.TestCase):
         self.assertNotIn("x-access-token:", encoded)
         self.assertIn("https://example.com/org/repo.git?ref=main#readme", encoded)
 
+    def test_redact_json_handles_malformed_credential_urls_without_crashing(self) -> None:
+        credential_url = "https://x-access-token:secret-token@github.com]/agirunner/repo.git"
+
+        redacted = redact_json({"repository_url": credential_url})
+        encoded = json.dumps(redacted, sort_keys=True)
+
+        self.assertNotIn("secret-token", encoded)
+        self.assertNotIn("x-access-token:", encoded)
+        self.assertIn("github.com", encoded)
+
 
 if __name__ == "__main__":
     unittest.main()
