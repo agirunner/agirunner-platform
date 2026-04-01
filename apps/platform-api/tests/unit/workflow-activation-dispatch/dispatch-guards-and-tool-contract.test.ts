@@ -365,6 +365,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect(params?.[8]).toEqual(
             expect.objectContaining({
               tools: expect.arrayContaining([
+                'file_read',
                 'list_work_items',
                 'list_workflow_tasks',
                 'read_task_output',
@@ -385,10 +386,10 @@ describe('WorkflowActivationDispatchService', () => {
                 'send_task_message',
                 'record_operator_brief',
               ]),
+              system_prompt: expect.stringContaining('Use file_read only for those attached context files'),
             }),
           );
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('file_read');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('shell_exec');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('git_status');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('artifact_upload');
