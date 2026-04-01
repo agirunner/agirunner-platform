@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   buildWorkflowDetailPermalink,
-} from '../workflow-detail/workflow-detail-permalinks.js';
+} from '../../app/routes/workflow-navigation.js';
 import {
   buildTaskNextStep,
   readAssessmentSignals,

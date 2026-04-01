@@ -1,4 +1,4 @@
-import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 
 export interface WorkflowOperatorTaskScope {
   workflow_id?: string | null;

@@ -1,4 +1,4 @@
-import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 
 export interface WorkItemTaskLinkAction {

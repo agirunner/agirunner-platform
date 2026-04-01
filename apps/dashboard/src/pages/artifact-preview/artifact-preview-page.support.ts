@@ -1,5 +1,5 @@
 import type { ArtifactPreviewReturnSource } from './artifact-preview-navigation.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 import { buildWorkflowOperatorPermalink } from '../work-shared/task-operator-flow.js';
 import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 

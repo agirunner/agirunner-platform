@@ -2,7 +2,7 @@ import {
   buildWorkflowsPageHref,
   readWorkflowsPageState,
 } from '../workflows/workflows-page.support.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 
 export function buildTaskDetailHref(taskId: string): string {
   return `/work/tasks/${encodeURIComponent(taskId.trim())}`;

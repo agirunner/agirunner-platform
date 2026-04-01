@@ -13,7 +13,7 @@ import {
 import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
-} from './workflow-detail-permalinks.js';
+} from '../../app/routes/workflow-navigation.js';
 import {
   buildWorkflowWorkspaceTimelineOverview,
   buildWorkflowWorkspaceTimelinePacket,

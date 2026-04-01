@@ -1,6 +1,6 @@
 import type { DashboardWorkspaceTimelineEntry } from '../../lib/api.js';
 import { buildWorkflowDiagnosticsHref } from '../workflows/workflows-page.support.js';
-import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 
 export interface WorkflowWorkspaceTimelineMetric {
   label: string;

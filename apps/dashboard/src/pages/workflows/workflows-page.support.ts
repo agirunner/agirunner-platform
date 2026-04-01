@@ -15,8 +15,8 @@ export {
   type WorkflowsPageState,
   type WorkflowTabScope,
   type WorkflowWorkbenchTab,
-} from './workflows-page.routes.js';
-import type { WorkflowTabScope } from './workflows-page.routes.js';
+} from '../../app/routes/workflow-navigation.js';
+import type { WorkflowTabScope } from '../../app/routes/workflow-navigation.js';
 
 export interface RequestedWorkspaceScope {
   workflowId: string | null;

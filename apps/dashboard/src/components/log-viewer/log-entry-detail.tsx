@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { describeGenericExecutionBackendSurface, describeGenericToolOwnerSurface } from '../../lib/operator-surfaces.js';
 import { cn } from '../../lib/utils.js';
 import type { LogEntry } from '../../lib/api.js';
-import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 import { Button } from '../ui/button.js';
 import { LogEntryDetailLlm } from './log-entry-detail-llm.js';
 import { LogEntryDetailTool } from './log-entry-detail-tool.js';

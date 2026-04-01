@@ -11,7 +11,7 @@ import { cn } from '../../lib/utils.js';
 import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
-} from './workflow-detail-permalinks.js';
+} from '../../app/routes/workflow-navigation.js';
 import {
   groupWorkflowWorkItems,
   type DashboardGroupedWorkItemRecord,

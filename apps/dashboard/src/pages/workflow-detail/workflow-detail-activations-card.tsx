@@ -24,7 +24,7 @@ import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
-} from './workflow-detail-permalinks.js';
+} from '../../app/routes/workflow-navigation.js';
 import {
   describeReviewPacket,
   formatRelativeTimestamp,

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildWorkflowDetailHash,
   buildWorkflowDetailPermalink,
-} from './workflow-detail-permalinks.js';
+} from '../../app/routes/workflow-navigation.js';
 
 describe('workflow detail permalinks', () => {
   it('maps workflow operator links into the workflows shell state', () => {

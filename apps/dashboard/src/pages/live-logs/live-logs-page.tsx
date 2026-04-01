@@ -18,7 +18,7 @@ import {
 import { useLogFilters } from '../../components/log-viewer/hooks/use-log-filters.js';
 import { applyLogScope, type LogScope } from '../../components/log-viewer/log-scope.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../app/routes/workflow-navigation.js';
 import { readLogsSurfaceView } from './logs-page-view.js';
 
 interface LiveLogsPageProps {

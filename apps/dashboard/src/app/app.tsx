@@ -23,7 +23,7 @@ import {
   buildWorkflowsLaunchHref,
   buildWorkflowsPageHref,
 } from '../pages/workflows/workflows-page.support.js';
-import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from './routes/workflow-navigation.js';
 
 import {
   AgenticSettingsPage,
