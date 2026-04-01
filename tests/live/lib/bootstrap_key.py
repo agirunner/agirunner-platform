@@ -92,6 +92,29 @@ PROVIDER_MODEL_DEFAULTS = {
     },
 }
 
+PROVIDER_REASONING_DEFAULTS = {
+    "anthropic": {
+        "orchestrator_reasoning_effort": "low",
+        "specialist_reasoning_effort": "low",
+    },
+    "google": {
+        "orchestrator_reasoning_effort": "low",
+        "specialist_reasoning_effort": "medium",
+    },
+    "gemini": {
+        "orchestrator_reasoning_effort": "low",
+        "specialist_reasoning_effort": "medium",
+    },
+    "openai": {
+        "orchestrator_reasoning_effort": "low",
+        "specialist_reasoning_effort": "medium",
+    },
+    "openai-compatible": {
+        "orchestrator_reasoning_effort": "low",
+        "specialist_reasoning_effort": "medium",
+    },
+}
+
 IGNORED_PARTS = {
     ".git",
     ".pytest_cache",
@@ -114,6 +137,12 @@ def sha256_text(value: str) -> str:
 def resolve_provider_model_defaults(provider_type: str | None) -> dict[str, str]:
     normalized_provider = (provider_type or "").strip().lower()
     defaults = PROVIDER_MODEL_DEFAULTS.get(normalized_provider) or PROVIDER_MODEL_DEFAULTS["openai"]
+    return dict(defaults)
+
+
+def resolve_provider_reasoning_defaults(provider_type: str | None) -> dict[str, str]:
+    normalized_provider = (provider_type or "").strip().lower()
+    defaults = PROVIDER_REASONING_DEFAULTS.get(normalized_provider) or PROVIDER_REASONING_DEFAULTS["openai"]
     return dict(defaults)
 
 
@@ -161,6 +190,7 @@ def compute_shared_bootstrap_key(
 ) -> str:
     env = environ or os.environ
     provider_defaults = resolve_provider_model_defaults(env.get("LIVE_TEST_PROVIDER_TYPE"))
+    provider_reasoning_defaults = resolve_provider_reasoning_defaults(env.get("LIVE_TEST_PROVIDER_TYPE"))
     model_id = env.get("LIVE_TEST_MODEL_ID") or provider_defaults["model_id"]
     model_endpoint_type = env.get("LIVE_TEST_MODEL_ENDPOINT_TYPE") or provider_defaults["endpoint_type"]
     payload = {
@@ -172,6 +202,10 @@ def compute_shared_bootstrap_key(
                 else model_id
                 if key in {"LIVE_TEST_MODEL_ID", "LIVE_TEST_ORCHESTRATOR_MODEL_ID", "LIVE_TEST_SPECIALIST_MODEL_ID"}
                 and not env.get(key)
+                else provider_reasoning_defaults["orchestrator_reasoning_effort"]
+                if key == "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT" and not env.get(key)
+                else provider_reasoning_defaults["specialist_reasoning_effort"]
+                if key == "LIVE_TEST_SPECIALIST_REASONING_EFFORT" and not env.get(key)
                 else model_endpoint_type
                 if key in {"LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE"}
                 and not env.get(key)

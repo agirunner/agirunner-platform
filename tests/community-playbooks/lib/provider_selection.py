@@ -21,7 +21,8 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
         "LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE": "messages",
         "LIVE_TEST_SPECIALIST_MODEL_ID": "claude-sonnet-4-6",
         "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE": "messages",
-        "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT": "medium",
+        "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT": "low",
+        "LIVE_TEST_SPECIALIST_REASONING_EFFORT": "low",
     },
     "gemini": {
         "snapshot_heading": "Gemini API",

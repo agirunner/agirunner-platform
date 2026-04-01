@@ -15,7 +15,7 @@ from common import (
     suite_root,
     write_json_file,
 )
-from bootstrap_key import resolve_provider_model_defaults
+from bootstrap_key import resolve_provider_model_defaults, resolve_provider_reasoning_defaults
 from community_catalog_api import CommunityCatalogApi
 from seed_live_test_environment import (
     clear_assignments,
@@ -88,6 +88,7 @@ def seed_environment_context() -> dict[str, Any]:
     provider_name = read_env("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)")
     provider_type = read_env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_model_defaults = resolve_provider_model_defaults(provider_type)
+    provider_reasoning_defaults = resolve_provider_reasoning_defaults(provider_type)
     provider_base_url = read_env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = read_env("LIVE_TEST_PROVIDER_API_KEY") or None
     oauth_profile_id = read_env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
@@ -101,13 +102,19 @@ def seed_environment_context() -> dict[str, Any]:
         "LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE",
         model_endpoint_type,
     )
-    orchestrator_reasoning_effort = read_env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low")
+    orchestrator_reasoning_effort = read_env(
+        "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT",
+        provider_reasoning_defaults["orchestrator_reasoning_effort"],
+    )
     specialist_model_id = read_env("LIVE_TEST_SPECIALIST_MODEL_ID", model_id)
     specialist_endpoint_type = read_env(
         "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE",
         model_endpoint_type,
     )
-    specialist_reasoning_effort = read_env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
+    specialist_reasoning_effort = read_env(
+        "LIVE_TEST_SPECIALIST_REASONING_EFFORT",
+        provider_reasoning_defaults["specialist_reasoning_effort"],
+    )
     worker_name = read_env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
     orchestrator_replicas = int(read_env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
     runtime_image = read_env("RUNTIME_IMAGE", "agirunner-runtime:local")

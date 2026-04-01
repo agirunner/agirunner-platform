@@ -1,5 +1,5 @@
 from seed_live_test_environment_chunk03a import *
-from bootstrap_key import resolve_provider_model_defaults
+from bootstrap_key import resolve_provider_model_defaults, resolve_provider_reasoning_defaults
 
 def ensure_orchestrator_capacity(
     client: ApiClient,
@@ -78,6 +78,7 @@ def main() -> None:
     provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_model_defaults = resolve_provider_model_defaults(provider_type)
+    provider_reasoning_defaults = resolve_provider_reasoning_defaults(provider_type)
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY") or None
     oauth_profile_id = env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
@@ -88,10 +89,16 @@ def main() -> None:
     system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
     orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
     orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
-    orchestrator_reasoning_effort = env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low")
+    orchestrator_reasoning_effort = env(
+        "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT",
+        provider_reasoning_defaults["orchestrator_reasoning_effort"],
+    )
     specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", model_id)
     specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
-    specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
+    specialist_reasoning_effort = env(
+        "LIVE_TEST_SPECIALIST_REASONING_EFFORT",
+        provider_reasoning_defaults["specialist_reasoning_effort"],
+    )
     workspace_name = env("LIVE_TEST_WORKSPACE_NAME", "SDLC Proof Workspace")
     workspace_slug = env("LIVE_TEST_WORKSPACE_SLUG", "sdlc-proof-workspace")
     repository_url = env("LIVE_TEST_REPOSITORY_URL")

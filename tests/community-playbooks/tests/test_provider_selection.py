@@ -40,7 +40,8 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual("messages", overrides["LIVE_TEST_MODEL_ENDPOINT_TYPE"])
         self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_ORCHESTRATOR_MODEL_ID"])
         self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_SPECIALIST_MODEL_ID"])
-        self.assertEqual("medium", overrides["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
+        self.assertEqual("low", overrides["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
+        self.assertEqual("low", overrides["LIVE_TEST_SPECIALIST_REASONING_EFFORT"])
 
     def test_apply_provider_selection_sets_openai_oauth_defaults(self) -> None:
         environ = {
@@ -80,8 +81,10 @@ class ProviderSelectionTests(unittest.TestCase):
                         "# LIVE_TEST_MODEL_ENDPOINT_TYPE=messages",
                         "# LIVE_TEST_ORCHESTRATOR_MODEL_ID=claude-sonnet-4-6",
                         "# LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE=messages",
+                        "# LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=low",
                         "# LIVE_TEST_SPECIALIST_MODEL_ID=claude-sonnet-4-6",
                         "# LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE=messages",
+                        "# LIVE_TEST_SPECIALIST_REASONING_EFFORT=low",
                         "# LIVE_TEST_PROVIDER_API_KEY=snapshot-key",
                         "# END LOCAL PROVIDER SNAPSHOTS",
                         "",

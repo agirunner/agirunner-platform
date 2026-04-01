@@ -21,6 +21,12 @@ class BootstrapKeyTests(unittest.TestCase):
         self.assertEqual(defaults["model_id"], "claude-sonnet-4-6")
         self.assertEqual(defaults["endpoint_type"], "messages")
 
+    def test_provider_reasoning_defaults_use_low_for_anthropic(self) -> None:
+        defaults = bootstrap_key.resolve_provider_reasoning_defaults("anthropic")
+
+        self.assertEqual(defaults["orchestrator_reasoning_effort"], "low")
+        self.assertEqual(defaults["specialist_reasoning_effort"], "low")
+
     def test_shared_bootstrap_key_changes_when_env_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             live_root, repo_root, runtime_root = self.create_fixture_roots(Path(tmpdir))
