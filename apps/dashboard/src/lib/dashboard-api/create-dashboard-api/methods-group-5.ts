@@ -177,6 +177,12 @@ fetchLiveContainers: () =>
       method: 'GET',
     }),
   ),
+fetchVersionSummary: () =>
+  withRefresh(() =>
+    requestData<Contracts.DashboardVersionSummary>('/api/v1/fleet/version-summary', {
+      method: 'GET',
+    }),
+  ),
 fetchQueueDepth: (playbookId) =>
   withRefresh(() => {
     const path = playbookId

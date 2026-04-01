@@ -12,6 +12,7 @@ import type {
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
   const service = app.fleetService;
+  const containerManagerVersionReader = app.containerManagerVersionReader;
   const heartbeatSchema = z.object({
     runtime_id: z.string().uuid(),
     playbook_id: z.string().uuid().nullable().optional(),
@@ -80,6 +81,12 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
   }
 
   // --- Desired State (Fleet Workers) ---
+
+  app.get(
+    '/api/v1/fleet/version-summary',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async () => ({ data: await containerManagerVersionReader.getSummary() }),
+  );
 
   app.get(
     '/api/v1/fleet/workers',

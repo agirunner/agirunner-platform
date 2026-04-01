@@ -16,9 +16,15 @@ RUN mkdir -p apps/platform-api/dist/src/db/migrations \
 RUN pnpm --filter @agirunner/platform-api deploy --legacy /app --prod
 
 FROM node:22-alpine AS runtime
+ARG AGIRUNNER_IMAGE_VERSION=local
+ARG AGIRUNNER_IMAGE_REVISION=unlabeled
 WORKDIR /app
 RUN apk add --no-cache git su-exec
+LABEL org.opencontainers.image.version=${AGIRUNNER_IMAGE_VERSION}
+LABEL org.opencontainers.image.revision=${AGIRUNNER_IMAGE_REVISION}
 ENV NODE_ENV=production
+ENV AGIRUNNER_IMAGE_VERSION=${AGIRUNNER_IMAGE_VERSION}
+ENV AGIRUNNER_IMAGE_REVISION=${AGIRUNNER_IMAGE_REVISION}
 ENV PORT=8080
 ENV DATABASE_URL=
 ENV JWT_SECRET=

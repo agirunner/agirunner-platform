@@ -87,6 +87,62 @@ func (d *RealDockerClient) ListContainers(ctx context.Context) ([]ContainerInfo,
 	return result, nil
 }
 
+// ListApplicationContainers returns Agirunner-owned stack containers with image
+// metadata so the platform can report the running product versions accurately.
+func (d *RealDockerClient) ListApplicationContainers(ctx context.Context) ([]ApplicationContainerInfo, error) {
+	containers, err := d.cli.ContainerList(ctx, container.ListOptions{
+		All: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("docker container list for application containers: %w", err)
+	}
+
+	result := make([]ApplicationContainerInfo, 0, len(containers))
+	for _, c := range containers {
+		if !isApplicationVersionContainer(c.Labels) {
+			continue
+		}
+
+		inspect, err := d.cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			return nil, fmt.Errorf("docker inspect application container %s: %w", c.ID, err)
+		}
+
+		imageDigest := ""
+		imageLabels := map[string]string{}
+		if imageInspect, _, imageErr := d.cli.ImageInspectWithRaw(ctx, inspect.Image); imageErr == nil {
+			imageDigest = primaryImageDigest(imageInspect.RepoDigests)
+			if imageInspect.Config != nil && imageInspect.Config.Labels != nil {
+				imageLabels = imageInspect.Config.Labels
+			}
+		}
+
+		name := ""
+		if len(c.Names) > 0 {
+			name = strings.TrimPrefix(c.Names[0], "/")
+		}
+
+		startedAt := time.Time{}
+		if inspect.State != nil {
+			startedAt = parseDockerStartedAt(inspect.State.StartedAt)
+		}
+
+		result = append(result, ApplicationContainerInfo{
+			ID:          c.ID,
+			Name:        name,
+			Image:       c.Image,
+			State:       c.State,
+			Status:      c.Status,
+			StartedAt:   startedAt,
+			Labels:      c.Labels,
+			ImageLabels: imageLabels,
+			ImageDigest: imageDigest,
+		})
+	}
+
+	return result, nil
+}
+
 // CreateContainer creates and starts a container from the given spec.
 func (d *RealDockerClient) CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {
 	env := make([]string, 0, len(spec.Environment))
@@ -246,6 +302,27 @@ func (d *RealDockerClient) ListImages(ctx context.Context) ([]ContainerImage, er
 		}
 	}
 	return result, nil
+}
+
+func isApplicationVersionContainer(labels map[string]string) bool {
+	if resolveApplicationComponent(labels) != "" {
+		return true
+	}
+	return isAgirunnerManagedContainer(labels)
+}
+
+func primaryImageDigest(repoDigests []string) string {
+	for _, repoDigest := range repoDigests {
+		parts := strings.SplitN(strings.TrimSpace(repoDigest), "@", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		digest := strings.TrimSpace(parts[1])
+		if digest != "" {
+			return digest
+		}
+	}
+	return ""
 }
 
 // PullImage pulls an image according to the specified pull policy.

@@ -374,6 +374,7 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 			labelVersion:        fmt.Sprintf("%d", ds.Version),
 		},
 	}
+	applyStackProjectLabel(spec.Labels, m.config.StackProjectName)
 	applyOrchestratorRuntimeContract(&spec, m.config, ds)
 	return spec
 }

@@ -233,3 +233,30 @@ export interface DashboardLiveContainerRecord {
   execution_environment_distro?: string | null;
   execution_environment_package_manager?: string | null;
 }
+
+export interface DashboardVersionComponentRecord {
+  component: 'platform-api' | 'dashboard' | 'container-manager';
+  image: string;
+  image_digest: string | null;
+  version: string;
+  revision: string;
+  status: string;
+  started_at: string | null;
+}
+
+export interface DashboardRuntimeVersionRecord {
+  image: string;
+  image_digest: string | null;
+  version: string;
+  revision: string;
+  total_containers: number;
+  orchestrator_containers: number;
+  specialist_runtime_containers: number;
+}
+
+export interface DashboardVersionSummary {
+  platform_api: DashboardVersionComponentRecord | null;
+  dashboard: DashboardVersionComponentRecord | null;
+  container_manager: DashboardVersionComponentRecord | null;
+  runtimes: DashboardRuntimeVersionRecord[];
+}

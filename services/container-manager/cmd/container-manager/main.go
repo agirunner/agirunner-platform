@@ -30,6 +30,7 @@ func main() {
 		DockerHost:             envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
 		RuntimeNetwork:         envOrDefault("RUNTIME_NETWORK", ""),
 		RuntimeInternalNetwork: envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
+		StackProjectName:       envOrDefault("AGIRUNNER_STACK_PROJECT_NAME", ""),
 	}
 
 	if cfg.PlatformAPIKey == "" {
@@ -129,6 +130,10 @@ func (c *noopDockerClient) ListContainers(_ context.Context) ([]manager.Containe
 	return nil, nil
 }
 
+func (c *noopDockerClient) ListApplicationContainers(_ context.Context) ([]manager.ApplicationContainerInfo, error) {
+	return nil, nil
+}
+
 func (c *noopDockerClient) CreateContainer(_ context.Context, spec manager.ContainerSpec) (string, error) {
 	c.logger.Info("noop: would create container", "name", spec.Name, "image", spec.Image)
 	return fmt.Sprintf("noop-%s", spec.Name), nil
@@ -188,12 +193,37 @@ func startMetricsServer(
 ) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(m.MetricsRegistry(), promhttp.HandlerOpts{}))
+	registerControlRoutes(mux, m, dockerHost, controlToken, logger)
+
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		logger.Info("metrics server listening", "addr", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("metrics server failed", "error", err)
+		}
+	}()
+
+	return srv
+}
+
+func registerControlRoutes(
+	mux *http.ServeMux,
+	m *manager.Manager,
+	dockerHost string,
+	controlToken string,
+	logger *slog.Logger,
+) {
 	mux.HandleFunc("/api/v1/execution-environments/verify", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if strings.TrimSpace(controlToken) != "" && bearerToken(r) != strings.TrimSpace(controlToken) {
+		if !authorizeControlRequest(w, r, controlToken) {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -216,20 +246,38 @@ func startMetricsServer(
 		}
 	})
 
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	go func() {
-		logger.Info("metrics server listening", "addr", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("metrics server failed", "error", err)
+	mux.HandleFunc("/api/v1/version-summary", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
-	}()
+		if !authorizeControlRequest(w, r, controlToken) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 
-	return srv
+		result, err := m.ReadApplicationVersionSummary(r.Context())
+		if err != nil {
+			http.Error(w, fmt.Sprintf("version summary failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Error("encode version summary response failed", "error", err)
+		}
+	})
+}
+
+func authorizeControlRequest(
+	_ http.ResponseWriter,
+	r *http.Request,
+	controlToken string,
+) bool {
+	if strings.TrimSpace(controlToken) == "" {
+		return true
+	}
+	return bearerToken(r) == strings.TrimSpace(controlToken)
 }
 
 func bearerToken(r *http.Request) string {

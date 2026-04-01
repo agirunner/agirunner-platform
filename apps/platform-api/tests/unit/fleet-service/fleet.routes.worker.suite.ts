@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../../src/errors/error-handler.js';
-import { createFleetServiceMock } from './support.js';
+import { createContainerManagerVersionReaderMock, createFleetServiceMock } from './support.js';
 
 vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -68,6 +68,7 @@ describe('fleet routes', () => {
         },
       ]),
     }));
+    app.decorate('containerManagerVersionReader', createContainerManagerVersionReaderMock() as never);
 
     await app.register(fleetRoutes);
 
@@ -99,6 +100,7 @@ describe('fleet routes', () => {
     registerErrorHandler(app);
     const listWorkers = vi.fn().mockResolvedValue([]);
     app.decorate('fleetService', createFleetServiceMock({ listWorkers }));
+    app.decorate('containerManagerVersionReader', createContainerManagerVersionReaderMock() as never);
 
     await app.register(fleetRoutes);
 
@@ -132,6 +134,7 @@ describe('fleet routes', () => {
       },
     });
     app.decorate('fleetService', createFleetServiceMock({ getReconcileSnapshot }));
+    app.decorate('containerManagerVersionReader', createContainerManagerVersionReaderMock() as never);
 
     await app.register(fleetRoutes);
 
@@ -192,6 +195,7 @@ describe('fleet routes', () => {
         updated_by: null,
       }),
     }));
+    app.decorate('containerManagerVersionReader', createContainerManagerVersionReaderMock() as never);
 
     await app.register(fleetRoutes);
 

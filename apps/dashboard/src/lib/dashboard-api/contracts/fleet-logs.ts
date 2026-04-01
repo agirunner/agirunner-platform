@@ -19,4 +19,7 @@ export type {
   FleetWorkerActualRecord,
   FleetWorkerRecord,
   DashboardLiveContainerRecord,
+  DashboardVersionComponentRecord,
+  DashboardRuntimeVersionRecord,
+  DashboardVersionSummary,
 } from './models.js';

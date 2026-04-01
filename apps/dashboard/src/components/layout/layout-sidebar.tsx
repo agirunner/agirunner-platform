@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import { ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils.js';
+import { LayoutVersionPopover } from './layout-version-popover.js';
 import {
   FOCUS_RING_CLASSES,
   ICON_BUTTON_CLASSES,
@@ -178,6 +179,9 @@ export function SidebarPanel(props: {
       </nav>
 
       <div className="border-t border-stone-300/70 p-3 dark:border-slate-800">
+        <div className="mb-1">
+          <LayoutVersionPopover isSidebarCollapsed={isCollapsedDesktopRail} />
+        </div>
         <button
           type="button"
           className={cn(

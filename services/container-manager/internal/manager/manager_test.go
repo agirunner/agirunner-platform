@@ -72,6 +72,25 @@ func (m *mockDockerClient) ListContainers(_ context.Context) ([]ContainerInfo, e
 	return m.containers, nil
 }
 
+func (m *mockDockerClient) ListApplicationContainers(_ context.Context) ([]ApplicationContainerInfo, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	result := make([]ApplicationContainerInfo, 0, len(m.containers))
+	for _, container := range m.containers {
+		result = append(result, ApplicationContainerInfo{
+			ID:        container.ID,
+			Name:      container.Name,
+			Image:     container.Image,
+			State:     container.State,
+			Status:    container.Status,
+			StartedAt: container.StartedAt,
+			Labels:    container.Labels,
+		})
+	}
+	return result, nil
+}
+
 func (m *mockDockerClient) CreateContainer(_ context.Context, spec ContainerSpec) (string, error) {
 	if m.createErr != nil {
 		return "", m.createErr

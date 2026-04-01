@@ -21,6 +21,12 @@ services:
     build:
       context: .
       dockerfile: apps/platform-api/Dockerfile
+      args:
+        AGIRUNNER_IMAGE_VERSION: ${AGIRUNNER_IMAGE_VERSION:-local}
+        AGIRUNNER_IMAGE_REVISION: ${AGIRUNNER_IMAGE_REVISION:-unlabeled}
+    labels:
+      agirunner.component: platform-api
+      agirunner.stack.project: ${COMPOSE_PROJECT_NAME:-agirunner-platform}
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 8080
@@ -83,12 +89,19 @@ services:
     build:
       context: ./services/container-manager
       dockerfile: Dockerfile
+      args:
+        AGIRUNNER_IMAGE_VERSION: ${AGIRUNNER_IMAGE_VERSION:-local}
+        AGIRUNNER_IMAGE_REVISION: ${AGIRUNNER_IMAGE_REVISION:-unlabeled}
     image: ${CONTAINER_MANAGER_IMAGE:-agirunner/container-manager:latest}
+    labels:
+      agirunner.component: container-manager
+      agirunner.stack.project: ${COMPOSE_PROJECT_NAME:-agirunner-platform}
     environment:
       PLATFORM_API_URL: http://platform-api:8080
       PLATFORM_API_KEY: ${DEFAULT_ADMIN_API_KEY}
       PLATFORM_ADMIN_API_KEY: ${DEFAULT_ADMIN_API_KEY}
       DOCKER_HOST: tcp://socket-proxy:2375
+      AGIRUNNER_STACK_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-agirunner-platform}
       RECONCILE_INTERVAL_SECONDS: ${RECONCILE_INTERVAL_SECONDS:-5}
       AGIRUNNER_GLOBAL_MAX_RUNTIMES: ${AGIRUNNER_GLOBAL_MAX_RUNTIMES:-${GLOBAL_MAX_RUNTIMES:-10}}
       AGIRUNNER_DEFAULT_RUNTIME_IMAGE: ${RUNTIME_IMAGE:-agirunner-runtime:local}
@@ -114,8 +127,13 @@ services:
       context: .
       dockerfile: apps/dashboard/Dockerfile
       args:
+        AGIRUNNER_IMAGE_VERSION: ${AGIRUNNER_IMAGE_VERSION:-local}
+        AGIRUNNER_IMAGE_REVISION: ${AGIRUNNER_IMAGE_REVISION:-unlabeled}
         VITE_PLATFORM_API_URL: ${VITE_PLATFORM_API_URL:-http://127.0.0.1:8080}
         VITE_DASHBOARD_LOGIN_PREFILL_KEY: ${DEFAULT_ADMIN_API_KEY}
+    labels:
+      agirunner.component: dashboard
+      agirunner.stack.project: ${COMPOSE_PROJECT_NAME:-agirunner-platform}
     depends_on:
       platform-api:
         condition: service_healthy

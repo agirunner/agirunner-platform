@@ -52,6 +52,7 @@ import { OAuthService } from '../services/oauth/oauth-service.js';
 import { OrchestratorConfigService } from '../services/orchestrator/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
+import { ContainerManagerVersionReader } from '../services/system-version/container-manager-version-reader.js';
 import { ModelCatalogService } from '../services/model-catalog/model-catalog-service.js';
 import { RemoteMcpOAuthClientProfileService } from '../services/remote-mcp/oauth/remote-mcp-oauth-client-profile-service.js';
 import { RemoteMcpServerService } from '../services/remote-mcp/servers/remote-mcp-server-service.js';
@@ -150,6 +151,10 @@ export async function buildApp() {
     label: 'platform event stream listener',
   });
   const containerInventoryService = new ContainerInventoryService(pool);
+  const containerManagerVersionReader = new ContainerManagerVersionReader(
+    appConfig.CONTAINER_MANAGER_CONTROL_URL,
+    appConfig.CONTAINER_MANAGER_CONTROL_TOKEN ?? null,
+  );
 
   const logService = new LogService(pool);
   const logLevelCache = new LogLevelCache(pool, startupLogLevel);
@@ -345,6 +350,10 @@ export async function buildApp() {
   app.decorate(
     'containerInventoryService',
     createLoggedService(containerInventoryService, 'ContainerInventoryService', logService),
+  );
+  app.decorate(
+    'containerManagerVersionReader',
+    createLoggedService(containerManagerVersionReader, 'ContainerManagerVersionReader', logService),
   );
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', createLoggedService(workerService, 'WorkerService', logService));

@@ -45,6 +45,7 @@ import type { RemoteMcpOAuthService } from './services/remote-mcp/oauth/remote-m
 import type { RemoteMcpVerificationService } from './services/remote-mcp/verification/remote-mcp-verification-service.js';
 import type { SpecialistSkillService } from './services/specialist/specialist-skill-service.js';
 import type { ToolTagService } from './services/tool-tag-service.js';
+import type { ContainerManagerVersionReader } from './services/system-version/container-manager-version-reader.js';
 import type { CommunityCatalogSourceService } from './services/community-catalog/community-catalog-source.js';
 import type { CommunityCatalogPreviewService } from './services/community-catalog/community-catalog-preview-service.js';
 import type { CommunityCatalogImportService } from './services/community-catalog/community-catalog-import-service.js';
@@ -71,6 +72,7 @@ declare module 'fastify' {
     eventService: EventService;
     eventStreamService: EventStreamService;
     containerInventoryService: ContainerInventoryService;
+    containerManagerVersionReader: ContainerManagerVersionReader;
     workerConnectionHub: WorkerConnectionHub;
     workerService: WorkerService;
     governanceService: GovernanceService;

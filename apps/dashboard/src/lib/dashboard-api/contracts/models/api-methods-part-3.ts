@@ -31,6 +31,7 @@ import type {
   LogWorkflowValueRecord,
   FleetWorkerRecord,
   DashboardLiveContainerRecord,
+  DashboardVersionSummary,
 } from '../models.js';
 export interface DashboardApiMethodsPart3 {
   updateLoggingConfig(payload: DashboardLoggingConfig): Promise<DashboardLoggingConfig>;
@@ -86,6 +87,7 @@ export interface DashboardApiMethodsPart3 {
   drainFleetWorker(workerId: string): Promise<unknown>;
   deleteFleetWorker(workerId: string): Promise<void>;
   fetchLiveContainers(): Promise<DashboardLiveContainerRecord[]>;
+  fetchVersionSummary(): Promise<DashboardVersionSummary>;
   fetchQueueDepth(playbookId?: string): Promise<QueueDepthResponse>;
   getMetrics(): Promise<string>;
   getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;

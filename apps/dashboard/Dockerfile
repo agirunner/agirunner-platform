@@ -13,6 +13,10 @@ ENV VITE_DASHBOARD_LOGIN_PREFILL_KEY=${VITE_DASHBOARD_LOGIN_PREFILL_KEY}
 RUN pnpm --filter @agirunner/dashboard build
 
 FROM nginx:1.27-alpine AS runtime
+ARG AGIRUNNER_IMAGE_VERSION=local
+ARG AGIRUNNER_IMAGE_REVISION=unlabeled
+LABEL org.opencontainers.image.version=${AGIRUNNER_IMAGE_VERSION}
+LABEL org.opencontainers.image.revision=${AGIRUNNER_IMAGE_REVISION}
 COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/apps/dashboard/dist /usr/share/nginx/html
 EXPOSE 80

@@ -377,6 +377,45 @@ describe('dashboard api system surfaces', () => {
         new Response(
           JSON.stringify({
             data: {
+              platform_api: {
+                component: 'platform-api',
+                image: 'ghcr.io/agirunner/agirunner-platform-api:0.1.0-rc.1',
+                image_digest: 'sha256:platform-api',
+                version: '0.1.0-rc.1',
+                revision: 'abcdef123456',
+                status: 'Up 5 minutes',
+                started_at: '2026-03-31T18:22:00.000Z',
+              },
+              dashboard: {
+                component: 'dashboard',
+                image: 'ghcr.io/agirunner/agirunner-platform-dashboard:local',
+                image_digest: null,
+                version: 'local',
+                revision: 'unlabeled',
+                status: 'Up 5 minutes',
+                started_at: '2026-03-31T18:22:30.000Z',
+              },
+              container_manager: null,
+              runtimes: [
+                {
+                  image: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-rc.1',
+                  image_digest: 'sha256:runtime',
+                  version: '0.1.0-rc.1',
+                  revision: 'fedcba654321',
+                  total_containers: 2,
+                  orchestrator_containers: 1,
+                  specialist_runtime_containers: 1,
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
               id: 'worker-2',
               worker_name: 'specialist-1',
               role: 'developer',
@@ -445,6 +484,7 @@ describe('dashboard api system surfaces', () => {
     const status = await api.fetchFleetStatus();
     const workers = await api.fetchFleetWorkers();
     const liveContainers = await api.fetchLiveContainers();
+    const versionSummary = await api.fetchVersionSummary();
     const created = await api.createFleetWorker({
       workerName: 'specialist-1',
       role: 'developer',
@@ -472,6 +512,7 @@ describe('dashboard api system surfaces', () => {
     expect(status.by_playbook_pool[0]?.pool_kind).toBe('orchestrator');
     expect(workers[0]?.pool_kind).toBe('orchestrator');
     expect(liveContainers[0]?.kind).toBe('runtime');
+    expect(versionSummary.platform_api?.version).toBe('0.1.0-rc.1');
     expect(created.pool_kind).toBe('specialist');
     expect(updated.llm_api_key_secret_ref_configured).toBe(true);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/fleet/status');
@@ -479,17 +520,20 @@ describe('dashboard api system surfaces', () => {
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/fleet/live-containers',
     );
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
-    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/version-summary',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
+    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
-    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[6][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
     );
-    expect(vi.mocked(fetcher).mock.calls[6][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
     );
-    expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[8][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
   });

@@ -16,6 +16,7 @@ import (
 // In production this talks to a Docker socket proxy, never the raw socket.
 type DockerClient interface {
 	ListContainers(ctx context.Context) ([]ContainerInfo, error)
+	ListApplicationContainers(ctx context.Context) ([]ApplicationContainerInfo, error)
 	CreateContainer(ctx context.Context, spec ContainerSpec) (string, error)
 	StopContainer(ctx context.Context, containerID string, timeout time.Duration) error
 	RemoveContainer(ctx context.Context, containerID string) error
@@ -79,6 +80,7 @@ type Config struct {
 	RuntimeOrphanGraceCycles    int
 	RuntimeNetwork              string
 	RuntimeInternalNetwork      string
+	StackProjectName            string
 }
 
 // PlatformAPI abstracts communication with the platform API.

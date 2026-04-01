@@ -114,3 +114,14 @@ export function createFleetServiceMock(overrides: Record<string, unknown> = {}) 
   };
 }
 
+export function createContainerManagerVersionReaderMock(overrides: Record<string, unknown> = {}) {
+  return {
+    getSummary: vi.fn().mockResolvedValue({
+      platform_api: null,
+      dashboard: null,
+      container_manager: null,
+      runtimes: [],
+    }),
+    ...overrides,
+  };
+}

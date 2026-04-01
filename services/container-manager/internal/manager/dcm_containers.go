@@ -119,7 +119,7 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 	runtimeID := uuid.New().String()
 	name := fmt.Sprintf("runtime-%s-%s", target.PlaybookID[:minLen(target.PlaybookID, 8)], runtimeID[:8])
 
-	return ContainerSpec{
+	spec := ContainerSpec{
 		Name:        name,
 		Image:       target.Image,
 		CPULimit:    target.CPU,
@@ -130,6 +130,8 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 		Labels:      buildDCMLabels(target, runtimeID),
 		NetworkName: m.config.RuntimeNetwork,
 	}
+	applyStackProjectLabel(spec.Labels, m.config.StackProjectName)
+	return spec
 }
 
 // buildDCMEnvironment creates environment variables for a DCM runtime container.
