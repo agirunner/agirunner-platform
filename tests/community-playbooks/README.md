@@ -25,9 +25,17 @@ bash tests/community-playbooks/run.sh --playbook bug-fix
 bash tests/community-playbooks/run.sh --playbook research-analysis --variant mcp
 ```
 
+Default behavior:
+- rebuild and reseed the shared live-test environment
+- import the full community catalog through the real platform APIs
+- assign the seeded specialist model to imported roles
+- register the deterministic community research MCP fixture
+- execute the selected `smoke`, `matrix`, and `controls` runs
+
 Environment:
 - the runner loads `tests/live/env/local.env`
 - the suite reuses the live runtime/container stack
+- the suite seeds a deterministic research MCP server for the `mcp` variants
 - the community suite uses its own result tree under
   `tests/community-playbooks/results`
 

@@ -10,6 +10,7 @@ from typing import Callable
 from urllib.parse import parse_qs, urlparse
 
 from fixture_state import record_invocation, snapshot_invocations
+from research_fixture import fetch_research_document, search_research_corpus
 
 
 HOST = "0.0.0.0"
@@ -38,6 +39,8 @@ PARAMETERIZED_DOC_PATH = "/docs/parameterized"
 OAUTH_TOOL_NAME = "lookup_oauth_reference_answer"
 PARAMETERIZED_RESEARCH_TOOL_NAME = "lookup_parameterized_research_answer"
 PARAMETERIZED_REPOSITORY_TOOL_NAME = "inspect_fixture_repository"
+RESEARCH_SEARCH_TOOL_NAME = "search_web"
+RESEARCH_FETCH_TOOL_NAME = "fetch_page"
 
 
 class RemoteMcpFixtureHandler(BaseHTTPRequestHandler):
@@ -146,10 +149,32 @@ class RemoteMcpFixtureHandler(BaseHTTPRequestHandler):
                             "additionalProperties": False,
                         },
                     },
+                    {
+                        "name": RESEARCH_SEARCH_TOOL_NAME,
+                        "description": "Return deterministic Tavily/Exa-style research results from a realistic fixture corpus.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {"query": {"type": "string"}, "limit": {"type": "integer"}},
+                            "required": ["query"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    {
+                        "name": RESEARCH_FETCH_TOOL_NAME,
+                        "description": "Fetch the full body for a deterministic research result URL.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {"url": {"type": "string"}},
+                            "required": ["url"],
+                            "additionalProperties": False,
+                        },
+                    },
                 ],
                 tool_handlers={
                     PARAMETERIZED_RESEARCH_TOOL_NAME: self.handle_parameterized_research_answer,
                     PARAMETERIZED_REPOSITORY_TOOL_NAME: self.handle_parameterized_repository_metadata,
+                    RESEARCH_SEARCH_TOOL_NAME: self.handle_research_search,
+                    RESEARCH_FETCH_TOOL_NAME: self.handle_research_fetch,
                 },
             )
             return
@@ -284,6 +309,19 @@ class RemoteMcpFixtureHandler(BaseHTTPRequestHandler):
             "readme_line": "README present: yes",
             "source_url": f"{BASE_URL}{PARAMETERIZED_DOC_PATH}",
         }
+
+    def handle_research_search(self, arguments: dict[str, object]) -> dict[str, object]:
+        query = str(arguments.get("query") or "").strip()
+        limit = int(arguments.get("limit") or 5)
+        return {
+            "query": query,
+            "results": search_research_corpus(query, limit=limit),
+            "source": "fixture_research_library",
+        }
+
+    def handle_research_fetch(self, arguments: dict[str, object]) -> dict[str, object]:
+        url = str(arguments.get("url") or "").strip()
+        return fetch_research_document(url)
 
     def read_json_payload(self) -> dict[str, object]:
         body = self.rfile.read(int(self.headers.get("Content-Length", "0") or "0"))

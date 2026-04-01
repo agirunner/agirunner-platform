@@ -82,7 +82,31 @@ class RunnerContractTests(unittest.TestCase):
             failed_only=False,
         )
 
-        payload = community_runner.execute(args)
+        with patch("runner.prepare_environment", return_value={"specialist_model_id": "model-1", "specialist_reasoning": "medium"}):
+            fake_client = type(
+                "FakeClient",
+                (),
+                {
+                    "request": lambda self, method, path, payload=None, expected=(200,), label=None: {
+                        "data": [{"id": "pb-1", "slug": "bug-fix"}]
+                    }
+                },
+            )()
+            fake_api = type("FakeApi", (), {"client": fake_client})()
+            with patch("runner.create_catalog_api", return_value=fake_api):
+                with patch("runner.import_full_catalog", return_value={"catalog_playbook_count": 17}):
+                    with patch("runner.assign_specialist_model_to_roles", return_value=[]):
+                        with patch("runner.configure_community_mcp_servers", return_value={"items": [], "by_slug": {}}):
+                            with patch(
+                                "runner.execute_runs",
+                                return_value={
+                                    "runs": [{"id": "bug-fix-smoke", "passed": True}],
+                                    "passed": True,
+                                    "passed_count": 1,
+                                    "failed_count": 0,
+                                },
+                            ):
+                                payload = community_runner.execute(args)
 
         self.assertEqual(1, payload["selection"]["resolved_run_count"])
         self.assertEqual(1, len(payload["runs"]))

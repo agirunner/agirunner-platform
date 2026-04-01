@@ -3,12 +3,16 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Any
 
 from bootstrap import prepare_environment
 from common import ensure_dir, results_root, suite_root, write_json_file
-from import_catalog import run_import_only
+from community_mcp import configure_community_mcp_servers
+from community_run_api import CommunityRunApi
+from import_catalog import assign_specialist_model_to_roles, create_catalog_api, import_full_catalog, run_import_only
 from resolve_metadata import METADATA_FILE, load_metadata, resolve_run_specs, validate_metadata
+from run_execution import execute_runs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,6 +60,25 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     if args.import_only:
         return {"import": run_import_only(), "selection": payload}
 
+    bootstrap_context = prepare_environment()
+    trace_dir = ensure_dir(results_root() / "suite" / "api-trace")
+    api = CommunityRunApi(create_catalog_api(trace_dir).client)
+    import_payload = import_full_catalog(api)
+    role_assignments = assign_specialist_model_to_roles(
+        api,
+        specialist_model_id=str(bootstrap_context["specialist_model_id"]),
+        reasoning_effort=str(bootstrap_context["specialist_reasoning"]),
+    )
+    remote_mcp_servers = configure_community_mcp_servers(api.client)
+    write_json_file(
+        results_root() / "import" / "import-summary.json",
+        {
+            **import_payload,
+            "bootstrap_context": bootstrap_context,
+            "role_assignments": role_assignments,
+            "remote_mcp_servers": remote_mcp_servers,
+        },
+    )
     metadata = load_metadata(str(METADATA_FILE))
     validate_metadata(metadata)
     failed_only_ids = resolve_failed_only_ids(summary_path) if args.failed_only else None
@@ -67,8 +90,27 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         failed_only_ids=failed_only_ids,
     )
     payload["resolved_run_count"] = len(resolved_runs)
-
-    result = {"runs": resolved_runs, "selection": payload}
+    local_playbooks = {
+        str(playbook.get("slug") or "").strip(): dict(playbook)
+        for playbook in api.list_local_playbooks()
+        if str(playbook.get("slug") or "").strip()
+    }
+    run_result = execute_runs(
+        api,
+        local_playbooks,
+        resolved_runs,
+        results_dir=results_root(),
+    )
+    result = {
+        "bootstrap": bootstrap_context,
+        "import": {
+            **import_payload,
+            "role_assignments": role_assignments,
+            "remote_mcp_servers": remote_mcp_servers,
+        },
+        **run_result,
+        "selection": payload,
+    }
     write_json_file(summary_path, result)
     return result
 

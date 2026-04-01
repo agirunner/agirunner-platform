@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Community Research MCP",
+    "description": "Deterministic research/search MCP for realistic community playbook runs.",
+    "endpointUrl": "http://live-test-remote-mcp-fixture:18080/mcp/parameterized",
+    "callTimeoutSeconds": 300,
+    "authMode": "parameterized",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "parameters": [
+      {
+        "placement": "header",
+        "key": "X-Fixture-Key",
+        "valueKind": "secret",
+        "value": {
+          "env": "LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET"
+        }
+      }
+    ]
+  }
+]
