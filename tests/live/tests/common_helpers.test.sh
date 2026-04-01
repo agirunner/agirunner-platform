@@ -59,5 +59,35 @@ EOF
   fi
 }
 
+test_load_live_test_env_preserves_existing_env_overrides() {
+  local env_file
+  env_file="$(mktemp)"
+  cat >"${env_file}" <<'EOF'
+LIVE_TEST_PROVIDER_AUTH_MODE=oauth
+LIVE_TEST_PROVIDER_TYPE=openai
+LIVE_TEST_PROVIDER_NAME=OpenAI (Subscription)
+EOF
+
+  LIVE_TEST_PROVIDER_AUTH_MODE="api_key"
+  LIVE_TEST_PROVIDER_TYPE="anthropic"
+  LIVE_TEST_PROVIDER_NAME="Anthropic"
+
+  load_live_test_env "${env_file}"
+
+  if [[ "${LIVE_TEST_PROVIDER_AUTH_MODE}" != "api_key" ]]; then
+    echo "expected provider auth mode override to survive env load" >&2
+    exit 1
+  fi
+  if [[ "${LIVE_TEST_PROVIDER_TYPE}" != "anthropic" ]]; then
+    echo "expected provider type override to survive env load" >&2
+    exit 1
+  fi
+  if [[ "${LIVE_TEST_PROVIDER_NAME}" != "Anthropic" ]]; then
+    echo "expected provider name override to survive env load" >&2
+    exit 1
+  fi
+}
+
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts
+test_load_live_test_env_preserves_existing_env_overrides

@@ -320,7 +320,22 @@ load_live_test_env() {
       exit 1
     fi
 
-    eval "export ${line}"
+    if [[ -n "${!name:-}" ]]; then
+      continue
+    fi
+
+    local value="${line#*=}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    if (( ${#value} >= 2 )); then
+      local first_char="${value:0:1}"
+      local last_char="${value: -1}"
+      if [[ ( "${first_char}" == "'" && "${last_char}" == "'" ) || ( "${first_char}" == "\"" && "${last_char}" == "\"" ) ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+    fi
+
+    export "${name}=${value}"
   done <"${env_file}"
 }
 
