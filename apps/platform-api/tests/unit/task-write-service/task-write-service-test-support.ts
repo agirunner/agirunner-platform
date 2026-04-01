@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import * as TaskWriteServiceModule from '../../../src/services/task-write-service/task-write-service.js';
 import * as DomainErrors from '../../../src/errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../../src/auth/api-key.js';
 
 const { readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
   readRequiredPositiveIntegerRuntimeDefaultMock:
@@ -79,10 +80,13 @@ export function buildTaskWriteService(overrides: Partial<TaskWriteDependencies> 
   };
 }
 
-export function createApiKeyIdentity(overrides: Record<string, unknown> = {}) {
+export function createApiKeyIdentity(overrides: Partial<ApiKeyIdentity> = {}): ApiKeyIdentity {
   return {
+    id: 'api-key-1',
     tenantId: 'tenant-1',
     scope: 'admin',
+    ownerType: 'user',
+    ownerId: 'user-1',
     keyPrefix: 'admin-key',
     ...overrides,
   };

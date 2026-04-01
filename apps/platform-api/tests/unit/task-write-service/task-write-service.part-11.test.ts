@@ -81,7 +81,7 @@ describe('TaskWriteService recoverable create-task guidance', () => {
     }
 
     expect(thrown).toBeInstanceOf(ValidationError);
-    const details = (thrown as ValidationError).details;
+    const details = (thrown as InstanceType<typeof ValidationError>).details;
     expect(details).toMatchObject({
       recovery_hint: 'orchestrator_guided_recovery',
       reason_code: 'role_not_defined_in_playbook',
@@ -164,7 +164,7 @@ describe('TaskWriteService recoverable create-task guidance', () => {
     }
 
     expect(thrown).toBeInstanceOf(ValidationError);
-    const details = (thrown as ValidationError).details;
+    const details = (thrown as InstanceType<typeof ValidationError>).details;
     expect(details).toMatchObject({
       recovery_hint: 'orchestrator_guided_recovery',
       reason_code: 'role_routes_to_successor_stage',
