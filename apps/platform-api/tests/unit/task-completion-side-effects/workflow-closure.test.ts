@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
 
 import { applyTaskCompletionSideEffects } from '../../../src/services/task-completion-side-effects/task-completion-side-effects.js';
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
+import { PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID } from '../../../src/services/safetynet/registry.js';
 import {
   createAssessmentTask,
   createClient,
@@ -10,6 +16,10 @@ import {
 } from './helpers.js';
 
 describe('task completion workflow closure', () => {
+  beforeEach(() => {
+    vi.mocked(logSafetynetTriggered).mockReset();
+  });
+
   it('auto-closes an ongoing work item after an approved assessment settles the last remaining work', async () => {
     const eventService = createEventService();
     const client = createClient(async (sql: string) => {
@@ -91,6 +101,18 @@ describe('task completion workflow closure', () => {
       }),
       client,
     );
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID,
+      }),
+      'platform auto-closed an ongoing work item after an approved assessment settled the final remaining work',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'review-item',
+        task_id: 'task-review',
+        stage_name: 'implementation',
+      }),
+    );
   });
 
   it('does not auto-close the work item when unfinished tasks remain', async () => {
@@ -169,5 +191,6 @@ describe('task completion workflow closure', () => {
       ...unknown[],
     ]>;
     expect(eventCalls.some(([event]) => event.type === 'work_item.completed')).toBe(false);
+    expect(logSafetynetTriggered).not.toHaveBeenCalled();
   });
 });

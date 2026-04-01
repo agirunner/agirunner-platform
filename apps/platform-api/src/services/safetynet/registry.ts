@@ -22,6 +22,10 @@ export const PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID =
   'platform.continuity.stale_write_suppression';
 export const PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID =
   'platform.approval.stale_decision_supersession';
+export const PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID =
+  'platform.task_completion.approved_ongoing_work_item_auto_close';
+export const PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID =
+  'platform.workflow_stage.completed_planned_predecessor_auto_close';
 export const PLATFORM_LOGGING_SECRET_REDACTION_ID =
   'platform.logging.secret_redaction';
 
@@ -267,6 +271,50 @@ const entries: SafetynetEntry[] = [
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'protective approval supersession should remain enabled',
     status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID,
+    layer: 'platform',
+    name: 'Approved ongoing work item auto-close',
+    classification: 'behavior_masking',
+    mechanism: 'completion_assist',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'an approved assessment finishes the last remaining task for an ongoing work item and the platform can legally close that work item without additional operator action',
+    nominal_contract: 'operators or orchestrator closure logic explicitly close ongoing work items when assessment approval fully satisfies them',
+    intervention: 'platform marks the ongoing work item complete and emits the standard work-item completion events',
+    risk_if_triggered: 'closure can appear fully manual even though the platform completed the final work-item close step automatically',
+    operator_visibility: 'must emit safetynet logs and remain visible in the generated catalog because it changes closure behavior',
+    owner_module: 'src/services/task-completion-side-effects/workflow-closure.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.task_completion.approved_ongoing_work_item_auto_close"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to approved-assessment completion of already-unblocked ongoing work items',
+    status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID,
+    layer: 'platform',
+    name: 'Completed planned predecessor auto-close',
+    classification: 'behavior_masking',
+    mechanism: 'completion_assist',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'a planned-workflow predecessor work item becomes legally complete after downstream continuation exists and the platform can close it without waiting for a separate close command',
+    nominal_contract: 'planned predecessor work items are explicitly closed once successor continuity and completion callouts satisfy the authored closure contract',
+    intervention: 'platform auto-closes the satisfied planned predecessor work item, persists completion callouts, and emits the normal completion events',
+    risk_if_triggered: 'planned-stage progression can look like an explicit close step even though the platform completed it automatically',
+    operator_visibility: 'must emit safetynet logs and remain visible in the generated catalog because it advances planned workflow closure state',
+    owner_module: 'src/services/workflow-stage/planned-work-item-auto-close.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.workflow_stage.completed_planned_predecessor_auto_close"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep bounded to planned predecessor closure after explicit continuation and handoff evidence already exist',
+    status: 'candidate_for_tightening',
   },
   {
     kind: 'safetynet_behavior',

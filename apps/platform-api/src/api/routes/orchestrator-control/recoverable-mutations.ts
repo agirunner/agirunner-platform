@@ -176,12 +176,25 @@ export async function buildUnconfiguredGateApprovalAdvisory(
     message,
     reason_code: reasonCode,
     request_summary: input.summary.trim(),
+    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stage_name: stageName,
     status: 'ignored_not_configured',
     task_id: taskScope.id,
     work_item_id: taskScope.work_item_id ?? null,
     workflow_id: taskScope.workflow_id,
   } satisfies Record<string, unknown>;
+
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable gate approval advisory returned because the stage has no configured human gate',
+    {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: taskScope.work_item_id ?? null,
+      task_id: taskScope.id,
+      stage_name: stageName,
+      reason_code: reasonCode,
+    },
+  );
 
   await app.eventService.emit(
     {

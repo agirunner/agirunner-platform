@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: vi.fn(),
@@ -6,6 +6,7 @@ vi.mock('../../../../../src/services/safetynet/logging.js', () => ({
 
 import {
   NOT_READY_NOOP_RECOVERY_SAFETYNET,
+  buildRecoverableApproveTaskNoop,
   buildRecoverableMissingManagedTaskNoop,
   isRecoverableNotAppliedResult,
   runIdempotentMutation,
@@ -13,6 +14,10 @@ import {
 import { logSafetynetTriggered } from '../../../../../src/services/safetynet/logging.js';
 
 describe('orchestrator control shared helpers', () => {
+  beforeEach(() => {
+    vi.mocked(logSafetynetTriggered).mockReset();
+  });
+
   it('detects recoverable not applied mutation results', () => {
     expect(
       isRecoverableNotAppliedResult({
@@ -86,6 +91,41 @@ describe('orchestrator control shared helpers', () => {
         task_id: '22222222-2222-4222-8222-222222222222',
         work_item_id: 'work-item-1',
         reason_code: 'managed_task_not_found',
+      },
+    );
+  });
+
+  it('tags and logs stale approval recoverable noops with the not-ready safetynet', () => {
+    const response = buildRecoverableApproveTaskNoop(
+      {
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+      } as never,
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        work_item_id: 'work-item-2',
+        stage_name: 'review',
+        state: 'output_pending_assessment',
+      },
+    );
+
+    expect(response).toMatchObject({
+      mutation_outcome: 'recoverable_not_applied',
+      recovery_class: 'task_not_awaiting_approval',
+      reason_code: 'task_not_awaiting_approval',
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+    });
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      NOT_READY_NOOP_RECOVERY_SAFETYNET,
+      'recoverable approve_task noop returned because the managed specialist task is no longer awaiting approval',
+      {
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-2',
+        task_id: '22222222-2222-4222-8222-222222222222',
+        stage_name: 'review',
+        reason_code: 'task_not_awaiting_approval',
       },
     );
   });

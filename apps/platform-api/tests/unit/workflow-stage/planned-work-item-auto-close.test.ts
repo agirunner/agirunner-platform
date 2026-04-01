@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
+
 vi.mock('../../../src/services/workflow-stage/workflow-stage-reconciliation.js', () => ({
   reconcilePlannedWorkflowStages: vi.fn(async () => undefined),
 }));
 
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../../../src/services/workflow-stage/planned-work-item-auto-close.js';
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
+import { PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID } from '../../../src/services/safetynet/registry.js';
 import { reconcilePlannedWorkflowStages } from '../../../src/services/workflow-stage/workflow-stage-reconciliation.js';
 
 describe('maybeAutoCloseCompletedPlannedPredecessorWorkItem', () => {
@@ -131,6 +137,18 @@ describe('maybeAutoCloseCompletedPlannedPredecessorWorkItem', () => {
       }),
       client,
     );
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID,
+      }),
+      'platform auto-closed a planned predecessor work item after completion became legally satisfied',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'release-readiness',
+        successor_stage_name: null,
+      }),
+    );
     expect(reconcilePlannedWorkflowStages).toHaveBeenCalledWith(client, 'tenant-1', 'workflow-1');
   });
 
@@ -189,6 +207,7 @@ describe('maybeAutoCloseCompletedPlannedPredecessorWorkItem', () => {
 
     expect(closed).toBe(false);
     expect(eventService.emit).not.toHaveBeenCalled();
+    expect(logSafetynetTriggered).not.toHaveBeenCalled();
     expect(reconcilePlannedWorkflowStages).not.toHaveBeenCalled();
   });
 });

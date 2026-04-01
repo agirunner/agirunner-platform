@@ -114,6 +114,18 @@ export function buildRecoverableApproveTaskNoop(
     return null;
   }
 
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable approve_task noop returned because the managed specialist task is no longer awaiting approval',
+    {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+      stage_name: readString(managedTask.stage_name) ?? taskScope.stage_name ?? null,
+      reason_code: 'task_not_awaiting_approval',
+    },
+  );
+
   return buildRecoverableGuidedNoop({
     reasonCode: 'task_not_awaiting_approval',
     safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,

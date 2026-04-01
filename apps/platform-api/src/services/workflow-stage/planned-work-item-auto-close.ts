@@ -2,6 +2,11 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import { EventService } from '../event/event-service.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import {
+  PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID,
+  mustGetSafetynetEntry,
+} from '../safetynet/registry.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 
 interface PlannedWorkflowContextRow {
@@ -19,6 +24,10 @@ interface WorkItemClosureCandidateRow {
   next_expected_actor: string | null;
   next_expected_action: string | null;
 }
+
+const COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_WORKFLOW_STAGE_COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_ID,
+);
 
 export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
   eventService: EventService,
@@ -116,11 +125,23 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
     workflow_id: workflowId,
     work_item_id: workItemId,
     stage_name: candidate.stage_name,
-    successor_stage_name: successorStageName,
+    successor_stage_name: successorStageName ?? null,
     previous_column_id: candidate.column_id,
     column_id: terminalColumnId,
     completed_at: completedAt.toISOString(),
   };
+  logSafetynetTriggered(
+    COMPLETED_PLANNED_PREDECESSOR_AUTO_CLOSE_SAFETYNET,
+    'platform auto-closed a planned predecessor work item after completion became legally satisfied',
+    {
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      stage_name: candidate.stage_name,
+      successor_stage_name: successorStageName ?? null,
+      previous_column_id: candidate.column_id,
+      column_id: terminalColumnId,
+    },
+  );
   await eventService.emit(
     {
       tenantId: identity.tenantId,

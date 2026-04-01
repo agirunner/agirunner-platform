@@ -2,6 +2,11 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type { EventService } from '../event/event-service.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import {
+  PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID,
+  mustGetSafetynetEntry,
+} from '../safetynet/registry.js';
 import { readWorkflowTaskKind } from '../workflow-task-policy/assessment-subject-service.js';
 import {
   asOptionalString,
@@ -9,6 +14,10 @@ import {
   type OngoingWorkflowClosureContextRow,
 } from './shared.js';
 import { loadLatestTaskAttemptHandoffOutcome } from './assessment-resolution.js';
+
+const APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID,
+);
 
 export async function maybeAutoCloseApprovedOngoingWorkItem(
   eventService: EventService,
@@ -105,6 +114,18 @@ export async function maybeAutoCloseApprovedOngoingWorkItem(
     column_id: terminalColumnId,
     completed_at: completedAt.toISOString(),
   };
+  logSafetynetTriggered(
+    APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_SAFETYNET,
+    'platform auto-closed an ongoing work item after an approved assessment settled the final remaining work',
+    {
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      task_id: asOptionalString(completedTask.id),
+      stage_name: workItem.stage_name,
+      previous_column_id: workItem.column_id,
+      column_id: terminalColumnId,
+    },
+  );
   await eventService.emit(
     {
       tenantId: identity.tenantId,
