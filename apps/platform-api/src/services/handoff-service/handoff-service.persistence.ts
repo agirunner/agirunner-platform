@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
-import type { LogService } from '../../logging/log-service.js';
-import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
+import type { LogService } from '../../logging/execution/log-service.js';
+import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkflowTaskDeliverablePromotionService } from '../workflow-deliverables/workflow-task-deliverable-promotion-service.js';
 import {

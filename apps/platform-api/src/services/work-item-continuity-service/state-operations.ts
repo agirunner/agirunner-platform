@@ -1,6 +1,6 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
-import type { LogService } from '../../logging/log-service.js';
-import { logWorkItemContinuityTransition } from '../../logging/work-item-continuity-log.js';
+import type { LogService } from '../../logging/execution/log-service.js';
+import { logWorkItemContinuityTransition } from '../../logging/workflow-events/work-item-continuity-log.js';
 import type {
   OrchestratorFinishStateUpdate,
   WorkItemContinuityContextRow,

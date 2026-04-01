@@ -8,9 +8,9 @@ import {
   PUBLIC_LOG_CSV_COLUMNS,
   toPublicLogRow,
   toPublicLogSummaryRow,
-} from '../../../logging/public-log-row.js';
-import type { LogStreamFilters } from '../../../logging/log-stream-service.js';
-import type { LogFilters, LogRow, LogStatsFilters } from '../../../logging/log-service.js';
+} from '../../../logging/execution/public-log-row.js';
+import type { LogStreamFilters } from '../../../logging/execution/log-stream-service.js';
+import type { LogFilters, LogRow, LogStatsFilters } from '../../../logging/execution/log-service.js';
 
 const validSources = ['runtime', 'container_manager', 'platform', 'task_container'] as const;
 const validCategories = [

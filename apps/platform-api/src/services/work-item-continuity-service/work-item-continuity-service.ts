@@ -1,5 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
-import type { LogService } from '../../logging/log-service.js';
+import type { LogService } from '../../logging/execution/log-service.js';
 import { applyRuleOutcome } from './rule-outcome.js';
 import { hasNewerSpecialistHandoffSinceActivation } from './query-helpers.js';
 import {

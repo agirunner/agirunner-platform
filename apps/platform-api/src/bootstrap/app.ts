@@ -14,10 +14,10 @@ import {
 import { seedDefaultTenant } from '../db/seed.js';
 import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
-import { createLoggedService } from '../logging/create-logged-service.js';
-import { LogService } from '../logging/log-service.js';
+import { createLoggedService } from '../logging/execution/create-logged-service.js';
+import { LogService } from '../logging/execution/log-service.js';
 import { LogLevelCache } from '../logging/execution/log-level-cache.js';
-import { LogStreamService } from '../logging/log-stream-service.js';
+import { LogStreamService } from '../logging/execution/log-stream-service.js';
 import { registerRequestLogger } from '../logging/request/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
@@ -93,7 +93,7 @@ import { configureProviderSecretEncryptionKey } from '../lib/oauth-crypto.js';
 import {
   applyDefaultTenantLoggingLevel,
   readDefaultTenantLoggingLevel,
-} from '../logging/platform-log-level.js';
+} from '../logging/execution/platform-log-level.js';
 export { assertRequiredStartupSecrets } from './startup-secrets.js';
 
 export async function buildApp() {

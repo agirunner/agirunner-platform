@@ -1,4 +1,4 @@
-import type { LogRow } from '../../../logging/log-service.js';
+import type { LogRow } from '../../../logging/execution/log-service.js';
 import type { WorkflowHistoryItem } from '../workflow-operations-types.js';
 
 import { buildLinkedTargetIds } from './execution-scope.js';

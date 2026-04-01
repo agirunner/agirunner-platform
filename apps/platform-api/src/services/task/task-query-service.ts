@@ -1,9 +1,9 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
-import type { LogService } from '../../logging/log-service.js';
-import { logPredecessorHandoffResolution } from '../../logging/predecessor-handoff-log.js';
-import { logTaskContextAttachments } from '../../logging/task-context-log.js';
+import type { LogService } from '../../logging/execution/log-service.js';
+import { logPredecessorHandoffResolution } from '../../logging/workflow-events/predecessor-handoff-log.js';
+import { logTaskContextAttachments } from '../../logging/workflow-events/task-context-log.js';
 import {
   normalizeTaskState,
 } from '../../orchestration/task-state-machine.js';

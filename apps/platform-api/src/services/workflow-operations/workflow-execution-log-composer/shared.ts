@@ -1,4 +1,4 @@
-import type { LogRow } from '../../../logging/log-service.js';
+import type { LogRow } from '../../../logging/execution/log-service.js';
 
 export function compareLogRowsByCreatedAt(left: LogRow, right: LogRow): number {
   const leftTimestamp = normalizeTimestamp(left.created_at);

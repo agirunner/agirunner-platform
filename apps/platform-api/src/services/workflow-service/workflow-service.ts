@@ -46,7 +46,7 @@ import {
   listWorkflows as listWorkflowRecords,
   type WorkflowQueryDependencies,
 } from './workflow-query-service.js';
-import type { LogService } from '../../logging/log-service.js';
+import type { LogService } from '../../logging/execution/log-service.js';
 import type { WorkerConnectionHub } from '../workers/worker-connection-hub.js';
 import type { WorkflowInputPacketService } from '../workflow-operations/workflow-input-packet-service.js';
 import type {

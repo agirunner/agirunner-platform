@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import { ForbiddenError } from '../../errors/domain-errors.js';
-import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
+import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
 import type { TaskState } from '../../orchestration/task-state-machine.js';
 import {
   asRecord,

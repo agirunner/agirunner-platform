@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { PUBLIC_LOG_CSV_COLUMNS, toPublicLogRow } from '../../../../src/logging/public-log-row.js';
-import type { LogRow } from '../../../../src/logging/log-service.js';
+import { PUBLIC_LOG_CSV_COLUMNS, toPublicLogRow } from '../../../../src/logging/execution/public-log-row.js';
+import type { LogRow } from '../../../../src/logging/execution/log-service.js';
 
 function mergeDefinedOverrides(baseRow: LogRow, overrides: Partial<LogRow>): LogRow {
   const mergedRow: LogRow = { ...baseRow };

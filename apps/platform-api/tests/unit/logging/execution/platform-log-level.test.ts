@@ -5,7 +5,7 @@ import {
   applyDefaultTenantLoggingLevel,
   readDefaultTenantLoggingLevel,
   applyTenantLoggingLevel,
-} from '../../../../src/logging/platform-log-level.js';
+} from '../../../../src/logging/execution/platform-log-level.js';
 
 const { configureApiKeyLoggingMock } = vi.hoisted(() => ({
   configureApiKeyLoggingMock: vi.fn(),

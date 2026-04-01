@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
-import type { LogService } from '../../logging/log-service.js';
-import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
+import type { LogService } from '../../logging/execution/log-service.js';
+import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
 import { blockedColumnId } from '../../orchestration/playbook-model.js';
 import type { EventService } from '../event/event-service.js';
 import { blockWorkflowWorkItem } from '../work-item-service/work-item-blocking.js';

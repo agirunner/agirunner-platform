@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 
-import { createLoggedService } from '../logging/create-logged-service.js';
-import { LogService } from '../logging/log-service.js';
+import { createLoggedService } from '../logging/execution/create-logged-service.js';
+import { LogService } from '../logging/execution/log-service.js';
 import { CommunityCatalogImportService } from '../services/community-catalog/community-catalog-import-service.js';
 import { CommunityCatalogOriginService } from '../services/community-catalog/community-catalog-origin-service.js';
 import { CommunityCatalogPersistence } from '../services/community-catalog/community-catalog-persistence.js';

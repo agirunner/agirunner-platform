@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
-import type { LogService } from '../../logging/log-service.js';
-import { logPredecessorHandoffResolution } from '../../logging/predecessor-handoff-log.js';
+import type { LogService } from '../../logging/execution/log-service.js';
+import { logPredecessorHandoffResolution } from '../../logging/workflow-events/predecessor-handoff-log.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkflowTaskDeliverablePromotionService } from '../workflow-deliverables/workflow-task-deliverable-promotion-service.js';

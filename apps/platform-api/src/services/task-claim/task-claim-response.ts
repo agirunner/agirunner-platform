@@ -1,5 +1,5 @@
 import { isExternalSecretReference } from '../../lib/oauth-crypto.js';
-import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
+import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
 import { flattenInstructionLayers } from '../task-context-service/task-context-service.js';
 import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';

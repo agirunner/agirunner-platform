@@ -1,4 +1,4 @@
-import type { LogRow } from '../../../logging/log-service.js';
+import type { LogRow } from '../../../logging/execution/log-service.js';
 
 import { readOptionalNumber, readString } from './shared.js';
 

@@ -1,5 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
-import type { LogService } from '../../logging/log-service.js';
+import type { LogService } from '../../logging/execution/log-service.js';
 import { logSafetynetTriggered } from '../safetynet/logging.js';
 import {
   PLATFORM_ORCHESTRATOR_REWORK_ROUTE_INFERENCE_ID,

@@ -4,7 +4,7 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
 import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
-import type { LogService } from '../../logging/log-service.js';
+import type { LogService } from '../../logging/execution/log-service.js';
 import { ArtifactRetentionService } from '../artifacts/artifact-retention-service.js';
 import { EventService } from '../event/event-service.js';
 import { WorkspaceTimelineService } from '../workspace/timeline/workspace-timeline-service.js';
