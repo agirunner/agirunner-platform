@@ -1,4 +1,9 @@
 import type { DatabaseClient } from '../../db/database.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import {
+  PLATFORM_ACTIVATION_STALE_CALLBACK_SUPPRESSION_ID,
+  mustGetSafetynetEntry,
+} from '../safetynet/registry.js';
 
 import { ActivationRecoveryStore } from './recovery-store.js';
 import { recoverStaleActivation } from './recovery-runner.js';
@@ -268,6 +273,17 @@ export class WorkflowActivationDispatchService {
       client,
     );
     if (hasReplacementTask) {
+      logSafetynetTriggered(
+        mustGetSafetynetEntry(PLATFORM_ACTIVATION_STALE_CALLBACK_SUPPRESSION_ID),
+        'platform suppressed a stale orchestrator activation callback because a replacement orchestrator task is already active',
+        {
+          tenant_id: tenantId,
+          workflow_id: String(task.workflow_id),
+          activation_id: String(task.activation_id),
+          task_id: task.id == null ? null : String(task.id),
+          callback_status: status,
+        },
+      );
       return;
     }
 

@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
+
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
+import { PLATFORM_ACTIVATION_STALE_CALLBACK_SUPPRESSION_ID } from '../../../src/services/safetynet/registry.js';
 import { WorkflowActivationDispatchService } from './test-harness.js';
 
 describe('WorkflowActivationDispatchService', () => {
@@ -288,5 +294,17 @@ describe('WorkflowActivationDispatchService', () => {
 
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: PLATFORM_ACTIVATION_STALE_CALLBACK_SUPPRESSION_ID,
+      }),
+      'platform suppressed a stale orchestrator activation callback because a replacement orchestrator task is already active',
+      expect.objectContaining({
+        tenant_id: 'tenant-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        task_id: 'task-old',
+      }),
+    );
   });
 });
