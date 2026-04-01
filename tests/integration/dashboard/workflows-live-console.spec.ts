@@ -107,3 +107,21 @@ test('surfaces new live console headlines when the stream receives fresh workflo
 
   await expect(page.getByText('Fresh workflow headline')).toBeVisible();
 });
+
+test('pauses live follow when the operator scrolls upward in the console viewport', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Ongoing Intake').click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
+
+  const viewport = page.locator('[data-live-console-viewport="scroll"]');
+  await expect(page.locator('[data-live-console-follow-status="live"]')).toBeVisible();
+
+  await viewport.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+
+  await expect(page.locator('[data-live-console-follow-status="paused"]')).toBeVisible();
+});

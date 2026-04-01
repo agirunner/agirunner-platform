@@ -113,18 +113,34 @@ function buildScopedDeliverables(
     [...deliverables].sort(compareDeliverables);
 
   if (scopeKind === 'workflow') {
-    return sortByStageAndTime([
+    return dedupeDeliverablesByIdentity(sortByStageAndTime([
       ...packet.final_deliverables,
       ...packet.in_progress_deliverables,
-    ]);
+    ]));
   }
 
   const matchesSelectedWorkItem = (deliverable: DashboardWorkflowDeliverableRecord): boolean =>
     selectedWorkItemId !== null && deliverable.work_item_id === selectedWorkItemId;
 
-  return sortByStageAndTime(
+  return dedupeDeliverablesByIdentity(sortByStageAndTime(
     [...packet.final_deliverables, ...packet.in_progress_deliverables].filter(matchesSelectedWorkItem),
-  );
+  ));
+}
+
+function dedupeDeliverablesByIdentity(
+  deliverables: DashboardWorkflowDeliverableRecord[],
+): DashboardWorkflowDeliverableRecord[] {
+  const selectedByIdentity = new Map<string, DashboardWorkflowDeliverableRecord>();
+
+  for (const deliverable of deliverables) {
+    const identityKey = readDeliverableIdentityKey(deliverable);
+    const existing = selectedByIdentity.get(identityKey);
+    if (!existing || compareDeliverablePreference(deliverable, existing) < 0) {
+      selectedByIdentity.set(identityKey, deliverable);
+    }
+  }
+
+  return [...selectedByIdentity.values()].sort(compareDeliverables);
 }
 
 function compareDeliverables(
@@ -133,7 +149,18 @@ function compareDeliverables(
 ): number {
   return (
     readStageWeight(left) - readStageWeight(right) ||
-    readDeliverableTimestamp(right) - readDeliverableTimestamp(left)
+    readDeliverableTimestamp(right) - readDeliverableTimestamp(left) ||
+    compareDeliverablePreference(left, right)
+  );
+}
+
+function compareDeliverablePreference(
+  left: DashboardWorkflowDeliverableRecord,
+  right: DashboardWorkflowDeliverableRecord,
+): number {
+  return (
+    readDeliverableRichnessRank(left) - readDeliverableRichnessRank(right) ||
+    right.descriptor_id.localeCompare(left.descriptor_id)
   );
 }
 
@@ -143,6 +170,41 @@ function readStageWeight(deliverable: DashboardWorkflowDeliverableRecord): numbe
 
 function readDeliverableTimestamp(deliverable: DashboardWorkflowDeliverableRecord): number {
   return readTimestamp(deliverable.updated_at ?? deliverable.created_at);
+}
+
+function readDeliverableRichnessRank(deliverable: DashboardWorkflowDeliverableRecord): number {
+  let score = 0;
+  if (deliverable.descriptor_kind === 'deliverable_packet') {
+    score += 16;
+  }
+  if (deliverable.summary_brief) {
+    score += 8;
+  }
+  if (deliverable.source_brief_id) {
+    score += 4;
+  }
+  if (Object.keys(deliverable.content_preview ?? {}).length > 0) {
+    score += 2;
+  }
+  if (deliverable.primary_target.artifact_id) {
+    score += 1;
+  }
+  return -score;
+}
+
+function readDeliverableIdentityKey(deliverable: DashboardWorkflowDeliverableRecord): string {
+  const scopeKey = deliverable.work_item_id ?? 'workflow';
+  const target = deliverable.primary_target;
+  if (target.artifact_id) {
+    return `${scopeKey}:artifact:${target.artifact_id}`;
+  }
+  if (target.url) {
+    return `${scopeKey}:url:${target.url}`;
+  }
+  if (target.path) {
+    return `${scopeKey}:path:${target.path}`;
+  }
+  return `${scopeKey}:descriptor:${deliverable.descriptor_id}`;
 }
 
 function readTimestamp(value: string): number {

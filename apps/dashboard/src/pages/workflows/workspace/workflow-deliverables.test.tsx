@@ -171,6 +171,60 @@ describe('WorkflowDeliverables', () => {
     expect(html.indexOf('Older final packet')).toBeLessThan(html.indexOf('Interim packet'));
   });
 
+  it('dedupes a fallback artifact row when the same underlying artifact is already represented by a deliverable packet', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket({
+          in_progress_deliverables: [
+            createDeliverable({
+              descriptor_id: 'packet-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'in_progress',
+              state: 'approved',
+              title: 'Reproduce 60-second enterprise CSV export stall completion packet',
+              summary_brief: 'Canonical packet for the reproduce stage.',
+              work_item_id: 'work-item-1',
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+                path: 'artifact:workflow-1/docs/audit-export-timeout-repro.md',
+                artifact_id: 'artifact-1',
+              },
+            }),
+            createDeliverable({
+              descriptor_id: 'output:artifact-1',
+              descriptor_kind: 'artifact',
+              delivery_stage: 'in_progress',
+              state: 'approved',
+              title: 'artifact:workflow-1/docs/audit-export-timeout-repro.md',
+              summary_brief: null,
+              work_item_id: 'work-item-1',
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+                path: 'artifact:workflow-1/docs/audit-export-timeout-repro.md',
+                artifact_id: 'artifact-1',
+              },
+              content_preview: {},
+            }),
+          ],
+        }),
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: createWorkflowScope(),
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Reproduce 60-second enterprise CSV export stall completion packet');
+    expect(html).not.toContain('output:artifact-1');
+    expect(
+      html.match(/audit-export-timeout-repro\.md/g)?.length ?? 0,
+    ).toBe(1);
+  });
+
   it('shows a single empty-state message for a selected work item with no deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {

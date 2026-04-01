@@ -34,7 +34,7 @@ describe('workflow live console support behavior', () => {
     ).toBeNull();
   });
 
-  it('keeps live mode pinned to the bottom until the operator explicitly pauses follow mode', () => {
+  it('pauses live follow when the operator scrolls away from the live edge', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -45,9 +45,9 @@ describe('workflow live console support behavior', () => {
         clientHeight: 500,
       }),
     ).toEqual({
-      isAtLiveEdge: true,
+      isAtLiveEdge: false,
       shouldPrefetchHistory: false,
-      shouldSnapToLiveEdge: true,
+      shouldPauseFollow: true,
     });
 
     expect(
@@ -62,7 +62,7 @@ describe('workflow live console support behavior', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldPrefetchHistory: true,
-      shouldSnapToLiveEdge: false,
+      shouldPauseFollow: false,
     });
   });
 
@@ -126,7 +126,7 @@ describe('workflow live console support behavior', () => {
     ).toBe(false);
   });
 
-  it('keeps live follow active when the operator scrolls upward in live mode', () => {
+  it('reports live follow should pause when the operator scrolls upward in live mode', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -137,9 +137,9 @@ describe('workflow live console support behavior', () => {
         clientHeight: 200,
       }),
     ).toEqual({
-      isAtLiveEdge: true,
+      isAtLiveEdge: false,
       shouldPrefetchHistory: false,
-      shouldSnapToLiveEdge: true,
+      shouldPauseFollow: true,
     });
   });
 
@@ -156,7 +156,7 @@ describe('workflow live console support behavior', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldPrefetchHistory: true,
-      shouldSnapToLiveEdge: false,
+      shouldPauseFollow: false,
     });
   });
 

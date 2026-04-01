@@ -253,14 +253,13 @@ export function getWorkflowConsoleScrollBehavior(input: {
 }): {
   isAtLiveEdge: boolean;
   shouldPrefetchHistory: boolean;
-  shouldSnapToLiveEdge: boolean;
+  shouldPauseFollow: boolean;
 } {
   const measuredAtLiveEdge = isWorkflowConsoleAtLiveEdge(input);
-  const shouldSnapToLiveEdge = input.followMode === 'live' && !measuredAtLiveEdge;
-  const isAtLiveEdge = shouldSnapToLiveEdge ? true : measuredAtLiveEdge;
+  const shouldPauseFollow = input.followMode === 'live' && !measuredAtLiveEdge;
 
   return {
-    isAtLiveEdge,
+    isAtLiveEdge: measuredAtLiveEdge,
     shouldPrefetchHistory:
       input.followMode === 'paused'
         ? shouldPrefetchWorkflowConsoleHistory({
@@ -269,7 +268,7 @@ export function getWorkflowConsoleScrollBehavior(input: {
             scrollTop: input.scrollTop,
           })
         : false,
-    shouldSnapToLiveEdge,
+    shouldPauseFollow,
   };
 }
 

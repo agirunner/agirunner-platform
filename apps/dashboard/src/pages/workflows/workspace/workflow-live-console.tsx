@@ -304,6 +304,7 @@ export function WorkflowLiveConsole(props: {
 
         <div
           ref={containerRef}
+          data-live-console-viewport="scroll"
           className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
           onScroll={(event) => {
             const element = event.currentTarget;
@@ -315,8 +316,8 @@ export function WorkflowLiveConsole(props: {
               scrollHeight: element.scrollHeight,
               clientHeight: element.clientHeight,
             });
-            if (scrollBehavior.shouldSnapToLiveEdge) {
-              element.scrollTop = element.scrollHeight;
+            if (scrollBehavior.shouldPauseFollow && followMode === 'live') {
+              setFollowMode('paused');
             }
             isAtLiveEdgeRef.current = scrollBehavior.isAtLiveEdge;
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
