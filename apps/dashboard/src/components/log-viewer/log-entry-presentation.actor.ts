@@ -67,6 +67,8 @@ export function isEscalationEntry(entry: LogEntry): boolean {
   const operation = entry.operation.toLowerCase();
   const eventType = readString(entry.payload?.event_type)?.toLowerCase() ?? '';
   const toState = readString(entry.payload?.to_state)?.toLowerCase() ?? '';
+  const taskStatus = readString(entry.payload?.task_status)?.toLowerCase() ?? '';
+  const entryStatus = readString(entry.status)?.toLowerCase() ?? '';
 
   if (
     operation.includes('escalation_depth_exceeded') ||
@@ -75,7 +77,13 @@ export function isEscalationEntry(entry: LogEntry): boolean {
     return false;
   }
 
-  return operation.includes('escalat') || eventType.includes('escalat') || toState === 'escalated';
+  return (
+    operation.includes('escalat')
+    || eventType.includes('escalat')
+    || toState === 'escalated'
+    || taskStatus === 'escalated'
+    || entryStatus === 'escalated'
+  );
 }
 
 export function describeToolOwner(entry: LogEntry): string | null {

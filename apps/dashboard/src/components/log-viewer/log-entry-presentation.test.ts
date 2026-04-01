@@ -278,6 +278,20 @@ describe('log entry presentation', () => {
     expect(isEscalationEntry(entry)).toBe(true);
   });
 
+  it('treats warn escalated task.execute rows as escalation entries', () => {
+    const entry = makeEntry({
+      category: 'task_lifecycle',
+      level: 'warn',
+      operation: 'task.execute',
+      status: 'escalated',
+      payload: {
+        task_status: 'escalated',
+      },
+    });
+
+    expect(isEscalationEntry(entry)).toBe(true);
+  });
+
   it('does not treat escalation depth failures as warning-only escalation rows', () => {
     const entry = makeEntry({
       category: 'task_lifecycle',
