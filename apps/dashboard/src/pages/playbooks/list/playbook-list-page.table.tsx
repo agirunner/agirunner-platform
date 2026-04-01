@@ -97,6 +97,7 @@ function PlaybookFamilyRow(props: {
   const isTogglePending = props.togglingFamilySlug === family.slug;
   const processSummary =
     family.process.processInstructions || 'Open the playbook to define process instructions.';
+  const inputLabel = family.process.inputCount === 1 ? 'input' : 'inputs';
 
   return (
     <>
@@ -142,7 +143,7 @@ function PlaybookFamilyRow(props: {
           </Badge>
         </TableCell>
         <TableCell className="text-sm text-foreground">
-          {family.process.roleCount} roles · {family.process.inputCount} goals
+          {family.process.roleCount} roles · {family.process.inputCount} {inputLabel}
         </TableCell>
         <TableCell className="text-sm text-foreground">
           {family.structure.stages} stages / {family.structure.boardColumns} columns
