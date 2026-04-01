@@ -271,8 +271,8 @@ Versioning convention:
 - Git tags and GitHub releases: `v0.1.0-alpha.1`, `v0.1.0-beta.1`,
   `v0.1.0-rc.1`, `v0.1.0`
 - image tags: `0.1.0-alpha.1`, `0.1.0-beta.1`, `0.1.0-rc.1`, `0.1.0`
-- prereleases should publish exact prerelease tags, not pretend to be
-  the stable line
+- every published release also moves `latest`, including prereleases,
+  so `latest` reflects the newest published platform image set
 
 See the product-level versioning policy at
 [`docs.agirunner.dev/operate/upgrades-and-versioning/`](https://docs.agirunner.dev/operate/upgrades-and-versioning/).
@@ -292,6 +292,7 @@ Release workflow:
   - triggers on pushed tags matching `v*`
   - runs `corepack pnpm test`
   - publishes all three platform images with `<tag-without-leading-v>`
+  - also tags all three images as `latest`
 
 These workflows do not publish anything until you trigger them manually
 or push a matching release tag.

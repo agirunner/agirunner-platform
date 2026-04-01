@@ -23,6 +23,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate image tag
+        run: bash .github/scripts/release-tags.sh validate-image-tag "${{ inputs.image_tag }}"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -71,14 +74,22 @@ jobs:
 
       - name: Build ${{ matrix.display_name }} image
         run: |
+          tag_args=()
+          mapfile -t publish_tags < <(bash .github/scripts/release-tags.sh publish-tags-from-image-tag "${{ inputs.image_tag }}")
+          for tag in "${publish_tags[@]}"; do
+            tag_args+=(-t "${{ matrix.image_name }}:${tag}")
+          done
           args=()
           if [ -n "${{ matrix.build_args }}" ]; then
             args+=(${{ matrix.build_args }})
           fi
-          docker build "${args[@]}" \
+          docker build "${args[@]}" "${tag_args[@]}" \
             -f "${{ matrix.dockerfile }}" \
-            -t "${{ matrix.image_name }}:${{ inputs.image_tag }}" \
             "${{ matrix.context }}"
 
-      - name: Show built image
-        run: docker image inspect "${{ matrix.image_name }}:${{ inputs.image_tag }}" --format '{{.Id}}'
+      - name: Show built images
+        run: |
+          mapfile -t publish_tags < <(bash .github/scripts/release-tags.sh publish-tags-from-image-tag "${{ inputs.image_tag }}")
+          for tag in "${publish_tags[@]}"; do
+            docker image inspect "${{ matrix.image_name }}:${tag}" --format '{{.RepoTags}} {{.Id}}'
+          done
