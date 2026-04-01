@@ -1,6 +1,6 @@
 import { isExternalSecretReference } from '../../lib/oauth-crypto.js';
 import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
-import { flattenInstructionLayers } from '../task-context-service/task-context-service.js';
+import { flattenInstructionLayersForSystemPrompt } from '../task-context-service/task-context-service.js';
 import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';
 import { OAuthService } from '../oauth/oauth-service.js';
@@ -81,7 +81,7 @@ export async function buildClaimResponse(
   const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
   const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
   const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
-  const assembledSystemPrompt = flattenInstructionLayers(layers);
+  const assembledSystemPrompt = flattenInstructionLayersForSystemPrompt(layers);
   const mergedBase = mergeSystemPrompt(claimedTaskBase, assembledSystemPrompt);
   await logAssembledPromptWarningIfNeeded(deps.logService, {
     tenantId: input.identity.tenantId,

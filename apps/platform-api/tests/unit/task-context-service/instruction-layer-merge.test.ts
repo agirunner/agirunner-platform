@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { flattenInstructionLayers } from '../../../src/services/task-context-service/task-context-service.js';
+import {
+  flattenInstructionLayers,
+  flattenInstructionLayersForSystemPrompt,
+} from '../../../src/services/task-context-service/task-context-service.js';
 import { TaskClaimService } from '../../../src/services/task-claim/task-claim-service.js';
 
 function buildExecutionEnvironmentRow(
@@ -94,6 +97,42 @@ describe('flattenInstructionLayers', () => {
   });
 });
 
+describe('flattenInstructionLayersForSystemPrompt', () => {
+  it('omits workflow context from orchestrator system prompts', () => {
+    const layers = {
+      platform: { content: 'Platform rules', format: 'text' },
+      orchestrator: { content: 'Orchestrator rules', format: 'text' },
+      workflow: { content: 'Dynamic workflow state', format: 'text' },
+      workspace: { content: 'Workspace rules', format: 'text' },
+    };
+
+    const result = flattenInstructionLayersForSystemPrompt(layers);
+
+    expect(result).toContain('=== Platform Instructions ===\nPlatform rules');
+    expect(result).toContain('=== Orchestrator Prompt ===\nOrchestrator rules');
+    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
+    expect(result).not.toContain('Dynamic workflow state');
+    expect(result).not.toContain('=== Workflow Context ===');
+  });
+
+  it('omits workflow context from specialist system prompts', () => {
+    const layers = {
+      platform: { content: 'Platform rules', format: 'text' },
+      role: { content: 'Role rules', format: 'text' },
+      workflow: { content: 'Dynamic workflow state', format: 'text' },
+      workspace: { content: 'Workspace rules', format: 'text' },
+    };
+
+    const result = flattenInstructionLayersForSystemPrompt(layers);
+
+    expect(result).toContain('=== Platform Instructions ===\nPlatform rules');
+    expect(result).toContain('=== Role Instructions ===\nRole rules');
+    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
+    expect(result).not.toContain('Dynamic workflow state');
+    expect(result).not.toContain('=== Workflow Context ===');
+  });
+});
+
 describe('TaskClaimService merges instruction layers into role_config.system_prompt', () => {
   const defaultResolvedRole = {
     provider: {
@@ -160,6 +199,9 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       if (sql.includes('SELECT * FROM agents')) {
         return { rowCount: 1, rows: [agentRow] };
       }
+      if (sql.includes('SELECT id, routing_tags, last_claim_at, last_heartbeat_at, heartbeat_interval_seconds, metadata')) {
+        return { rowCount: 0, rows: [] };
+      }
       if (sql.includes('SELECT tasks.* FROM tasks')) {
         return { rowCount: 1, rows: [taskRow] };
       }
@@ -171,7 +213,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
         if (key === 'agent.llm_max_retries') {
           return { rowCount: 1, rows: [{ config_value: '5' }] };
         }
-        return { rowCount: 0, rows: [] };
+        return { rowCount: 1, rows: [{ config_value: '1000' }] };
       }
       if (sql.includes('SELECT execution_environment_id')) {
         return { rowCount: 1, rows: [{ execution_environment_id: null }] };
@@ -251,6 +293,60 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     expect(roleConfig.system_prompt).toContain('Use TypeScript');
     expect(roleConfig.system_prompt).toContain('=== Role Instructions ===');
     expect(roleConfig.system_prompt).toContain('You are a coder');
+  });
+
+  it('keeps workflow context out of claimed system prompts while preserving it in context', async () => {
+    const deps = buildMockDeps({
+      taskRow: {
+        id: 'task-orch-1',
+        tenant_id: 'tenant-1',
+        state: 'ready',
+        workflow_id: 'workflow-1',
+        workspace_id: null,
+        depends_on: [],
+        metadata: {},
+        role: 'orchestrator',
+        role_config: { system_prompt: 'original-role-prompt' },
+        input: { description: 'orchestrate work' },
+        priority: 'normal',
+        assigned_agent_id: null,
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        created_at: new Date().toISOString(),
+      },
+      agentRow: {
+        id: 'agent-1',
+        tenant_id: 'tenant-1',
+        worker_id: null,
+        current_task_id: null,
+        metadata: { execution_mode: 'hybrid' },
+      },
+      instructionLayers: {
+        platform: { content: 'Platform rules', format: 'text' },
+        orchestrator: { content: 'Orchestrator rules', format: 'text' },
+        workflow: { content: 'Dynamic workflow state', format: 'text' },
+        workspace: { content: 'Workspace rules', format: 'text' },
+      },
+      taskContext: {
+        workflow: { id: 'workflow-1', current_stage: 'reproduce' },
+      },
+    });
+
+    const service = new TaskClaimService(deps as never);
+    const result = await service.claimTask(
+      { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
+      { agent_id: 'agent-1', routing_tags: ['orchestrator'] },
+    );
+
+    const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
+    expect(roleConfig.system_prompt).toContain('Platform rules');
+    expect(roleConfig.system_prompt).toContain('Orchestrator rules');
+    expect(roleConfig.system_prompt).toContain('Workspace rules');
+    expect(roleConfig.system_prompt).not.toContain('Dynamic workflow state');
+
+    const context = (result as Record<string, unknown>).context as Record<string, unknown>;
+    const instructionLayers = context.instruction_layers as Record<string, unknown>;
+    expect((instructionLayers.workflow as Record<string, unknown>).content).toBe('Dynamic workflow state');
   });
 
   it('warns once at startup when the assembled prompt exceeds the tenant threshold', async () => {

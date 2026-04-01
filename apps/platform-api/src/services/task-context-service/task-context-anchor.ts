@@ -1,4 +1,10 @@
+import { createHash } from 'node:crypto';
+
 import type { DatabaseQueryable } from '../../db/database.js';
+import {
+  readPendingDispatches,
+  selectFocusedWorkItem,
+} from '../workflow-instruction-layer/orchestrator-context.js';
 import { asOptionalNumber, asOptionalString, asRecord, readPositiveInteger } from './task-context-utils.js';
 import { DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS } from './task-context-constants.js';
 
@@ -10,15 +16,33 @@ export interface TaskContextAnchor {
   triggering_task_id: string | null;
 }
 
+interface BuildOrchestratorExecutionBriefInput {
+  workflow?: Record<string, unknown> | null;
+  orchestratorContext?: Record<string, unknown> | null;
+  workflowLiveVisibility?: Record<string, unknown> | null;
+}
+
 export function buildOrchestratorExecutionBrief(
-  workflowLiveVisibility: Record<string, unknown> | null,
+  input: BuildOrchestratorExecutionBriefInput,
 ): Record<string, unknown> | null {
-  if (!workflowLiveVisibility) {
+  const workflow = asRecord(input.workflow);
+  const orchestratorContext = asRecord(input.orchestratorContext);
+  const operatorVisibility = asRecord(input.workflowLiveVisibility);
+  const currentFocus = buildOrchestratorCurrentFocus(workflow, orchestratorContext);
+  if (!currentFocus && Object.keys(operatorVisibility).length === 0) {
     return null;
   }
-  return {
-    operator_visibility: workflowLiveVisibility,
+
+  const brief = {
+    refresh_key: hashCanonicalJson({
+      current_focus: currentFocus,
+      operator_visibility: operatorVisibility,
+    }),
+    current_focus: currentFocus,
+    operator_visibility: Object.keys(operatorVisibility).length > 0 ? operatorVisibility : null,
+    rendered_markdown: renderOrchestratorExecutionBrief(currentFocus, operatorVisibility),
   };
+  return brief;
 }
 
 export function resolveTaskContextAnchor(task: Record<string, unknown>): TaskContextAnchor {
@@ -131,4 +155,114 @@ function readActivationEventAnchor(
     };
   }
   return null;
+}
+
+function buildOrchestratorCurrentFocus(
+  workflow: Record<string, unknown>,
+  orchestratorContext: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+  const pendingDispatches = readPendingDispatches(orchestratorContext);
+  const activeStageName = readCurrentStageName(workflow);
+  if (pendingDispatches[0]) {
+    const nextDispatch = pendingDispatches[0];
+    return {
+      lifecycle,
+      stage_name: nextDispatch.stage_name ?? activeStageName,
+      next_expected_actor: nextDispatch.actor,
+      next_expected_action: nextDispatch.action,
+    };
+  }
+
+  const focusedWorkItem = asRecord(
+    selectFocusedWorkItem(orchestratorContext, {
+      workItemId: null,
+      stageName: activeStageName,
+    }),
+  );
+  const nextExpectedActor = asOptionalString(focusedWorkItem.next_expected_actor) ?? null;
+  const nextExpectedAction = asOptionalString(focusedWorkItem.next_expected_action) ?? null;
+  const boardPosition = asOptionalString(focusedWorkItem.column_id) ?? null;
+  const focusedStageName = asOptionalString(focusedWorkItem.stage_name) ?? null;
+  if (nextExpectedActor || nextExpectedAction || boardPosition || focusedStageName) {
+    return {
+      lifecycle,
+      stage_name: focusedStageName ?? activeStageName,
+      board_position: boardPosition,
+      next_expected_actor: nextExpectedActor,
+      next_expected_action: nextExpectedAction,
+    };
+  }
+
+  if (lifecycle === 'planned' && activeStageName) {
+    return {
+      lifecycle,
+      stage_name: activeStageName,
+      next_expected_actor: 'orchestrator',
+      next_expected_action: 'seed the first work item and starter specialist task for the current stage',
+    };
+  }
+
+  if (!activeStageName) {
+    return null;
+  }
+  return {
+    lifecycle,
+    stage_name: activeStageName,
+  };
+}
+
+function readCurrentStageName(workflow: Record<string, unknown>): string | null {
+  return (
+    asOptionalString(workflow.current_stage) ??
+    firstString(Array.isArray(workflow.active_stages) ? workflow.active_stages : [])
+  );
+}
+
+function firstString(values: unknown[]): string | null {
+  for (const value of values) {
+    const candidate = asOptionalString(value);
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function renderOrchestratorExecutionBrief(
+  currentFocus: Record<string, unknown> | null,
+  operatorVisibility: Record<string, unknown>,
+): string {
+  const lines: string[] = ['## Current Focus'];
+  if (currentFocus) {
+    const lifecycle = asOptionalString(currentFocus.lifecycle);
+    const stageName = asOptionalString(currentFocus.stage_name);
+    const boardPosition = asOptionalString(currentFocus.board_position);
+    const nextExpectedActor = asOptionalString(currentFocus.next_expected_actor);
+    const nextExpectedAction = asOptionalString(currentFocus.next_expected_action);
+    if (lifecycle) lines.push(`Lifecycle: ${lifecycle}`);
+    if (stageName) lines.push(`Stage: ${stageName}`);
+    if (boardPosition) lines.push(`Board position: ${boardPosition}`);
+    if (nextExpectedActor) lines.push(`Next expected actor: ${nextExpectedActor}`);
+    if (nextExpectedAction) lines.push(`Next expected action: ${nextExpectedAction}`);
+  }
+
+  if (Object.keys(operatorVisibility).length > 0) {
+    lines.push('', '## Operator Visibility');
+    const mode = asOptionalString(operatorVisibility.mode);
+    const workflowId = asOptionalString(operatorVisibility.workflow_id);
+    const executionContextId = asOptionalString(operatorVisibility.execution_context_id);
+    const sourceKind = asOptionalString(operatorVisibility.source_kind);
+    if (mode) lines.push(`Live visibility mode: ${mode}`);
+    if (workflowId) lines.push(`Workflow id: ${workflowId}`);
+    if (executionContextId) lines.push(`Execution context id: ${executionContextId}`);
+    if (sourceKind) lines.push(`Source kind: ${sourceKind}`);
+  }
+
+  return lines.join('\n').trim();
+}
+
+function hashCanonicalJson(value: unknown): string {
+  const payload = JSON.stringify(value);
+  return createHash('sha256').update(payload).digest('hex');
 }

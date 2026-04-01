@@ -16,6 +16,7 @@ import {
 } from './task-context-anchor.js';
 import {
   flattenInstructionLayers,
+  flattenInstructionLayersForSystemPrompt,
   summarizeTaskContextAttachments,
   buildInstructionLayers,
 } from './task-context-instructions.js';
@@ -48,7 +49,11 @@ import {
   loadWorkspaceInstructions,
 } from './task-context-workspace.js';
 
-export { flattenInstructionLayers, summarizeTaskContextAttachments };
+export {
+  flattenInstructionLayers,
+  flattenInstructionLayersForSystemPrompt,
+  summarizeTaskContextAttachments,
+};
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -207,7 +212,11 @@ export async function buildTaskContext(
     orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
   });
   const executionBrief = task.is_orchestrator_task
-    ? buildOrchestratorExecutionBrief(workflowLiveVisibility)
+    ? buildOrchestratorExecutionBrief({
+        workflow: workflowContext ?? null,
+        orchestratorContext: (orchestratorContext as Record<string, unknown> | null) ?? null,
+        workflowLiveVisibility,
+      })
     : buildSpecialistExecutionBrief({
         role: asOptionalString(task.role) ?? null,
         roleConfig: asRecord(task.role_config),

@@ -148,6 +148,22 @@ export function flattenInstructionLayers(layers: Record<string, unknown>): strin
   return sections.join('\n\n');
 }
 
+export function flattenInstructionLayersForSystemPrompt(
+  layers: Record<string, unknown>,
+): string {
+  const layerOrder =
+    'orchestrator' in layers
+      ? ['platform', 'orchestrator', 'workspace']
+      : ['platform', 'role', 'workspace'];
+  const sections: string[] = [];
+  for (const name of layerOrder) {
+    const layer = layers[name] as { content?: string } | undefined;
+    if (!layer?.content) continue;
+    sections.push(`${LAYER_HEADERS[name]}\n${layer.content}`);
+  }
+  return sections.join('\n\n');
+}
+
 export function summarizeTaskContextAttachments(
   context: Record<string, unknown>,
 ): Record<string, unknown> {
