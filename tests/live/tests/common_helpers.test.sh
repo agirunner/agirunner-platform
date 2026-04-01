@@ -88,6 +88,40 @@ EOF
   fi
 }
 
+test_ensure_live_test_external_network_creates_missing_network() {
+  local inspect_calls=0
+  local create_calls=0
+
+  docker() {
+    if [[ "$1" == "network" && "$2" == "inspect" ]]; then
+      inspect_calls=$((inspect_calls + 1))
+      return 1
+    fi
+    if [[ "$1" == "network" && "$2" == "create" ]]; then
+      create_calls=$((create_calls + 1))
+      if [[ "$3" != "agirunner-platform_platform_net" ]]; then
+        echo "unexpected network name: $3" >&2
+        return 1
+      fi
+      return 0
+    fi
+    echo "unexpected docker invocation: $*" >&2
+    return 1
+  }
+
+  ensure_live_test_external_network "agirunner-platform_platform_net"
+
+  if [[ "${inspect_calls}" -ne 1 ]]; then
+    echo "expected one network inspect call" >&2
+    exit 1
+  fi
+  if [[ "${create_calls}" -ne 1 ]]; then
+    echo "expected one network create call" >&2
+    exit 1
+  fi
+}
+
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts
 test_load_live_test_env_preserves_existing_env_overrides
+test_ensure_live_test_external_network_creates_missing_network

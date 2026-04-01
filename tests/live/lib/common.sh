@@ -15,6 +15,18 @@ live_test_compose_project_name() {
   printf '%s\n' "${LIVE_TEST_COMPOSE_PROJECT_NAME:-${COMPOSE_PROJECT_NAME:-agirunner-platform}}"
 }
 
+ensure_live_test_external_network() {
+  local network_name="$1"
+  if [[ -z "${network_name}" ]]; then
+    echo "[tests/live] external network name is required" >&2
+    return 1
+  fi
+  if docker network inspect "${network_name}" >/dev/null 2>&1; then
+    return 0
+  fi
+  docker network create "${network_name}" >/dev/null
+}
+
 live_test_compose_service_container_id() {
   local service_name="$1"
   local project_name="${2:-$(live_test_compose_project_name)}"

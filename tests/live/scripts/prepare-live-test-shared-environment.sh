@@ -130,6 +130,7 @@ log_live_test "rebuilding standard docker compose stack"
     -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
     down -v --remove-orphans
   wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  ensure_live_test_external_network "${LIVE_TEST_COMPOSE_PROJECT_NAME}_platform_net"
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
     -f "${LIVE_TEST_COMPOSE_FILE}" \
     -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
