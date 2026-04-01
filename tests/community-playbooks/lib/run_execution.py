@@ -14,6 +14,7 @@ from operator_flow import (
     submit_pending_operator_approvals,
     submit_ready_steering_requests,
 )
+from provider_fail_fast import detect_nonrecoverable_provider_blocker
 from run_playbook import build_workflow_launch_payload
 from workspace_prep import build_workspace_create_input, prepare_workspace_materials
 
@@ -135,8 +136,12 @@ def _evaluate_result(
     timed_out: bool,
     manual_operator_actions: bool,
     manual_action_snapshot: dict[str, Any],
+    provider_blocker_message: str | None,
 ) -> list[str]:
     failures: list[str] = []
+    if provider_blocker_message:
+        failures.append(f"provider blocked live run: {provider_blocker_message}")
+        return failures
     final_state = str(workflow.get("state") or "").strip()
     expected_approvals = _expected_approval_count(run_spec)
     expected_steering = len(list(run_spec.get("steering_script") or []))
@@ -205,6 +210,7 @@ def execute_run(
         "pending_approvals": [],
         "pending_steering_targets": [],
     }
+    provider_blocker_message: str | None = None
     timed_out = False
 
     while True:
@@ -212,6 +218,11 @@ def execute_run(
         latest_work_items = list(api.list_work_items(str(workflow["id"])))
         latest_briefs = list(api.list_operator_briefs(str(workflow["id"]), limit=100))
         latest_approvals = dict(api.list_approvals())
+        provider_blocker_message = detect_nonrecoverable_provider_blocker(
+            list(api.list_logs(workflow_id=str(workflow["id"]), per_page=10))
+        )
+        if provider_blocker_message:
+            break
         if manual_operator_actions:
             manual_action_snapshot = _pending_manual_operator_actions(
                 run_spec=run_spec,
@@ -262,6 +273,7 @@ def execute_run(
         timed_out=timed_out,
         manual_operator_actions=manual_operator_actions,
         manual_action_snapshot=manual_action_snapshot,
+        provider_blocker_message=provider_blocker_message,
     )
     result_path = _result_path(results_dir, run_spec)
     result = {
@@ -285,6 +297,7 @@ def execute_run(
         },
         "prepared_workspace": prepared_workspace,
         "timed_out": timed_out,
+        "provider_blocker_message": provider_blocker_message,
         "passed": len(failures) == 0,
         "failures": failures,
         "result_file": str(result_path),

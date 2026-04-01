@@ -134,6 +134,32 @@ class ProviderSelectionTests(unittest.TestCase):
                 },
             )
 
+    def test_assert_provider_selection_matches_rejects_reasoning_mismatch(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "orchestrator reasoning expected low got medium"):
+            assert_provider_selection_matches(
+                "anthropic",
+                {
+                    "provider_auth_mode": "api_key",
+                    "provider_type": "anthropic",
+                    "model_name": "claude-sonnet-4-6",
+                    "orchestrator_model_name": "claude-sonnet-4-6",
+                    "specialist_model_name": "claude-sonnet-4-6",
+                    "system_reasoning": "low",
+                    "orchestrator_reasoning": "medium",
+                    "specialist_reasoning": "low",
+                },
+                {
+                    "LIVE_TEST_PROVIDER_AUTH_MODE": "api_key",
+                    "LIVE_TEST_PROVIDER_TYPE": "anthropic",
+                    "LIVE_TEST_MODEL_ID": "claude-sonnet-4-6",
+                    "LIVE_TEST_ORCHESTRATOR_MODEL_ID": "claude-sonnet-4-6",
+                    "LIVE_TEST_SPECIALIST_MODEL_ID": "claude-sonnet-4-6",
+                    "LIVE_TEST_SYSTEM_REASONING_EFFORT": "low",
+                    "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT": "low",
+                    "LIVE_TEST_SPECIALIST_REASONING_EFFORT": "low",
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -104,12 +104,18 @@ def assert_provider_selection_matches(
     expected_model_id = str(overrides.get("LIVE_TEST_MODEL_ID") or "").strip()
     expected_orchestrator_model = str(overrides.get("LIVE_TEST_ORCHESTRATOR_MODEL_ID") or "").strip()
     expected_specialist_model = str(overrides.get("LIVE_TEST_SPECIALIST_MODEL_ID") or "").strip()
+    expected_system_reasoning = str(overrides.get("LIVE_TEST_SYSTEM_REASONING_EFFORT") or "").strip()
+    expected_orchestrator_reasoning = str(overrides.get("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT") or "").strip()
+    expected_specialist_reasoning = str(overrides.get("LIVE_TEST_SPECIALIST_REASONING_EFFORT") or "").strip()
 
     actual_auth_mode = str(bootstrap_context.get("provider_auth_mode") or "").strip()
     actual_provider_type = str(bootstrap_context.get("provider_type") or "").strip()
     actual_model_id = str(bootstrap_context.get("model_name") or "").strip()
     actual_orchestrator_model = str(bootstrap_context.get("orchestrator_model_name") or "").strip()
     actual_specialist_model = str(bootstrap_context.get("specialist_model_name") or "").strip()
+    actual_system_reasoning = str(bootstrap_context.get("system_reasoning") or "").strip()
+    actual_orchestrator_reasoning = str(bootstrap_context.get("orchestrator_reasoning") or "").strip()
+    actual_specialist_reasoning = str(bootstrap_context.get("specialist_reasoning") or "").strip()
 
     mismatches = []
     if expected_auth_mode and actual_auth_mode != expected_auth_mode:
@@ -125,6 +131,18 @@ def assert_provider_selection_matches(
     if expected_specialist_model and actual_specialist_model != expected_specialist_model:
         mismatches.append(
             f"specialist model expected {expected_specialist_model} got {actual_specialist_model}"
+        )
+    if expected_system_reasoning and actual_system_reasoning != expected_system_reasoning:
+        mismatches.append(
+            f"system reasoning expected {expected_system_reasoning} got {actual_system_reasoning}"
+        )
+    if expected_orchestrator_reasoning and actual_orchestrator_reasoning != expected_orchestrator_reasoning:
+        mismatches.append(
+            f"orchestrator reasoning expected {expected_orchestrator_reasoning} got {actual_orchestrator_reasoning}"
+        )
+    if expected_specialist_reasoning and actual_specialist_reasoning != expected_specialist_reasoning:
+        mismatches.append(
+            f"specialist reasoning expected {expected_specialist_reasoning} got {actual_specialist_reasoning}"
         )
     if mismatches:
         raise RuntimeError(

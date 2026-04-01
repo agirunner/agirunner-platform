@@ -8,6 +8,23 @@ from community_catalog_api import CommunityCatalogApi, extract_data
 
 
 class CommunityRunApi(CommunityCatalogApi):
+    def list_logs(
+        self,
+        *,
+        workflow_id: str,
+        status: str = "failed",
+        per_page: int = 20,
+    ) -> list[dict[str, Any]]:
+        response = self.client.request(
+            "GET",
+            f"/api/v1/logs?workflow_id={workflow_id}&status={status}&order=desc&per_page={per_page}",
+            expected=(200,),
+            label=f"logs.list:{workflow_id}",
+        )
+        if isinstance(response, dict):
+            return list(response.get("data") or [])
+        return []
+
     def get_local_playbook_by_slug(self, slug: str) -> dict[str, Any]:
         normalized_slug = slug.strip()
         if normalized_slug == "":

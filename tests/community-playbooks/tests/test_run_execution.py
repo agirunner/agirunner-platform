@@ -61,6 +61,9 @@ class FakeRunApi:
             ]
         }
 
+    def list_logs(self, *, workflow_id: str, status: str = "failed", per_page: int = 20) -> list[dict[str, object]]:
+        return []
+
     def submit_approval(
         self,
         gate_id: str,
@@ -220,6 +223,97 @@ class RunExecutionTests(unittest.TestCase):
             self.assertEqual(0, len(api.approval_calls))
             self.assertTrue(result["operator_actions"]["manual_mode"])
             self.assertEqual(1, len(result["operator_actions"]["manual_pending"]["pending_approvals"]))
+
+    def test_execute_run_fails_fast_on_provider_quota_errors(self) -> None:
+        class ProviderBlockedApi(FakeRunApi):
+            def get_workflow(self, workflow_id: str) -> dict[str, str]:
+                self.workflow_reads += 1
+                return {"id": workflow_id, "state": "in_progress"}
+
+            def list_work_items(self, workflow_id: str) -> list[dict[str, str]]:
+                return []
+
+            def list_operator_briefs(
+                self,
+                workflow_id: str,
+                *,
+                work_item_id: str | None = None,
+                limit: int = 50,
+            ) -> list[dict[str, str]]:
+                return []
+
+            def list_approvals(self) -> dict[str, list[dict[str, str]]]:
+                return {"stage_gates": []}
+
+            def list_logs(
+                self,
+                *,
+                workflow_id: str,
+                status: str = "failed",
+                per_page: int = 20,
+            ) -> list[dict[str, object]]:
+                return [
+                    {
+                        "error": {
+                            "message": (
+                                "anthropic (invalid_request): You have reached your specified API usage limits."
+                            )
+                        }
+                    }
+                ]
+
+            def get_workspace_packet(
+                self,
+                workflow_id: str,
+                *,
+                work_item_id: str | None = None,
+                live_console_limit: int = 100,
+                deliverables_limit: int = 100,
+                briefs_limit: int = 100,
+                history_limit: int = 100,
+            ) -> dict[str, object]:
+                return {
+                    "live_console": {"total_count": 0},
+                    "deliverables": {
+                        "final_deliverables": [],
+                        "in_progress_deliverables": [],
+                    },
+                }
+
+        api = ProviderBlockedApi()
+        playbook = {
+            "id": "pb-1",
+            "slug": "bug-fix",
+            "name": "Bug Fix",
+            "definition": {"parameters": []},
+        }
+        run_spec = {
+            "id": "bug-fix-approval",
+            "batch": "controls",
+            "playbook_slug": "bug-fix",
+            "variant": "approval",
+            "workspace_profile_record": {"storage_type": "workspace_artifacts"},
+            "launch_inputs": {},
+            "uploads": [],
+            "operator_actions": [],
+            "steering_script": [],
+            "expected_outcome": {"kind": "provider-blocked"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = execute_run(
+                api,
+                playbook,
+                run_spec,
+                results_dir=Path(tmpdir),
+                timeout_seconds=30,
+                poll_interval_seconds=0,
+            )
+
+            self.assertFalse(result["passed"])
+            self.assertFalse(result["timed_out"])
+            self.assertIn("provider blocked live run", result["failures"][0])
+            self.assertIn("usage limits", str(result["provider_blocker_message"]).lower())
 
 
 if __name__ == "__main__":
