@@ -10,18 +10,8 @@ from typing import Any, Callable
 import urllib.error
 import urllib.request
 
+from live_test_redaction import redact_json
 from live_test_api_trace import _build_trace_response_event
-
-SENSITIVE_KEYS = {
-    "apiKeySecretRef",
-    "api_key",
-    "api_key_secret_ref",
-    "authorization",
-    "git_token",
-    "secret",
-    "secret_ref",
-    "token",
-}
 SAFE_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
 TRANSIENT_HTTP_STATUS_CODES = {502, 503, 504}
 DEFAULT_SAFE_READ_MAX_ATTEMPTS = 24
@@ -33,23 +23,6 @@ TRACE_LIST_PREVIEW_COUNT = 3
 def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-
-def redact_json(value: Any, parent_key: str | None = None) -> Any:
-    if isinstance(value, dict):
-        redacted: dict[str, Any] = {}
-        for key, item in value.items():
-            if key in SENSITIVE_KEYS:
-                redacted[key] = "***REDACTED***"
-            else:
-                redacted[key] = redact_json(item, key)
-        return redacted
-    if isinstance(value, list):
-        return [redact_json(item, parent_key) for item in value]
-    if parent_key in SENSITIVE_KEYS and isinstance(value, str):
-        return "***REDACTED***"
-    return value
-
-
 def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -57,7 +30,7 @@ def ensure_parent(path: Path) -> None:
 def write_json(path: str | Path, payload: Any) -> None:
     target = Path(path)
     ensure_parent(target)
-    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    target.write_text(json.dumps(redact_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def read_json(path: str | Path) -> Any:
@@ -76,7 +49,7 @@ class TraceRecorder:
         self._write_lock = threading.Lock()
 
     def record(self, payload: dict[str, Any]) -> None:
-        payload = {"timestamp": _timestamp(), **payload}
+        payload = redact_json({"timestamp": _timestamp(), **payload})
         with self._write_lock:
             self.root_dir.mkdir(parents=True, exist_ok=True)
             with self.trace_file.open("a", encoding="utf-8") as handle:

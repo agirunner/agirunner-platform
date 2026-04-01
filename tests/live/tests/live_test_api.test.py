@@ -264,6 +264,36 @@ class ApiClientTests(unittest.TestCase):
             self.assertEqual("wf-1", response_event["body_summary"]["id"])
             self.assertEqual(2, response_event["body_summary"]["task_count"])
 
+    @mock.patch("urllib.request.urlopen")
+    def test_request_trace_redacts_credential_bearing_repository_urls(self, urlopen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace = TraceRecorder(tmpdir)
+            client = ApiClient("http://127.0.0.1:8080", trace=trace)
+            credential_url = (
+                "https://x-access-token:secret-token@example.com/org/repo.git?ref=main#readme"
+            )
+            body = {
+                "data": {
+                    "repository_url": credential_url,
+                    "description": f"Repository: {credential_url}",
+                }
+            }
+            urlopen.return_value = FakeResponse(200, json.dumps(body))
+
+            response = client.request(
+                "POST",
+                "/api/v1/workspaces",
+                payload={"repository_url": credential_url},
+                expected=(200,),
+                label="workspaces.create",
+            )
+
+            self.assertEqual(body, response)
+            trace_text = (Path(tmpdir) / "api.ndjson").read_text(encoding="utf-8")
+            self.assertNotIn("secret-token", trace_text)
+            self.assertNotIn("x-access-token:", trace_text)
+            self.assertIn("https://example.com/org/repo.git?ref=main#readme", trace_text)
+
 
 class ShellEvidenceHelperTests(unittest.TestCase):
     @mock.patch("subprocess.run")

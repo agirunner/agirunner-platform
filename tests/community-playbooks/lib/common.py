@@ -19,6 +19,7 @@ if str(LIVE_LIB) not in sys.path:
     sys.path.insert(0, str(LIVE_LIB))
 
 from live_test_api import ApiClient, TraceRecorder  # noqa: E402
+from live_test_redaction import redact_json  # noqa: E402
 
 
 def suite_root() -> Path:
@@ -50,7 +51,7 @@ def read_json_file(path: str | Path) -> Any:
 def write_json_file(path: str | Path, payload: Any) -> Path:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    target.write_text(json.dumps(redact_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return target
 
 
