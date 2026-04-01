@@ -257,23 +257,32 @@ export class WorkflowWorkItemControlService {
         ],
       );
 
+      const cancelledWorkflow = await maybeCancelWorkflowAfterLastOpenWorkItem(
+        client,
+        this.deps,
+        identity,
+        workflowId,
+      );
+
       const workflowState = await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflowId, client, {
         actorType: identity.scope,
         actorId: identity.keyPrefix,
       });
-      await enqueueScopedActivationIfRunnable(
-        client,
-        this.deps.eventService,
-        identity,
-        workflowId,
-        `work-item-cancel:${workItemId}:${cancelRequestedAt}`,
-        'work_item.cancelled',
-        {
-          work_item_id: workItemId,
-          workflow_state: workflowState,
-        },
-        workflowState,
-      );
+      if (!cancelledWorkflow) {
+        await enqueueScopedActivationIfRunnable(
+          client,
+          this.deps.eventService,
+          identity,
+          workflowId,
+          `work-item-cancel:${workItemId}:${cancelRequestedAt}`,
+          'work_item.cancelled',
+          {
+            work_item_id: workItemId,
+            workflow_state: workflowState,
+          },
+          workflowState,
+        );
+      }
       await this.deps.eventService.emit({
         tenantId: identity.tenantId,
         type: 'work_item.cancelled',
@@ -346,6 +355,80 @@ function hasWorkItemPauseRequest(metadata: unknown) {
 
 function hasWorkItemCancelRequest(metadata: unknown) {
   return readLifecycleMarker(metadata, 'cancel_requested_at') !== null;
+}
+
+async function maybeCancelWorkflowAfterLastOpenWorkItem(
+  client: DatabaseClient | DatabasePool,
+  deps: WorkflowWorkItemControlDeps,
+  identity: ApiKeyIdentity,
+  workflowId: string,
+) {
+  const openCount = await countOpenWorkflowWorkItems(client, identity.tenantId, workflowId);
+  if (openCount > 0) {
+    return false;
+  }
+
+  const stopResult = await stopWorkflowBoundExecution(
+    client,
+    {
+      eventService: deps.eventService,
+      resolveCancelSignalGracePeriodMs: deps.resolveCancelSignalGracePeriodMs,
+      workerConnectionHub: deps.workerConnectionHub,
+    },
+    {
+      tenantId: identity.tenantId,
+      workflowId,
+      summary: 'Workflow cancelled because the last open work item was cancelled.',
+      signalReason: 'last_open_work_item_cancelled',
+      disposition: 'cancel',
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+    },
+  );
+  await clearStoppedRuntimeHeartbeatTasks(client, identity.tenantId, stopResult.activeTaskIds);
+
+  const cancelRequestedAt = new Date().toISOString();
+  await client.query(
+    `UPDATE workflows
+        SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') || $3::jsonb,
+            updated_at = now()
+      WHERE tenant_id = $1
+        AND id = $2`,
+    [identity.tenantId, workflowId, { cancel_requested_at: cancelRequestedAt }],
+  );
+
+  await deps.eventService.emit({
+    tenantId: identity.tenantId,
+    type: 'workflow.cancellation_requested',
+    entityType: 'workflow',
+    entityId: workflowId,
+    actorType: identity.scope,
+    actorId: identity.keyPrefix,
+    data: {
+      cancelled_tasks: stopResult.cancelledTaskIds.length,
+      signalled_tasks: stopResult.signalledTaskCount,
+      cancelled_activations: stopResult.cancelledActivationCount,
+      trigger: 'last_open_work_item_cancelled',
+    },
+  }, client);
+
+  return true;
+}
+
+async function countOpenWorkflowWorkItems(
+  client: DatabaseClient | DatabasePool,
+  tenantId: string,
+  workflowId: string,
+) {
+  const result = await client.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND completed_at IS NULL`,
+    [tenantId, workflowId],
+  );
+  return result.rows[0]?.count ?? 0;
 }
 
 async function enqueueScopedActivationIfRunnable(

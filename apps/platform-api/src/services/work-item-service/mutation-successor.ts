@@ -300,6 +300,7 @@ async function countNonTerminalWorkItemTasks(
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND work_item_id = $3
+        AND COALESCE(is_orchestrator_task, FALSE) = FALSE
         AND state NOT IN ('completed', 'failed', 'cancelled')`,
     [tenantId, workflowId, workItemId],
   );
@@ -318,6 +319,7 @@ async function loadNonTerminalWorkItemTaskStateCounts(
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND work_item_id = $3
+        AND COALESCE(is_orchestrator_task, FALSE) = FALSE
         AND state NOT IN ('completed', 'failed', 'cancelled')
       GROUP BY state`,
     [tenantId, workflowId, workItemId],
