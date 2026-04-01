@@ -1,17 +1,30 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
+
 import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../../../../src/errors/domain-errors.js';
 import { ArtifactService } from '../../../../../src/services/artifacts/artifact-service.js';
 import { GuidedClosureRecoveryHelpersService } from '../../../../../src/services/guided-closure/recovery-helpers.js';
 import { PlaybookWorkflowControlService } from '../../../../../src/services/playbook-workflow-control/playbook-workflow-control-service.js';
+import { logSafetynetTriggered } from '../../../../../src/services/safetynet/logging.js';
+import {
+  PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID,
+  mustGetSafetynetEntry,
+} from '../../../../../src/services/safetynet/registry.js';
 import { TaskAgentScopeService } from '../../../../../src/services/task/task-agent-scope-service.js';
 import {
   normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
 } from '../../../../../src/api/routes/orchestrator-control/routes.js';
+
+const OPTIONAL_CONTINUITY_SKIP_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID,
+);
 
 vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -485,6 +498,15 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error.recovery_hint).toBe('skip_optional_continuity_write');
     expect(response.json().error.details.reason_code).toBe('ambiguous_work_item_scope');
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      OPTIONAL_CONTINUITY_SKIP_SAFETYNET,
+      'continuity write guidance returned because subordinate tasks span multiple work items',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        task_id: 'task-replay',
+        reason_code: 'ambiguous_work_item_scope',
+      }),
+    );
   });
 
 

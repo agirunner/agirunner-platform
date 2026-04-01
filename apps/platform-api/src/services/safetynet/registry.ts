@@ -18,10 +18,14 @@ export const PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID =
   'platform.control_plane.idempotent_mutation_replay';
 export const PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID =
   'platform.control_plane.not_ready_noop_recovery';
+export const PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID =
+  'platform.control_plane.unconfigured_gate_advisory';
 export const PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID =
   'platform.handoff.normalization_and_replay_repair';
 export const PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID =
   'platform.continuity.stale_write_suppression';
+export const PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID =
+  'platform.continuity.optional_write_skip_guidance';
 export const PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID =
   'platform.approval.stale_decision_supersession';
 export const PLATFORM_TASK_COMPLETION_APPROVED_ONGOING_WORK_ITEM_AUTO_CLOSE_ID =
@@ -232,6 +236,28 @@ const entries: SafetynetEntry[] = [
   },
   {
     kind: 'safetynet_behavior',
+    id: PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
+    layer: 'platform',
+    name: 'Unconfigured gate advisory guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'orchestrator requests a human gate on a stage with no configured human gate and platform can return a non-blocking advisory instead of a hard mutation failure',
+    nominal_contract: 'platform returns explicit recoverable guidance when advisory-only gate requests are structurally unconfigured',
+    intervention: 'platform records a non-blocking advisory payload with next-step guidance and callout recommendations',
+    risk_if_triggered: 'low; preserves workflow progress while making the missing gate configuration explicit to the orchestrator',
+    operator_visibility: 'recoverable advisory payloads should carry the safetynet id when returned',
+    owner_module: 'src/api/routes/orchestrator-control/recoverable-mutations.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.control_plane.unconfigured_gate_advisory"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to non-blocking unconfigured human-gate advisories; do not reuse for unrelated gate failures',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
     id: PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
     layer: 'platform',
     name: 'Handoff normalization and replay repair',
@@ -272,6 +298,28 @@ const entries: SafetynetEntry[] = [
       'platform_safetynet_trigger_total{behavior="platform.continuity.stale_write_suppression"}',
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'protective concurrency guard should remain enabled',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Optional continuity write skip guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'orchestrator continuity write spans subordinate tasks from multiple work items and the platform cannot safely infer one write target',
+    nominal_contract: 'continuity writes either target one explicit work item or are omitted when the update is only optional guidance',
+    intervention: 'platform returns explicit recovery guidance to skip the optional continuity write or retry with an explicit work_item_id',
+    risk_if_triggered: 'low; avoids cross-work-item ambiguity without silently writing continuity to the wrong target',
+    operator_visibility: 'validation responses and logs should carry the safetynet id when this guidance is returned',
+    owner_module: 'src/api/routes/orchestrator-control/shared.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.continuity.optional_write_skip_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to ambiguous optional continuity writes; do not generalize into broad continuity inference',
     status: 'active',
   },
   {

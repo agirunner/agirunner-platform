@@ -14,6 +14,7 @@ import {
 } from '../../../services/guided-closure/types.js';
 import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
 import {
+  PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID,
   PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
   mustGetSafetynetEntry,
 } from '../../../services/safetynet/registry.js';
@@ -26,6 +27,9 @@ const uuidParamSchema = z.string().uuid();
 const workItemIdParamSchema = uuidParamSchema;
 export const NOT_READY_NOOP_RECOVERY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
+);
+const OPTIONAL_CONTINUITY_SKIP_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID,
 );
 
 export function isRecoverableNotAppliedResult(value: Record<string, unknown>): boolean {
@@ -243,6 +247,18 @@ export async function resolveContinuityWorkItemId(
       return result.rows[0].work_item_id;
     }
     if (resolvedCount > 1) {
+      logSafetynetTriggered(
+        OPTIONAL_CONTINUITY_SKIP_SAFETYNET,
+        'continuity write guidance returned because subordinate tasks span multiple work items',
+        {
+          workflow_id: taskScope.workflow_id,
+          task_id: taskScope.id,
+          work_item_id: null,
+          stage_name: taskScope.stage_name ?? null,
+          reason_code: 'ambiguous_work_item_scope',
+          subordinate_task_count: subordinateTaskIds.length,
+        },
+      );
       throw new ValidationError(
         'This continuity update spans multiple work items; specify work_item_id explicitly',
         {

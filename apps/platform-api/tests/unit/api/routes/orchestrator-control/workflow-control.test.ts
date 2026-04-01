@@ -12,7 +12,11 @@ import {
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
 } from '../../../../../src/api/routes/orchestrator-control/routes.js';
-import { NOT_READY_NOOP_RECOVERY_SAFETYNET } from '../../../../../src/api/routes/orchestrator-control/shared.js';
+import { PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID, mustGetSafetynetEntry } from '../../../../../src/services/safetynet/registry.js';
+
+const UNCONFIGURED_GATE_ADVISORY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
+);
 
 vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -131,7 +135,7 @@ describe('orchestratorControlRoutes', () => {
       reason_code: 'approval_not_configured',
       recovery_class: 'approval_not_configured',
       request_summary: 'Need human approval before release',
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      safetynet_behavior_id: UNCONFIGURED_GATE_ADVISORY_SAFETYNET.id,
       state_snapshot: {
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',

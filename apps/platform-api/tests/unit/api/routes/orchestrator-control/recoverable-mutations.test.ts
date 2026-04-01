@@ -6,11 +6,15 @@ vi.mock('../../../../../src/services/safetynet/logging.js', () => ({
 
 import { ValidationError } from '../../../../../src/errors/domain-errors.js';
 import { buildUnconfiguredGateApprovalAdvisory } from '../../../../../src/api/routes/orchestrator-control/recoverable-mutations.js';
-import { NOT_READY_NOOP_RECOVERY_SAFETYNET } from '../../../../../src/api/routes/orchestrator-control/shared.js';
 import { logSafetynetTriggered } from '../../../../../src/services/safetynet/logging.js';
+import { PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID, mustGetSafetynetEntry } from '../../../../../src/services/safetynet/registry.js';
+
+const UNCONFIGURED_GATE_ADVISORY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
+);
 
 describe('buildUnconfiguredGateApprovalAdvisory', () => {
-  it('tags and logs the recoverable advisory with the not-ready safetynet', async () => {
+  it('tags and logs the recoverable advisory with the unconfigured-gate safetynet', async () => {
     const client = {};
     const app = {
       eventService: {
@@ -43,14 +47,14 @@ describe('buildUnconfiguredGateApprovalAdvisory', () => {
       advisory: true,
       reason_code: 'approval_not_configured',
       recovery_class: 'approval_not_configured',
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      safetynet_behavior_id: UNCONFIGURED_GATE_ADVISORY_SAFETYNET.id,
       stage_name: 'operator-approval',
       task_id: 'task-orchestrator',
       work_item_id: 'work-item-1',
       workflow_id: 'workflow-1',
     });
     expect(logSafetynetTriggered).toHaveBeenCalledWith(
-      NOT_READY_NOOP_RECOVERY_SAFETYNET,
+      UNCONFIGURED_GATE_ADVISORY_SAFETYNET,
       'recoverable gate approval advisory returned because the stage has no configured human gate',
       {
         workflow_id: 'workflow-1',
@@ -66,7 +70,7 @@ describe('buildUnconfiguredGateApprovalAdvisory', () => {
         entityType: 'workflow',
         entityId: 'workflow-1',
         data: expect.objectContaining({
-          safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+          safetynet_behavior_id: UNCONFIGURED_GATE_ADVISORY_SAFETYNET.id,
         }),
       }),
       client,

@@ -13,6 +13,10 @@ import {
   type GuidedClosureStateSnapshot,
 } from '../../../services/guided-closure/types.js';
 import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
+import {
+  PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
+  mustGetSafetynetEntry,
+} from '../../../services/safetynet/registry.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 import type { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 
@@ -27,6 +31,10 @@ import {
   workItemCreateSchema,
   workflowCompleteSchema,
 } from './schemas.js';
+
+const UNCONFIGURED_GATE_ADVISORY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
+);
 
 export async function createWorkflowWorkItemOrNoop(
   app: FastifyInstance,
@@ -176,7 +184,7 @@ export async function buildUnconfiguredGateApprovalAdvisory(
     message,
     reason_code: reasonCode,
     request_summary: input.summary.trim(),
-    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+    safetynet_behavior_id: UNCONFIGURED_GATE_ADVISORY_SAFETYNET.id,
     stage_name: stageName,
     status: 'ignored_not_configured',
     task_id: taskScope.id,
@@ -185,7 +193,7 @@ export async function buildUnconfiguredGateApprovalAdvisory(
   } satisfies Record<string, unknown>;
 
   logSafetynetTriggered(
-    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    UNCONFIGURED_GATE_ADVISORY_SAFETYNET,
     'recoverable gate approval advisory returned because the stage has no configured human gate',
     {
       workflow_id: taskScope.workflow_id,
