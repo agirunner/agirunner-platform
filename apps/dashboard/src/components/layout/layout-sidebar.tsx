@@ -33,7 +33,7 @@ export function MobileTopBar(props: {
       </button>
       <div className="flex items-center gap-2">
         <img src="/logo.svg" alt="" className="h-5 w-5" />
-        <span className="text-sm font-semibold">AGI Runner</span>
+        <span className="text-sm font-semibold">Agirunner</span>
       </div>
       <button
         ref={props.mobileSearchButtonRef}
@@ -87,7 +87,7 @@ export function SidebarPanel(props: {
         <div className="flex min-w-0 items-center gap-2">
           <img src="/logo.svg" alt="" className="h-7 w-7" />
           {isCollapsedDesktopRail ? null : (
-            <span className="text-lg font-semibold">AGI Runner</span>
+            <span className="text-lg font-semibold">Agirunner</span>
           )}
         </div>
         <div
