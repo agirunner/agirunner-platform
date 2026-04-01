@@ -154,10 +154,10 @@ records for a fresh tenant. After that, runtime image choices belong to
 the product: operators can override, rotate, or revoke them from the
 dashboard or API without editing `.env` again.
 
-Today the bootstrap default is `agirunner-runtime:local` because the
-public runtime image is not published yet. Once the runtime image is
-published, switching this repo over to GHCR is a one-line `.env`
-change:
+The contributor stack still defaults to `agirunner-runtime:local` on
+purpose so platform work can pair cleanly with a local runtime checkout.
+If you want this repo to point at the published runtime line instead,
+switch it with a one-line `.env` change:
 
 ```env
 RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
