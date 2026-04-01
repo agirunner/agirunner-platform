@@ -256,6 +256,12 @@ function renderOrchestratorExecutionBrief(
         'No work item exists yet. Create the first work item and starter specialist task for this stage in the current activation.',
       );
       lines.push(
+        'Planning text, thoughts, verify summaries, and failed attempts do not create work items or tasks.',
+      );
+      lines.push(
+        'Treat create_work_item and create_task as done only after the corresponding tool call succeeds and returns the exact ids.',
+      );
+      lines.push(
         'Do not call list_workflow_tasks, read_work_item_continuity, or handoff-read tools until create_work_item succeeds and returns the exact work_item_id.',
       );
       lines.push(

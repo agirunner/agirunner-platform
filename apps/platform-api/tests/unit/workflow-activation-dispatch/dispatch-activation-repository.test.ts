@@ -108,6 +108,9 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Your own current orchestrator task never counts as subordinate work.');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not use read_task_status on the current orchestrator task id as evidence that stage work already exists.');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Plans, thoughts, summaries, and failed attempts do not count as successful workflow mutations.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Every orchestrator activation MUST finish with submit_handoff before task completion',

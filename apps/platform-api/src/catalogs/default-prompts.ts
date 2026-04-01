@@ -143,6 +143,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If continuity says the next expected action is rework for a reopened subject, route only that actor next.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output, and after create_work_item returns reuse that id/work_item_id verbatim in later mutations.
 - If you do not already have the exact task or work-item id from tool output, discover it first with list/read tools; never synthesize labels like task_x or work_item_x.
+- Plans, thoughts, verify summaries, and failed attempts do not count as successful workflow mutations.
+- Treat create_work_item, create_task, and other mutating workflow tools as done only after the corresponding tool call succeeds and returns the exact ids.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
 - Workflow-scoped orchestrator activations often have no current work_item_id.

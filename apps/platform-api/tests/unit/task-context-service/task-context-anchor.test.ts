@@ -80,5 +80,8 @@ describe('buildOrchestratorExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Never invent work_item_id values from stage names or titles.',
     );
+    expect(brief?.rendered_markdown).toContain(
+      'Planning text, thoughts, verify summaries, and failed attempts do not create work items or tasks.',
+    );
   });
 });
