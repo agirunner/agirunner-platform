@@ -132,7 +132,7 @@ describe('WorkflowRailService needs-action signals', () => {
     ]);
   });
 
-  it('flags needs action when failure metrics are present even without blocked work items', async () => {
+  it('does not flag needs action from failure or recoverable metrics alone when no actionable operator item exists', async () => {
     const liveService = {
       getLive: vi.fn(async () => ({
         version: {
@@ -192,6 +192,100 @@ describe('WorkflowRailService needs-action signals', () => {
     expect(result.rows).toEqual([
       expect.objectContaining({
         workflow_id: 'workflow-failed-metric',
+        needs_action: false,
+      }),
+    ]);
+  });
+
+  it('flags needs action when approval or escalation counts are present', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'needs_action',
+            title: 'Needs Action',
+            count: 2,
+            workflows: [
+              {
+                id: 'workflow-awaiting-approval',
+                name: 'Awaiting approval',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'review',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'needs_decision',
+                attentionLane: 'needs_decision',
+                pulse: {
+                  summary: 'Waiting on approval',
+                  tone: 'warning',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                availableActions: [],
+                metrics: {
+                  activeTaskCount: 1,
+                  activeWorkItemCount: 1,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 1,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+              {
+                id: 'workflow-open-escalation',
+                name: 'Open escalation',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'implement',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'needs_intervention',
+                attentionLane: 'needs_intervention',
+                pulse: {
+                  summary: 'Waiting on escalation guidance',
+                  tone: 'warning',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                availableActions: [],
+                metrics: {
+                  activeTaskCount: 1,
+                  activeWorkItemCount: 1,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 1,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', { mode: 'live' });
+
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        workflow_id: 'workflow-awaiting-approval',
+        needs_action: true,
+      }),
+      expect.objectContaining({
+        workflow_id: 'workflow-open-escalation',
         needs_action: true,
       }),
     ]);

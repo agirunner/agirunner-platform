@@ -28,15 +28,15 @@ describe('WorkflowRailService live query filters', () => {
                 posture: 'needs_intervention',
                 attentionLane: 'needs_intervention',
                 pulse: {
-                  summary: 'Waiting on operator steering.',
+                  summary: 'Waiting on escalation guidance.',
                   tone: 'warning',
                   updatedAt: '2026-03-27T22:29:00.000Z',
                 },
                 metrics: {
                   activeTaskCount: 0,
                   activeWorkItemCount: 0,
-                  blockedWorkItemCount: 1,
-                  openEscalationCount: 0,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 1,
                   waitingForDecisionCount: 0,
                   failedTaskCount: 0,
                   recoverableIssueCount: 0,

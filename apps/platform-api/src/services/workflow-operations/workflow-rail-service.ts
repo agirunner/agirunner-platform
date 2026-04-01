@@ -339,9 +339,6 @@ function hasConcreteNeedsAction(card: MissionControlWorkflowCard): boolean {
   if (
     metrics.waitingForDecisionCount > 0
     || metrics.openEscalationCount > 0
-    || metrics.blockedWorkItemCount > 0
-    || metrics.failedTaskCount > 0
-    || metrics.recoverableIssueCount > 0
   ) {
     return true;
   }
