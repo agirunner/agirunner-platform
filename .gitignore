@@ -33,6 +33,8 @@ tests/reports/**/*
 !tests/reports/README.md
 
 tests/artifacts/
+tests/community-playbooks/results/**
+!tests/community-playbooks/results/.gitkeep
 
 # Legacy path (do not write new outputs here)
 tests/live/reports/
