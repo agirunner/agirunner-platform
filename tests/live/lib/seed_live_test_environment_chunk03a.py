@@ -29,7 +29,7 @@ def seed_provider_catalog(
             raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID is required when auth mode is oauth")
         if oauth_session is None:
             raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON is required when auth mode is oauth")
-        require_refreshable_oauth_session(oauth_session)
+        normalized_oauth_session = require_refreshable_oauth_session(oauth_session)
 
         imported = extract_data(
             client.request(
@@ -38,7 +38,7 @@ def seed_provider_catalog(
                 payload={
                     "profileId": oauth_profile_id,
                     "providerName": provider_name,
-                    **oauth_session,
+                    **normalized_oauth_session,
                 },
                 expected=(200,),
                 label="oauth.import-session",
@@ -87,15 +87,32 @@ def seed_provider_catalog(
                 label="llm.providers.create",
             )
         )
-        model = create_model(
-            client,
+        discover_result = extract_data(
+            client.request(
+                "POST",
+                f"/api/v1/config/llm/providers/{provider['id']}/discover",
+                payload={},
+                expected=(200,),
+                label="llm.providers.discover",
+            )
+        )
+        available_models = discover_result.get("created", [])
+        model = find_model(
+            available_models,
             provider_id=provider["id"],
             model_id=model_id,
             endpoint_type=model_endpoint_type,
-            default_reasoning_effort=system_reasoning_effort,
-            label="llm.models.create.system",
         )
-        available_models = [model]
+        if model is None:
+            model = create_model(
+                client,
+                provider_id=provider["id"],
+                model_id=model_id,
+                endpoint_type=model_endpoint_type,
+                default_reasoning_effort=system_reasoning_effort,
+                label="llm.models.create.system",
+            )
+            available_models = [*available_models, model]
     else:
         raise RuntimeError(f"unsupported LIVE_TEST_PROVIDER_AUTH_MODE: {auth_mode}")
 
@@ -131,8 +148,39 @@ def seed_provider_catalog(
     return provider, model, orchestrator_model, specialist_model
 
 
-def require_refreshable_oauth_session(oauth_session: dict[str, Any]) -> dict[str, Any]:
+def _normalize_oauth_session_credentials(oauth_session: dict[str, Any]) -> dict[str, Any]:
     credentials = oauth_session.get("credentials")
+    if isinstance(credentials, dict):
+        return dict(credentials)
+
+    access_token = oauth_session.get("access_token")
+    refresh_token = oauth_session.get("refresh_token")
+    if not isinstance(access_token, str) or access_token.strip() == "":
+        return {}
+    if not isinstance(refresh_token, str) or refresh_token.strip() == "":
+        return {}
+
+    normalized: dict[str, Any] = {
+        "accessToken": access_token,
+        "refreshToken": refresh_token,
+    }
+    if oauth_session.get("expires_at") is not None:
+        normalized["expiresAt"] = oauth_session.get("expires_at")
+    if oauth_session.get("account_id") is not None:
+        normalized["accountId"] = oauth_session.get("account_id")
+    if oauth_session.get("email") is not None:
+        normalized["email"] = oauth_session.get("email")
+    if oauth_session.get("authorized_at") is not None:
+        normalized["authorizedAt"] = oauth_session.get("authorized_at")
+    if oauth_session.get("authorized_by_user_id") is not None:
+        normalized["authorizedByUserId"] = oauth_session.get("authorized_by_user_id")
+    if oauth_session.get("needs_reauth") is not None:
+        normalized["needsReauth"] = oauth_session.get("needs_reauth")
+    return normalized
+
+
+def require_refreshable_oauth_session(oauth_session: dict[str, Any]) -> dict[str, Any]:
+    credentials = _normalize_oauth_session_credentials(oauth_session)
     if not isinstance(credentials, dict):
         raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON must include a credentials object")
 
@@ -147,7 +195,7 @@ def require_refreshable_oauth_session(oauth_session: dict[str, Any]) -> dict[str
     if credentials.get("needsReauth") is True:
         raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON requires reauthorization before live execution")
 
-    return oauth_session
+    return {"credentials": credentials}
 
 
 def build_workspace_create_payload(
