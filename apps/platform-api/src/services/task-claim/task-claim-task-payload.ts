@@ -11,7 +11,7 @@ import {
   taskAllowsHandoffResolution,
   taskHandoffSatisfiesCompletion,
   taskRequiresStructuredHandoff,
-} from '../workflow-task-handoff-policy.js';
+} from '../workflow-task-policy/workflow-task-handoff-policy.js';
 import {
   isGitBuiltInToolId,
   isSpecialistSelectableToolId,

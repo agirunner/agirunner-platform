@@ -9,7 +9,7 @@ import {
   mergeAssessmentSubjectLinkage,
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
-} from '../../../services/assessment-subject-service.js';
+} from '../../../services/workflow-task-policy/assessment-subject-service.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import {

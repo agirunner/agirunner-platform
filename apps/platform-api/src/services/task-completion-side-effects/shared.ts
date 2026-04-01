@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type { WorkItemCompletionOutcome } from '../work-item-continuity-service/work-item-continuity-service.js';
-import { readAssessmentSubjectLinkage, readWorkflowTaskKind } from '../assessment-subject-service.js';
+import { readAssessmentSubjectLinkage, readWorkflowTaskKind } from '../workflow-task-policy/assessment-subject-service.js';
 
 export interface SubjectTaskCandidateLookup {
   result: { rows: Record<string, unknown>[]; rowCount: number };

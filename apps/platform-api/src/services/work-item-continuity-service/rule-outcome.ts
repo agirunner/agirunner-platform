@@ -5,7 +5,10 @@ import {
   PLATFORM_ORCHESTRATOR_REWORK_ROUTE_INFERENCE_ID,
   mustGetSafetynetEntry,
 } from '../safetynet/registry.js';
-import { readAssessmentSubjectLinkage, readWorkflowTaskKind } from '../assessment-subject-service.js';
+import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from '../workflow-task-policy/assessment-subject-service.js';
 import {
   evaluatePlaybookRules,
   type PlaybookRuleEvaluationResult,

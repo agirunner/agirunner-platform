@@ -15,7 +15,7 @@ import {
   type RetryPolicy,
 } from './task-lifecycle-policy.js';
 import { areJsonValuesEquivalent } from '../json-equivalence.js';
-import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
+import { readAssessmentSubjectLinkage } from '../workflow-task-policy/assessment-subject-service.js';
 
 export interface ReworkWorkItemContextRow {
   workflow_id: string;

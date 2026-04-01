@@ -4,7 +4,7 @@ import type { DatabaseQueryable } from '../../../db/database.js';
 import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
-} from '../../../services/assessment-subject-service.js';
+} from '../../../services/workflow-task-policy/assessment-subject-service.js';
 import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 

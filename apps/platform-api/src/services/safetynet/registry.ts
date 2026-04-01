@@ -32,7 +32,7 @@ const entries: SafetynetEntry[] = [
     intervention: 'platform derives missing subject linkage from explicit context or activation lineage',
     risk_if_triggered: 'workflow may appear correct even though orchestrator omitted required linkage metadata',
     operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
-    owner_module: 'src/services/assessment-subject-service.ts',
+    owner_module: 'src/services/workflow-task-policy/assessment-subject-service.ts',
     test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
     metrics_key:
       'platform_safetynet_trigger_total{behavior="platform.orchestrator.subject_linkage_inference"}',

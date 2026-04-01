@@ -9,7 +9,7 @@ import {
   openWorkItemEscalation,
   resolveWorkItemEscalation,
 } from '../work-item-service/work-item-escalations.js';
-import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
+import { readAssessmentSubjectLinkage } from '../workflow-task-policy/assessment-subject-service.js';
 import { readOptionalText } from './task-lifecycle-service-helpers.js';
 
 export async function enqueuePlaybookActivationIfNeeded(input: {

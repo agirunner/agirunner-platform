@@ -11,7 +11,7 @@ import {
   type LifecyclePolicy,
   type RetryPolicy,
 } from './task-lifecycle-policy.js';
-import { readAssessmentSubjectLinkage } from '../assessment-subject-service.js';
+import { readAssessmentSubjectLinkage } from '../workflow-task-policy/assessment-subject-service.js';
 import {
   ACTIVE_PARALLELISM_SLOT_STATES,
   asRecord,

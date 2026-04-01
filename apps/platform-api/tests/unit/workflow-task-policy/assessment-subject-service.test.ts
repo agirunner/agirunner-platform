@@ -11,7 +11,7 @@ vi.mock('../../../src/services/safetynet/logging.js', () => ({
 import {
   mergeAssessmentSubjectLinkage,
   SUBJECT_LINKAGE_INFERENCE_SAFETYNET,
-} from '../../../src/services/assessment-subject-service.js';
+} from '../../../src/services/workflow-task-policy/assessment-subject-service.js';
 
 describe('mergeAssessmentSubjectLinkage', () => {
   it('does not log a safetynet when only subject revision is defaulted', () => {
