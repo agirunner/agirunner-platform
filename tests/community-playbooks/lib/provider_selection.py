@@ -15,6 +15,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
         "LIVE_TEST_PROVIDER_TYPE": "anthropic",
         "LIVE_TEST_PROVIDER_NAME": "Anthropic",
         "LIVE_TEST_PROVIDER_BASE_URL": "https://api.anthropic.com",
+        "LIVE_TEST_SYSTEM_REASONING_EFFORT": "low",
         "LIVE_TEST_MODEL_ID": "claude-sonnet-4-6",
         "LIVE_TEST_MODEL_ENDPOINT_TYPE": "messages",
         "LIVE_TEST_ORCHESTRATOR_MODEL_ID": "claude-sonnet-4-6",
@@ -30,12 +31,15 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
         "LIVE_TEST_PROVIDER_TYPE": "google",
         "LIVE_TEST_PROVIDER_NAME": "Gemini",
         "LIVE_TEST_PROVIDER_BASE_URL": "https://generativelanguage.googleapis.com",
+        "LIVE_TEST_SYSTEM_REASONING_EFFORT": "low",
         "LIVE_TEST_MODEL_ID": "gemini-3.1-pro-preview",
         "LIVE_TEST_MODEL_ENDPOINT_TYPE": "generate-content",
         "LIVE_TEST_ORCHESTRATOR_MODEL_ID": "gemini-3.1-pro-preview",
         "LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE": "generate-content",
         "LIVE_TEST_SPECIALIST_MODEL_ID": "gemini-3.1-pro-preview",
         "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE": "generate-content",
+        "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT": "low",
+        "LIVE_TEST_SPECIALIST_REASONING_EFFORT": "low",
     },
     "openai-api": {
         "snapshot_heading": "OpenAI API",
@@ -67,6 +71,11 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
 
 SNAPSHOT_START = "# BEGIN LOCAL PROVIDER SNAPSHOTS"
 SNAPSHOT_END = "# END LOCAL PROVIDER SNAPSHOTS"
+SNAPSHOT_SECRET_KEYS = {
+    "LIVE_TEST_PROVIDER_API_KEY",
+    "LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID",
+    "LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON",
+}
 
 
 def apply_provider_selection(
@@ -230,6 +239,8 @@ def load_snapshot_section(env_file: Path, heading: str) -> dict[str, str]:
         if not line.startswith("# ") or "=" not in line:
             continue
         key, value = line[2:].split("=", 1)
-        values[key.strip()] = value.strip()
+        normalized_key = key.strip()
+        if normalized_key in SNAPSHOT_SECRET_KEYS:
+            values[normalized_key] = value.strip()
 
     return values

@@ -38,6 +38,7 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual("anthropic-key", overrides["LIVE_TEST_PROVIDER_API_KEY"])
         self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_MODEL_ID"])
         self.assertEqual("messages", overrides["LIVE_TEST_MODEL_ENDPOINT_TYPE"])
+        self.assertEqual("low", overrides["LIVE_TEST_SYSTEM_REASONING_EFFORT"])
         self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_ORCHESTRATOR_MODEL_ID"])
         self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_SPECIALIST_MODEL_ID"])
         self.assertEqual("low", overrides["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
@@ -77,14 +78,17 @@ class ProviderSelectionTests(unittest.TestCase):
                         "# LIVE_TEST_PROVIDER_TYPE=anthropic",
                         "# LIVE_TEST_PROVIDER_NAME=Anthropic",
                         "# LIVE_TEST_PROVIDER_BASE_URL=https://api.anthropic.com",
+                        "# LIVE_TEST_SYSTEM_REASONING_EFFORT=medium",
+                        "# LIVE_TEST_MODEL_ID=wrong-snapshot-model",
+                        "# LIVE_TEST_MODEL_ENDPOINT_TYPE=wrong-endpoint",
                         "# LIVE_TEST_MODEL_ID=claude-sonnet-4-6",
                         "# LIVE_TEST_MODEL_ENDPOINT_TYPE=messages",
                         "# LIVE_TEST_ORCHESTRATOR_MODEL_ID=claude-sonnet-4-6",
                         "# LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE=messages",
-                        "# LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=low",
+                        "# LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=medium",
                         "# LIVE_TEST_SPECIALIST_MODEL_ID=claude-sonnet-4-6",
                         "# LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE=messages",
-                        "# LIVE_TEST_SPECIALIST_REASONING_EFFORT=low",
+                        "# LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium",
                         "# LIVE_TEST_PROVIDER_API_KEY=snapshot-key",
                         "# END LOCAL PROVIDER SNAPSHOTS",
                         "",
@@ -96,6 +100,11 @@ class ProviderSelectionTests(unittest.TestCase):
             overrides = resolve_provider_env_overrides("anthropic", {}, env_file=env_file)
 
         self.assertEqual("snapshot-key", overrides["LIVE_TEST_PROVIDER_API_KEY"])
+        self.assertEqual("claude-sonnet-4-6", overrides["LIVE_TEST_MODEL_ID"])
+        self.assertEqual("messages", overrides["LIVE_TEST_MODEL_ENDPOINT_TYPE"])
+        self.assertEqual("low", overrides["LIVE_TEST_SYSTEM_REASONING_EFFORT"])
+        self.assertEqual("low", overrides["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
+        self.assertEqual("low", overrides["LIVE_TEST_SPECIALIST_REASONING_EFFORT"])
 
     def test_resolve_provider_env_overrides_requires_provider_secret(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "LIVE_TEST_GEMINI_API_KEY"):

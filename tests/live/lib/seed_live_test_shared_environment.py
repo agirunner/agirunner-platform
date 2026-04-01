@@ -52,7 +52,10 @@ def main() -> None:
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
     model_id = env("LIVE_TEST_MODEL_ID", provider_model_defaults["model_id"])
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", provider_model_defaults["endpoint_type"])
-    system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
+    system_reasoning_effort = env(
+        "LIVE_TEST_SYSTEM_REASONING_EFFORT",
+        provider_reasoning_defaults["system_reasoning_effort"],
+    )
     orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
     orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     orchestrator_reasoning_effort = env(

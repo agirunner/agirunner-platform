@@ -94,22 +94,27 @@ PROVIDER_MODEL_DEFAULTS = {
 
 PROVIDER_REASONING_DEFAULTS = {
     "anthropic": {
+        "system_reasoning_effort": "low",
         "orchestrator_reasoning_effort": "low",
         "specialist_reasoning_effort": "low",
     },
     "google": {
+        "system_reasoning_effort": "low",
         "orchestrator_reasoning_effort": "low",
-        "specialist_reasoning_effort": "medium",
+        "specialist_reasoning_effort": "low",
     },
     "gemini": {
+        "system_reasoning_effort": "low",
         "orchestrator_reasoning_effort": "low",
-        "specialist_reasoning_effort": "medium",
+        "specialist_reasoning_effort": "low",
     },
     "openai": {
+        "system_reasoning_effort": "medium",
         "orchestrator_reasoning_effort": "low",
         "specialist_reasoning_effort": "medium",
     },
     "openai-compatible": {
+        "system_reasoning_effort": "medium",
         "orchestrator_reasoning_effort": "low",
         "specialist_reasoning_effort": "medium",
     },
@@ -202,6 +207,8 @@ def compute_shared_bootstrap_key(
                 else model_id
                 if key in {"LIVE_TEST_MODEL_ID", "LIVE_TEST_ORCHESTRATOR_MODEL_ID", "LIVE_TEST_SPECIALIST_MODEL_ID"}
                 and not env.get(key)
+                else provider_reasoning_defaults["system_reasoning_effort"]
+                if key == "LIVE_TEST_SYSTEM_REASONING_EFFORT" and not env.get(key)
                 else provider_reasoning_defaults["orchestrator_reasoning_effort"]
                 if key == "LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT" and not env.get(key)
                 else provider_reasoning_defaults["specialist_reasoning_effort"]

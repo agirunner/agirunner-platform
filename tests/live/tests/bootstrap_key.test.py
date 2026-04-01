@@ -24,6 +24,14 @@ class BootstrapKeyTests(unittest.TestCase):
     def test_provider_reasoning_defaults_use_low_for_anthropic(self) -> None:
         defaults = bootstrap_key.resolve_provider_reasoning_defaults("anthropic")
 
+        self.assertEqual(defaults["system_reasoning_effort"], "low")
+        self.assertEqual(defaults["orchestrator_reasoning_effort"], "low")
+        self.assertEqual(defaults["specialist_reasoning_effort"], "low")
+
+    def test_provider_reasoning_defaults_use_low_for_gemini(self) -> None:
+        defaults = bootstrap_key.resolve_provider_reasoning_defaults("gemini")
+
+        self.assertEqual(defaults["system_reasoning_effort"], "low")
         self.assertEqual(defaults["orchestrator_reasoning_effort"], "low")
         self.assertEqual(defaults["specialist_reasoning_effort"], "low")
 
