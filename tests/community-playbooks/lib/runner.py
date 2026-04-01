@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 from typing import Any
 
+from bootstrap import prepare_environment
 from common import ensure_dir, results_root, suite_root, write_json_file
+from import_catalog import run_import_only
 from resolve_metadata import METADATA_FILE, load_metadata, resolve_run_specs, validate_metadata
 
 
@@ -33,10 +34,7 @@ def resolve_failed_only_ids(summary_path: Path) -> set[str]:
     }
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-
+def execute(args: argparse.Namespace) -> dict[str, Any]:
     summary_path = results_root() / "summary.json"
     resolved_runs: list[dict[str, Any]] = []
 
@@ -53,14 +51,10 @@ def main() -> None:
     }
 
     if args.bootstrap_only:
-        ensure_dir(results_root() / "bootstrap")
-        write_json_file(results_root() / "bootstrap" / "plan.json", payload)
-        return
+        return {"bootstrap": prepare_environment(), "selection": payload}
 
     if args.import_only:
-        ensure_dir(results_root() / "import")
-        write_json_file(results_root() / "import" / "plan.json", payload)
-        return
+        return {"import": run_import_only(), "selection": payload}
 
     metadata = load_metadata(str(METADATA_FILE))
     validate_metadata(metadata)
@@ -73,7 +67,15 @@ def main() -> None:
         failed_only_ids=failed_only_ids,
     )
 
-    write_json_file(summary_path, {"runs": resolved_runs, "selection": payload})
+    result = {"runs": resolved_runs, "selection": payload}
+    write_json_file(summary_path, result)
+    return result
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+    execute(args)
 
 
 if __name__ == "__main__":
