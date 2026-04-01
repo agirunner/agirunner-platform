@@ -78,6 +78,36 @@ class WorkspacePrepTests(unittest.TestCase):
         self.assertEqual("main", payload["settings"]["default_branch"])
         self.assertEqual("token-123", payload["settings"]["credentials"]["git_token"])
 
+    def test_build_workspace_create_input_for_git_remote_strips_credentials_from_repository_url(self) -> None:
+        run_spec = {
+            "id": "bug-fix-smoke",
+            "playbook_slug": "bug-fix",
+            "variant": "smoke",
+            "workspace_profile_record": {
+                "storage_type": "git_remote",
+                "seed_path": "fixtures/host-workspaces/product-app-repo",
+            },
+        }
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LIVE_TEST_REPOSITORY_URL": "https://x-access-token:secret-token@github.com/agirunner/agirunner-test-fixtures.git",
+                "LIVE_TEST_DEFAULT_BRANCH": "main",
+                "LIVE_TEST_GIT_USER_NAME": "Agirunner Bot",
+                "LIVE_TEST_GIT_USER_EMAIL": "bot@example.com",
+                "LIVE_TEST_GIT_TOKEN": "token-123",
+            },
+            clear=False,
+        ):
+            payload = build_workspace_create_input(run_spec)
+
+        self.assertEqual(
+            "https://github.com/agirunner/agirunner-test-fixtures.git",
+            payload["repository_url"],
+        )
+        self.assertEqual("token-123", payload["settings"]["credentials"]["git_token"])
+
     def test_prepare_git_remote_workspace_preserves_git_metadata_while_copying_seed(self) -> None:
         run_spec = {
             "id": "bug-fix-smoke",

@@ -218,7 +218,7 @@ def build_workspace_create_payload(
         "description": workspace_description,
     }
     if storage["type"] == "git_remote":
-        payload["repository_url"] = repository_url
+        payload["repository_url"] = sanitize_repository_url_for_display(repository_url)
         payload["settings"] = {
             "default_branch": default_branch,
             "git_user_name": git_user_name,
@@ -237,6 +237,22 @@ def build_workspace_create_payload(
             },
         }
     return payload
+
+
+def sanitize_repository_url_for_display(repository_url: str) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+
+    trimmed = repository_url.strip()
+    if trimmed == "":
+        return trimmed
+    parts = urlsplit(trimmed)
+    hostname = parts.hostname or ""
+    if hostname == "":
+        return trimmed
+    netloc = hostname
+    if parts.port is not None:
+        netloc = f"{hostname}:{parts.port}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 def resolve_workspace_storage(workspace_config: dict[str, Any]) -> dict[str, Any]:
