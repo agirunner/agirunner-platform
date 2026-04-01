@@ -11,7 +11,7 @@ import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
 describe('WorkflowDeliverables', () => {
-  it('renders a scope-pure workflow view with final and interim sections only', () => {
+  it('renders a scope-pure workflow view without extra stage groups', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket({
@@ -48,11 +48,11 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Deliverables');
     expect(html).toContain('Showing all deliverables recorded across this workflow');
-    expect(html).toContain('Final');
-    expect(html).toContain('Interim');
     expect(html).toContain('Release brief');
     expect(html).toContain('Implement audit flow');
     expect(html).toContain('QA packet');
+    expect((html.match(/>Final</g) ?? []).length).toBe(2);
+    expect((html.match(/>Interim</g) ?? []).length).toBe(1);
     expect(html).not.toContain('Load older deliverables');
     expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Working handoffs');
@@ -97,7 +97,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Task');
   });
 
-  it('renders working handoffs at workflow scope when deliverable-context briefs exist', () => {
+  it('does not surface working handoffs on the deliverables tab', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket({
@@ -127,59 +127,14 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Working handoffs');
-    expect(html).toContain('Workflow handoff is being assembled.');
-    expect(html).toContain('Draft review-ready product brief is being revised.');
-    expect(html).toContain('The workflow-level packet is still in progress.');
-    expect(html).toContain('The selected work item still has a live working handoff.');
+    expect(html).not.toContain('Working handoffs');
+    expect(html).not.toContain('Workflow handoff is being assembled.');
+    expect(html).not.toContain('Draft review-ready product brief is being revised.');
+    expect(html).not.toContain('The workflow-level packet is still in progress.');
+    expect(html).not.toContain('The selected work item still has a live working handoff.');
   });
 
-  it('filters working handoffs to the selected work item scope', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverables, {
-        packet: createPacket({
-          working_handoffs: [
-            createWorkingHandoff({
-              id: 'brief-selected-1',
-              work_item_id: 'work-item-1',
-              detailed_brief_json: {
-                headline: 'Draft review-ready product brief is being revised.',
-                summary: 'The selected work item still has a live working handoff.',
-              },
-            }),
-            createWorkingHandoff({
-              id: 'brief-other-1',
-              work_item_id: 'work-item-2',
-              detailed_brief_json: {
-                headline: 'Other work item handoff.',
-                summary: 'This handoff should not appear in the selected scope.',
-              },
-            }),
-            createWorkingHandoff({
-              id: 'brief-workflow-1',
-              work_item_id: null,
-              detailed_brief_json: {
-                headline: 'Workflow-wide note.',
-                summary: 'This workflow-level handoff should not bleed into selected work item scope.',
-              },
-            }),
-          ],
-        }),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Draft review-ready product brief',
-        scope: createSelectedWorkItemScope(),
-        onLoadMore: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain('Working handoffs');
-    expect(html).toContain('Draft review-ready product brief is being revised.');
-    expect(html).toContain('The selected work item still has a live working handoff.');
-    expect(html).not.toContain('Other work item handoff.');
-    expect(html).not.toContain('Workflow-wide note.');
-  });
-
-  it('keeps final entries sorted newest first inside each stage', () => {
+  it('keeps final entries ahead of interim entries while staying newest-first inside a stage', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket({
@@ -195,6 +150,15 @@ describe('WorkflowDeliverables', () => {
               created_at: '2026-03-30T08:00:00.000Z',
             }),
           ],
+          in_progress_deliverables: [
+            createDeliverable({
+              descriptor_id: 'interim-packet',
+              title: 'Interim packet',
+              delivery_stage: 'in_progress',
+              state: 'under_review',
+              created_at: '2026-03-31T08:00:00.000Z',
+            }),
+          ],
         }),
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
@@ -204,9 +168,10 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html.indexOf('Newer final packet')).toBeLessThan(html.indexOf('Older final packet'));
+    expect(html.indexOf('Older final packet')).toBeLessThan(html.indexOf('Interim packet'));
   });
 
-  it('shows empty-state copy per stage for a selected work item with no deliverables', () => {
+  it('shows a single empty-state message for a selected work item with no deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
@@ -217,12 +182,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain(
-      'No final deliverables are recorded for Draft review-ready product brief yet.',
-    );
-    expect(html).toContain(
-      'No interim deliverables are recorded for Draft review-ready product brief yet.',
-    );
+    expect(html).toContain('No deliverables are recorded for Draft review-ready product brief yet.');
   });
 
   it('only renders the paging affordance when a next cursor exists', () => {

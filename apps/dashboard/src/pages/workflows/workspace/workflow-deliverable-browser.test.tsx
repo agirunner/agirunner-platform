@@ -12,10 +12,14 @@ import {
 const hostOutputPath = resolve('release-audit');
 
 describe('WorkflowDeliverableBrowser', () => {
-  it('renders artifact rows in a table with preview and download actions', () => {
+  it('renders text artifact rows in a table with view and download actions', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {
         deliverable: createDeliverable({
+          preview_capabilities: {
+            can_inline_preview: true,
+            preview_kind: 'markdown',
+          },
           primary_target: {
             target_kind: 'artifact',
             label: 'Open artifact',
@@ -31,19 +35,18 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).toContain('<table');
     expect(html).toContain('Item');
     expect(html).toContain('Type');
-    expect(html).toContain('Size');
     expect(html).toContain('Recorded');
     expect(html).toContain('Action');
     expect(html).toContain('final-package.json');
     expect(html).toContain('Artifact');
-    expect(html).toContain('1.5 KB');
-    expect(html).toContain('Preview');
+    expect(html).toContain('View');
     expect(html).toContain('Download');
+    expect(html).not.toContain('Loading artifact preview');
     expect(html).not.toContain('Targets in this deliverable');
     expect(html).not.toContain('Open artifact in new tab');
   });
 
-  it('renders inline summary deliverables as their own readable row', () => {
+  it('renders inline summary deliverables as their own readable row without auto-opening them', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {
         deliverable: createDeliverable({
@@ -63,10 +66,35 @@ describe('WorkflowDeliverableBrowser', () => {
 
     expect(html).toContain('Terminal brief');
     expect(html).toContain('Inline summary');
-    expect(html).toContain('Read');
-    expect(html).toContain(
+    expect(html).toContain('View');
+    expect(html).not.toContain(
       'The workflow is complete and the product brief is ready for operator review.',
     );
+  });
+
+  it('hides the view action for non-text artifact rows', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: createDeliverable({
+          preview_capabilities: {
+            can_inline_preview: false,
+            preview_kind: 'binary',
+          },
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+            path: 'artifacts/releases/release-bundle.zip',
+            artifact_id: 'artifact-1',
+          } as never,
+        }),
+      }),
+    );
+
+    expect(html).toContain('release-bundle.zip');
+    expect(html).toContain('Download');
+    expect(html).not.toContain('View');
+    expect(html).not.toContain('Hide');
   });
 
   it('supports artifact, repository, external url, workflow document, host directory, and inline content rows together', () => {
@@ -144,9 +172,9 @@ describe('WorkflowDeliverableBrowser', () => {
     );
 
     expect(html).toContain('Published brief');
-    expect(html).toContain('Canonical target');
-    expect(html).toContain('href="https://example.com/briefs/release-audit"');
+    expect(html).toContain('View');
     expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain('Canonical target');
   });
 
   it('renders path-only references as inline metadata instead of workspace recursion copy', () => {
@@ -165,8 +193,7 @@ describe('WorkflowDeliverableBrowser', () => {
 
     expect(html).toContain('Workflow spec');
     expect(html).toContain('Workflow document');
-    expect(html).toContain('Path');
-    expect(html).toContain('docs/release-spec.md');
+    expect(html).toContain('View');
     expect(html).not.toContain('Already visible in this workflow workspace.');
     expect(html).not.toContain('Open target');
   });
@@ -205,6 +232,20 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(
       resolveBrowserDownloadHref('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview'),
     ).toBe('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download');
+  });
+
+  it('renders invalid timestamps as a neutral dash instead of unknown time copy', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: createDeliverable({
+          created_at: 'not-a-date',
+          updated_at: 'not-a-date',
+        }),
+      }),
+    );
+
+    expect(html).toContain('<td class="px-3 py-2 align-top text-muted-foreground">—</td>');
+    expect(html).not.toContain('Unknown time');
   });
 });
 

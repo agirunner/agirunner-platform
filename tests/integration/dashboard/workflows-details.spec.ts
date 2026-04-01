@@ -18,12 +18,17 @@ test('keeps Details as the default workbench tab and scopes it to the selected w
   await expect(workbench.getByRole('tab', { name: 'Details' })).toBeVisible();
   await expect(workbench.getByText(/^Workflow$/)).toBeVisible();
   await expect(workbench.getByText('What was asked')).toBeVisible();
+  await expect(workbench.getByText('Input attachments', { exact: true })).toBeVisible();
   await expect(workbench.getByText('brief.md', { exact: true })).toBeVisible();
   await expect(workbench.getByText('Owner role')).toHaveCount(0);
   await expect(workbench.getByText('Next actor')).toHaveCount(0);
   await expect(workbench.getByText('Next expected action')).toHaveCount(0);
   await expect(workbench.getByText('Basics', { exact: true })).toHaveCount(0);
   await expect(workbench.getByText('Inputs', { exact: true })).toHaveCount(0);
+
+  const workflowPacketDownload = page.waitForEvent('download');
+  await workbench.getByRole('button', { name: 'brief.md' }).click();
+  expect((await workflowPacketDownload).suggestedFilename()).toBe('brief.md');
 
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
 
@@ -38,4 +43,11 @@ test('keeps Details as the default workbench tab and scopes it to the selected w
   await expect(workbench.getByText('Owner role')).toHaveCount(0);
   await expect(workbench.getByText('Task input')).toHaveCount(0);
   await expect(workbench.getByText('Artifact Id')).toHaveCount(0);
+
+  const whatExistsRows = workbench.locator('[data-workflows-details-what-exists="rows"]');
+  const heightMetrics = await whatExistsRows.evaluate((node) => ({
+    clientHeight: node.clientHeight,
+    scrollHeight: node.scrollHeight,
+  }));
+  expect(heightMetrics.scrollHeight).toBeLessThanOrEqual(heightMetrics.clientHeight + 2);
 });

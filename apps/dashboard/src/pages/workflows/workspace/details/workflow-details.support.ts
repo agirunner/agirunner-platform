@@ -328,7 +328,18 @@ function summarizePacket(packet: DashboardWorkflowInputPacketRecord): string | n
   }
 
   const packetLabel = readOptionalText(packet.summary) ?? humanizeToken(packet.packet_kind);
-  return packet.files.length > 0 ? `${packetLabel} is attached for reference.` : null;
+  if (packet.files.length === 0) {
+    return null;
+  }
+
+  const fileNames = packet.files
+    .map((file) => readOptionalText(file.file_name))
+    .filter((value): value is string => Boolean(value));
+  const attachmentLabel = pluralize('input attachment', fileNames.length || packet.files.length);
+  if (fileNames.length > 0) {
+    return `${packetLabel} includes ${attachmentLabel}: ${joinWithAnd(fileNames)}.`;
+  }
+  return `${packetLabel} includes ${attachmentLabel}.`;
 }
 
 function summarizeEntries(

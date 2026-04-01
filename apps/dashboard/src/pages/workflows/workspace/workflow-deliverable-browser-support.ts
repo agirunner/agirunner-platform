@@ -2,6 +2,7 @@ import type {
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverableTarget,
 } from '../../../lib/api.js';
+import { describeArtifactPreview } from '../../artifact-preview/artifact-preview-support.js';
 import {
   formatDeliverableTargetKind,
   hasMeaningfulDeliverableTarget,
@@ -23,6 +24,7 @@ interface BaseBrowserRow {
   typeLabel: string;
   createdAt: string;
   sizeBytes: number | null;
+  canView: boolean;
 }
 
 export interface ArtifactBrowserRow extends BaseBrowserRow {
@@ -66,6 +68,7 @@ export function buildBrowserRows(
           typeof target.size_bytes === 'number' && Number.isFinite(target.size_bytes)
             ? target.size_bytes
             : null,
+        canView: canViewArtifactTarget(target, deliverable),
         target,
         previewHref: href,
         downloadHref: resolveBrowserDownloadHref(href),
@@ -79,6 +82,7 @@ export function buildBrowserRows(
       typeLabel: formatDeliverableTargetKind(target.target_kind || 'reference'),
       createdAt: deliverable.created_at,
       sizeBytes: null,
+      canView: true,
       target,
     });
   }
@@ -93,6 +97,7 @@ export function buildBrowserRows(
       typeLabel: 'Inline summary',
       createdAt: deliverable.created_at,
       sizeBytes: null,
+      canView: true,
       content: inlineContent,
     });
   }
@@ -149,6 +154,36 @@ function readRowWeight(row: DeliverableBrowserRow): number {
   return 2;
 }
 
+function canViewArtifactTarget(
+  target: DashboardWorkflowDeliverableTarget,
+  deliverable: DashboardWorkflowDeliverableRecord,
+): boolean {
+  const previewKind = readPreviewKind(deliverable.preview_capabilities);
+  if (previewKind === 'binary') {
+    return false;
+  }
+
+  if (deliverable.primary_target.artifact_id === target.artifact_id && readCanInlinePreview(deliverable)) {
+    return true;
+  }
+
+  const previewDescriptor = describeArtifactPreview('', target.path ?? target.label);
+  return previewDescriptor.canPreview;
+}
+
+function readCanInlinePreview(deliverable: DashboardWorkflowDeliverableRecord): boolean {
+  return deliverable.preview_capabilities.can_inline_preview === true;
+}
+
+function readPreviewKind(previewCapabilities: Record<string, unknown>): string | null {
+  const value = previewCapabilities.preview_kind;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+}
+
 function readTargetKey(target: DashboardWorkflowDeliverableTarget, href: string | null): string {
   return [
     target.target_kind,
@@ -188,10 +223,10 @@ function serializeHref(parsed: URL): string {
     : parsed.toString();
 }
 
-export function formatEntryTimestamp(value: string): string {
+export function formatEntryTimestamp(value: string): string | null {
   const millis = new Date(value).getTime();
   if (!Number.isFinite(millis)) {
-    return 'Unknown time';
+    return null;
   }
   return new Date(millis).toLocaleString();
 }

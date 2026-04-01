@@ -19,6 +19,7 @@ test('renders supported deliverable types and artifact actions at workflow scope
   await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
   await expect(workbench.getByText('Showing all deliverables recorded across this workflow')).toBeVisible();
+  await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Release repository output' }).first()).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
@@ -32,30 +33,54 @@ test('renders supported deliverable types and artifact actions at workflow scope
   await expect(workbench.getByText('Host directory').first()).toBeVisible();
   await expect(workbench.getByText('Inline summary').first()).toBeVisible();
 
-  const architectureRow = workbench.locator('tr').filter({ hasText: 'architecture-brief.md' }).first();
-  await expect(architectureRow).toContainText('68 B');
+  const architectureCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
+  const repositoryCard = workbench.locator('article').filter({ hasText: 'Release repository output' }).first();
+  const packetCard = workbench.locator('article').filter({ hasText: 'Signed workflow packet' }).first();
+  const shareCard = workbench.locator('article').filter({ hasText: 'Stakeholder share link' }).first();
+  const exportCard = workbench.locator('article').filter({ hasText: 'Export directory' }).first();
+  const inlineCard = workbench.locator('article').filter({ hasText: 'Inline decision summary' }).first();
+
+  const architectureRow = architectureCard.locator('tr').filter({ hasText: 'architecture-brief.md' }).first();
   await expect(architectureRow.getByRole('button', { name: 'Download' })).toBeVisible();
-  await expect(workbench.locator('tr').filter({ hasText: 'release-checklist.json' }).first()).toContainText('41 B');
+  await expect(workbench.getByText('Unknown time')).toHaveCount(0);
+  await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
 
   const downloadPromise = page.waitForEvent('download');
   await architectureRow.getByRole('button', { name: 'Download' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('architecture-brief.md');
 
-  await architectureRow.getByRole('button', { name: 'Preview' }).click();
+  await architectureRow.getByRole('button', { name: 'View' }).click();
   await expect(workbench.getByText('Architecture brief')).toBeVisible();
   await expect(workbench.getByText('This packet captures the release architecture.')).toBeVisible();
+  await architectureRow.getByRole('button', { name: 'Hide' }).click();
+  await expect(workbench.getByText('Architecture brief')).toHaveCount(0);
 
-  await workbench.getByRole('button', { name: 'Release repository output' }).click();
-  await expect(workbench.getByText('release/main')).toBeVisible();
-  await expect(workbench.getByRole('link', { name: 'Open target' })).toHaveAttribute(
+  await repositoryCard.getByRole('button', { name: 'Release repository output' }).click();
+  await expect(repositoryCard.getByText('release/main')).toBeVisible();
+  await expect(repositoryCard.getByRole('link', { name: 'Open target' })).toHaveAttribute(
     'href',
     'https://github.com/example/release-audit/pull/42',
   );
 
-  await workbench.getByRole('button', { name: 'Inline decision summary' }).click();
-  await expect(workbench.getByText('Operator summary:')).toBeVisible();
-  await expect(workbench.getByText('rollback note added')).toBeVisible();
+  await packetCard.getByRole('button', { name: 'Signed workflow packet' }).click();
+  await expect(packetCard.getByText('Path')).toBeVisible();
+  await expect(packetCard.getByText('release-packet', { exact: true })).toBeVisible();
+
+  await shareCard.getByRole('button', { name: 'Stakeholder share link' }).click();
+  await expect(shareCard.getByText('Canonical target')).toBeVisible();
+  await expect(shareCard.getByRole('link', { name: 'Open target' })).toHaveAttribute(
+    'href',
+    'https://example.com/share/release-audit',
+  );
+
+  await exportCard.getByRole('button', { name: 'Export directory' }).click();
+  await expect(exportCard.getByText('Path')).toBeVisible();
+  await expect(exportCard.getByText('/var/tmp/exports/release-audit')).toBeVisible();
+
+  await inlineCard.getByRole('button', { name: 'Inline decision summary' }).click();
+  await expect(inlineCard.getByText('Operator summary:')).toBeVisible();
+  await expect(inlineCard.getByText('rollback note added')).toBeVisible();
 });
 
 test('narrows deliverables to the selected work item and keeps workflow-only rows out of scope', async ({ page }) => {
@@ -69,6 +94,7 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
   await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
   await expect(workbench.getByText('Showing only deliverables recorded for Prepare blocked release brief.')).toBeVisible();
+  await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
   await expect(workbench.getByText('Architecture bundle')).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
   await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
@@ -79,24 +105,23 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
 });
 
 test('keeps large deliverable payloads usable across artifact catalogs and inline summaries', async ({ page }) => {
-  const scenario = await seedWorkflowDeliverablesScenario();
+  await seedWorkflowDeliverablesScenario();
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery', {
     artifactCount: 100,
     inlineSummaryRepeatCount: 80,
   });
   await loginToWorkflows(page);
 
-  await page.goto(`/workflows/${scenario.needsActionWorkflow.id}`);
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
   const architectureCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
-  await expect(architectureCard.getByRole('button', { name: 'Download' })).toHaveCount(100);
+  await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
 
   const oversizedRow = architectureCard.locator('tr').filter({ hasText: 'release-audit-100.txt' }).first();
   await oversizedRow.scrollIntoViewIfNeeded();
-  await expect(oversizedRow).toContainText('700.0 KB');
-  await oversizedRow.getByRole('button', { name: 'Preview' }).click();
+  await oversizedRow.getByRole('button', { name: 'View' }).click();
 
   const previewLimitNotice = workbench.getByText(
     /Inline preview is limited to .*Download this file to inspect the full payload\./,
@@ -110,7 +135,7 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   expect(download.suggestedFilename()).toBe('release-audit-100.txt');
 
   const inlineCard = workbench.locator('article').filter({ hasText: 'Inline decision summary' }).first();
-  await inlineCard.getByRole('button', { name: 'Read' }).click();
+  await inlineCard.getByRole('button', { name: 'View' }).click();
   await expect(inlineCard.getByText('operator checkpoint 80')).toBeVisible();
   await expect(inlineCard.getByText('Tail marker: INLINE-END')).toBeVisible();
 });

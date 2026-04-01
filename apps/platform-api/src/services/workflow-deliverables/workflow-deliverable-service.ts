@@ -14,6 +14,7 @@ import {
   sanitizeOptionalText,
   sanitizeRequiredText,
 } from '../workflow-operator/workflow-operator-record-sanitization.js';
+import { sanitizeDeliverableArtifactTargets } from './workflow-deliverable-artifact-integrity.js';
 
 interface WorkflowDeliverableRow {
   id: string;
@@ -102,7 +103,8 @@ export class WorkflowDeliverableService {
         LIMIT $${scopeQuery.limitParamIndex}`,
       [tenantId, workflowId, ...scopeQuery.params, input.limit ?? 50],
     );
-    return result.rows.map(toWorkflowDeliverableRecord);
+    const sanitizedRows = await sanitizeDeliverableArtifactTargets(this.pool, tenantId, result.rows);
+    return sanitizedRows.map(toWorkflowDeliverableRecord);
   }
 
   async upsertDeliverable(

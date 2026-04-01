@@ -48,6 +48,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('What was asked');
     expect(html).toContain('Current state');
     expect(html).toContain('What exists now');
+    expect(html).toContain('Input attachments');
     expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html).toContain('Release Notes');
     expect(html).toContain('Artifact Manifest');
@@ -117,6 +118,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('What was asked');
     expect(html).toContain('Current state');
     expect(html).toContain('What exists now');
+    expect(html).toContain('Input attachments');
     expect(html).toContain('Active work items are currently in Release stage.');
     expect(html).toContain('release/2026.03');
     expect(html).toContain('Friday 17:00');

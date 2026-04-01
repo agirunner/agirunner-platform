@@ -32,10 +32,10 @@ export function WorkflowDeliverableBrowser(props: {
   deliverable: DashboardWorkflowDeliverableRecord;
 }): JSX.Element | null {
   const rows = useMemo(() => buildBrowserRows(props.deliverable), [props.deliverable]);
-  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(rows[0]?.key ?? null);
-  const selectedRow = rows.find((row) => row.key === selectedRowKey) ?? rows[0] ?? null;
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const selectedRow = rows.find((row) => row.key === selectedRowKey) ?? null;
 
-  if (!selectedRow) {
+  if (rows.length === 0) {
     return null;
   }
 
@@ -47,49 +47,47 @@ export function WorkflowDeliverableBrowser(props: {
             <tr>
               <th className="px-3 py-2 text-left font-medium">Item</th>
               <th className="px-3 py-2 text-left font-medium">Type</th>
-              <th className="px-3 py-2 text-left font-medium">Size</th>
               <th className="px-3 py-2 text-left font-medium">Recorded</th>
               <th className="px-3 py-2 text-right font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isSelected = row.key === selectedRow.key;
+              const isSelected = row.key === selectedRow?.key;
               return (
                 <tr
                   key={row.key}
                   className={isSelected ? 'bg-accent/5' : 'border-t border-border/60'}
                 >
                   <td className="px-3 py-2 align-top">
-                    <button
-                      type="button"
-                      className="text-left font-medium text-foreground underline-offset-4 hover:underline"
-                      onClick={() => setSelectedRowKey(row.key)}
-                    >
-                      {row.label}
-                    </button>
+                    {row.canView ? (
+                      <button
+                        type="button"
+                        className="text-left font-medium text-foreground underline-offset-4 hover:underline"
+                        onClick={() => toggleRowSelection(row.key, setSelectedRowKey)}
+                      >
+                        {row.label}
+                      </button>
+                    ) : (
+                      <span className="font-medium text-foreground">{row.label}</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 align-top text-muted-foreground">{row.typeLabel}</td>
                   <td className="px-3 py-2 align-top text-muted-foreground">
-                    {row.sizeBytes !== null ? formatArtifactSize(row.sizeBytes) : '—'}
-                  </td>
-                  <td className="px-3 py-2 align-top text-muted-foreground">
-                    {formatEntryTimestamp(row.createdAt)}
+                    {formatEntryTimestamp(row.createdAt) ?? '—'}
                   </td>
                   <td className="px-3 py-2 align-top">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant={isSelected ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setSelectedRowKey(row.key)}
-                      >
-                        {row.rowKind === 'artifact'
-                          ? 'Preview'
-                          : row.rowKind === 'inline'
-                            ? 'Read'
-                            : 'Details'}
-                      </Button>
+                      {row.canView ? (
+                        <Button
+                          type="button"
+                          variant={isSelected ? 'secondary' : 'ghost'}
+                          size="sm"
+                          onClick={() => toggleRowSelection(row.key, setSelectedRowKey)}
+                        >
+                          {isSelected ? 'Hide' : 'View'}
+                        </Button>
+                      ) : null}
                       {row.rowKind === 'artifact' ? (
                         <ArtifactDownloadButton
                           row={row}
@@ -105,25 +103,34 @@ export function WorkflowDeliverableBrowser(props: {
         </table>
       </div>
 
-      <section className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="grid gap-1">
-            <p className="text-sm font-semibold text-foreground">{selectedRow.label}</p>
-            <p className="text-xs text-muted-foreground">{selectedRow.typeLabel}</p>
+      {selectedRow && selectedRow.canView ? (
+        <section className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="grid gap-1">
+              <p className="text-sm font-semibold text-foreground">{selectedRow.label}</p>
+              <p className="text-xs text-muted-foreground">{selectedRow.typeLabel}</p>
+            </div>
           </div>
-        </div>
-        {selectedRow.rowKind === 'artifact' ? (
-          <ArtifactPreviewPanel row={selectedRow} />
-        ) : selectedRow.rowKind === 'inline' ? (
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
-            {selectedRow.content}
-          </pre>
-        ) : (
-          <WorkflowDeliverableTargetLink target={selectedRow.target} />
-        )}
-      </section>
+          {selectedRow.rowKind === 'artifact' ? (
+            <ArtifactPreviewPanel row={selectedRow} />
+          ) : selectedRow.rowKind === 'inline' ? (
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
+              {selectedRow.content}
+            </pre>
+          ) : (
+            <WorkflowDeliverableTargetLink target={selectedRow.target} />
+          )}
+        </section>
+      ) : null}
     </div>
   );
+}
+
+function toggleRowSelection(
+  rowKey: string,
+  setSelectedRowKey: (value: string | null | ((current: string | null) => string | null)) => void,
+): void {
+  setSelectedRowKey((current) => (current === rowKey ? null : rowKey));
 }
 
 export { resolveBrowserDownloadHref } from './workflow-deliverable-browser-support.js';

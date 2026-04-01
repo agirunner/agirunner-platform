@@ -126,4 +126,58 @@ describe('WorkflowDeliverableService query scopes', () => {
       includeWorkflowScope: true,
     });
   });
+
+  it('removes stale artifact targets when the backing artifact row no longer exists', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_output_descriptors')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'descriptor-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'artifact_bundle',
+              delivery_stage: 'final',
+              title: 'Completion packet',
+              state: 'final',
+              summary_brief: 'Fallback summary remains available.',
+              preview_capabilities_json: {},
+              primary_target_json: {
+                label: 'missing.md',
+                path: 'artifact:workflow/docs/missing.md',
+                artifact_id: '13e16b95-b515-4112-8f2e-46dae3e1e532',
+                url: '/api/v1/tasks/task-1/artifacts/13e16b95-b515-4112-8f2e-46dae3e1e532/preview',
+              },
+              secondary_targets_json: [],
+              content_preview_json: {
+                summary: 'Fallback summary remains available.',
+              },
+              source_brief_id: null,
+              created_at: new Date('2026-03-27T18:00:00.000Z'),
+              updated_at: new Date('2026-03-27T18:00:00.000Z'),
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_artifacts')) {
+        expect(params).toEqual([
+          'tenant-1',
+          ['13e16b95-b515-4112-8f2e-46dae3e1e532'],
+        ]);
+        return { rowCount: 0, rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.listDeliverables('tenant-1', 'workflow-1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.primary_target).toEqual({});
+    expect(result[0]?.summary_brief).toBe('Fallback summary remains available.');
+  });
 });

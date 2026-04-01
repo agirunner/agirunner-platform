@@ -60,10 +60,10 @@ export function WorkflowDetails(props: {
   });
 
   return (
-    <section className="flex min-h-full flex-1 flex-col gap-4 pb-1 pr-1">
+    <section className="flex h-full min-h-0 flex-1 flex-col gap-4 pb-1 pr-1">
       <p className="text-sm text-foreground">{scope.latestStatus}</p>
 
-      <div className="grid gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         <BriefSection title="What was asked">
           <Narrative paragraphs={whatWasAsked} fallback="No operator brief is attached yet." />
         </BriefSection>
@@ -72,7 +72,7 @@ export function WorkflowDetails(props: {
           <Narrative paragraphs={currentState} fallback="Current workflow state is still loading." />
         </BriefSection>
 
-        <BriefSection title="What exists now">
+        <BriefSection title="What exists now" className="flex min-h-0 flex-1 flex-col">
           <WhatExistsNowBody rows={whatExistsNow.rows} files={whatExistsNow.files} />
         </BriefSection>
       </div>
