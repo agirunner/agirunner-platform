@@ -38,19 +38,7 @@ export function sanitizeWorkflowReadModel(workflow: Record<string, unknown>) {
 }
 
 export function sanitizeTaskReadModel(task: Record<string, unknown>) {
-  return {
-    ...task,
-    input: sanitizeTaskPayload(task.input),
-    context: sanitizeTaskPayload(task.context),
-    output: sanitizeTaskPayload(task.output),
-    error: sanitizeTaskPayload(task.error),
-    role_config: sanitizeTaskPayload(task.role_config),
-    environment: sanitizeTaskPayload(task.environment),
-    resource_bindings: sanitizeTaskPayload(task.resource_bindings),
-    metrics: sanitizeTaskPayload(task.metrics),
-    git_info: sanitizeTaskPayload(task.git_info),
-    metadata: sanitizeTaskPayload(task.metadata),
-  };
+  return sanitizeTaskPayload(task);
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {
@@ -122,7 +110,7 @@ function sanitizeTaskPayload(value: unknown) {
   return sanitizeSecretLikeValue(value, {
     redactionValue: 'redacted://task-secret',
     allowSecretReferences: false,
-  });
+  }) as Record<string, unknown>;
 }
 
 function normalizeWorkflowWorkItemSummary(
