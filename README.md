@@ -5,23 +5,27 @@
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/github/license/agirunner/agirunner-platform)](./LICENSE)
 
-Control plane for Agirunner.
+API-first agent orchestration plane and operator surface for Agirunner.
 
-The Agirunner Platform is the system that defines, launches, routes,
-observes, and governs work. It owns playbooks, workflows, work items,
-approvals, operator-facing state, the dashboard, the public API, and the
-runtime fleet management surfaces that tell execution systems what to do
-next.
+The Agirunner Platform is the part of Agirunner that defines work,
+launches it, routes it, presents it to operators, and keeps the system
+coherent over time. It owns playbooks, workflows, work items,
+activations, approvals, operator-visible state, the dashboard, the
+public API, and the fleet-management surfaces that tell runtimes what
+contracts apply next.
 
-If the runtime is the part of Agirunner that does the work, the platform
-is the part that decides what work exists, which contracts apply, what
-operators should see, and how the product remains coherent over time.
+If `agirunner-runtime` is the execution plane, `agirunner-platform` is
+the place where that work gets meaning. This is the repository that
+matters when you want to change how Agirunner launches work, how it
+appears in the dashboard, how it exposes control surfaces over the API,
+or how it coordinates runtimes and workers across a live stack.
 
 Builders are welcome here.
 
-If you care about workflow orchestration, operator UX, approvals and
-assessments, API design, observability, or the platform/runtime
-boundary, this is the repository where those product surfaces live.
+If you care about workflow orchestration, operator UX, playbook-driven
+work systems, approvals and assessments, runtime fleet management, or
+the platform/runtime boundary, this is the public implementation repo
+where those product surfaces live.
 
 ## Documentation
 
@@ -36,177 +40,92 @@ Useful platform entry points:
 - [API Overview](https://docs.agirunner.dev/api/)
 - [Architecture Overview](https://docs.agirunner.dev/architecture/overview/)
 
-For the public product quick start, start with
+If you want the public product quick start, start with
 [`agirunner`](https://github.com/agirunner/agirunner). This repository
-is the right place when you want to work on the platform implementation
-itself.
+is the right starting point when you want to work on the platform
+implementation itself.
 
-## Why This Exists
+## Why This Repo Matters
 
-An agent runtime can execute tasks, but it cannot by itself provide a
-product-quality workflow system.
+An execution runtime can claim tasks and do work, but it cannot by
+itself provide a real workflow product.
 
-The platform exists to provide that control plane:
+The platform exists to provide that product layer:
 
-- It turns authored playbooks and current workflow state into explicit execution contracts.
+- It turns authored playbooks and live workflow state into explicit execution contracts.
 - It gives operators a real dashboard instead of a thin log viewer.
-- It exposes a public API for launching and supervising work programmatically.
-- It records approvals, rework, history, artifacts, and other workflow state as durable product surfaces.
+- It exposes a public API for launching, steering, and supervising work programmatically.
+- It records approvals, rework, evidence, artifacts, and history as durable product surfaces.
 - It keeps workflow meaning in the platform and execution mechanics in the runtime, so the boundary stays understandable.
 
 That separation is the point. `agirunner-runtime` owns claiming work,
-preparing environments, running the agent loop, executing tools, and
-capturing results. `agirunner-platform` owns the meaning of the work and
-the surfaces people and systems use to direct it.
+preparing environments, running agent loops, executing tools, and
+capturing results. `agirunner-platform` owns the meaning of the work
+and the surfaces people and systems use to direct it.
 
-## Where It Fits
+## What Lives Here
 
-```text
-agirunner
-  └─ full-stack entry point, product docs, roadmap, and release framing
+The platform repo currently owns the major control-plane and operator
+surfaces in the stack:
 
-agirunner-platform
-  └─ control plane
-     - dashboard and public API
-     - playbooks, workflows, and work items
-     - routing and orchestration activations
-     - approvals, assessments, and operator state
-     - model, role, tool, and environment policy
-     - fleet management and runtime-facing contracts
-
-agirunner-runtime
-  └─ execution plane
-     - claim task
-     - prepare workspace
-     - run isolated execution
-     - execute tools
-     - capture outputs and artifacts
-     - report status and logs back
-```
-
-Within a running system, the platform flow looks like this:
-
-```text
-Operator or API client launches workflow
-                |
-                v
-Platform creates workflow, work items, and activation state
-                |
-                v
-Orchestrator is activated with current workflow context
-                |
-                v
-Platform routes work and issues task contracts
-                |
-                v
-Runtime claims tasks and executes them
-                |
-                v
-Platform stores logs, artifacts, approvals, and operator-visible results
-```
-
-## What Makes The Platform Valuable
-
-### Workflow system, not prompt session
-
-The platform lets teams define reusable process through playbooks, then
-launch that process repeatedly with new context. That is a much better
-operating model than treating every run as a fresh ad hoc prompt.
-
-### Real operator surfaces
-
-The dashboard is part of the product contract. Operators can launch
-work, watch board state, inspect evidence, steer workflows, review
-deliverables, and manage settings without dropping into raw logs or
-database state.
-
-### API-first control plane
-
-The same control plane that powers the dashboard is exposed through the
-platform API, which means Agirunner can be embedded into larger systems
-instead of being trapped inside one UI.
-
-### Explicit runtime contracts
-
-The platform resolves model, role, tool, and environment policy before a
-task reaches the runtime. That keeps execution explicit and reduces the
-chance that workflow semantics leak into the execution layer.
-
-### Evidence and continuity
-
-Artifacts, logs, workspace records, approvals, and history are durable
-product surfaces. The platform stores and presents them so operators can
-understand what happened and what should happen next.
-
-## Dashboard And API Surfaces
-
-The platform currently ships major operator and integration surfaces
-such as:
-
-- Mission Control workflow operations
-- playbook and workspace authoring
-- specialist, skill, model, and tool configuration
-- runtime environment and settings management
-- live logs and live container diagnostics
-- API keys and platform-wide settings
-- public API route groups for workflows, tasks, workspaces, artifacts, logs, runtimes, workers, and integrations
-
-Reference docs:
-
-- [`docs.agirunner.dev/dashboard/overview/`](https://docs.agirunner.dev/dashboard/overview/)
-- [`docs.agirunner.dev/platform/overview/`](https://docs.agirunner.dev/platform/overview/)
-- [`docs.agirunner.dev/api/`](https://docs.agirunner.dev/api/)
+- the dashboard, including Mission Control, workflows, approvals, logs, settings, and runtime operations
+- the public platform API used by the dashboard and external integrations
+- playbooks, workflows, work items, tasks, activations, and routing state
+- operator-facing approvals, assessments, rework, continuity, and artifact records
+- model, role, tool, MCP, workspace, and environment policy surfaces
+- the container-manager that coordinates runtime pools, worker lifecycle, and execution-fleet posture
 
 ## Platform Development Quick Start
 
+This path is for contributors working on the platform repo directly. If
+you only want to run Agirunner as a product, use the top-level stack in
+[`agirunner`](https://github.com/agirunner/agirunner) instead.
+
 ```bash
 git clone https://github.com/agirunner/agirunner-platform
-cd agirunner-platform
+git clone https://github.com/agirunner/agirunner-runtime ../agirunner-runtime
 
+cd agirunner-platform
 corepack pnpm install
 cp .env.example .env
 
-# For now, build the local runtime image once before bringing up the stack.
-git clone https://github.com/agirunner/agirunner-runtime ../agirunner-runtime
 docker build -t agirunner-runtime:local ../agirunner-runtime
 
 printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\n" \
   "$(openssl rand -hex 32)" \
   "$(openssl rand -hex 32)" \
   "$(openssl rand -hex 16)"
-
-docker compose up -d
-corepack pnpm dev
 ```
-
-This path is for working on the platform repo directly. If you only want
-to run Agirunner locally, use the top-level stack in
-[`agirunner`](https://github.com/agirunner/agirunner) instead.
 
 Generate values with the command above, then paste them into `.env`
 before you continue.
 
+Then start the local stack:
+
+```bash
+docker compose up -d
+corepack pnpm dev
+```
+
 After startup:
 
-- open the dashboard at `http://localhost:3000`
-- the platform API listens at `http://localhost:8080`
-- sign in with the `DEFAULT_ADMIN_API_KEY` value from your `.env`
+1. Open the dashboard at `http://localhost:3000`.
+2. Sign in with `DEFAULT_ADMIN_API_KEY` from your `.env`.
+3. The platform API is available at `http://localhost:8080`.
+4. Go to **Platform -> Models**, connect a provider, and set the
+   default model route before trying to run useful workflow work.
 
-If you created `.env` by copying `.env.example`, the admin key is the
-`DEFAULT_ADMIN_API_KEY=...` value in that file. Replace it with your own
-bootstrap key before sharing the environment. The first-boot seed path
+If you created `.env` from `.env.example`, the bootstrap admin key is
+already present on the `DEFAULT_ADMIN_API_KEY=...` line. Replace it
+with your own value before sharing the stack. The first-boot seed path
 expects that value to start with `ab_admin_def`.
 
-The platform API runs migrations and seed/bootstrap work during startup,
-so there is no separate `db:migrate` command to run in the root
-workspace. Schema ownership and migration policy live in
+The platform API applies migrations and seed/bootstrap work during
+startup, so there is no separate root-level migration command to run.
+Schema ownership and migration policy live in
 [`MIGRATIONS.md`](./MIGRATIONS.md).
 
-The stack still needs at least one working model provider before
-workflows can execute useful work. After first login, go to
-**Platform -> Models**, configure a provider, and set a default route.
-
-### Compose Default Topology
+## Compose Default Topology
 
 `docker compose up -d` brings up the local control plane and its
 execution wiring:
@@ -220,14 +139,7 @@ execution wiring:
 The platform then coordinates runtime and worker processes and task
 execution containers as workflows start moving.
 
-Security defaults in the local stack include:
-
-- runtime and worker access mediated through the container manager and socket proxy
-- secrets supplied through `.env` and runtime mounts instead of being baked into images
-- the default admin login key coming from `DEFAULT_ADMIN_API_KEY`
-- task containers using an image with git tooling present for repository materialization
-
-### Runtime Image Strategy
+## Runtime Image Bootstrap
 
 This repo's local Compose path reads one runtime-image setting from
 `.env`:
@@ -237,107 +149,78 @@ RUNTIME_IMAGE=agirunner-runtime:local
 ```
 
 The container manager uses that value as its bootstrap default, and the
-platform uses the same value when it seeds the first runtime-image
+platform uses the same value when it seeds the initial runtime-image
 records for a fresh tenant. After that, runtime image choices belong to
 the product: operators can override, rotate, or revoke them from the
-dashboard or API without editing `.env` again. Today the bootstrap
-default is `agirunner-runtime:local` because the public runtime image is
-not published yet.
+dashboard or API without editing `.env` again.
 
-That is a contributor convenience, not the long-term product posture.
-Once the runtime image is published, switching the platform repo over to
-GHCR is a one-line `.env` change:
+Today the bootstrap default is `agirunner-runtime:local` because the
+public runtime image is not published yet. Once the runtime image is
+published, switching this repo over to GHCR is a one-line `.env`
+change:
 
 ```env
 RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
 ```
 
 If you remove `RUNTIME_IMAGE` entirely, bootstrap falls back to
-`agirunner-runtime:local`. The `.env` value is there to pick the initial
-image family, not to lock the product forever. After first boot, review
-or override runtime images in the dashboard under runtime defaults and
-orchestrator pool settings.
+`agirunner-runtime:local`. The `.env` value is there to choose the
+initial image family, not to lock the product forever.
 
-## Database Schema
+## Architecture Boundary
 
-`agirunner-platform` owns the database schema for the product stack.
+Keep this split in mind when deciding whether a change belongs here or
+in `agirunner-runtime`.
 
-- pending SQL migrations run automatically on API startup
-- applied filenames are tracked in `schema_migrations`
-- the current pre-`0.1.0` line uses a single canonical baseline migration
-- post-launch schema changes should land as forward-only migrations, not
-  history rewrites
+| Concern | Platform | Runtime |
+| --- | --- | --- |
+| Playbooks, workflows, work items, approvals, governance | Owns it | Consumes explicit contracts only |
+| Dashboard and public API | Owns it | Does not own it |
+| Model, role, tool, environment policy | Resolves and delivers contracts | Executes the delivered contract |
+| Runtime pools and worker desired state | Coordinates | Follows the platform-issued contract |
+| Task claiming and execution | Coordinates and records | Performs the execution |
+| Workspace creation, tool execution, result capture | Describes requirements | Does the work |
 
-See [`MIGRATIONS.md`](./MIGRATIONS.md) for the authoring and upgrade
-policy.
+If the behavior changes because of workflow meaning, operator state, or
+public API behavior, it probably belongs here. If it changes because of
+execution mechanics, tool transport, workspace setup, or task-container
+behavior, it probably belongs in
+[`agirunner-runtime`](https://github.com/agirunner/agirunner-runtime).
 
-## Platform Image Workflows
+## Repository Map
 
-This repository includes the same release workflow pattern as the
-runtime repo, but it covers all three platform images:
+```text
+apps/platform-api/          Fastify API, orchestration services, persistence
+apps/dashboard/             operator UI for workflows, approvals, logs, and config
+packages/sdk/               shared TypeScript SDK surface
+services/container-manager/ Go service for runtime and worker lifecycle
+tests/integration/          dashboard-backed integration coverage
+tests/live/                 live workflow verification harness
+```
 
-- `ghcr.io/<owner>/agirunner-platform-api`
-- `ghcr.io/<owner>/agirunner-platform-dashboard`
-- `ghcr.io/<owner>/agirunner-platform-container-manager`
+## Testing
 
-Versioning convention:
+Every feature or fix needs tests.
 
-- Git tags and GitHub releases: `v0.1.0-alpha.1`, `v0.1.0-beta.1`,
-  `v0.1.0-rc.1`, `v0.1.0`
-- image tags: `0.1.0-alpha.1`, `0.1.0-beta.1`, `0.1.0-rc.1`, `0.1.0`
-- every published release also moves `latest`, including prereleases,
-  so `latest` reflects the newest published platform image set
-
-See the product-level versioning policy at
-[`docs.agirunner.dev/operate/upgrades-and-versioning/`](https://docs.agirunner.dev/operate/upgrades-and-versioning/).
-
-Manual workflows:
-
-- `.github/workflows/platform-manual-build.yml`
-  - runs `corepack pnpm test`
-  - builds all three platform images in the GitHub runner with the provided tag
-- `.github/workflows/platform-manual-publish.yml`
-  - runs `corepack pnpm test`
-  - publishes all three platform images with the provided tag
-
-Release workflow:
-
-- `.github/workflows/platform-release-publish.yml`
-  - triggers on pushed tags matching `v*`
-  - runs `corepack pnpm test`
-  - publishes all three platform images with `<tag-without-leading-v>`
-  - also tags all three images as `latest`
-
-These workflows do not publish anything until you trigger them manually
-or push a matching release tag.
-
-## Development
+Common lanes:
 
 ```bash
 corepack pnpm test
 corepack pnpm test:v2-contract
 corepack pnpm test:integration:dashboard
-corepack pnpm lint
-corepack pnpm build
+cd services/container-manager && go test ./...
 ```
 
-If you need to work on the fleet coordinator directly:
+If you change:
 
-```bash
-cd services/container-manager
-go test ./...
-```
+- platform API contracts, add or update API-level coverage
+- dashboard behavior, prefer deterministic browser or integration coverage for user-visible regressions
+- orchestration or workflow legality, add regression coverage around the affected decision point
+- container-manager behavior, add Go regression coverage in `services/container-manager`
 
-## Testing Documentation
+## More Root Docs
 
-- `docs/testing/test-plan-v1.0.md`
-- `tests/reports/test-cases.v1.json`
-- `tests/reports/results.v1.json`
-- `tests/reports/batch-results.v1.json`
-- `docs/testing/scenario-requirements-map.md`
-- `tests/live/README.md`
-
-## Related Repos
-
-- [agirunner](https://github.com/agirunner/agirunner): top-level product docs, roadmap, and full-stack entry point
-- [agirunner-runtime](https://github.com/agirunner/agirunner-runtime): execution plane, tool execution, isolated workspaces, and runtime capture
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor setup and repo-boundary guidance
+- [SECURITY.md](./SECURITY.md) for security reporting and operator expectations
+- [CHANGELOG.md](./CHANGELOG.md) for the current `0.1.0` pre-release snapshot
+- [MIGRATIONS.md](./MIGRATIONS.md) for database schema ownership and migration policy

@@ -1,30 +1,31 @@
 # Security Policy
 
-This repository contains the Agirunner control plane.
+This repository contains the public Agirunner control plane.
 
-If you discover a security vulnerability in `agirunner-platform`, please
-report it responsibly. **Do not open a public GitHub issue.**
+If you discover a vulnerability in `agirunner-platform`, please report
+it responsibly. **Do not open a public GitHub issue for security
+findings.**
 
-## Reporting a Vulnerability
+## Reporting A Vulnerability
 
 Email **admin@agirunner.dev** with:
 
-- Description of the issue
-- Steps to reproduce or validate it
-- Affected platform surface or configuration
-- Severity assessment, if you have one
-- Any suggested fix or mitigation, if available
+- a clear description of the issue
+- steps to reproduce or validate it
+- the affected platform surface or configuration
+- your severity assessment, if you have one
+- any suggested fix or mitigation, if available
 
-## What to Expect
+## What To Expect
 
 We aim to respond within these targets:
 
 | Target | Action |
-|--------|--------|
-| 24 hours | We acknowledge receipt of your report |
-| 72 hours | We provide an initial assessment and severity rating |
-| 7 days | We have a fix in progress or a mitigation plan |
-| 30 days | We release a fix, or sooner for critical issues |
+| --- | --- |
+| 24 hours | Acknowledge receipt of your report |
+| 72 hours | Provide an initial assessment and severity rating |
+| 7 days | Have a fix in progress or a mitigation plan |
+| 30 days | Release a fix, or sooner for critical issues |
 
 ## Scope
 
@@ -38,14 +39,22 @@ Agirunner repositories, see
 
 During the initial public rollout:
 
-- Until `0.1.0` is released, `main` is the supported pre-release line and receives fixes.
-- After `0.1.0` is released, the latest public platform release line is supported.
-- Older release lines are out of scope unless explicitly noted in release notes.
+- until `0.1.0` is released, `main` is the supported pre-release line
+  and receives fixes
+- after `0.1.0` is released, the latest public platform release line is
+  supported
+- older release lines are out of scope unless explicitly noted in
+  release notes
 
-## Platform Operator Guidance
+## Operator Guidance
 
-- Keep the platform API image, dashboard build, Postgres, container manager, and base images updated.
-- Use strong admin, JWT, webhook, storage, and provider credentials, and rotate them when ownership or exposure changes.
-- Put TLS, authentication, and network controls in front of platform endpoints.
-- Restrict database, socket-proxy, and container-manager access to trusted hosts and operators only.
-- Review artifact-storage permissions and log-retention settings with the same care as other production data surfaces.
+- Keep the platform API image, dashboard build, Postgres,
+  container-manager, and base images updated.
+- Use strong admin, JWT, webhook, storage, and provider credentials,
+  and rotate them when ownership or exposure changes.
+- Put TLS, authentication, and network controls in front of platform
+  endpoints.
+- Restrict database, socket-proxy, and container-manager access to
+  trusted hosts and operators only.
+- Review artifact-storage permissions and log-retention settings with
+  the same care as other production data surfaces.

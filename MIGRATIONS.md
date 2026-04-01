@@ -9,8 +9,8 @@ records each applied filename in `schema_migrations`.
 
 ## Current Policy
 
-- Pre-`0.1.0`, the migration chain MAY still be consolidated or reset if
-  that keeps the public baseline cleaner before launch.
+- Pre-`0.1.0`, the migration chain MAY still be consolidated or reset
+  if that keeps the public baseline cleaner before launch.
 - After the first public release, applied migration history MUST be
   treated as forward-only. Do not rewrite or delete released migration
   files.
@@ -28,11 +28,11 @@ records each applied filename in `schema_migrations`.
 
 ## Authoring Rules
 
-- Add a new migration whenever a released schema, index, enum, function,
-  or persistent data contract needs to change.
+- Add a new migration whenever a released schema, index, enum,
+  function, or persistent data contract needs to change.
 - Use a unique, increasing numeric filename prefix going forward.
-- Prefer additive, compatibility-minded changes whenever the product may
-  already be deployed.
+- Prefer additive, compatibility-minded changes whenever the product
+  may already be deployed.
 - Backfills, destructive changes, or contract-sensitive reshapes SHOULD
   be split into staged migrations when that lowers upgrade risk.
 - If a migration changes public setup, contributor setup, or operator
@@ -45,13 +45,13 @@ records each applied filename in `schema_migrations`.
   baseline.
 - Add targeted integration coverage for risky backfills, destructive
   transitions, or compatibility-sensitive upgrades.
-- Delete migration replay tests once the historical path they protect is
-  no longer part of the supported contract.
+- Delete migration replay tests once the historical path they protect
+  is no longer part of the supported contract.
 
 ## Operational Posture
 
 - Startup is the normal migration path. There is no separate root-level
   `db:migrate` command for the public stack.
-- Treat upgrades as roll-forward only unless an explicit rollback path is
-  documented for a specific release.
+- Treat upgrades as roll-forward only unless an explicit rollback path
+  is documented for a specific release.
 - Back up real environments before applying schema-changing releases.
