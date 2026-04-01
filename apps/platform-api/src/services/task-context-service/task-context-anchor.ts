@@ -168,6 +168,7 @@ function buildOrchestratorCurrentFocus(
     const nextDispatch = pendingDispatches[0];
     return {
       lifecycle,
+      work_item_id: nextDispatch.work_item_id,
       stage_name: nextDispatch.stage_name ?? activeStageName,
       next_expected_actor: nextDispatch.actor,
       next_expected_action: nextDispatch.action,
@@ -187,6 +188,7 @@ function buildOrchestratorCurrentFocus(
   if (nextExpectedActor || nextExpectedAction || boardPosition || focusedStageName) {
     return {
       lifecycle,
+      work_item_id: asOptionalString(focusedWorkItem.id) ?? null,
       stage_name: focusedStageName ?? activeStageName,
       board_position: boardPosition,
       next_expected_actor: nextExpectedActor,
@@ -198,6 +200,7 @@ function buildOrchestratorCurrentFocus(
     return {
       lifecycle,
       stage_name: activeStageName,
+      work_item_seed_required: true,
       next_expected_actor: 'orchestrator',
       next_expected_action: 'seed the first work item and starter specialist task for the current stage',
     };
@@ -238,13 +241,27 @@ function renderOrchestratorExecutionBrief(
     const lifecycle = asOptionalString(currentFocus.lifecycle);
     const stageName = asOptionalString(currentFocus.stage_name);
     const boardPosition = asOptionalString(currentFocus.board_position);
+    const workItemId = asOptionalString(currentFocus.work_item_id);
+    const workItemSeedRequired = currentFocus.work_item_seed_required === true;
     const nextExpectedActor = asOptionalString(currentFocus.next_expected_actor);
     const nextExpectedAction = asOptionalString(currentFocus.next_expected_action);
     if (lifecycle) lines.push(`Lifecycle: ${lifecycle}`);
     if (stageName) lines.push(`Stage: ${stageName}`);
     if (boardPosition) lines.push(`Board position: ${boardPosition}`);
+    if (workItemId) lines.push(`Work item id: ${workItemId}`);
     if (nextExpectedActor) lines.push(`Next expected actor: ${nextExpectedActor}`);
     if (nextExpectedAction) lines.push(`Next expected action: ${nextExpectedAction}`);
+    if (workItemSeedRequired) {
+      lines.push(
+        'No work item exists yet. Create the first work item and starter specialist task for this stage in the current activation.',
+      );
+      lines.push(
+        'Do not call list_workflow_tasks, read_work_item_continuity, or handoff-read tools until create_work_item succeeds and returns the exact work_item_id.',
+      );
+      lines.push(
+        'Never invent work_item_id values from stage names or titles. Only use exact UUIDs returned by platform tools.',
+      );
+    }
   }
 
   if (Object.keys(operatorVisibility).length > 0) {

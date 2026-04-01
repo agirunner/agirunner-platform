@@ -33,6 +33,7 @@ describe('buildOrchestratorExecutionBrief', () => {
       expect.objectContaining({
         current_focus: expect.objectContaining({
           lifecycle: 'planned',
+          work_item_id: 'wi-1',
           stage_name: 'reproduce',
           next_expected_actor: 'Software Developer',
           next_expected_action: 'investigate',
@@ -67,10 +68,17 @@ describe('buildOrchestratorExecutionBrief', () => {
         current_focus: expect.objectContaining({
           lifecycle: 'planned',
           stage_name: 'reproduce',
+          work_item_seed_required: true,
           next_expected_actor: 'orchestrator',
           next_expected_action: 'seed the first work item and starter specialist task for the current stage',
         }),
       }),
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'No work item exists yet. Create the first work item and starter specialist task for this stage in the current activation.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Never invent work_item_id values from stage names or titles.',
     );
   });
 });

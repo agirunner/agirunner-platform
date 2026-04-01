@@ -99,6 +99,7 @@ describe('buildTaskContext orchestrator execution brief', () => {
     expect(((context as Record<string, any>).execution_brief ?? {}).current_focus).toEqual(
       expect.objectContaining({
         lifecycle: 'planned',
+        work_item_id: 'wi-reproduce',
         stage_name: 'reproduce',
         next_expected_actor: 'Software Developer',
         next_expected_action: 'investigate',
@@ -106,6 +107,9 @@ describe('buildTaskContext orchestrator execution brief', () => {
     );
     expect(((context as Record<string, any>).execution_brief ?? {}).rendered_markdown).toContain(
       'Next expected actor: Software Developer',
+    );
+    expect(((context as Record<string, any>).execution_brief ?? {}).rendered_markdown).toContain(
+      'Work item id: wi-reproduce',
     );
   });
 });
