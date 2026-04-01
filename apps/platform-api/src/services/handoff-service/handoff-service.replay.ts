@@ -4,6 +4,7 @@ import { areJsonValuesEquivalent } from '../json-equivalence.js';
 import { logSafetynetTriggered } from '../safetynet/logging.js';
 import {
   PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
+  PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID,
   mustGetSafetynetEntry,
 } from '../safetynet/registry.js';
 import { completionCalloutsSchema } from '../guided-closure/types.js';
@@ -25,6 +26,9 @@ import {
 
 const HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
+);
+const HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID,
 );
 
 function normalizeCompletionCalloutsValue(value: unknown) {
@@ -151,12 +155,24 @@ export function buildReplayConflictError(
         : null,
     replay_conflict_fields: replayConflictFields,
   });
+  logSafetynetTriggered(
+    HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET,
+    'submit_handoff replay conflict returned recoverable operator guidance',
+    {
+      task_id: task?.id ?? existing.task_id,
+      workflow_id: task?.workflow_id ?? existing.workflow_id,
+      work_item_id: task?.work_item_id ?? existing.work_item_id,
+      handoff_id: existing.id,
+      reason_code: 'submit_handoff_replay_conflict',
+    },
+  );
   return new ConflictError(
     'submit_handoff replay conflicted with the persisted handoff for this task attempt',
     {
       reason_code: 'submit_handoff_replay_conflict',
       recovery_hint: 'inspect_persisted_handoff_or_use_new_request_id',
       recoverable: true,
+      safetynet_behavior_id: HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET.id,
       task_state: task?.state ?? null,
       task_id: task?.id ?? existing.task_id,
       workflow_id: task?.workflow_id ?? existing.workflow_id,

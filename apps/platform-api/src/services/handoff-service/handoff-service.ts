@@ -2,6 +2,11 @@ import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ConflictError, ValidationError } from '../../errors/domain-errors.js';
 import type { LogService } from '../../logging/execution/log-service.js';
 import { logPredecessorHandoffResolution } from '../../logging/workflow-events/predecessor-handoff-log.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import {
+  PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
+  mustGetSafetynetEntry,
+} from '../safetynet/registry.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkflowTaskDeliverablePromotionService } from '../workflow-deliverables/workflow-task-deliverable-promotion-service.js';
@@ -40,6 +45,10 @@ import type {
   TaskHandoffRow,
 } from './handoff-service.types.js';
 
+const HANDOFF_REQUIRED_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
+);
+
 export class HandoffService {
   constructor(
     readonly pool: DatabasePool,
@@ -77,10 +86,21 @@ export class HandoffService {
       return;
     }
 
+    logSafetynetTriggered(
+      HANDOFF_REQUIRED_GUIDANCE_SAFETYNET,
+      'task completion requires a structured handoff before completion can proceed',
+      {
+        task_id: taskId,
+        workflow_id: readOptionalString(task.workflow_id),
+        work_item_id: readOptionalString(task.work_item_id),
+        reason_code: 'required_structured_handoff',
+      },
+    );
     throw new ValidationError('Task requires a structured handoff before completion', {
       reason_code: 'required_structured_handoff',
       recoverable: true,
       recovery_hint: 'submit_required_handoff',
+      safetynet_behavior_id: HANDOFF_REQUIRED_GUIDANCE_SAFETYNET.id,
       recovery: {
         status: 'action_required',
         reason: 'required_structured_handoff',

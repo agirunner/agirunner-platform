@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
+
 import { ValidationError } from '../../../src/errors/domain-errors.js';
 import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
+import {
+  PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
+  mustGetSafetynetEntry,
+} from '../../../src/services/safetynet/registry.js';
+
+const REQUIRED_HANDOFF_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
+);
 
 describe('HandoffService completion gate', () => {
   it('requires a structured handoff before completing a workflow-linked task', async () => {
@@ -28,6 +41,7 @@ describe('HandoffService completion gate', () => {
         reason_code: 'required_structured_handoff',
         recovery_hint: 'submit_required_handoff',
         recoverable: true,
+        safetynet_behavior_id: REQUIRED_HANDOFF_GUIDANCE_SAFETYNET.id,
         recovery: {
           status: 'action_required',
           reason: 'required_structured_handoff',
@@ -39,6 +53,16 @@ describe('HandoffService completion gate', () => {
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('FROM task_handoffs'),
       ['tenant-1', 'task-1', 0],
+    );
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      REQUIRED_HANDOFF_GUIDANCE_SAFETYNET,
+      'task completion requires a structured handoff before completion can proceed',
+      expect.objectContaining({
+        task_id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        reason_code: 'required_structured_handoff',
+      }),
     );
   });
 

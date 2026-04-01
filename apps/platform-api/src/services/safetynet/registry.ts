@@ -22,6 +22,10 @@ export const PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID =
   'platform.control_plane.unconfigured_gate_advisory';
 export const PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID =
   'platform.handoff.normalization_and_replay_repair';
+export const PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID =
+  'platform.handoff.replay_conflict_guidance';
+export const PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID =
+  'platform.handoff.required_handoff_guidance';
 export const PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID =
   'platform.continuity.stale_write_suppression';
 export const PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID =
@@ -277,6 +281,50 @@ const entries: SafetynetEntry[] = [
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'keep narrow and visible; normalization may only canonicalize safe output references and replay state, not invent workflow meaning',
     status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Handoff replay conflict guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'submit_handoff request_id replay conflicts with the persisted handoff payload for the same task attempt and platform can return recoverable operator guidance instead of a blind dead-end conflict',
+    nominal_contract: 'handoff replay conflicts should surface through explicit recoverable guidance with stable observability instead of ad hoc conflict metadata',
+    intervention: 'platform returns structured replay-conflict guidance and logs the safetynet trigger before rejecting the mutation',
+    risk_if_triggered: 'low; preserves correctness while making replay conflicts recoverable and reviewable',
+    operator_visibility: 'recoverable replay-conflict responses should carry the safetynet id when returned',
+    owner_module: 'src/services/handoff-service/handoff-service.replay.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.handoff.replay_conflict_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep limited to structured submit_handoff replay conflicts; do not reuse for unrelated handoff validation errors',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Required handoff completion guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'task completion reaches a required structured-handoff gate and platform can return recoverable guidance instead of a bare validation failure',
+    nominal_contract: 'required handoff completion blocks should surface through explicit recoverable guidance with stable observability',
+    intervention: 'platform returns structured submit-required-handoff guidance and logs the safetynet trigger before rejecting completion',
+    risk_if_triggered: 'low; preserves correctness while making required-handoff completion blocks explicit and actionable',
+    operator_visibility: 'recoverable required-handoff responses should carry the safetynet id when returned',
+    owner_module: 'src/services/handoff-service/handoff-service.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.handoff.required_handoff_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep limited to required structured-handoff completion guards',
+    status: 'active',
   },
   {
     kind: 'safetynet_behavior',

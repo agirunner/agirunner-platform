@@ -1,8 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: vi.fn(),
+}));
+
 import { ConflictError } from '../../../src/errors/domain-errors.js';
 import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
+import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
+import {
+  PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID,
+  mustGetSafetynetEntry,
+} from '../../../src/services/safetynet/registry.js';
 import { makeHandoffRow, makeTaskRow } from './handoff-service.fixtures.js';
+
+const HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID,
+);
 
 describe('HandoffService replay handling', () => {
   it('returns the existing handoff for an idempotent request replay', async () => {
@@ -290,6 +303,7 @@ describe('HandoffService replay handling', () => {
       reason_code: 'submit_handoff_replay_conflict',
       recovery_hint: 'inspect_persisted_handoff_or_use_new_request_id',
       recoverable: true,
+      safetynet_behavior_id: HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET.id,
       conflict_source: 'same_request_id_different_payload',
       task_contract_satisfied_by_persisted_handoff: false,
       conflicting_request_ids: {
@@ -325,6 +339,16 @@ describe('HandoffService replay handling', () => {
         target_id: 'task-1',
       }),
     ]));
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      HANDOFF_REPLAY_CONFLICT_GUIDANCE_SAFETYNET,
+      'submit_handoff replay conflict returned recoverable operator guidance',
+      expect.objectContaining({
+        task_id: 'task-1',
+        workflow_id: 'workflow-1',
+        reason_code: 'submit_handoff_replay_conflict',
+        handoff_id: 'handoff-1',
+      }),
+    );
   });
 
   it('rejects stale handoff submissions from an older task rework attempt', async () => {
