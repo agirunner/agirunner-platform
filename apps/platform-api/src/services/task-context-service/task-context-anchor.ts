@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { DatabaseQueryable } from '../../db/database.js';
+import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   readPendingDispatches,
   selectFocusedWorkItem,
@@ -166,12 +167,19 @@ function buildOrchestratorCurrentFocus(
   const activeStageName = readCurrentStageName(workflow);
   if (pendingDispatches[0]) {
     const nextDispatch = pendingDispatches[0];
+    const exactAuthoredStageRoles = readExactAuthoredStageRoles(
+      workflow,
+      nextDispatch.stage_name ?? activeStageName,
+    );
     return {
       lifecycle,
       work_item_id: nextDispatch.work_item_id,
       stage_name: nextDispatch.stage_name ?? activeStageName,
       next_expected_actor: nextDispatch.actor,
       next_expected_action: nextDispatch.action,
+      ...(exactAuthoredStageRoles.length > 0
+        ? { exact_authored_stage_roles: exactAuthoredStageRoles }
+        : {}),
     };
   }
 
@@ -185,6 +193,10 @@ function buildOrchestratorCurrentFocus(
   const nextExpectedAction = asOptionalString(focusedWorkItem.next_expected_action) ?? null;
   const boardPosition = asOptionalString(focusedWorkItem.column_id) ?? null;
   const focusedStageName = asOptionalString(focusedWorkItem.stage_name) ?? null;
+  const exactAuthoredStageRoles = readExactAuthoredStageRoles(
+    workflow,
+    focusedStageName ?? activeStageName,
+  );
   if (nextExpectedActor || nextExpectedAction || boardPosition || focusedStageName) {
     return {
       lifecycle,
@@ -193,16 +205,23 @@ function buildOrchestratorCurrentFocus(
       board_position: boardPosition,
       next_expected_actor: nextExpectedActor,
       next_expected_action: nextExpectedAction,
+      ...(exactAuthoredStageRoles.length > 0
+        ? { exact_authored_stage_roles: exactAuthoredStageRoles }
+        : {}),
     };
   }
 
   if (lifecycle === 'planned' && activeStageName) {
+    const seedStageRoles = readExactAuthoredStageRoles(workflow, activeStageName);
     return {
       lifecycle,
       stage_name: activeStageName,
       work_item_seed_required: true,
       next_expected_actor: 'orchestrator',
       next_expected_action: 'seed the first work item and starter specialist task for the current stage',
+      ...(seedStageRoles.length > 0
+        ? { exact_authored_stage_roles: seedStageRoles }
+        : {}),
     };
   }
 
@@ -213,6 +232,33 @@ function buildOrchestratorCurrentFocus(
     lifecycle,
     stage_name: activeStageName,
   };
+}
+
+function readExactAuthoredStageRoles(
+  workflow: Record<string, unknown>,
+  stageName: string | null,
+): string[] {
+  if (!stageName) {
+    return [];
+  }
+
+  const definitionValue = asRecord(workflow.playbook).definition ?? workflow.playbook_definition;
+  if (!definitionValue) {
+    return [];
+  }
+
+  try {
+    const definition = parsePlaybookDefinition(definitionValue);
+    return Array.from(
+      new Set(
+        (definition.stages.find((entry) => entry.name === stageName)?.involves ?? [])
+          .map((name) => name.trim())
+          .filter((name) => name.length > 0),
+      ),
+    );
+  } catch {
+    return [];
+  }
 }
 
 function readCurrentStageName(workflow: Record<string, unknown>): string | null {
@@ -245,12 +291,20 @@ function renderOrchestratorExecutionBrief(
     const workItemSeedRequired = currentFocus.work_item_seed_required === true;
     const nextExpectedActor = asOptionalString(currentFocus.next_expected_actor);
     const nextExpectedAction = asOptionalString(currentFocus.next_expected_action);
+    const exactAuthoredStageRoles = Array.isArray(currentFocus.exact_authored_stage_roles)
+      ? currentFocus.exact_authored_stage_roles
+        .map((value) => asOptionalString(value))
+        .filter((value): value is string => Boolean(value))
+      : [];
     if (lifecycle) lines.push(`Lifecycle: ${lifecycle}`);
     if (stageName) lines.push(`Stage: ${stageName}`);
     if (boardPosition) lines.push(`Board position: ${boardPosition}`);
     if (workItemId) lines.push(`Work item id: ${workItemId}`);
     if (nextExpectedActor) lines.push(`Next expected actor: ${nextExpectedActor}`);
     if (nextExpectedAction) lines.push(`Next expected action: ${nextExpectedAction}`);
+    if (exactAuthoredStageRoles.length > 0) {
+      lines.push(`Exact authored stage roles: ${exactAuthoredStageRoles.join(', ')}`);
+    }
     if (workItemSeedRequired) {
       lines.push(
         'No work item exists yet. Create the first work item and starter specialist task for this stage in the current activation.',

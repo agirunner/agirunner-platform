@@ -84,4 +84,61 @@ describe('buildOrchestratorExecutionBrief', () => {
       'Planning text, thoughts, verify summaries, and failed attempts do not create work items or tasks.',
     );
   });
+
+  it('surfaces exact authored stage roles when the focused work item has no next actor yet', () => {
+    const brief = buildOrchestratorExecutionBrief({
+      workflow: {
+        lifecycle: 'planned',
+        current_stage: 'reproduce',
+        active_stages: ['reproduce'],
+        playbook_definition: {
+          lifecycle: 'planned',
+          board: {
+            columns: [
+              { id: 'planned', label: 'Planned' },
+              { id: 'active', label: 'Active' },
+              { id: 'done', label: 'Done', is_terminal: true },
+            ],
+          },
+          stages: [
+            {
+              name: 'reproduce',
+              goal: 'Reproduce the bug',
+              involves: ['Software Developer', 'Code Reviewer'],
+            },
+          ],
+        },
+      },
+      orchestratorContext: {
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'reproduce',
+              column_id: 'active',
+            },
+          ],
+          pending_dispatches: [],
+        },
+      },
+      workflowLiveVisibility: {
+        mode: 'enhanced',
+        execution_context_id: 'activation-1',
+      },
+    });
+
+    expect(brief).toEqual(
+      expect.objectContaining({
+        current_focus: expect.objectContaining({
+          lifecycle: 'planned',
+          work_item_id: 'wi-1',
+          stage_name: 'reproduce',
+          exact_authored_stage_roles: ['Software Developer', 'Code Reviewer'],
+        }),
+      }),
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Exact authored stage roles: Software Developer, Code Reviewer',
+    );
+  });
 });
