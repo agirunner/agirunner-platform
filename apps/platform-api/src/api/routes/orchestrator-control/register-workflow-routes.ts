@@ -8,6 +8,7 @@ import {
   normalizeOrchestratorChildWorkflowLinkage,
 } from './child-workflows.js';
 import {
+  advanceStageOrNoop,
   buildUnconfiguredGateApprovalAdvisory,
   completeWorkflowOrNoop,
 } from './recoverable-mutations.js';
@@ -122,12 +123,13 @@ export function registerOrchestratorControlWorkflowRoutes(
         'advance_stage',
         body.request_id,
         (client) =>
-          playbookControlService.advanceStage(
+          advanceStageOrNoop(
             request.auth!,
-            taskScope.workflow_id,
+            taskScope,
             params.stageName,
             body,
             client,
+            playbookControlService,
           ),
       );
       return { data: stored };
