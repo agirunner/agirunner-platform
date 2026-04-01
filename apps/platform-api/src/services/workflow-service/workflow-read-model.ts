@@ -38,7 +38,41 @@ export function sanitizeWorkflowReadModel(workflow: Record<string, unknown>) {
 }
 
 export function sanitizeTaskReadModel(task: Record<string, unknown>) {
-  return sanitizeTaskPayload(task);
+  return {
+    id: task.id ?? null,
+    tenant_id: task.tenant_id ?? null,
+    workflow_id: task.workflow_id ?? null,
+    workspace_id: task.workspace_id ?? null,
+    parent_id: task.parent_id ?? null,
+    work_item_id: task.work_item_id ?? null,
+    activation_id: task.activation_id ?? null,
+    title: task.title ?? null,
+    description: task.description ?? null,
+    state: task.state ?? null,
+    priority: task.priority ?? null,
+    execution_backend: task.execution_backend ?? null,
+    used_task_sandbox: task.used_task_sandbox ?? false,
+    role: task.role ?? null,
+    input: sanitizeTaskPayload(task.input),
+    metadata: sanitizeTaskPayload(task.metadata),
+    assigned_agent_id: task.assigned_agent_id ?? null,
+    assigned_worker_id: task.assigned_worker_id ?? null,
+    depends_on: Array.isArray(task.depends_on)
+      ? task.depends_on.filter((value): value is string => typeof value === 'string' && value.length > 0)
+      : [],
+    timeout_minutes: task.timeout_minutes ?? null,
+    auto_retry: task.auto_retry ?? false,
+    max_retries: task.max_retries ?? 0,
+    retry_count: task.retry_count ?? 0,
+    claimed_at: task.claimed_at ?? null,
+    started_at: task.started_at ?? null,
+    completed_at: task.completed_at ?? null,
+    failed_at: task.failed_at ?? null,
+    cancelled_at: task.cancelled_at ?? null,
+    created_at: task.created_at ?? null,
+    updated_at: task.updated_at ?? null,
+    stage_name: task.stage_name ?? null,
+  };
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {
