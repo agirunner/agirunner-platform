@@ -65,6 +65,8 @@ After startup:
 
 The platform API applies migrations and seed/bootstrap work during
 startup, so there is no separate root-level migration command to run.
+The schema policy for this repo lives in
+[`MIGRATIONS.md`](./MIGRATIONS.md).
 
 Generate values with the command above, then paste them into `.env`
 before you continue.
@@ -78,6 +80,20 @@ The same bootstrap model applies to `RUNTIME_IMAGE`: it provides the
 initial runtime image for a fresh local stack, but later runtime-image
 changes belong in the dashboard or API instead of being forced back from
 `.env` on every restart.
+
+## Database Schema Changes
+
+`agirunner-platform` owns the database schema.
+
+- raw SQL migrations in `apps/platform-api/src/db/migrations` are the
+  upgrade source of truth
+- startup applies pending migrations automatically
+- the current pre-`0.1.0` line uses one canonical baseline migration
+- after public launch, schema history should move forward with new
+  migrations instead of being rewritten
+
+Use [`MIGRATIONS.md`](./MIGRATIONS.md) when changing schema, indexes,
+enums, or persistent data contracts.
 
 ## Repository Map
 

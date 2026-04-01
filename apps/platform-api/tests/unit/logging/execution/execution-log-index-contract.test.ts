@@ -18,9 +18,6 @@ const RISKY_INCLUDE_COLUMNS = new Set([
 
 const MIGRATION_FILES = [
   resolve(process.cwd(), 'src/db/migrations/0001_init.sql'),
-  resolve(process.cwd(), 'src/db/migrations/0007_execution_log_workflow_context.sql'),
-  resolve(process.cwd(), 'src/db/migrations/0050_execution_log_filter_indexes.sql'),
-  resolve(process.cwd(), 'src/db/migrations/0057_log_filter_performance_indexes.sql'),
 ];
 
 function collectExecutionLogIncludeViolations(sql: string) {
@@ -80,7 +77,7 @@ describe('execution_logs covering indexes', () => {
     const sql = MIGRATION_FILES.map((file) => readFileSync(file, 'utf8')).join('\n');
 
     expect(sql).not.toContain('CONCAT_WS(');
-    expect(sql).toContain("COALESCE(operation, '')");
-    expect(sql).toContain("COALESCE(trace_id::text, '')");
+    expect(sql).toContain("COALESCE(operation, ''::text)");
+    expect(sql).toContain("COALESCE((trace_id)::text, ''::text)");
   });
 });

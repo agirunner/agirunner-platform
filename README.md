@@ -199,7 +199,8 @@ expects that value to start with `ab_admin_def`.
 
 The platform API runs migrations and seed/bootstrap work during startup,
 so there is no separate `db:migrate` command to run in the root
-workspace.
+workspace. Schema ownership and migration policy live in
+[`MIGRATIONS.md`](./MIGRATIONS.md).
 
 The stack still needs at least one working model provider before
 workflows can execute useful work. After first login, go to
@@ -256,6 +257,19 @@ If you remove `RUNTIME_IMAGE` entirely, bootstrap falls back to
 image family, not to lock the product forever. After first boot, review
 or override runtime images in the dashboard under runtime defaults and
 orchestrator pool settings.
+
+## Database Schema
+
+`agirunner-platform` owns the database schema for the product stack.
+
+- pending SQL migrations run automatically on API startup
+- applied filenames are tracked in `schema_migrations`
+- the current pre-`0.1.0` line uses a single canonical baseline migration
+- post-launch schema changes should land as forward-only migrations, not
+  history rewrites
+
+See [`MIGRATIONS.md`](./MIGRATIONS.md) for the authoring and upgrade
+policy.
 
 ## Platform Image Workflows
 
