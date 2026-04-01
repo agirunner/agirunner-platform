@@ -340,6 +340,7 @@ describe('orchestratorControlRoutes', () => {
       mutation_outcome: 'recoverable_not_applied',
       recovery_class: 'managed_task_not_found',
       reason_code: 'managed_task_not_found',
+      safetynet_behavior_id: 'platform.control_plane.not_ready_noop_recovery',
       state_snapshot: expect.objectContaining({
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',

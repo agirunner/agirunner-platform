@@ -12,6 +12,7 @@ import {
   buildRecoverableMutationResult,
   type GuidedClosureStateSnapshot,
 } from '../../../services/guided-closure/types.js';
+import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
 import {
   PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
   mustGetSafetynetEntry,
@@ -155,8 +156,20 @@ export function buildRecoverableMissingManagedTaskNoop(
   const recoveryTargetId = taskScope.work_item_id ?? taskScope.workflow_id;
   const recoveryTargetType = taskScope.work_item_id ? 'work_item' : 'workflow';
 
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable managed task noop returned because the managed specialist task no longer exists',
+    {
+      workflow_id: taskScope.workflow_id,
+      task_id: managedTaskId,
+      work_item_id: taskScope.work_item_id ?? null,
+      reason_code: 'managed_task_not_found',
+    },
+  );
+
   return buildRecoverableGuidedNoop({
     reasonCode: 'managed_task_not_found',
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: taskScope.workflow_id,
       work_item_id: taskScope.work_item_id ?? null,
