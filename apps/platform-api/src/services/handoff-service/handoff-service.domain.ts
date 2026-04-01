@@ -3,7 +3,6 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from '../workflow-task-policy/assessment-subject-service.js';
-import { areJsonValuesEquivalent } from '../json-equivalence.js';
 import {
   PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
   mustGetSafetynetEntry,
@@ -333,13 +332,6 @@ function buildSystemOwnedRoleData(
       ...(subjectRevision > 0 ? { subject_revision: subjectRevision } : {}),
       ...(branchId ? { branch_id: branchId } : {}),
     });
-    if (!areJsonValuesEquivalent(roleData, normalized)) {
-      logSafetynetTriggered(
-        HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
-        'delivery handoff role_data normalized with system-owned linkage',
-        { task_id: task.id, workflow_id: task.workflow_id },
-      );
-    }
     return normalized;
   }
 
@@ -354,12 +346,5 @@ function buildSystemOwnedRoleData(
     ...(linkage.subjectRevision !== null ? { subject_revision: linkage.subjectRevision } : {}),
     ...(branchId ? { branch_id: branchId } : {}),
   });
-  if (!areJsonValuesEquivalent(roleData, normalized)) {
-    logSafetynetTriggered(
-      HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
-      'assessment or approval handoff role_data normalized with subject linkage',
-      { task_id: task.id, workflow_id: task.workflow_id },
-    );
-  }
   return normalized;
 }

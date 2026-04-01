@@ -1,9 +1,21 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
 import { makeHandoffRow, makeTaskRow } from './handoff-service.fixtures.js';
 
+const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
+  logSafetynetTriggeredMock: vi.fn(),
+}));
+
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: logSafetynetTriggeredMock,
+}));
+
 describe('HandoffService submission', () => {
+  beforeEach(() => {
+    logSafetynetTriggeredMock.mockReset();
+  });
+
   it('submits a structured task handoff with sequenced persistence', async () => {
     const pool = {
       query: vi
@@ -65,6 +77,7 @@ describe('HandoffService submission', () => {
         subject_revision: 2,
       }),
     );
+    expect(logSafetynetTriggeredMock).not.toHaveBeenCalled();
   });
 
   it('promotes delivery handoffs into canonical work-item deliverables after persistence', async () => {
@@ -226,6 +239,7 @@ describe('HandoffService submission', () => {
         ],
       }),
     );
+    expect(logSafetynetTriggeredMock).not.toHaveBeenCalled();
   });
 
   it('derives delivery subject revision from rework count when metadata output revision is stale', async () => {
