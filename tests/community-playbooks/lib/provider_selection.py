@@ -148,25 +148,25 @@ def resolve_provider_env_overrides(
     }
     overrides.update(snapshot_values)
 
-    if normalized_key == "anthropic":
-        overrides.setdefault("LIVE_TEST_PROVIDER_API_KEY", read_required_secret(environ, "LIVE_TEST_ANTHROPIC_API_KEY"))
-    elif normalized_key == "gemini":
-        overrides.setdefault("LIVE_TEST_PROVIDER_API_KEY", read_required_secret(environ, "LIVE_TEST_GEMINI_API_KEY"))
-    elif normalized_key == "openai-api":
-        overrides.setdefault("LIVE_TEST_PROVIDER_API_KEY", read_required_secret(environ, "LIVE_TEST_OPENAI_API_KEY"))
+    if normalized_key == "anthropic" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_ANTHROPIC_API_KEY")
+    elif normalized_key == "gemini" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_GEMINI_API_KEY")
+    elif normalized_key == "openai-api" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_OPENAI_API_KEY")
     elif normalized_key == "openai-oauth":
-        overrides.setdefault(
-            "LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID",
-            read_required_secret(environ, "LIVE_TEST_OPENAI_OAUTH_PROFILE_ID", fallback_key="LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"),
-        )
-        overrides.setdefault(
-            "LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON",
-            read_required_secret(
+        if not overrides.get("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"):
+            overrides["LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"] = read_required_secret(
+                environ,
+                "LIVE_TEST_OPENAI_OAUTH_PROFILE_ID",
+                fallback_key="LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID",
+            )
+        if not overrides.get("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON"):
+            overrides["LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON"] = read_required_secret(
                 environ,
                 "LIVE_TEST_OPENAI_OAUTH_SESSION_JSON",
                 fallback_key="LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON",
-            ),
-        )
+            )
 
     if overrides.get("LIVE_TEST_PROVIDER_AUTH_MODE") == "api_key" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
         raise RuntimeError(f"provider {provider_key} requires LIVE_TEST_PROVIDER_API_KEY")

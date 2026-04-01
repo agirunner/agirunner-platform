@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -62,6 +63,36 @@ class ProviderSelectionTests(unittest.TestCase):
             '{"credentials":{"accessToken":"token","refreshToken":"refresh"}}',
             environ["LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON"],
         )
+
+    def test_snapshot_section_satisfies_provider_secret_without_extra_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / "local.env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        "# BEGIN LOCAL PROVIDER SNAPSHOTS",
+                        "# Anthropic API",
+                        "# LIVE_TEST_PROVIDER_AUTH_MODE=api_key",
+                        "# LIVE_TEST_PROVIDER_TYPE=anthropic",
+                        "# LIVE_TEST_PROVIDER_NAME=Anthropic",
+                        "# LIVE_TEST_PROVIDER_BASE_URL=https://api.anthropic.com",
+                        "# LIVE_TEST_MODEL_ID=claude-sonnet-4-6",
+                        "# LIVE_TEST_MODEL_ENDPOINT_TYPE=messages",
+                        "# LIVE_TEST_ORCHESTRATOR_MODEL_ID=claude-sonnet-4-6",
+                        "# LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE=messages",
+                        "# LIVE_TEST_SPECIALIST_MODEL_ID=claude-sonnet-4-6",
+                        "# LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE=messages",
+                        "# LIVE_TEST_PROVIDER_API_KEY=snapshot-key",
+                        "# END LOCAL PROVIDER SNAPSHOTS",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            overrides = resolve_provider_env_overrides("anthropic", {}, env_file=env_file)
+
+        self.assertEqual("snapshot-key", overrides["LIVE_TEST_PROVIDER_API_KEY"])
 
     def test_resolve_provider_env_overrides_requires_provider_secret(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "LIVE_TEST_GEMINI_API_KEY"):
