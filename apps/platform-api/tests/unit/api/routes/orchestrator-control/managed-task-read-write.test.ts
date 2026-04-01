@@ -191,6 +191,186 @@ describe('orchestratorControlRoutes', () => {
     loadTaskScopeSpy.mockRestore();
   });
 
+  it('allows read-only self-inspection for the current orchestrator task', async () => {
+    const orchestratorTaskId = '11111111-1111-4111-8111-111111111111';
+    const getTask = vi.fn(async () => ({
+      id: orchestratorTaskId,
+      workflow_id: 'workflow-1',
+      work_item_id: null,
+      title: 'Orchestrate host assessment',
+      role: 'orchestrator',
+      state: 'in_progress',
+      stage_name: 'maintenance-window',
+      output: null,
+      metrics: { tokens_total: 7 },
+      metadata: {},
+      rework_count: 0,
+      is_orchestrator_task: true,
+    }));
+    const listTaskArtifactsSpy = vi
+      .spyOn(ArtifactService.prototype, 'listTaskArtifacts')
+      .mockResolvedValue([
+        {
+          id: 'artifact-1',
+          task_id: orchestratorTaskId,
+          logical_path: 'artifact:wf-1/orchestrator-log.md',
+          content_type: 'text/markdown',
+          size_bytes: 12,
+          created_at: '2026-03-24T18:00:00Z',
+        } as never,
+      ]);
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      connect: vi.fn(),
+      query: vi.fn(),
+    });
+    app.decorate('config', {
+      TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 300,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1048576,
+    });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { getTask });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: orchestratorTaskId,
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: null,
+        stage_name: 'maintenance-window',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/orchestrator/tasks/${orchestratorTaskId}/tasks/${orchestratorTaskId}`,
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(loadTaskScopeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', ownerId: 'agent-1' }),
+      orchestratorTaskId,
+    );
+    expect(getTask).toHaveBeenCalledWith('tenant-1', orchestratorTaskId);
+    expect(listTaskArtifactsSpy).toHaveBeenCalledWith('tenant-1', orchestratorTaskId);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        id: orchestratorTaskId,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+        artifacts: [
+          expect.objectContaining({
+            id: 'artifact-1',
+            logical_path: 'artifact:wf-1/orchestrator-log.md',
+          }),
+        ],
+      }),
+    );
+
+    listTaskArtifactsSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('allows read-only self-inspection of orchestrator task artifacts', async () => {
+    const orchestratorTaskId = '11111111-1111-4111-8111-111111111111';
+    const getTask = vi.fn(async () => ({
+      id: orchestratorTaskId,
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+    }));
+    const listTaskArtifactsSpy = vi
+      .spyOn(ArtifactService.prototype, 'listTaskArtifacts')
+      .mockResolvedValue([
+        {
+          id: 'artifact-1',
+          task_id: orchestratorTaskId,
+          logical_path: 'artifact:wf-1/orchestrator-log.md',
+          content_type: 'text/markdown',
+          size_bytes: 12,
+          created_at: '2026-03-24T18:00:00Z',
+        } as never,
+      ]);
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      connect: vi.fn(),
+      query: vi.fn(),
+    });
+    app.decorate('config', {
+      TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 300,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1048576,
+    });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { getTask });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: orchestratorTaskId,
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: null,
+        stage_name: 'maintenance-window',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/orchestrator/tasks/${orchestratorTaskId}/tasks/${orchestratorTaskId}/artifacts`,
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(loadTaskScopeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', ownerId: 'agent-1' }),
+      orchestratorTaskId,
+    );
+    expect(getTask).toHaveBeenCalledWith('tenant-1', orchestratorTaskId);
+    expect(listTaskArtifactsSpy).toHaveBeenCalledWith('tenant-1', orchestratorTaskId);
+    expect(response.json().data).toEqual([
+      expect.objectContaining({
+        id: 'artifact-1',
+        logical_path: 'artifact:wf-1/orchestrator-log.md',
+      }),
+    ]);
+
+    listTaskArtifactsSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
 
   it('updates specialist task input through the idempotent orchestrator bridge', async () => {
     const updatedTask = {

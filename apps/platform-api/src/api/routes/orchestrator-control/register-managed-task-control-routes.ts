@@ -1,4 +1,5 @@
 import { authenticateApiKey, withScope } from '../../../auth/fastify-auth-hook.js';
+import type { ApiKeyIdentity } from '../../../auth/api-key.js';
 
 import type { OrchestratorControlRouteContext } from './route-context.js';
 import {
@@ -29,23 +30,35 @@ export function registerOrchestratorManagedTaskControlRoutes(
     recoveryHelpers,
     taskScopeService,
     toolResultService,
-    withManagedSpecialistTask,
   } = context;
+
+  const loadReadableManagedTask = async (
+    identity: ApiKeyIdentity,
+    orchestratorTaskId: string,
+    managedTaskId: string,
+  ) => {
+    const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(identity, orchestratorTaskId);
+    if (managedTaskId === orchestratorTaskId) {
+      const task = await app.taskService.getTask(identity.tenantId, managedTaskId);
+      return { taskScope, task };
+    }
+    const task = await loadManagedSpecialistTask(
+      app,
+      identity,
+      taskScope.workflow_id,
+      managedTaskId,
+    );
+    return { taskScope, task };
+  };
 
   app.get(
     '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; managedTaskId: string };
-      const taskScope = await withManagedSpecialistTask(
+      const { task } = await loadReadableManagedTask(
         request.auth!,
         params.taskId,
-        params.managedTaskId,
-      );
-      const task = await loadManagedSpecialistTask(
-        app,
-        request.auth!,
-        taskScope.workflow_id,
         params.managedTaskId,
       );
       const artifacts = await artifactService.listTaskArtifacts(
@@ -66,15 +79,9 @@ export function registerOrchestratorManagedTaskControlRoutes(
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; managedTaskId: string };
-      const taskScope = await withManagedSpecialistTask(
+      await loadReadableManagedTask(
         request.auth!,
         params.taskId,
-        params.managedTaskId,
-      );
-      await loadManagedSpecialistTask(
-        app,
-        request.auth!,
-        taskScope.workflow_id,
         params.managedTaskId,
       );
       const artifacts = await artifactService.listTaskArtifacts(
