@@ -1,4 +1,9 @@
 import type { DatabaseClient } from '../../db/database.js';
+import { logSafetynetTriggered } from '../safetynet/logging.js';
+import {
+  PLATFORM_ACTIVATION_STALE_RECOVERY_ID,
+  mustGetSafetynetEntry,
+} from '../safetynet/registry.js';
 
 import type {
   ActivationRecoveryResult,
@@ -15,6 +20,10 @@ import {
 } from './helpers.js';
 import { ActivationStateStore } from './activation-state-store.js';
 import { ActivationRecoveryStore } from './recovery-store.js';
+
+const STALE_ACTIVATION_RECOVERY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ACTIVATION_STALE_RECOVERY_ID,
+);
 
 interface RecoverStaleActivationParams {
   tenantId: string;
@@ -171,6 +180,18 @@ export async function recoverStaleActivation({
         taskId,
       );
     }
+    logSafetynetTriggered(
+      STALE_ACTIVATION_RECOVERY_SAFETYNET,
+      taskId
+        ? 'stale activation recovery requeued and redispatched a missing orchestrator task'
+        : 'stale activation recovery requeued a missing orchestrator task',
+      {
+        workflow_id: staleState.workflow_id,
+        activation_id: staleState.id,
+        recovery_reason: 'missing_orchestrator_task',
+        redispatched_task_id: taskId,
+      },
+    );
     return {
       requeued: 1,
       redispatched: taskId ? 1 : 0,

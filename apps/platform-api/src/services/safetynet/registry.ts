@@ -10,6 +10,8 @@ export const PLATFORM_ORCHESTRATOR_STAGE_ALIGNMENT_REPAIR_ID =
   'platform.orchestrator.stage_alignment_repair';
 export const PLATFORM_ORCHESTRATOR_EXPECTED_TASK_TYPE_INFERENCE_ID =
   'platform.orchestrator.expected_task_type_inference';
+export const PLATFORM_ACTIVATION_STALE_RECOVERY_ID =
+  'platform.activation.stale_activation_recovery';
 export const PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID =
   'platform.control_plane.idempotent_mutation_replay';
 export const PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID =
@@ -133,6 +135,28 @@ const entries: SafetynetEntry[] = [
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'keep narrow to explicit assess expectations; do not infer arbitrary task kinds',
     status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_ACTIVATION_STALE_RECOVERY_ID,
+    layer: 'platform',
+    name: 'Stale activation recovery',
+    classification: 'protective',
+    mechanism: 'retry',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'activation processing is stale because the orchestrator task disappeared and the activation can be safely requeued and redispatched',
+    nominal_contract: 'workflow activation processing retains a live orchestrator task until completion or fails explicitly',
+    intervention: 'platform requeues the stale activation, records recovery metadata, and redispatches it with delay bypass',
+    risk_if_triggered: 'low; preserves progress after partial activation loss instead of leaving the workflow stuck',
+    operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
+    owner_module: 'src/services/workflow-activation-dispatch/recovery-runner.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.activation.stale_activation_recovery"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep limited to missing-orchestrator-task stale recovery; do not use for unrelated activation retries',
+    status: 'active',
   },
   {
     kind: 'safetynet_behavior',
