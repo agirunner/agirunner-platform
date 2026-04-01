@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 from common import ApiClient
 
@@ -62,7 +63,7 @@ class CommunityCatalogApi:
             extract_data(
                 self.client.request(
                     "PUT",
-                    f"/api/v1/config/llm/assignments/{role_name}",
+                    f"/api/v1/config/llm/assignments/{quote(role_name, safe='')}",
                     payload={
                         "primaryModelId": primary_model_id,
                         "reasoningConfig": reasoning_config,

@@ -136,6 +136,21 @@ class CommunityCatalogApiTests(unittest.TestCase):
             client.requests,
         )
 
+    def test_upsert_role_assignment_url_encodes_role_names_with_spaces(self) -> None:
+        client = FakeApiClient(responses=[{"data": {"role_name": "API Docs Writer"}}])
+
+        payload = CommunityCatalogApi(client).upsert_role_assignment(
+            "API Docs Writer",
+            primary_model_id="model-123",
+            reasoning_effort="medium",
+        )
+
+        self.assertEqual({"role_name": "API Docs Writer"}, payload)
+        self.assertEqual(
+            "/api/v1/config/llm/assignments/API%20Docs%20Writer",
+            client.requests[0]["path"],
+        )
+
 
 class ImportCatalogTests(unittest.TestCase):
     def test_import_full_catalog_selects_all_catalog_ids_and_normalizes_by_slug(self) -> None:
