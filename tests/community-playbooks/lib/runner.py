@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from common import ensure_dir, results_root, suite_root, write_json_file
 from community_mcp import configure_community_mcp_servers
 from community_run_api import CommunityRunApi
 from import_catalog import assign_specialist_model_to_roles, create_catalog_api, import_full_catalog, run_import_only
+from provider_selection import apply_provider_selection, assert_provider_selection_matches
 from resolve_metadata import METADATA_FILE, load_metadata, resolve_run_specs, validate_metadata
 from run_execution import execute_runs
 
@@ -22,6 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch", action="append", choices=["smoke", "matrix", "controls"])
     parser.add_argument("--playbook")
     parser.add_argument("--variant")
+    parser.add_argument("--provider", choices=["anthropic", "gemini", "openai-api", "openai-oauth"])
     parser.add_argument("--manual-operator-actions", action="store_true")
     parser.add_argument("--failed-only", action="store_true")
     return parser
@@ -40,6 +43,8 @@ def resolve_failed_only_ids(summary_path: Path) -> set[str]:
 
 
 def execute(args: argparse.Namespace) -> dict[str, Any]:
+    selected_provider = getattr(args, "provider", None)
+    provider_overrides = apply_provider_selection(selected_provider, os.environ)
     summary_path = results_root() / "summary.json"
     resolved_runs: list[dict[str, Any]] = []
 
@@ -49,11 +54,13 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         "selected_batches": args.batch or ["smoke", "matrix", "controls"],
         "playbook": args.playbook,
         "variant": args.variant,
+        "provider": selected_provider,
         "bootstrap_only": args.bootstrap_only,
         "import_only": args.import_only,
         "manual_operator_actions": args.manual_operator_actions,
         "failed_only": args.failed_only,
         "resolved_run_count": len(resolved_runs),
+        "provider_overrides": sorted(provider_overrides.keys()),
     }
 
     if args.bootstrap_only:
@@ -63,6 +70,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         return {"import": run_import_only(), "selection": payload}
 
     bootstrap_context = prepare_environment()
+    assert_provider_selection_matches(selected_provider, bootstrap_context, provider_overrides)
     trace_dir = ensure_dir(results_root() / "suite" / "api-trace")
     api = CommunityRunApi(create_catalog_api(trace_dir).client)
     import_payload = import_full_catalog(api)

@@ -17,6 +17,7 @@ Usage:
   bash tests/community-playbooks/run.sh --batch <smoke|matrix|controls>
   bash tests/community-playbooks/run.sh --playbook <slug>
   bash tests/community-playbooks/run.sh --variant <id>
+  bash tests/community-playbooks/run.sh --provider <anthropic|gemini|openai-api|openai-oauth>
   bash tests/community-playbooks/run.sh --manual-operator-actions
   bash tests/community-playbooks/run.sh --failed-only
 EOF
