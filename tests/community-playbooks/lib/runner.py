@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch", action="append", choices=["smoke", "matrix", "controls"])
     parser.add_argument("--playbook")
     parser.add_argument("--variant")
+    parser.add_argument("--manual-operator-actions", action="store_true")
     parser.add_argument("--failed-only", action="store_true")
     return parser
 
@@ -50,6 +51,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         "variant": args.variant,
         "bootstrap_only": args.bootstrap_only,
         "import_only": args.import_only,
+        "manual_operator_actions": args.manual_operator_actions,
         "failed_only": args.failed_only,
         "resolved_run_count": len(resolved_runs),
     }
@@ -100,6 +102,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         local_playbooks,
         resolved_runs,
         results_dir=results_root(),
+        manual_operator_actions=args.manual_operator_actions,
     )
     result = {
         "bootstrap": bootstrap_context,

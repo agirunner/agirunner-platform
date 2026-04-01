@@ -178,6 +178,49 @@ class RunExecutionTests(unittest.TestCase):
             self.assertEqual(1, len(api.approval_calls))
             self.assertTrue(Path(result["result_file"]).is_file())
 
+    def test_execute_run_can_pause_for_manual_approval_review(self) -> None:
+        api = FakeRunApi()
+        playbook = {
+            "id": "pb-1",
+            "slug": "bug-fix",
+            "name": "Bug Fix",
+            "definition": {
+                "parameters": [
+                    {"slug": "issue_summary", "title": "Issue summary", "required": True},
+                ]
+            },
+        }
+        run_spec = {
+            "id": "bug-fix-approval",
+            "batch": "controls",
+            "playbook_slug": "bug-fix",
+            "variant": "approval",
+            "workspace_profile_record": {"storage_type": "workspace_artifacts"},
+            "launch_inputs": {"issue_summary": "Exports stall after sixty seconds."},
+            "uploads": [],
+            "operator_actions": [{"kind": "approval", "decision": "approve"}],
+            "steering_script": [],
+            "expected_outcome": {"kind": "approved_engineering_handoff"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = execute_run(
+                api,
+                playbook,
+                run_spec,
+                results_dir=Path(tmpdir),
+                timeout_seconds=2,
+                poll_interval_seconds=0,
+                manual_operator_actions=True,
+            )
+
+            self.assertTrue(result["passed"])
+            self.assertFalse(result["timed_out"])
+            self.assertEqual("in_progress", result["workflow"]["state"])
+            self.assertEqual(0, len(api.approval_calls))
+            self.assertTrue(result["operator_actions"]["manual_mode"])
+            self.assertEqual(1, len(result["operator_actions"]["manual_pending"]["pending_approvals"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from common import ensure_dir, write_json_file
-from operator_flow import TERMINAL_WORKFLOW_STATES, submit_pending_operator_approvals, submit_ready_steering_requests
+from operator_flow import (
+    TERMINAL_WORKFLOW_STATES,
+    pending_workflow_approvals,
+    select_work_item_for_steering,
+    submit_pending_operator_approvals,
+    submit_ready_steering_requests,
+)
 from run_playbook import build_workflow_launch_payload
 from workspace_prep import build_workspace_create_input, prepare_workspace_materials
 
@@ -46,6 +52,65 @@ def default_poll_interval_seconds() -> int:
     return int(os.environ.get("COMMUNITY_PLAYBOOKS_POLL_INTERVAL_SECONDS", "10"))
 
 
+def _expected_approval_count(run_spec: dict[str, Any]) -> int:
+    return sum(
+        1
+        for action in list(run_spec.get("operator_actions") or [])
+        if isinstance(action, dict) and str(action.get("kind") or "").strip() == "approval"
+    )
+
+
+def _steering_condition_met(
+    action: dict[str, Any],
+    *,
+    briefs: list[dict[str, Any]],
+    work_items: list[dict[str, Any]],
+) -> bool:
+    when = str(action.get("when") or "immediate").strip()
+    if when == "immediate":
+        return True
+    if when == "after_first_brief":
+        return bool(briefs)
+    if when == "after_first_work_item":
+        return bool(work_items)
+    raise RuntimeError(f"unsupported steering trigger {when!r}")
+
+
+def _pending_manual_operator_actions(
+    *,
+    run_spec: dict[str, Any],
+    workflow_id: str,
+    approvals: dict[str, Any],
+    briefs: list[dict[str, Any]],
+    work_items: list[dict[str, Any]],
+) -> dict[str, Any]:
+    pending_approvals = pending_workflow_approvals(approvals, workflow_id)
+    steering_targets: list[dict[str, Any]] = []
+    for action in list(run_spec.get("steering_script") or []):
+        if not isinstance(action, dict):
+            continue
+        if not _steering_condition_met(action, briefs=briefs, work_items=work_items):
+            continue
+        target = select_work_item_for_steering(
+            work_items,
+            preferred_title=action.get("work_item_title"),
+        )
+        if target is None:
+            continue
+        steering_targets.append(
+            {
+                "message": str(action.get("message") or "").strip(),
+                "work_item_id": str(target.get("id") or "").strip() or None,
+                "work_item_title": str(target.get("title") or "").strip() or None,
+            }
+        )
+    return {
+        "ready": bool(pending_approvals or steering_targets),
+        "pending_approvals": pending_approvals,
+        "pending_steering_targets": steering_targets,
+    }
+
+
 def _result_path(results_dir: Path, run_spec: dict[str, Any]) -> Path:
     return results_dir / str(run_spec["batch"]) / str(run_spec["playbook_slug"]) / f"{run_spec['variant']}.json"
 
@@ -68,23 +133,29 @@ def _evaluate_result(
     approval_actions: list[dict[str, Any]],
     steering_actions: list[dict[str, Any]],
     timed_out: bool,
+    manual_operator_actions: bool,
+    manual_action_snapshot: dict[str, Any],
 ) -> list[str]:
     failures: list[str] = []
     final_state = str(workflow.get("state") or "").strip()
+    expected_approvals = _expected_approval_count(run_spec)
+    expected_steering = len(list(run_spec.get("steering_script") or []))
+    if manual_operator_actions:
+        if timed_out:
+            failures.append("workflow did not surface the expected manual operator action before the timeout")
+        if expected_approvals > 0 and len(list(manual_action_snapshot.get("pending_approvals") or [])) == 0:
+            failures.append("workflow requested operator approval coverage but no approval reached manual-review state")
+        if expected_steering > 0 and len(list(manual_action_snapshot.get("pending_steering_targets") or [])) == 0:
+            failures.append("workflow requested steering coverage but no steerable work item reached manual-review state")
+        return failures
     if timed_out:
         failures.append("workflow did not reach a terminal state before the timeout")
     elif final_state != "completed":
         failures.append(f"workflow finished in unsupported state {final_state!r}")
     if not _has_observable_output(packet_summary, briefs):
         failures.append("workflow finished without observable output")
-    expected_approvals = sum(
-        1
-        for action in list(run_spec.get("operator_actions") or [])
-        if isinstance(action, dict) and str(action.get("kind") or "").strip() == "approval"
-    )
     if expected_approvals > 0 and len(approval_actions) == 0:
         failures.append("workflow requested operator approval coverage but no approval was submitted")
-    expected_steering = len(list(run_spec.get("steering_script") or []))
     if expected_steering > 0 and len(steering_actions) < expected_steering:
         failures.append("workflow requested steering coverage but steering was not fully submitted")
     return failures
@@ -98,6 +169,7 @@ def execute_run(
     results_dir: Path,
     timeout_seconds: int | None = None,
     poll_interval_seconds: int | None = None,
+    manual_operator_actions: bool = False,
     sleep_fn=time.sleep,
     time_fn=time.time,
 ) -> dict[str, Any]:
@@ -128,6 +200,11 @@ def execute_run(
     latest_work_items: list[dict[str, Any]] = []
     latest_briefs: list[dict[str, Any]] = []
     latest_approvals: dict[str, Any] = {"stage_gates": [], "task_approvals": []}
+    manual_action_snapshot: dict[str, Any] = {
+        "ready": False,
+        "pending_approvals": [],
+        "pending_steering_targets": [],
+    }
     timed_out = False
 
     while True:
@@ -135,26 +212,37 @@ def execute_run(
         latest_work_items = list(api.list_work_items(str(workflow["id"])))
         latest_briefs = list(api.list_operator_briefs(str(workflow["id"]), limit=100))
         latest_approvals = dict(api.list_approvals())
-        approval_actions.extend(
-            submit_pending_operator_approvals(
-                api,
-                latest_approvals,
-                workflow_id=str(workflow["id"]),
+        if manual_operator_actions:
+            manual_action_snapshot = _pending_manual_operator_actions(
                 run_spec=run_spec,
-                consumed_action_indices=consumed_approval_action_indices,
-                processed_gate_ids=processed_gate_ids,
-            )
-        )
-        steering_actions.extend(
-            submit_ready_steering_requests(
-                api,
-                latest_briefs,
-                latest_work_items,
                 workflow_id=str(workflow["id"]),
-                run_spec=run_spec,
-                consumed_indices=consumed_steering_indices,
+                approvals=latest_approvals,
+                briefs=latest_briefs,
+                work_items=latest_work_items,
             )
-        )
+            if bool(manual_action_snapshot.get("ready")):
+                break
+        else:
+            approval_actions.extend(
+                submit_pending_operator_approvals(
+                    api,
+                    latest_approvals,
+                    workflow_id=str(workflow["id"]),
+                    run_spec=run_spec,
+                    consumed_action_indices=consumed_approval_action_indices,
+                    processed_gate_ids=processed_gate_ids,
+                )
+            )
+            steering_actions.extend(
+                submit_ready_steering_requests(
+                    api,
+                    latest_briefs,
+                    latest_work_items,
+                    workflow_id=str(workflow["id"]),
+                    run_spec=run_spec,
+                    consumed_indices=consumed_steering_indices,
+                )
+            )
         if str(latest_workflow.get("state") or "").strip() in TERMINAL_WORKFLOW_STATES:
             break
         if time_fn() >= deadline:
@@ -172,6 +260,8 @@ def execute_run(
         approval_actions=approval_actions,
         steering_actions=steering_actions,
         timed_out=timed_out,
+        manual_operator_actions=manual_operator_actions,
+        manual_action_snapshot=manual_action_snapshot,
     )
     result_path = _result_path(results_dir, run_spec)
     result = {
@@ -183,6 +273,8 @@ def execute_run(
         "workflow": latest_workflow,
         "expected_outcome": dict(run_spec.get("expected_outcome") or {}),
         "operator_actions": {
+            "manual_mode": manual_operator_actions,
+            "manual_pending": manual_action_snapshot,
             "approvals": approval_actions,
             "steering": steering_actions,
         },
@@ -209,6 +301,7 @@ def execute_runs(
     results_dir: Path,
     timeout_seconds: int | None = None,
     poll_interval_seconds: int | None = None,
+    manual_operator_actions: bool = False,
 ) -> dict[str, Any]:
     ensure_dir(results_dir)
     results: list[dict[str, Any]] = []
@@ -236,6 +329,7 @@ def execute_runs(
                 results_dir=results_dir,
                 timeout_seconds=timeout_seconds,
                 poll_interval_seconds=poll_interval_seconds,
+                manual_operator_actions=manual_operator_actions,
             )
         )
     return {

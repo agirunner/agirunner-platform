@@ -52,10 +52,11 @@ class RunnerContractTests(unittest.TestCase):
             python_dir = Path(tmpdir) / "bin"
             python_dir.mkdir()
             fake_python = python_dir / "python3"
+            real_python = sys.executable
             fake_python.write_text(
                 "\n".join(
                     [
-                        "#!/usr/bin/env python3",
+                        f"#!{real_python}",
                         "import json",
                         "import os",
                         "import sys",
@@ -80,7 +81,7 @@ class RunnerContractTests(unittest.TestCase):
             env["PATH"] = f"{python_dir}:{env.get('PATH', '')}"
 
             completed = subprocess.run(
-                ["bash", str(RUNNER), "--playbook", "bug-fix", "--variant", "smoke"],
+                ["bash", str(RUNNER), "--playbook", "bug-fix", "--variant", "smoke", "--manual-operator-actions"],
                 cwd=SUITE_ROOT.parents[2],
                 check=False,
                 text=True,
@@ -91,7 +92,10 @@ class RunnerContractTests(unittest.TestCase):
             self.assertEqual(0, completed.returncode, completed.stderr)
             payload = json.loads(capture_path.read_text(encoding="utf-8"))
             self.assertTrue(payload["args"][0].endswith("/tests/community-playbooks/lib/runner.py"))
-            self.assertEqual(["--playbook", "bug-fix", "--variant", "smoke"], payload["args"][1:])
+            self.assertEqual(
+                ["--playbook", "bug-fix", "--variant", "smoke", "--manual-operator-actions"],
+                payload["args"][1:],
+            )
             self.assertEqual("http://127.0.0.1:18080", payload["platform_api_base_url"])
             self.assertEqual("http://127.0.0.1:13000", payload["dashboard_base_url"])
             self.assertEqual("live-test-parameterized-secret", payload["mcp_secret"])
@@ -103,6 +107,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=None,
             playbook=None,
             variant=None,
+            manual_operator_actions=False,
             failed_only=False,
         )
         with patch("runner.prepare_environment", return_value={"specialist_model_id": "model-1"}) as prepare_mock:
@@ -118,6 +123,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=None,
             playbook=None,
             variant=None,
+            manual_operator_actions=False,
             failed_only=False,
         )
         with patch("runner.run_import_only", return_value={"catalog_playbook_count": 17}) as import_mock:
@@ -133,6 +139,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=["smoke"],
             playbook="bug-fix",
             variant="smoke",
+            manual_operator_actions=True,
             failed_only=False,
         )
 
@@ -163,4 +170,5 @@ class RunnerContractTests(unittest.TestCase):
                                 payload = community_runner.execute(args)
 
         self.assertEqual(1, payload["selection"]["resolved_run_count"])
+        self.assertTrue(payload["selection"]["manual_operator_actions"])
         self.assertEqual(1, len(payload["runs"]))

@@ -22,6 +22,7 @@ bash tests/community-playbooks/run.sh --bootstrap-only
 bash tests/community-playbooks/run.sh --import-only
 bash tests/community-playbooks/run.sh --batch smoke
 bash tests/community-playbooks/run.sh --playbook bug-fix
+bash tests/community-playbooks/run.sh --playbook bug-fix --variant approval --manual-operator-actions
 bash tests/community-playbooks/run.sh --playbook research-analysis --variant mcp
 ```
 
