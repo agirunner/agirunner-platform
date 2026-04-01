@@ -22,6 +22,8 @@ import {
   REUSABLE_TASK_DUPLICATE_GUARD_STATES,
 } from './task-write-service-duplicate-guard-states.js';
 
+const ORCHESTRATOR_GUIDED_RECOVERY_HINT = 'orchestrator_guided_recovery';
+
 export class TaskWriteCreateGuards {
   constructor(private readonly deps: TaskWriteDependencies) {}
 
@@ -202,6 +204,14 @@ export class TaskWriteCreateGuards {
         `stage_name '${input.stage_name}' does not match linked work item stage ` +
           `'${linkedWorkItem.stage_name}'. For planned workflows, create or move a work item ` +
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
+        buildRecoverableCreateTaskDetails({
+          reasonCode: 'task_stage_mismatch',
+          workflowId: linkedWorkItem.workflow_id,
+          workItemId: input.work_item_id ?? null,
+          requestedRole: input.role?.trim() ?? null,
+          linkedWorkItemStageName: linkedWorkItem.stage_name,
+          requestedStageName: input.stage_name,
+        }),
       );
     }
     await this.assertPlannedStageRoleMembership(tenantId, input, linkedWorkItem, db);
@@ -217,6 +227,16 @@ export class TaskWriteCreateGuards {
             ? ` for action '${linkedWorkItem.next_expected_action}'`
             : '') +
           '. Resolve the current workflow expectation before dispatching a different role.',
+        buildRecoverableCreateTaskDetails({
+          reasonCode: 'next_expected_actor_mismatch',
+          workflowId: linkedWorkItem.workflow_id,
+          workItemId: input.work_item_id ?? null,
+          requestedRole: input.role.trim(),
+          linkedWorkItemStageName: linkedWorkItem.stage_name,
+          requestedStageName: input.stage_name ?? linkedWorkItem.stage_name,
+          nextExpectedActor: linkedWorkItem.next_expected_actor,
+          nextExpectedAction: linkedWorkItem.next_expected_action,
+        }),
       );
     }
     if (isClosedPlannedStage(linkedWorkItem)) {
@@ -254,6 +274,15 @@ export class TaskWriteCreateGuards {
     if (definedRoles.length > 0 && !definedRoles.includes(roleName)) {
       throw new ValidationError(
         `Role '${roleName}' is not defined in planned workflow playbook '${linkedWorkItem.workflow_id}'.`,
+        buildRecoverableCreateTaskDetails({
+          reasonCode: 'role_not_defined_in_playbook',
+          workflowId: linkedWorkItem.workflow_id,
+          workItemId: input.work_item_id ?? null,
+          requestedRole: roleName,
+          linkedWorkItemStageName: linkedWorkItem.stage_name,
+          requestedStageName: input.stage_name ?? linkedWorkItem.stage_name,
+          definedRoles,
+        }),
       );
     }
 
@@ -273,12 +302,35 @@ export class TaskWriteCreateGuards {
         `Role '${roleName}' is not allowed on planned workflow stage ` +
           `'${linkedWorkItem.stage_name}'. Route successor work into stage ` +
           `'${successorStageName}' before dispatching role '${roleName}'.`,
+        buildRecoverableCreateTaskDetails({
+          reasonCode: 'role_routes_to_successor_stage',
+          workflowId: linkedWorkItem.workflow_id,
+          workItemId: input.work_item_id ?? null,
+          requestedRole: roleName,
+          linkedWorkItemStageName: linkedWorkItem.stage_name,
+          requestedStageName: input.stage_name ?? linkedWorkItem.stage_name,
+          allowedRoles,
+          successorStageName,
+          nextExpectedActor: linkedWorkItem.next_expected_actor,
+          nextExpectedAction: linkedWorkItem.next_expected_action,
+        }),
       );
     }
 
     throw new ValidationError(
       `Role '${roleName}' is not allowed on planned workflow stage ` +
         `'${linkedWorkItem.stage_name}'.`,
+      buildRecoverableCreateTaskDetails({
+        reasonCode: 'role_not_allowed_on_stage',
+        workflowId: linkedWorkItem.workflow_id,
+        workItemId: input.work_item_id ?? null,
+        requestedRole: roleName,
+        linkedWorkItemStageName: linkedWorkItem.stage_name,
+        requestedStageName: input.stage_name ?? linkedWorkItem.stage_name,
+        allowedRoles,
+        nextExpectedActor: linkedWorkItem.next_expected_actor,
+        nextExpectedAction: linkedWorkItem.next_expected_action,
+      }),
     );
   }
 
@@ -347,4 +399,38 @@ export class TaskWriteCreateGuards {
     }
     return parsePlaybookDefinition(result.rows[0].definition);
   }
+}
+
+function buildRecoverableCreateTaskDetails(input: {
+  reasonCode:
+    | 'task_stage_mismatch'
+    | 'next_expected_actor_mismatch'
+    | 'role_not_defined_in_playbook'
+    | 'role_routes_to_successor_stage'
+    | 'role_not_allowed_on_stage';
+  workflowId: string;
+  workItemId: string | null;
+  requestedRole: string | null;
+  linkedWorkItemStageName: string;
+  requestedStageName: string | null;
+  definedRoles?: string[];
+  allowedRoles?: string[];
+  successorStageName?: string | null;
+  nextExpectedActor?: string | null;
+  nextExpectedAction?: string | null;
+}) {
+  return {
+    recovery_hint: ORCHESTRATOR_GUIDED_RECOVERY_HINT,
+    reason_code: input.reasonCode,
+    workflow_id: input.workflowId,
+    work_item_id: input.workItemId,
+    requested_role: input.requestedRole,
+    linked_work_item_stage_name: input.linkedWorkItemStageName,
+    requested_stage_name: input.requestedStageName,
+    defined_roles: input.definedRoles ?? [],
+    allowed_roles: input.allowedRoles ?? [],
+    successor_stage_name: input.successorStageName ?? null,
+    next_expected_actor: input.nextExpectedActor ?? null,
+    next_expected_action: input.nextExpectedAction ?? null,
+  } satisfies Record<string, unknown>;
 }

@@ -14,6 +14,7 @@ import {
   orchestratorTaskMessageSchema,
 } from './schemas.js';
 import {
+  buildRecoverableCreateTaskNoopFromGuardError,
   buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied,
   buildRecoverableCreateTaskNoopIfNotReady,
   loadExistingReviewTaskForSameRevision,
@@ -121,7 +122,19 @@ export function registerOrchestratorManagedTaskCreationRoutes(
             return verificationNotReadyNoop;
           }
 
-          return app.taskService.createTask(request.auth!, createInput, client);
+          try {
+            return await app.taskService.createTask(request.auth!, createInput, client);
+          } catch (error) {
+            const guidedRecovery = buildRecoverableCreateTaskNoopFromGuardError(
+              taskScope,
+              createInput,
+              error,
+            );
+            if (guidedRecovery) {
+              return guidedRecovery;
+            }
+            throw error;
+          }
         },
       );
       return reply.status(isRecoverableNotAppliedResult(task) ? 200 : 201).send({ data: task });

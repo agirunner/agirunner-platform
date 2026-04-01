@@ -7,6 +7,7 @@ export {
   normalizeOrchestratorTaskCreateInput,
 } from './task-assessment-linkage.js';
 export {
+  buildRecoverableCreateTaskNoopFromGuardError,
   buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied,
   buildRecoverableCreateTaskNoopIfNotReady,
   loadExistingReviewTaskForSameRevision,

@@ -54,6 +54,7 @@ export function buildOrchestratorSections(params: {
     (entry: { id: string; label: string }) => entry.id === readString(focusedWorkItem.column_id),
   );
   const currentStageHasWorkItems = hasStageWorkItems(params.input.orchestratorContext, stageName);
+  const roleCatalog = readOrchestratorRoleCatalog(workflowInstructionContext);
   const sections = [
     `## Workflow Mode: ${lifecycle}\n${workflowModeGuidance(lifecycle)}`,
     buildWorkflowBriefSection(workflowInstructionContext),
@@ -67,6 +68,7 @@ export function buildOrchestratorSections(params: {
     if (lifecycle === 'planned') {
       sections.push(`## Stage Routing\n${formatStageRouting(stage.name, successorStage)}`);
       sections.push(`## Stage Name Contract\n${formatStageNameContract(params.definition)}`);
+      sections.push(`## Role Name Contract\n${formatRoleNameContract(params.definition, roleCatalogNames(roleCatalog), stage)}`);
       const emptyStageGuidance = formatEmptyPlannedStageGuidance(
         params.definition,
         stage.name,
@@ -91,7 +93,6 @@ export function buildOrchestratorSections(params: {
     sections.push(`## Stage Role Coverage\n${stageRoleCoverage}`);
   }
 
-  const roleCatalog = readOrchestratorRoleCatalog(workflowInstructionContext);
   if (roleCatalog.length > 0) {
     sections.push(`## Available Roles\n${formatRoleCatalog(roleCatalog)}`);
   }
@@ -248,6 +249,32 @@ function formatStageNameContract(definition: ReturnType<typeof parsePlaybookDefi
     return 'Use only exact authored stage_name values when routing work items or tasks. Do not paraphrase or shorten stage names.';
   }
   return `Use only these exact authored stage_name values when routing work: ${stageNames.join(', ')}. Do not paraphrase, shorten, or invent alternate stage names.`;
+}
+
+function formatRoleNameContract(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  roleCatalog: string[],
+  stage: { name: string; involves?: string[] } | null,
+) {
+  const roleNames = [
+    ...new Set(
+      [
+        ...(definition.roles ?? []),
+        ...roleCatalog,
+        ...(stage?.involves ?? []),
+      ]
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0),
+    ),
+  ];
+  if (roleNames.length === 0) {
+    return 'Use only exact authored role names when creating tasks. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.';
+  }
+  return `Use only these exact authored role names when creating tasks: ${roleNames.join(', ')}. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.`;
+}
+
+function roleCatalogNames(roles: Array<{ name: string; description: string | null }>) {
+  return roles.map((role) => role.name);
 }
 
 function formatEmptyPlannedStageGuidance(
