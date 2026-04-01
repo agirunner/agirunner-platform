@@ -111,7 +111,7 @@ export function buildOrchestratorSections(params: {
   }
   sections.push(`## Guided Recovery\n${guidedRecoveryGuidance()}`);
   sections.push(
-    '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
+    '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Active subordinate work means real work items and non-orchestrator specialist tasks, never the current orchestrator task itself. Do not use read_task_status on the current orchestrator task id as evidence that stage work already exists. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
   );
 
   const orchestrator = params.definition.orchestrator ?? {};
@@ -264,6 +264,7 @@ function formatEmptyPlannedStageGuidance(
     `No work item currently exists in "${currentStageName}".`,
     `When a planned stage has just started and is empty, creating the first successor work item in "${currentStageName}" from cleared predecessor lineage is expected workflow progress, not an error.`,
     `Use the latest accepted predecessor work item, its cleared handoffs, and any satisfied approval or assessment outcomes to seed the first work item in "${currentStageName}" before dispatching successor specialists.`,
+    `If list_work_items returns no work items in "${currentStageName}" and list_workflow_tasks returns no non-orchestrator tasks for that stage, create the first work item and starter specialist task now instead of waiting on the current orchestrator task.`,
     'Do not escalate solely because the newly started planned stage is empty.',
   ];
 

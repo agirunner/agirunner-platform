@@ -106,6 +106,8 @@ describe('WorkflowActivationDispatchService', () => {
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Your own current orchestrator task never counts as subordinate work.');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not use read_task_status on the current orchestrator task id as evidence that stage work already exists.');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Every orchestrator activation MUST finish with submit_handoff before task completion',
@@ -142,6 +144,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect(inserted.input).toEqual(
             expect.objectContaining({
               current_stage: 'requirements',
+              description: expect.stringContaining('Active subordinate work means real workflow work items and non-orchestrator specialist tasks'),
               repository: {
                 repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
                 base_branch: 'main',

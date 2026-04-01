@@ -176,4 +176,49 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(result?.content).toContain('Next expected actor: triager');
     expect(result?.content).toContain('Repository-backed workflow.');
   });
+
+  it('tells empty planned stages to seed real work instead of waiting on the orchestrator task', () => {
+    const result = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        current_stage: 'reproduce',
+        active_stages: ['reproduce'],
+        playbook: {
+          definition: {
+            process_instructions: 'Move work through reproduce and implement.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'active', label: 'Active' },
+              ],
+            },
+            stages: [
+              { name: 'reproduce', goal: 'Bound the defect', involves: ['developer'] },
+              { name: 'implement', goal: 'Ship the fix', involves: ['developer'] },
+            ],
+          },
+        },
+      },
+      taskInput: {},
+      orchestratorContext: {
+        activation: {
+          payload: {
+            stage_name: 'reproduce',
+          },
+        },
+        board: {
+          work_items: [],
+          tasks: [],
+          pending_dispatches: [],
+        },
+      },
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.content).toContain('## Successor Seeding');
+    expect(result?.content).toContain('If list_work_items returns no work items in "reproduce" and list_workflow_tasks returns no non-orchestrator tasks for that stage, create the first work item and starter specialist task now');
+    expect(result?.content).toContain('Active subordinate work means real work items and non-orchestrator specialist tasks, never the current orchestrator task itself.');
+    expect(result?.content).toContain('Do not use read_task_status on the current orchestrator task id as evidence that stage work already exists.');
+  });
 });
