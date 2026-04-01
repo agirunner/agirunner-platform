@@ -248,7 +248,10 @@ describe('buildSpecialistExecutionBrief', () => {
       'If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before calling any file tool.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`.',
+      'Read task context files from `/workspace/context/...`, never `context/...`, `repo/context/...`, or `/tmp/workspace/...` paths.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Prefer file_read, file_list, glob, or grep for context files instead of shelling them directly.',
     );
     expect(brief?.rendered_markdown).toContain(
       'If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.',
