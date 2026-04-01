@@ -29,20 +29,25 @@ export async function advanceStageInTransactionImpl(this: any,
 ) {
   const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
   if (workflow.lifecycle !== 'planned') {
-    throw new ConflictError('Stage advancement is only supported for planned playbook workflows');
+    throw new ConflictError('Stage advancement is only supported for planned playbook workflows', {
+      reason_code: 'workflow_lifecycle_not_planned',
+    });
   }
 
   const definition = parsePlaybookDefinition(workflow.definition);
   const sourceStage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
   const expectedNextStageName = nextStageNameFor(definition, sourceStage.name);
   if (!expectedNextStageName) {
-    throw new ValidationError('No next stage is available; use complete_workflow for the final stage');
+    throw new ValidationError('No next stage is available; use complete_workflow for the final stage', {
+      reason_code: 'final_stage_use_complete_workflow',
+    });
   }
   const nextStageName = input.to_stage_name ?? expectedNextStageName;
   if (nextStageName !== expectedNextStageName) {
     throw new ValidationError(
       `Stage '${stageName}' may only advance to the immediate next planned stage ` +
         `'${expectedNextStageName}', not '${nextStageName}'.`,
+      { reason_code: 'stage_wrong_successor' },
     );
   }
   if (workflow.active_stage_name !== sourceStage.name) {
@@ -52,10 +57,14 @@ export async function advanceStageInTransactionImpl(this: any,
         next_stage: nextStageName,
       };
     }
-    throw new ValidationError(`Stage '${stageName}' is not the current workflow stage`);
+    throw new ValidationError(`Stage '${stageName}' is not the current workflow stage`, {
+      reason_code: 'stage_not_current',
+    });
   }
   if (sourceStage.gate_status === 'awaiting_approval') {
-    throw new ValidationError(`Stage '${stageName}' requires human approval before it can advance`);
+    throw new ValidationError(`Stage '${stageName}' requires human approval before it can advance`, {
+      reason_code: 'stage_waiting_for_gate_approval',
+    });
   }
 
   const nextStage = await this.loadStage(identity.tenantId, workflowId, nextStageName, db);
@@ -164,7 +173,9 @@ export async function completeWorkflowInTransactionImpl(this: any,
 ) {
   let workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
   if (workflow.lifecycle !== 'planned') {
-    throw new ConflictError('Only planned playbook workflows can be completed by the orchestrator');
+    throw new ConflictError('Only planned playbook workflows can be completed by the orchestrator', {
+      reason_code: 'workflow_lifecycle_not_closable',
+    });
   }
   const definition = parsePlaybookDefinition(workflow.definition);
   if (workflow.state === 'completed') {
@@ -194,7 +205,9 @@ export async function completeWorkflowInTransactionImpl(this: any,
       break;
     }
     if (stage.gate_status === 'awaiting_approval') {
-      throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
+      throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`, {
+        reason_code: 'workflow_waiting_for_gate_approval',
+      });
     }
     await this.assertStageHasNoPendingBlockingContinuation(
       identity.tenantId,
@@ -256,7 +269,9 @@ export async function completeWorkflowInTransactionImpl(this: any,
     [identity.tenantId, workflowId],
   );
   if (incompleteStages.rowCount) {
-    throw new ValidationError(`Workflow still has incomplete stage '${incompleteStages.rows[0].name}'`);
+    throw new ValidationError(`Workflow still has incomplete stage '${incompleteStages.rows[0].name}'`, {
+      reason_code: 'workflow_incomplete_stage',
+    });
   }
 
   const workItemCallouts = await this.loadWorkflowCompletionCallouts(

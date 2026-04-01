@@ -146,9 +146,9 @@ describe('orchestratorControlRoutes', () => {
     const completeWorkItemSpy = vi
       .spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkItem')
       .mockRejectedValue(
-        new ValidationError(
-          "Cannot complete work item 'Draft product brief' while task 'policy-reviewer' is still in_progress.",
-        ),
+        new ValidationError('work item completion blocked', {
+          reason_code: 'work_item_tasks_not_ready',
+        }),
       );
     const loadTaskScopeSpy = vi
       .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')

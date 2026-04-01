@@ -100,7 +100,9 @@ describe('orchestrator workflow recoverable guidance', () => {
 
   it('returns guided recovery when complete_workflow is attempted while specialist work is still active', async () => {
     vi.spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkflow').mockRejectedValue(
-      new ValidationError("Cannot complete workflow while task 'Code Reviewer' in stage 'review' is still in_progress."),
+      new ValidationError('workflow completion blocked', {
+        reason_code: 'workflow_tasks_not_ready',
+      }),
     );
     vi.spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask').mockResolvedValue(
       buildTaskScope(),
@@ -130,7 +132,9 @@ describe('orchestrator workflow recoverable guidance', () => {
 
   it('returns guided recovery when complete_workflow is attempted before required approval resolves', async () => {
     vi.spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkflow').mockRejectedValue(
-      new ValidationError("Stage 'release-approval' requires human approval before workflow completion"),
+      new ValidationError('workflow completion blocked', {
+        reason_code: 'workflow_waiting_for_gate_approval',
+      }),
     );
     vi.spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask').mockResolvedValue(
       buildTaskScope({ stage_name: 'release-approval' }),
@@ -160,7 +164,9 @@ describe('orchestrator workflow recoverable guidance', () => {
 
   it('returns guided recovery when advance_stage is attempted from the final stage', async () => {
     vi.spyOn(PlaybookWorkflowControlService.prototype, 'advanceStage').mockRejectedValue(
-      new ValidationError('No next stage is available; use complete_workflow for the final stage'),
+      new ValidationError('stage advance blocked', {
+        reason_code: 'final_stage_use_complete_workflow',
+      }),
     );
     vi.spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask').mockResolvedValue(
       buildTaskScope({ stage_name: 'release' }),

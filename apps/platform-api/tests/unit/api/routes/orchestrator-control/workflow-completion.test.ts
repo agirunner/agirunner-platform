@@ -159,7 +159,9 @@ describe('orchestratorControlRoutes', () => {
   it('returns guided recovery when complete_workflow is attempted for an ongoing lifecycle workflow', async () => {
     const completeWorkflowSpy = vi
       .spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkflow')
-      .mockRejectedValue(new ConflictError('Only planned playbook workflows can be completed by the orchestrator'));
+      .mockRejectedValue(new ConflictError('workflow completion blocked', {
+        reason_code: 'workflow_lifecycle_not_closable',
+      }));
     const loadTaskScopeSpy = vi
       .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
       .mockResolvedValue({

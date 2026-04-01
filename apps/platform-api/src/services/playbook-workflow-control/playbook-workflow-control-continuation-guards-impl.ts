@@ -124,11 +124,13 @@ export async function assertStageHasNoBlockingAssessmentResolutionImpl(this: any
   if (row.blocked_state === 'blocked') {
     throw new ValidationError(
       `Cannot complete workflow while stage '${stageName}' still has blocked work item '${row.title}'.`,
+      { reason_code: 'workflow_stage_blocked' },
     );
   }
 
   throw new ValidationError(
     `Cannot complete workflow while stage '${stageName}' still has a blocking ${row.blocking_resolution ?? 'assessment'} assessment on work item '${row.title}'.`,
+    { reason_code: 'workflow_assessment_blocked' },
   );
 }
 
@@ -184,6 +186,7 @@ export async function assertNoPendingBlockingContinuationImpl(this: any,
   const expectation = describePendingContinuation(workItem.next_expected_action);
   throw new ValidationError(
     `Cannot complete work item '${workItem.title}' while required ${expectation} by '${workItem.next_expected_actor}' is still pending.`,
+    { reason_code: 'work_item_waiting_for_continuation' },
   );
 }
 
@@ -213,6 +216,7 @@ export async function assertWorkItemHasNoActiveTasksImpl(this: any,
   }
   throw new ValidationError(
     `Cannot complete work item '${workItemTitle}' while task '${row.role}' is still ${row.state}.`,
+    { reason_code: 'work_item_tasks_not_ready' },
   );
 }
 
@@ -251,6 +255,7 @@ export async function assertStageHasNoPendingBlockingContinuationImpl(this: any,
   if (row?.blocked_state === 'blocked') {
     throw new ValidationError(
       `Cannot complete workflow while stage '${stageName}' still has blocked work item '${row.title}'.`,
+      { reason_code: 'workflow_stage_blocked' },
     );
   }
   if (row?.escalation_status === 'open') {
@@ -259,6 +264,7 @@ export async function assertStageHasNoPendingBlockingContinuationImpl(this: any,
     }
     throw new ValidationError(
       `Cannot complete workflow while stage '${stageName}' still has open escalation on work item '${row.title}'.`,
+      { reason_code: 'workflow_stage_open_escalation' },
     );
   }
   if (!row?.next_expected_actor || !row.next_expected_action) {
@@ -271,6 +277,7 @@ export async function assertStageHasNoPendingBlockingContinuationImpl(this: any,
   const expectation = describePendingContinuation(row.next_expected_action);
   throw new ValidationError(
     `Cannot complete workflow while stage '${stageName}' still has required ${expectation} by '${row.next_expected_actor}' pending on work item '${row.title}'.`,
+    { reason_code: 'workflow_continuation_pending' },
   );
 }
 
@@ -297,5 +304,6 @@ export async function assertWorkflowHasNoActiveNonOrchestratorTasksImpl(this: an
   const stageSuffix = row.stage_name ? ` in stage '${row.stage_name}'` : '';
   throw new ValidationError(
     `Cannot complete workflow while task '${row.role}'${stageSuffix} is still ${row.state}.`,
+    { reason_code: 'workflow_tasks_not_ready' },
   );
 }

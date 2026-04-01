@@ -36,6 +36,23 @@ const UNCONFIGURED_GATE_ADVISORY_SAFETYNET = mustGetSafetynetEntry(
   PLATFORM_CONTROL_PLANE_UNCONFIGURED_GATE_ADVISORY_ID,
 );
 
+function readErrorReasonCode(error: unknown): string | null {
+  if (!(error instanceof ConflictError || error instanceof ValidationError)) {
+    return null;
+  }
+  const details = error.details;
+  if (!details || typeof details !== 'object' || Array.isArray(details)) {
+    return null;
+  }
+  const reasonCode = (details as Record<string, unknown>).reason_code;
+  return typeof reasonCode === 'string' && reasonCode.trim().length > 0 ? reasonCode : null;
+}
+
+function readAllowedErrorReasonCode(error: unknown, allowed: readonly string[]): string | null {
+  const reasonCode = readErrorReasonCode(error);
+  return reasonCode && allowed.includes(reasonCode) ? reasonCode : null;
+}
+
 export async function createWorkflowWorkItemOrNoop(
   app: FastifyInstance,
   identity: ApiKeyIdentity,
@@ -239,7 +256,7 @@ function buildRecoverableCreateWorkItemNoop(
     return null;
   }
 
-  const reasonCode = classifyRecoverableCreateWorkItemReason(error.message);
+  const reasonCode = classifyRecoverableCreateWorkItemReason(error);
   if (!reasonCode) {
     return null;
   }
@@ -269,55 +286,32 @@ function buildRecoverableCreateWorkItemNoop(
   });
 }
 
-function classifyRecoverableCreateWorkItemReason(message: string): string | null {
-  if (message.includes('still has non-terminal tasks')) {
-    return 'predecessor_not_ready';
-  }
-  if (message.includes('still awaits gate approval')) {
-    return 'predecessor_waiting_for_gate';
-  }
-  if (message.includes('has a full handoff')) {
-    return 'predecessor_waiting_for_handoff';
-  }
-  return null;
+function classifyRecoverableCreateWorkItemReason(error: unknown): string | null {
+  return readAllowedErrorReasonCode(error, [
+    'predecessor_not_ready',
+    'predecessor_waiting_for_gate',
+    'predecessor_waiting_for_handoff',
+  ]);
 }
 
-function classifyRecoverableCompleteWorkItemReason(message: string): string | null {
-  if (message.includes('while task') && message.includes('is still')) {
-    return 'work_item_tasks_not_ready';
-  }
-  if (message.includes('while required') && message.includes('is still pending')) {
-    return 'work_item_waiting_for_continuation';
-  }
-  return null;
+function classifyRecoverableCompleteWorkItemReason(error: unknown): string | null {
+  return readAllowedErrorReasonCode(error, [
+    'work_item_tasks_not_ready',
+    'work_item_waiting_for_continuation',
+  ]);
 }
 
-function classifyRecoverableCompleteWorkflowReason(message: string): string | null {
-  if (message.includes('Only planned playbook workflows can be completed by the orchestrator')) {
-    return 'workflow_lifecycle_not_closable';
-  }
-  if (message.includes('requires human approval before workflow completion')) {
-    return 'workflow_waiting_for_gate_approval';
-  }
-  if (message.includes('Cannot complete workflow while task') && message.includes('is still')) {
-    return 'workflow_tasks_not_ready';
-  }
-  if (message.includes('Workflow still has incomplete stage')) {
-    return 'workflow_incomplete_stage';
-  }
-  if (message.includes('blocked work item')) {
-    return 'workflow_stage_blocked';
-  }
-  if (message.includes('open escalation on work item')) {
-    return 'workflow_stage_open_escalation';
-  }
-  if (message.includes('required') && message.includes('pending on work item')) {
-    return 'workflow_continuation_pending';
-  }
-  if (message.includes('blocking') && message.includes('assessment')) {
-    return 'workflow_assessment_blocked';
-  }
-  return null;
+function classifyRecoverableCompleteWorkflowReason(error: unknown): string | null {
+  return readAllowedErrorReasonCode(error, [
+    'workflow_lifecycle_not_closable',
+    'workflow_waiting_for_gate_approval',
+    'workflow_tasks_not_ready',
+    'workflow_incomplete_stage',
+    'workflow_stage_blocked',
+    'workflow_stage_open_escalation',
+    'workflow_continuation_pending',
+    'workflow_assessment_blocked',
+  ]);
 }
 
 function recoverableCompleteWorkflowActions(
@@ -424,7 +418,7 @@ export function buildRecoverableCompleteWorkflowNoopIfNotReady(input: {
   if (!(input.error instanceof ConflictError || input.error instanceof ValidationError)) {
     return null;
   }
-  const reasonCode = classifyRecoverableCompleteWorkflowReason(input.error.message);
+  const reasonCode = classifyRecoverableCompleteWorkflowReason(input.error);
   if (!reasonCode) {
     return null;
   }
@@ -456,23 +450,14 @@ export function buildRecoverableCompleteWorkflowNoopIfNotReady(input: {
   });
 }
 
-function classifyRecoverableAdvanceStageReason(message: string): string | null {
-  if (message.includes('No next stage is available; use complete_workflow for the final stage')) {
-    return 'final_stage_use_complete_workflow';
-  }
-  if (message.includes('requires human approval before it can advance')) {
-    return 'stage_waiting_for_gate_approval';
-  }
-  if (message.includes('may only advance to the immediate next planned stage')) {
-    return 'stage_wrong_successor';
-  }
-  if (message.includes('is not the current workflow stage')) {
-    return 'stage_not_current';
-  }
-  if (message.includes('Stage advancement is only supported for planned playbook workflows')) {
-    return 'workflow_lifecycle_not_planned';
-  }
-  return null;
+function classifyRecoverableAdvanceStageReason(error: unknown): string | null {
+  return readAllowedErrorReasonCode(error, [
+    'final_stage_use_complete_workflow',
+    'stage_waiting_for_gate_approval',
+    'stage_wrong_successor',
+    'stage_not_current',
+    'workflow_lifecycle_not_planned',
+  ]);
 }
 
 function recoverableAdvanceStageActions(
@@ -562,7 +547,7 @@ export function buildRecoverableAdvanceStageNoopIfNotReady(input: {
   if (!(input.error instanceof ConflictError || input.error instanceof ValidationError)) {
     return null;
   }
-  const reasonCode = classifyRecoverableAdvanceStageReason(input.error.message);
+  const reasonCode = classifyRecoverableAdvanceStageReason(input.error);
   if (!reasonCode) {
     return null;
   }
@@ -646,7 +631,7 @@ export function buildRecoverableCompleteWorkItemNoopIfNotReady(input: {
   if (!(input.error instanceof ValidationError)) {
     return null;
   }
-  const reasonCode = classifyRecoverableCompleteWorkItemReason(input.error.message);
+  const reasonCode = classifyRecoverableCompleteWorkItemReason(input.error);
   if (!reasonCode) {
     return null;
   }

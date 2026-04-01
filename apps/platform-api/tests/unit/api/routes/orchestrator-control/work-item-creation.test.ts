@@ -199,9 +199,9 @@ describe('orchestratorControlRoutes', () => {
   it('returns a structured no-op when successor work is not ready yet', async () => {
     const workflowService = {
       createWorkflowWorkItem: vi.fn(async () => {
-        throw new ValidationError(
-          "Cannot create successor work item in stage 'technical-review' while predecessor 'Draft PRD for workflow budget alerts' (requirements) still has non-terminal tasks. Wait for the current stage work item to finish before routing to the next stage.",
-        );
+        throw new ValidationError('successor creation blocked', {
+          reason_code: 'predecessor_not_ready',
+        });
       }),
     };
     const client = {
