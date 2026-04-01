@@ -1,0 +1,37 @@
+{
+  "playbook_slug": "bug-fix",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "issue_summary": "Enterprise CSV exports stall at exactly sixty seconds when an account requests more than fifty thousand rows from the audit export screen.",
+        "reproduction_context": "Observed on the current release candidate using the seeded product workspace. Two customer-facing support tickets cite timeout banners while the job keeps consuming worker capacity in the background.",
+        "acceptance_scope": "Isolate the root cause, propose or implement the smallest safe fix, and provide regression guidance for export jobs, retries, and queue pressure."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/bug-report-export-timeout.md"
+      ],
+      "expected_outcome": {
+        "kind": "engineering_handoff"
+      }
+    },
+    "approval": {
+      "launch_inputs": {
+        "issue_summary": "A high-value enterprise account is blocked by audit exports that hang at sixty seconds whenever the selection exceeds one quarter of a quarter's worth of events.",
+        "reproduction_context": "Customer success can reproduce it from the account timeline and the seeded repo contains the current export worker implementation plus the latest incident summary.",
+        "acceptance_scope": "Deliver an implementation-ready fix recommendation and a review packet that can be explicitly approved before the change is launched."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/bug-report-export-timeout.md"
+      ],
+      "operator_actions": [
+        {
+          "kind": "approval",
+          "decision": "approve"
+        }
+      ],
+      "expected_outcome": {
+        "kind": "approved_engineering_handoff"
+      }
+    }
+  }
+}

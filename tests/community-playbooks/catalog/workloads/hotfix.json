@@ -1,0 +1,37 @@
+{
+  "playbook_slug": "hotfix",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "incident_summary": "The alerting service is paging continuously because failed webhook deliveries are looping without honoring the circuit-breaker cooldown.",
+        "urgency_context": "Operations needs a same-day stabilization plan before the next on-call shift, but the fix must not disable legitimate escalation delivery.",
+        "acceptable_risk_bounds": "Prefer a reversible change with explicit rollback steps and clear monitoring guidance."
+      },
+      "uploads": [
+        "fixtures/uploads/ops/runbook-source-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "hotfix_packet"
+      }
+    },
+    "approval": {
+      "launch_inputs": {
+        "incident_summary": "Webhook retries are stampeding the alerting service and the current mitigation window closes before the overnight rotation starts.",
+        "urgency_context": "The hotfix needs an operator approval gate because support, SRE, and release all have to align on the rollback posture.",
+        "acceptable_risk_bounds": "The fix can degrade retry aggressiveness temporarily, but must preserve audited delivery records and clear rollback notes."
+      },
+      "uploads": [
+        "fixtures/uploads/ops/runbook-source-notes.md"
+      ],
+      "operator_actions": [
+        {
+          "kind": "approval",
+          "decision": "approve"
+        }
+      ],
+      "expected_outcome": {
+        "kind": "approved_hotfix_packet"
+      }
+    }
+  }
+}

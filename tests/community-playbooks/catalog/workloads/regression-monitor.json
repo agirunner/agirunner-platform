@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "regression-monitor",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "change_scope": "Monitor the alerting-service retry stabilization work and identify the behavior most likely to regress during rollout.",
+        "at_risk_behavior": "Repeated webhook delivery failures, alert fan-out, and cooldown timing under bursty upstream outages.",
+        "available_evidence": "Use the seeded services repository plus the attached operations notes."
+      },
+      "uploads": [
+        "fixtures/uploads/ops/runbook-source-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "regression_watchlist"
+      }
+    }
+  }
+}

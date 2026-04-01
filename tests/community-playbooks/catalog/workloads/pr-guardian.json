@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "pr-guardian",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "change_summary": "Prepare the export stabilization branch for merge by checking release readiness, documentation deltas, and reviewer-visible risks.",
+        "merge_goal": "Ship the queue stabilization work without surprising release management or customer support.",
+        "available_evidence": "Use the seeded repository state and the attached review evidence packet."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/review-evidence-api-diff.md"
+      ],
+      "expected_outcome": {
+        "kind": "merge_readiness_packet"
+      }
+    }
+  }
+}

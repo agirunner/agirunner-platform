@@ -1,0 +1,31 @@
+{
+  "playbook_slug": "vendor-evaluation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "decision_scope": "Evaluate whether the team should buy, build, or partner for research and compliance evidence gathering tied to audit export workflows.",
+        "evaluation_criteria": "Decision quality, integration cost, operator workload, security posture, and time to usable evidence.",
+        "candidate_vendors": "Compare Tavily, Exa, and a build-only internal path using the provided market notes."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "vendor_evaluation"
+      }
+    },
+    "upload": {
+      "launch_inputs": {
+        "decision_scope": "Assess vendor options for external research augmentation without locking the workflow stack into a brittle single-provider dependency.",
+        "evaluation_criteria": "Coverage quality, operator trust, controllability, cost, and how cleanly outputs flow into briefs and deliverables.",
+        "candidate_vendors": "Use the uploaded notes as the baseline comparison set and recommend a decision posture."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "vendor_evaluation"
+      }
+    }
+  }
+}

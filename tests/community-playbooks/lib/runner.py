@@ -66,6 +66,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         variant=args.variant,
         failed_only_ids=failed_only_ids,
     )
+    payload["resolved_run_count"] = len(resolved_runs)
 
     result = {"runs": resolved_runs, "selection": payload}
     write_json_file(summary_path, result)

@@ -1,0 +1,64 @@
+{
+  "playbook_slug": "research-analysis",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "research_question": "What product, operational, and customer-trust trade-offs should shape a next-generation audit export workflow for enterprise teams?",
+        "decision_context": "Platform leadership needs a briefing for planning that compares incremental stabilization against a more ambitious redesign.",
+        "source_scope": "Use the workspace materials and uploaded research notes as the core evidence set."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "research_brief"
+      }
+    },
+    "host": {
+      "launch_inputs": {
+        "research_question": "How should the documentation and operator experience evolve if export workflows become long-running, review-heavy, and customer-visible?",
+        "decision_context": "The docs and platform teams want a joint recommendation that balances usability, governance, and rollout cost.",
+        "source_scope": "Use the host-directory docs portal plus the uploaded notes to ground the research."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "research_brief"
+      }
+    },
+    "mcp": {
+      "launch_inputs": {
+        "research_question": "What should a responsible audit-export roadmap borrow from adjacent research and compliance products already in market?",
+        "decision_context": "The product team wants an outward-looking synthesis that can justify or challenge the current roadmap assumptions.",
+        "source_scope": "Use workspace context first, then external research if the specialist elects to call the registered research MCP server."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "mcp_allowed": true,
+      "expected_outcome": {
+        "kind": "research_brief"
+      }
+    },
+    "steering": {
+      "launch_inputs": {
+        "research_question": "What roadmap recommendation should leadership make for enterprise audit exports over the next two quarters?",
+        "decision_context": "A planning memo is due this week and leadership wants the conclusion sharpened around operating cost, customer trust, and delivery risk.",
+        "source_scope": "Start with the uploaded packet and any existing workspace context."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "steering_script": [
+        {
+          "when": "after_first_brief",
+          "message": "Refocus the recommendation around integration effort, operator burden, and customer-facing reliability."
+        }
+      ],
+      "expected_outcome": {
+        "kind": "steered_research_brief"
+      }
+    }
+  }
+}

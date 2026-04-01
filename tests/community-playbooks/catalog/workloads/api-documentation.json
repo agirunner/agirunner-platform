@@ -1,0 +1,31 @@
+{
+  "playbook_slug": "api-documentation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "api_surface": "Audit export job creation, status polling, and result retrieval endpoints.",
+        "target_reader": "Internal integrators and external implementation partners.",
+        "source_material_context": "Use the host docs portal and the uploaded API notes to produce a reader-ready draft."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "expected_outcome": {
+        "kind": "api_documentation"
+      }
+    },
+    "upload": {
+      "launch_inputs": {
+        "api_surface": "Enterprise audit export APIs used by support tools and customer automation scripts.",
+        "target_reader": "Technical implementers who need examples, payload guidance, and operational caveats.",
+        "source_material_context": "Use the attached source notes plus the host docs portal as the evidence set."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "expected_outcome": {
+        "kind": "api_documentation"
+      }
+    }
+  }
+}

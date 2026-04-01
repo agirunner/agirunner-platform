@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "runbook-creation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "operating_goal": "Produce a review-ready runbook for stabilizing alert fan-out when upstream webhook delivery fails repeatedly.",
+        "system_or_process": "Alerting service retry management, on-call triage, and rollback coordination.",
+        "risk_context": "The team needs a document that helps new on-call engineers act quickly without masking real delivery failures."
+      },
+      "uploads": [
+        "fixtures/uploads/ops/runbook-source-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "runbook"
+      }
+    }
+  }
+}

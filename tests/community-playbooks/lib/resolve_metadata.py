@@ -23,6 +23,27 @@ def load_metadata(path: str | None = None) -> dict[str, Any]:
     return metadata
 
 
+def load_workload(path: str) -> dict[str, Any]:
+    workload = read_json_file(relative_to_suite(path))
+    if not isinstance(workload, dict):
+        raise RuntimeError(f"community workload {path!r} must be a JSON object")
+    variants = workload.get("variants")
+    if not isinstance(variants, dict):
+        raise RuntimeError(f"community workload {path!r} must define variants")
+    return workload
+
+
+def resolve_workload_variant(run: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    workload_file = str(run.get("workload_file") or "").strip()
+    workload_variant = str(run.get("workload_variant") or "").strip()
+    workload = load_workload(workload_file)
+    variants = workload["variants"]
+    variant = variants.get(workload_variant)
+    if not isinstance(variant, dict):
+        raise RuntimeError(f"run {run.get('id')!r} references unknown workload variant {workload_variant!r}")
+    return workload, variant
+
+
 def validate_metadata(metadata: dict[str, Any]) -> None:
     workspace_profiles = metadata["workspace_profiles"]
     seen_ids: set[str] = set()
@@ -43,14 +64,46 @@ def validate_metadata(metadata: dict[str, Any]) -> None:
         playbook_slug = str(run.get("playbook_slug") or "").strip()
         variant = str(run.get("variant") or "").strip()
         workspace_profile = str(run.get("workspace_profile") or "").strip()
+        workload_file = str(run.get("workload_file") or "").strip()
+        workload_variant = str(run.get("workload_variant") or "").strip()
         if not playbook_slug:
             raise RuntimeError(f"run {run_id!r} is missing playbook_slug")
         if not variant:
             raise RuntimeError(f"run {run_id!r} is missing variant")
         if workspace_profile not in workspace_profiles:
             raise RuntimeError(f"run {run_id!r} references unknown workspace profile {workspace_profile!r}")
+        if not workload_file:
+            raise RuntimeError(f"run {run_id!r} is missing workload_file")
+        if not workload_variant:
+            raise RuntimeError(f"run {run_id!r} is missing workload_variant")
+        if not relative_to_suite(workload_file).is_file():
+            raise RuntimeError(f"run {run_id!r} references missing workload file {workload_file!r}")
 
-        for upload_path in run.get("uploads", []):
+        workload, resolved_variant = resolve_workload_variant(run)
+        workload_playbook_slug = str(workload.get("playbook_slug") or "").strip()
+        if workload_playbook_slug != playbook_slug:
+            raise RuntimeError(
+                f"run {run_id!r} playbook_slug {playbook_slug!r} does not match workload playbook {workload_playbook_slug!r}"
+            )
+
+        launch_inputs = resolved_variant.get("launch_inputs")
+        if not isinstance(launch_inputs, dict) or not launch_inputs:
+            raise RuntimeError(f"run {run_id!r} workload variant {workload_variant!r} is missing launch_inputs")
+
+        for input_name, value in launch_inputs.items():
+            if not isinstance(input_name, str) or input_name.strip() == "":
+                raise RuntimeError(f"run {run_id!r} workload variant {workload_variant!r} has an invalid input name")
+            if not isinstance(value, str) or value.strip() == "":
+                raise RuntimeError(
+                    f"run {run_id!r} workload variant {workload_variant!r} input {input_name!r} must be a non-empty string"
+                )
+
+        uploads = resolved_variant.get("uploads", [])
+        if uploads is None:
+            uploads = []
+        if not isinstance(uploads, list):
+            raise RuntimeError(f"run {run_id!r} workload variant {workload_variant!r} uploads must be an array")
+        for upload_path in uploads:
             candidate = relative_to_suite(upload_path)
             if not candidate.is_file():
                 raise RuntimeError(f"run {run_id!r} references missing upload fixture {upload_path!r}")
@@ -90,11 +143,20 @@ def resolve_run_specs(
             continue
         if failed_only_ids is not None and str(run["id"]) not in failed_only_ids:
             continue
+        _, workload_variant = resolve_workload_variant(run)
         resolved.append(
             {
                 **run,
                 "workspace_profile_record": dict(workspace_profiles[str(run["workspace_profile"])]),
-                "uploads": [str(relative_to_suite(item)) for item in run.get("uploads", [])],
+                "launch_inputs": dict(workload_variant.get("launch_inputs") or {}),
+                "steering_script": list(workload_variant.get("steering_script") or []),
+                "operator_actions": list(workload_variant.get("operator_actions") or []),
+                "expected_outcome": dict(workload_variant.get("expected_outcome") or {}),
+                "mcp_allowed": bool(workload_variant.get("mcp_allowed", False)),
+                "uploads": [
+                    str(relative_to_suite(item))
+                    for item in list(workload_variant.get("uploads") or [])
+                ],
             }
         )
     return resolved

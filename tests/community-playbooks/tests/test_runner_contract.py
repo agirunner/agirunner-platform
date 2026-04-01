@@ -71,3 +71,18 @@ class RunnerContractTests(unittest.TestCase):
 
         import_mock.assert_called_once_with()
         self.assertEqual({"catalog_playbook_count": 17}, payload["import"])
+
+    def test_execute_default_run_reports_resolved_run_count(self) -> None:
+        args = argparse.Namespace(
+            bootstrap_only=False,
+            import_only=False,
+            batch=["smoke"],
+            playbook="bug-fix",
+            variant="smoke",
+            failed_only=False,
+        )
+
+        payload = community_runner.execute(args)
+
+        self.assertEqual(1, payload["selection"]["resolved_run_count"])
+        self.assertEqual(1, len(payload["runs"]))

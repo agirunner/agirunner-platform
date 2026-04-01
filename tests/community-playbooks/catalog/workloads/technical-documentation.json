@@ -1,0 +1,50 @@
+{
+  "playbook_slug": "technical-documentation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "documentation_goal": "Write review-ready technical documentation for the audit export lifecycle, covering queueing, failure handling, and operator-visible states.",
+        "target_reader": "Product engineers and support engineers who need to diagnose export problems quickly.",
+        "source_material_context": "Use the host docs portal and uploaded API notes as the source package."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "expected_outcome": {
+        "kind": "technical_documentation"
+      }
+    },
+    "upload": {
+      "launch_inputs": {
+        "documentation_goal": "Turn the export API notes and workspace docs into a concise implementation-facing guide for job orchestration and failure recovery.",
+        "target_reader": "Backend developers responsible for export jobs and the operator surfaces around them.",
+        "source_material_context": "Anchor the draft in the uploaded API notes, then reconcile it with the host-directory docs set."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "expected_outcome": {
+        "kind": "technical_documentation"
+      }
+    },
+    "steering": {
+      "launch_inputs": {
+        "documentation_goal": "Produce a documentation update for the export workflow that can be shared with engineering and support before the next release review.",
+        "target_reader": "Support leads and platform engineers.",
+        "source_material_context": "Use the existing docs workspace and uploaded API notes as the main source material."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "steering_script": [
+        {
+          "when": "after_first_brief",
+          "message": "Shorten the draft and emphasize operator-visible states, troubleshooting, and links between the API and the workflow UI."
+        }
+      ],
+      "expected_outcome": {
+        "kind": "steered_technical_documentation"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "sop-creation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "procedure_goal": "Create a standard operating procedure for approving customer credits when export incidents disrupt quarter-end reporting.",
+        "current_process_context": "Support, finance, and success currently improvise the approval chain and lose track of who promised what.",
+        "target_audience": "Support operations leads and customer success managers."
+      },
+      "uploads": [
+        "fixtures/uploads/ops/runbook-source-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "sop"
+      }
+    }
+  }
+}

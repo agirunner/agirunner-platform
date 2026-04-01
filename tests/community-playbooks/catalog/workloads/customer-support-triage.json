@@ -1,0 +1,51 @@
+{
+  "playbook_slug": "customer-support-triage",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "request_summary": "A strategic customer cannot complete their quarter-end audit export and is threatening to delay compliance reporting unless support gives a credible workaround today.",
+        "customer_context": "The account is enterprise, has an active renewal in negotiation, and has already tried the documented self-serve guidance without success.",
+        "known_artifacts": "Use the attached ticket thread and the product brief already available in the workspace."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/customer-thread-refund.txt"
+      ],
+      "expected_outcome": {
+        "kind": "triage_response"
+      }
+    },
+    "upload": {
+      "launch_inputs": {
+        "request_summary": "Support needs a polished response plan for a customer blocked by export failures after an otherwise successful release rollout.",
+        "customer_context": "The customer is technically sophisticated and expects concrete next steps, estimated timing, and a clear owner for follow-up.",
+        "known_artifacts": "Anchor the response in the uploaded thread, release notes, and any operator-ready workaround guidance."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/customer-thread-refund.txt",
+        "fixtures/uploads/content/launch-brief-q4-exports.md"
+      ],
+      "expected_outcome": {
+        "kind": "triage_response"
+      }
+    },
+    "steering": {
+      "launch_inputs": {
+        "request_summary": "Support leadership wants a response packet for the blocked export account that balances empathy, realism, and a strong next update commitment.",
+        "customer_context": "The same customer has already escalated once this week and will share the written response internally with finance and legal.",
+        "known_artifacts": "Use the attached customer thread and any release context already present in the workspace."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/customer-thread-refund.txt"
+      ],
+      "steering_script": [
+        {
+          "when": "after_first_brief",
+          "message": "Tighten the customer-facing answer around ownership, next update timing, and a short workaround summary."
+        }
+      ],
+      "expected_outcome": {
+        "kind": "steered_triage_response"
+      }
+    }
+  }
+}

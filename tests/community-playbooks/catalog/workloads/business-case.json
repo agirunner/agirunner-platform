@@ -1,0 +1,15 @@
+{
+  "playbook_slug": "business-case",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "decision_question": "Should the platform team prioritize a managed audit export queue redesign in the next planning cycle?",
+        "options_in_scope": "Stabilize the current implementation, rebuild the export pipeline, or defer and rely on manual support workarounds.",
+        "success_criteria": "Clarify revenue risk, customer trust impact, delivery cost, and what operational savings justify the investment."
+      },
+      "expected_outcome": {
+        "kind": "business_case"
+      }
+    }
+  }
+}

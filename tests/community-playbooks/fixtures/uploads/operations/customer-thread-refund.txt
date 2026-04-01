@@ -1,0 +1,10 @@
+From: finance-ops@northwind.example
+To: support@agirunner.example
+Subject: Export failure is blocking quarter close
+
+We cannot complete the audit export our finance reviewers need before
+Thursday morning. The UI times out, then support tells us the job may
+still be running. We need a concrete workaround, realistic timing, and
+one owner for follow-up.
+
+This is our second escalation this week.

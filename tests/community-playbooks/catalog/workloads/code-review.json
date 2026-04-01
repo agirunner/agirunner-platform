@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "code-review",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "review_scope": "Review the proposed export queue backpressure changes for correctness, operator safety, and regressions in long-running background jobs.",
+        "change_goal": "Allow the product team to merge a narrowly scoped fix without reintroducing duplicate export jobs or unbounded retry churn.",
+        "available_evidence": "Use the seeded product repository and attached review notes as the primary evidence set."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/review-evidence-api-diff.md"
+      ],
+      "expected_outcome": {
+        "kind": "review_packet"
+      }
+    }
+  }
+}

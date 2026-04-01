@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "policy-review",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "policy_subject": "Access review and audit export handling for enterprise finance workspaces.",
+        "review_goal": "Identify ambiguities, missing controls, and operator guidance gaps before the policy is circulated to finance leadership.",
+        "source_material_context": "Base the review on the uploaded policy excerpt and any supporting workspace context."
+      },
+      "uploads": [
+        "fixtures/uploads/compliance/policy-excerpt-access-review.md"
+      ],
+      "expected_outcome": {
+        "kind": "policy_review"
+      }
+    }
+  }
+}

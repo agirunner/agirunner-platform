@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "contract-review",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "contract_subject": "Master services agreement language covering compliance exports, audit evidence retention, and support obligations.",
+        "review_goal": "Summarize negotiation risk, red-flag clauses, and the parts the operator should escalate to counsel.",
+        "counterpart_context": "The counterpart is a sophisticated enterprise prospect pushing for short retention windows and stronger support SLAs."
+      },
+      "uploads": [
+        "fixtures/uploads/contracts/msa-redlines-summary.md"
+      ],
+      "expected_outcome": {
+        "kind": "contract_review"
+      }
+    }
+  }
+}
