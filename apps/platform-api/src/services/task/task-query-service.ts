@@ -273,7 +273,7 @@ function normalizeExecutionEnvironmentSnapshot(value: unknown): Record<string, u
 
 function buildTaskWaitContract(
   task: Record<string, unknown>,
-  state: string,
+  state: unknown,
 ): Record<string, string> | null {
   if (task.is_orchestrator_task === true) {
     return null;

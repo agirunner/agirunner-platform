@@ -177,6 +177,29 @@ describe('TaskQueryService task responses', () => {
     expect(response).not.toHaveProperty('wait_reason');
   });
 
+  it('does not stamp an active-work wait contract when the persisted state is absent', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      state: null,
+      is_orchestrator_task: false,
+      metadata: {},
+    }) as never);
+
+    const response = service.toTaskResponse({
+      id: taskId,
+      tenant_id: tenantId,
+      state: null,
+      is_orchestrator_task: false,
+      metadata: {},
+    }) as Record<string, unknown>;
+
+    expect(response.state).toBeNull();
+    expect(response).not.toHaveProperty('recovery_hint');
+    expect(response).not.toHaveProperty('wait_signal');
+    expect(response).not.toHaveProperty('wait_reason');
+  });
+
   it('redacts plaintext secrets and secret refs from task API responses', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
