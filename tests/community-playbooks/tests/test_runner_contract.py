@@ -107,6 +107,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=None,
             playbook=None,
             variant=None,
+            provider=None,
             manual_operator_actions=False,
             failed_only=False,
         )
@@ -123,6 +124,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=None,
             playbook=None,
             variant=None,
+            provider=None,
             manual_operator_actions=False,
             failed_only=False,
         )
@@ -139,6 +141,7 @@ class RunnerContractTests(unittest.TestCase):
             batch=["smoke"],
             playbook="bug-fix",
             variant="smoke",
+            provider=None,
             manual_operator_actions=True,
             failed_only=False,
         )
@@ -172,3 +175,53 @@ class RunnerContractTests(unittest.TestCase):
         self.assertEqual(1, payload["selection"]["resolved_run_count"])
         self.assertTrue(payload["selection"]["manual_operator_actions"])
         self.assertEqual(1, len(payload["runs"]))
+
+    def test_execute_uses_env_file_as_authoritative_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / "local.env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        "LIVE_TEST_PROVIDER_TYPE=anthropic",
+                        "LIVE_TEST_MODEL_ID=claude-sonnet-4-6",
+                        "LIVE_TEST_ORCHESTRATOR_MODEL_ID=claude-sonnet-4-6",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                bootstrap_only=True,
+                import_only=False,
+                batch=None,
+                playbook=None,
+                variant=None,
+                provider=None,
+                manual_operator_actions=False,
+                failed_only=False,
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "LIVE_TEST_ENV_FILE": str(env_file),
+                    "LIVE_TEST_PROVIDER_TYPE": "openai",
+                    "LIVE_TEST_MODEL_ID": "gpt-5.4",
+                    "LIVE_TEST_ORCHESTRATOR_MODEL_ID": "gpt-5.4",
+                },
+                clear=False,
+            ):
+                observed: dict[str, str] = {}
+
+                def fake_prepare_environment() -> dict[str, str]:
+                    observed["provider_type"] = os.environ["LIVE_TEST_PROVIDER_TYPE"]
+                    observed["model_id"] = os.environ["LIVE_TEST_MODEL_ID"]
+                    observed["orchestrator_model_id"] = os.environ["LIVE_TEST_ORCHESTRATOR_MODEL_ID"]
+                    return {"specialist_model_id": "model-1", "specialist_reasoning": "low"}
+
+                with patch("runner.prepare_environment", side_effect=fake_prepare_environment):
+                    community_runner.execute(args)
+
+            self.assertEqual("anthropic", observed["provider_type"])
+            self.assertEqual("claude-sonnet-4-6", observed["model_id"])
+            self.assertEqual("claude-sonnet-4-6", observed["orchestrator_model_id"])

@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, MutableMapping
 
 
 SUITE_ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +67,26 @@ def read_env(name: str, default: str | None = None, *, required: bool = False) -
     if required and (value is None or value.strip() == ""):
         raise RuntimeError(f"{name} is required")
     return (value or "").strip()
+
+
+def load_env_file_values(path: str | Path, *, environ: MutableMapping[str, str] | None = None) -> dict[str, str]:
+    target = environ if environ is not None else os.environ
+    values: dict[str, str] = {}
+    for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if line == "" or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        key = name.strip()
+        if key == "":
+            continue
+        resolved = value.strip()
+        if len(resolved) >= 2:
+            if (resolved[0], resolved[-1]) in {("'", "'"), ('"', '"')}:
+                resolved = resolved[1:-1]
+        target[key] = resolved
+        values[key] = resolved
+    return values
 
 
 def run_command(

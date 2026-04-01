@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bootstrap import prepare_environment
-from common import ensure_dir, results_root, suite_root, write_json_file
+from common import ensure_dir, load_env_file_values, live_root, results_root, suite_root, write_json_file
 from community_mcp import configure_community_mcp_servers
 from community_run_api import CommunityRunApi
 from import_catalog import assign_specialist_model_to_roles, create_catalog_api, import_full_catalog, run_import_only
@@ -43,6 +43,8 @@ def resolve_failed_only_ids(summary_path: Path) -> set[str]:
 
 
 def execute(args: argparse.Namespace) -> dict[str, Any]:
+    env_file = Path(os.environ.get("LIVE_TEST_ENV_FILE", live_root() / "env" / "local.env"))
+    load_env_file_values(env_file)
     selected_provider = getattr(args, "provider", None)
     provider_overrides = apply_provider_selection(selected_provider, os.environ)
     summary_path = results_root() / "summary.json"
