@@ -29,6 +29,9 @@ export type TaskResponseRecord = Record<string, unknown> & {
   execution_backend?: 'runtime_only' | 'runtime_plus_task';
   execution_environment?: Record<string, unknown> | null;
   used_task_sandbox?: boolean;
+  recovery_hint?: string | null;
+  wait_signal?: string | null;
+  wait_reason?: string | null;
 };
 
 export class TaskQueryService {
@@ -51,14 +54,17 @@ export class TaskQueryService {
     const executionEnvironment = normalizeExecutionEnvironmentSnapshot(
       sanitizedTask.execution_environment_snapshot,
     );
+    const state = normalizeResponseTaskState(sanitizedTask.state);
+    const waitContract = buildTaskWaitContract(sanitizedTask, state);
     return {
       ...sanitizedTask,
-      state: normalizeResponseTaskState(sanitizedTask.state),
+      state,
       description: metadata.description ?? null,
       parent_id: metadata.parent_id ?? null,
       verification: metadata.verification ?? null,
       execution_environment: executionEnvironment,
       used_task_sandbox: sanitizedTask.used_task_sandbox ?? false,
+      ...waitContract,
     } as TaskResponseRecord;
   }
 
@@ -263,6 +269,27 @@ function normalizeTaskHandoff(row: Record<string, unknown>) {
 
 function normalizeExecutionEnvironmentSnapshot(value: unknown): Record<string, unknown> | null {
   return isRecord(value) ? value : null;
+}
+
+function buildTaskWaitContract(
+  task: Record<string, unknown>,
+  state: string,
+): Record<string, string> | null {
+  if (task.is_orchestrator_task === true) {
+    return null;
+  }
+  if (state !== 'claimed' && state !== 'in_progress') {
+    return null;
+  }
+  const taskId = typeof task.id === 'string' ? task.id.trim() : '';
+  const waitReason = taskId.length > 0
+    ? `waiting on active task ${taskId} (${state})`
+    : `waiting on active task (${state})`;
+  return {
+    recovery_hint: 'wait_for_workflow_event',
+    wait_signal: 'active_subordinate_work',
+    wait_reason: waitReason,
+  };
 }
 
 function readRelevantHandoffResolution(taskContext: unknown): RelevantHandoffResolution | null {

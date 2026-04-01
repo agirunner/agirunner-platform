@@ -100,9 +100,15 @@ describe('TaskQueryService task responses', () => {
         id: taskId,
         tenant_id: tenantId,
         state: 'in_progress',
+        is_orchestrator_task: false,
         metadata: {},
       }) as Record<string, unknown>,
-    ).toEqual(expect.objectContaining({ state: 'in_progress' }));
+    ).toEqual(expect.objectContaining({
+      state: 'in_progress',
+      recovery_hint: 'wait_for_workflow_event',
+      wait_signal: 'active_subordinate_work',
+      wait_reason: `waiting on active task ${taskId} (in_progress)`,
+    }));
   });
 
   it('rejects stale persisted task aliases instead of rewriting them in the public response', () => {
@@ -146,6 +152,29 @@ describe('TaskQueryService task responses', () => {
         metadata: {},
       }) as Record<string, unknown>,
     ).toEqual(expect.objectContaining({ state: 'escalated' }));
+  });
+
+  it('does not stamp an active-work wait contract onto orchestrator tasks', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      state: 'in_progress',
+      is_orchestrator_task: true,
+      metadata: {},
+    }) as never);
+
+    const response = service.toTaskResponse({
+      id: taskId,
+      tenant_id: tenantId,
+      state: 'in_progress',
+      is_orchestrator_task: true,
+      metadata: {},
+    }) as Record<string, unknown>;
+
+    expect(response.state).toBe('in_progress');
+    expect(response).not.toHaveProperty('recovery_hint');
+    expect(response).not.toHaveProperty('wait_signal');
+    expect(response).not.toHaveProperty('wait_reason');
   });
 
   it('redacts plaintext secrets and secret refs from task API responses', () => {
