@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertValidTransition,
   canTransitionState,
   normalizeTaskState,
   toStoredTaskState,
@@ -83,5 +84,20 @@ describe('task state machine', () => {
     expect(canTransitionState('claimed', 'running')).toBe(false);
     expect(canTransitionState('running', 'awaiting_escalation')).toBe(false);
     expect(canTransitionState('running', 'completed')).toBe(false);
+  });
+
+  it('adds an explicit stale callback disposition when cancelled tasks reject later transitions', () => {
+    try {
+      assertValidTransition('task-1', 'cancelled', 'failed');
+      throw new Error('expected invalid transition');
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'INVALID_STATE_TRANSITION',
+        details: {
+          reason_code: 'task_already_cancelled',
+          stale_callback_disposition: 'cancelled',
+        },
+      });
+    }
   });
 });

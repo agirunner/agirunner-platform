@@ -43,11 +43,10 @@ export function assertValidTransition(taskId: string, current: string, requested
     return;
   }
 
-  throw new InvalidStateTransitionError(`Cannot transition from '${current}' to '${requested}'`, {
-    current_state: current,
-    requested_state: requested,
-    task_id: taskId,
-  });
+  throw new InvalidStateTransitionError(
+    `Cannot transition from '${current}' to '${requested}'`,
+    detailsForInvalidTransition(taskId, current, requested),
+  );
 }
 
 export function normalizeTaskState(state: string | null | undefined): CanonicalTaskState | null {
@@ -66,4 +65,23 @@ export function toStoredTaskState(state: string): CanonicalTaskState {
     });
   }
   return normalized;
+}
+
+function detailsForInvalidTransition(
+  taskId: string,
+  current: string,
+  requested: string,
+): Record<string, unknown> {
+  const details: Record<string, unknown> = {
+    current_state: current,
+    requested_state: requested,
+    task_id: taskId,
+  };
+
+  if (normalizeTaskState(current) === 'cancelled') {
+    details.reason_code = 'task_already_cancelled';
+    details.stale_callback_disposition = 'cancelled';
+  }
+
+  return details;
 }

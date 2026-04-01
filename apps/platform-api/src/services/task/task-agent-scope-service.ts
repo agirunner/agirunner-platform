@@ -62,13 +62,19 @@ export class TaskAgentScopeService {
   private assertTaskOwnership(identity: ApiKeyIdentity, task: ActiveTaskScope): void {
     if (identity.scope === 'worker') {
       if (task.assigned_worker_id !== identity.ownerId) {
-        throw new ForbiddenError('Task is not owned by the calling Specialist Agent');
+        throw new ForbiddenError('Task is not owned by the calling Specialist Agent', {
+          reason_code: 'task_ownership_moved',
+          stale_callback_disposition: 'superseded',
+        });
       }
       return;
     }
 
     if (task.assigned_agent_id !== identity.ownerId) {
-      throw new ForbiddenError('Task is not owned by the calling agent');
+      throw new ForbiddenError('Task is not owned by the calling agent', {
+        reason_code: 'task_ownership_moved',
+        stale_callback_disposition: 'superseded',
+      });
     }
   }
 }

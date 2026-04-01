@@ -28,8 +28,8 @@ export class UnauthorizedError extends DomainError {
 }
 
 export class ForbiddenError extends DomainError {
-  constructor(message = 'Forbidden') {
-    super('FORBIDDEN', 403, message);
+  constructor(message = 'Forbidden', details?: Record<string, unknown>) {
+    super('FORBIDDEN', 403, message, details);
   }
 }
 
