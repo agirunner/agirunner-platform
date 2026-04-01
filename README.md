@@ -266,6 +266,17 @@ runtime repo, but it covers all three platform images:
 - `ghcr.io/<owner>/agirunner-platform-dashboard`
 - `ghcr.io/<owner>/agirunner-platform-container-manager`
 
+Versioning convention:
+
+- Git tags and GitHub releases: `v0.1.0-alpha.1`, `v0.1.0-beta.1`,
+  `v0.1.0-rc.1`, `v0.1.0`
+- image tags: `0.1.0-alpha.1`, `0.1.0-beta.1`, `0.1.0-rc.1`, `0.1.0`
+- prereleases should publish exact prerelease tags, not pretend to be
+  the stable line
+
+See the product-level versioning policy at
+[`docs.agirunner.dev/operate/upgrades-and-versioning/`](https://docs.agirunner.dev/operate/upgrades-and-versioning/).
+
 Manual workflows:
 
 - `.github/workflows/platform-manual-build.yml`
