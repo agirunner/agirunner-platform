@@ -2,8 +2,17 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { ValidationError } from '../../../errors/domain-errors.js';
+import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
+import {
+  PLATFORM_ORCHESTRATOR_STAGE_ALIGNMENT_REPAIR_ID,
+  mustGetSafetynetEntry,
+} from '../../../services/safetynet/registry.js';
 
 import { orchestratorTaskCreateSchema } from './schemas.js';
+
+const STAGE_ALIGNMENT_REPAIR_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ORCHESTRATOR_STAGE_ALIGNMENT_REPAIR_ID,
+);
 
 interface TaskCreateStageAlignedWorkItem {
   work_item_id: string;
@@ -35,6 +44,18 @@ export async function alignOrchestratorTaskCreateWorkItemToStage(
   if (aligned.source === null || aligned.work_item_id === body.work_item_id) {
     return body;
   }
+
+  logSafetynetTriggered(
+    STAGE_ALIGNMENT_REPAIR_SAFETYNET,
+    'orchestrator create_task repaired work_item_id to match the requested stage',
+    {
+      workflow_id: workflowId,
+      requested_work_item_id: body.work_item_id,
+      aligned_work_item_id: aligned.work_item_id,
+      alignment_source: aligned.source,
+      target_stage_name: body.stage_name,
+    },
+  );
 
   return {
     ...body,

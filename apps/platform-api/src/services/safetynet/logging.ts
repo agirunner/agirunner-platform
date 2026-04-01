@@ -14,16 +14,24 @@ export function logSafetynetTriggered(
 ): void {
   safetynetTriggerCounter.inc({ behavior: entry.id });
   const requestContext = getRequestContext();
+  const requestId = readField(payload, 'request_id') ?? requestContext?.requestId ?? randomUUID();
+  const workflowId = readField(payload, 'workflow_id') ?? requestContext?.workflowId ?? null;
+  const taskId = readField(payload, 'task_id') ?? requestContext?.taskId ?? null;
   logger.warn({
+    ...payload,
     event_type: 'platform.safetynet.triggered',
     safetynet_behavior_id: entry.id,
     classification: entry.classification,
     mechanism: entry.mechanism,
     layer: entry.layer,
     trigger_reason: triggerReason,
-    request_id: requestContext?.requestId ?? randomUUID(),
-    workflow_id: requestContext?.workflowId ?? null,
-    task_id: requestContext?.taskId ?? null,
-    ...payload,
+    request_id: requestId,
+    workflow_id: workflowId,
+    task_id: taskId,
   });
+}
+
+function readField(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }

@@ -2,10 +2,19 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import type { DatabaseQueryable } from '../../../db/database.js';
+import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
+import {
+  PLATFORM_ORCHESTRATOR_PARENT_WORK_ITEM_DEFAULT_INFERENCE_ID,
+  mustGetSafetynetEntry,
+} from '../../../services/safetynet/registry.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import { asRecord, readString } from './shared.js';
 import { workItemCreateSchema } from './schemas.js';
+
+const PARENT_WORK_ITEM_DEFAULT_INFERENCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ORCHESTRATOR_PARENT_WORK_ITEM_DEFAULT_INFERENCE_ID,
+);
 
 export interface OrchestratorCreateWorkItemContext {
   lifecycle: string | null;
@@ -39,6 +48,17 @@ export async function normalizeOrchestratorWorkItemCreateInput(
   ) {
     return body;
   }
+  logSafetynetTriggered(
+    PARENT_WORK_ITEM_DEFAULT_INFERENCE_SAFETYNET,
+    'orchestrator create_work_item defaulted parent_work_item_id from activation context',
+    {
+      workflow_id: taskScope.workflow_id,
+      activation_id: taskScope.activation_id,
+      parent_work_item_id: fallbackParentId,
+      activation_event_type: context.event_type,
+      requested_stage_name: body.stage_name,
+    },
+  );
   return {
     ...body,
     parent_work_item_id: fallbackParentId,

@@ -10,6 +10,11 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from '../../../services/workflow-task-policy/assessment-subject-service.js';
+import { logSafetynetTriggered } from '../../../services/safetynet/logging.js';
+import {
+  PLATFORM_ORCHESTRATOR_EXPECTED_TASK_TYPE_INFERENCE_ID,
+  mustGetSafetynetEntry,
+} from '../../../services/safetynet/registry.js';
 import type { ActiveOrchestratorTaskScope } from '../../../services/task/task-agent-scope-service.js';
 
 import {
@@ -23,6 +28,10 @@ import {
 } from './shared.js';
 import { orchestratorTaskCreateSchema } from './schemas.js';
 import { alignOrchestratorTaskCreateWorkItemToStage } from './stage-alignment.js';
+
+const EXPECTED_TASK_TYPE_INFERENCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ORCHESTRATOR_EXPECTED_TASK_TYPE_INFERENCE_ID,
+);
 
 interface ReviewedTaskContextRow {
   id: string;
@@ -110,7 +119,7 @@ export async function normalizeOrchestratorTaskCreateInput(
       };
     }
     if (!isReviewLinkActivation(context.event_type)) {
-      return body;
+      return explicitLinkageBody;
     }
 
     const reviewedTaskId = readString(context.payload.task_id);
@@ -200,6 +209,16 @@ async function inferWorkItemExpectedTaskType(
   }
 
   if (expectedAction === 'assess') {
+    logSafetynetTriggered(
+      EXPECTED_TASK_TYPE_INFERENCE_SAFETYNET,
+      'orchestrator create_task inferred assessment type from work-item expectation',
+      {
+        workflow_id: workflowId,
+        work_item_id: body.work_item_id,
+        role: body.role,
+        inferred_type: 'assessment',
+      },
+    );
     return { ...body, type: 'assessment' };
   }
   return body;

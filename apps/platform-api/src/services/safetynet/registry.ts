@@ -4,6 +4,12 @@ export const PLATFORM_ORCHESTRATOR_SUBJECT_LINKAGE_INFERENCE_ID =
   'platform.orchestrator.subject_linkage_inference';
 export const PLATFORM_ORCHESTRATOR_REWORK_ROUTE_INFERENCE_ID =
   'platform.orchestrator.rework_route_inference';
+export const PLATFORM_ORCHESTRATOR_PARENT_WORK_ITEM_DEFAULT_INFERENCE_ID =
+  'platform.orchestrator.parent_work_item_default_inference';
+export const PLATFORM_ORCHESTRATOR_STAGE_ALIGNMENT_REPAIR_ID =
+  'platform.orchestrator.stage_alignment_repair';
+export const PLATFORM_ORCHESTRATOR_EXPECTED_TASK_TYPE_INFERENCE_ID =
+  'platform.orchestrator.expected_task_type_inference';
 export const PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID =
   'platform.control_plane.idempotent_mutation_replay';
 export const PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID =
@@ -60,6 +66,72 @@ const entries: SafetynetEntry[] = [
       'platform_safetynet_trigger_total{behavior="platform.orchestrator.rework_route_inference"}',
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'candidate to tighten as authored rework routing becomes explicit everywhere',
+    status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_ORCHESTRATOR_PARENT_WORK_ITEM_DEFAULT_INFERENCE_ID,
+    layer: 'platform',
+    name: 'Parent work item default inference',
+    classification: 'behavior_masking',
+    mechanism: 'inference',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'orchestrator create_work_item omits parent_work_item_id and activation context provides a planned-workflow parent candidate',
+    nominal_contract: 'orchestrator explicitly supplies the intended parent work item when creating successor work',
+    intervention: 'platform infers parent_work_item_id from activation context for bounded planned-workflow successor cases',
+    risk_if_triggered: 'successor work can be created even though the orchestrator omitted explicit parent linkage',
+    operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
+    owner_module: 'src/api/routes/orchestrator-control/activation-context.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.orchestrator.parent_work_item_default_inference"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to planned-workflow activation context defaults; do not generalize into free parent guessing',
+    status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_ORCHESTRATOR_STAGE_ALIGNMENT_REPAIR_ID,
+    layer: 'platform',
+    name: 'Stage alignment work item repair',
+    classification: 'behavior_masking',
+    mechanism: 'repair',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'orchestrator create_task targets a work item whose stage does not match the requested stage but a unique stage-aligned parent or child candidate exists',
+    nominal_contract: 'orchestrator supplies the exact stage-matching work_item_id for task creation',
+    intervention: 'platform repairs the request to a unique stage-aligned work item and records the alignment source',
+    risk_if_triggered: 'task creation can succeed even though the submitted work_item_id did not match the requested stage',
+    operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
+    owner_module: 'src/api/routes/orchestrator-control/stage-alignment.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.orchestrator.stage_alignment_repair"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep bounded to unique parent/child stage matches only',
+    status: 'candidate_for_tightening',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_ORCHESTRATOR_EXPECTED_TASK_TYPE_INFERENCE_ID,
+    layer: 'platform',
+    name: 'Expected task type inference',
+    classification: 'behavior_masking',
+    mechanism: 'inference',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'orchestrator create_task omits type and the target work item explicitly expects an assessment actor/action pair',
+    nominal_contract: 'orchestrator supplies the intended task type when creating specialist work',
+    intervention: 'platform infers assessment task type from the work-item expectation contract',
+    risk_if_triggered: 'assessment task creation can succeed even though the orchestrator omitted explicit task type',
+    operator_visibility: 'must remain reviewable in the safetynet catalog and owner code',
+    owner_module: 'src/api/routes/orchestrator-control/task-assessment-linkage.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.orchestrator.expected_task_type_inference"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to explicit assess expectations; do not infer arbitrary task kinds',
     status: 'candidate_for_tightening',
   },
   {
