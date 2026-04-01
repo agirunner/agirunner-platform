@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { clearSession } from '../auth/session.js';
+import { clearSession } from '../../auth/session.js';
 
 export function resetDashboardApiTestEnvironment() {
   vi.restoreAllMocks();

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDashboardApi } from './index.js';
-import { resetDashboardApiTestEnvironment } from './create-dashboard-api.test-support.js';
+import { resetDashboardApiTestEnvironment } from './test-support/create-dashboard-api.js';
 import { writeSession } from '../auth/session.js';
 
 describe('dashboard api operator records', () => {

@@ -6,7 +6,7 @@ import { writeSession } from '../auth/session.js';
 import {
   createDashboardApiClientStub,
   resetDashboardApiTestEnvironment,
-} from './create-dashboard-api.test-support.js';
+} from './test-support/create-dashboard-api.js';
 
 describe('dashboard api content surfaces', () => {
   beforeEach(() => {
