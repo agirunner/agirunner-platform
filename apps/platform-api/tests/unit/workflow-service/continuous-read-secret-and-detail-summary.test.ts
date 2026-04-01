@@ -10,7 +10,7 @@ const config = {
 };
 
 describe('WorkflowService continuous workflow reads', () => {
-  it('redacts secret-bearing workflow and embedded task payloads on workflow detail reads', async () => {
+  it('keeps workflow detail task reads operator-facing while redacting kept task fields', async () => {
     const pool = {
       query: vi
         .fn()
@@ -55,6 +55,17 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'task-1',
               tenant_id: 'tenant-1',
               workflow_id: 'wf-1',
+              workspace_id: 'workspace-1',
+              parent_id: 'task-parent',
+              work_item_id: 'work-item-1',
+              activation_id: 'activation-1',
+              title: 'Review the fix',
+              description: 'Confirm the chunking change is safe.',
+              state: 'in_progress',
+              priority: 'critical',
+              execution_backend: 'runtime_plus_task',
+              used_task_sandbox: true,
+              role: 'Code Reviewer',
               input: { api_key: 'task-input-secret', api_key_secret_ref: 'secret:TASK_INPUT_KEY' },
               context: { password: 'task-context-secret', token_ref: 'secret:TASK_CONTEXT_TOKEN' },
               output: { token: 'task-output-secret', result_ref: 'secret:TASK_OUTPUT_TOKEN' },
@@ -68,6 +79,21 @@ describe('WorkflowService continuous workflow reads', () => {
               metrics: { summary: 'kept' },
               git_info: { private_key: 'task-git-secret', ssh_key_ref: 'secret:TASK_GIT_SECRET' },
               metadata: { refresh_token: 'task-meta-secret', secret_ref: 'secret:TASK_META_SECRET' },
+              assigned_agent_id: 'agent-1',
+              assigned_worker_id: 'worker-1',
+              depends_on: ['task-parent', 7, null],
+              timeout_minutes: 180,
+              auto_retry: true,
+              max_retries: 5,
+              retry_count: 2,
+              claimed_at: '2026-03-31T00:00:00.000Z',
+              started_at: '2026-03-31T00:01:00.000Z',
+              completed_at: null,
+              failed_at: null,
+              cancelled_at: null,
+              created_at: '2026-03-31T00:00:00.000Z',
+              updated_at: '2026-03-31T00:05:00.000Z',
+              stage_name: 'review',
             },
           ],
         })
@@ -124,48 +150,54 @@ describe('WorkflowService continuous workflow reads', () => {
       },
     });
     expect(workflow.tasks).toEqual([
-      expect.objectContaining({
+      {
+        id: 'task-1',
+        tenant_id: 'tenant-1',
+        workflow_id: 'wf-1',
+        workspace_id: 'workspace-1',
+        parent_id: 'task-parent',
+        work_item_id: 'work-item-1',
+        activation_id: 'activation-1',
+        title: 'Review the fix',
+        description: 'Confirm the chunking change is safe.',
+        state: 'in_progress',
+        priority: 'critical',
+        execution_backend: 'runtime_plus_task',
+        used_task_sandbox: true,
+        role: 'Code Reviewer',
         input: {
           api_key: 'redacted://task-secret',
           api_key_secret_ref: 'redacted://task-secret',
-        },
-        context: {
-          password: 'redacted://task-secret',
-          token_ref: 'redacted://task-secret',
-        },
-        output: {
-          token: 'redacted://task-secret',
-          result_ref: 'redacted://task-secret',
-        },
-        error: {
-          authorization: 'redacted://task-secret',
-          secret_ref: 'redacted://task-secret',
-        },
-        role_config: {
-          webhook_url: 'redacted://task-secret',
-          api_key_secret_ref: 'redacted://task-secret',
-        },
-        environment: {
-          ACCESS_TOKEN: 'redacted://task-secret',
-          TOKEN_REF: 'redacted://task-secret',
-        },
-        resource_bindings: [{
-          credentials: {
-            token: 'redacted://task-secret',
-            token_ref: 'redacted://task-secret',
-          },
-        }],
-        metrics: { summary: 'kept' },
-        git_info: {
-          private_key: 'redacted://task-secret',
-          ssh_key_ref: 'redacted://task-secret',
         },
         metadata: {
           refresh_token: 'redacted://task-secret',
           secret_ref: 'redacted://task-secret',
         },
-      }),
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: 'worker-1',
+        depends_on: ['task-parent'],
+        timeout_minutes: 180,
+        auto_retry: true,
+        max_retries: 5,
+        retry_count: 2,
+        claimed_at: '2026-03-31T00:00:00.000Z',
+        started_at: '2026-03-31T00:01:00.000Z',
+        completed_at: null,
+        failed_at: null,
+        cancelled_at: null,
+        created_at: '2026-03-31T00:00:00.000Z',
+        updated_at: '2026-03-31T00:05:00.000Z',
+        stage_name: 'review',
+      },
     ]);
+    expect(workflow.tasks[0]).not.toHaveProperty('context');
+    expect(workflow.tasks[0]).not.toHaveProperty('output');
+    expect(workflow.tasks[0]).not.toHaveProperty('error');
+    expect(workflow.tasks[0]).not.toHaveProperty('role_config');
+    expect(workflow.tasks[0]).not.toHaveProperty('environment');
+    expect(workflow.tasks[0]).not.toHaveProperty('resource_bindings');
+    expect(workflow.tasks[0]).not.toHaveProperty('metrics');
+    expect(workflow.tasks[0]).not.toHaveProperty('git_info');
   });
 
   it('normalizes continuous board summaries from workflow stage state instead of playbook order alone', async () => {
