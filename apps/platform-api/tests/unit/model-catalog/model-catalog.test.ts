@@ -96,7 +96,6 @@ describe('isDefaultEnabledModel', () => {
     expect(isDefaultEnabledModel('gpt-5.3-codex-spark')).toBe(false);
     expect(isDefaultEnabledModel('gpt-4o')).toBe(false);
     expect(isDefaultEnabledModel('gpt-4o-mini')).toBe(false);
-    expect(isDefaultEnabledModel('claude-haiku-4-5')).toBe(false);
     expect(isDefaultEnabledModel('gemini-2.5-flash')).toBe(false);
   });
 });
@@ -150,6 +149,12 @@ describe('catalog data spot checks', () => {
     expect(codexMini).toBeDefined();
     expect(codexMini.inputCostPerMillionUsd).toBeNull();
     expect(codexMini.outputCostPerMillionUsd).toBeNull();
+  });
+
+  it('does not include deprecated claude 4.5 entries', () => {
+    expect(MODEL_CATALOG['claude-sonnet-4-5']).toBeUndefined();
+    expect(MODEL_CATALOG['claude-opus-4-5']).toBeUndefined();
+    expect(MODEL_CATALOG['claude-haiku-4-5']).toBeUndefined();
   });
 
   it('o-series models have correct reasoning config', () => {

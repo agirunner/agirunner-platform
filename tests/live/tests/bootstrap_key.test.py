@@ -15,6 +15,12 @@ import bootstrap_key  # noqa: E402
 
 
 class BootstrapKeyTests(unittest.TestCase):
+    def test_provider_model_defaults_use_claude_sonnet_4_6_for_anthropic(self) -> None:
+        defaults = bootstrap_key.resolve_provider_model_defaults("anthropic")
+
+        self.assertEqual(defaults["model_id"], "claude-sonnet-4-6")
+        self.assertEqual(defaults["endpoint_type"], "messages")
+
     def test_shared_bootstrap_key_changes_when_env_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             live_root, repo_root, runtime_root = self.create_fixture_roots(Path(tmpdir))

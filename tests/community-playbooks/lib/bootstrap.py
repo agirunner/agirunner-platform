@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from bootstrap_key import resolve_provider_model_defaults
 from common import (
     create_api_client,
     read_env,
@@ -86,21 +87,22 @@ def seed_environment_context() -> dict[str, Any]:
     provider_auth_mode = read_env("LIVE_TEST_PROVIDER_AUTH_MODE", "oauth")
     provider_name = read_env("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)")
     provider_type = read_env("LIVE_TEST_PROVIDER_TYPE", "openai")
+    provider_model_defaults = resolve_provider_model_defaults(provider_type)
     provider_base_url = read_env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = read_env("LIVE_TEST_PROVIDER_API_KEY") or None
     oauth_profile_id = read_env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
     oauth_session_json = read_env("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
-    model_id = read_env("LIVE_TEST_MODEL_ID", "gpt-5.4")
-    model_endpoint_type = read_env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
+    model_id = read_env("LIVE_TEST_MODEL_ID", provider_model_defaults["model_id"])
+    model_endpoint_type = read_env("LIVE_TEST_MODEL_ENDPOINT_TYPE", provider_model_defaults["endpoint_type"])
     system_reasoning_effort = read_env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
-    orchestrator_model_id = read_env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", "gpt-5.4")
+    orchestrator_model_id = read_env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
     orchestrator_endpoint_type = read_env(
         "LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE",
         model_endpoint_type,
     )
     orchestrator_reasoning_effort = read_env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low")
-    specialist_model_id = read_env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4")
+    specialist_model_id = read_env("LIVE_TEST_SPECIALIST_MODEL_ID", model_id)
     specialist_endpoint_type = read_env(
         "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE",
         model_endpoint_type,

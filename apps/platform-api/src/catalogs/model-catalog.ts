@@ -71,12 +71,6 @@ const ANTH_OPUS_46: ReasoningConfig = {
 const ANTH_SONNET_46: ReasoningConfig = {
   type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
 };
-const ANTH_OPUS_45: ReasoningConfig = {
-  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
-};
-const ANTH_SONNET_45: ReasoningConfig = {
-  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
-};
 const ANTH_OPUS_41: ReasoningConfig = {
   type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
 };
@@ -187,16 +181,12 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   /* Anthropic: Claude 4.6 */
   'claude-opus-4-6':    m(200000,  128000, 'messages', true, true, 5,     25,    ANTH_OPUS_46, ANTHROPIC_NATIVE_SEARCH),
   'claude-sonnet-4-6':  m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_46, ANTHROPIC_NATIVE_SEARCH),
-  /* Anthropic: Claude 4.5 */
-  'claude-opus-4-5':    m(200000,  64000,  'messages', true, true, 5,     25,    ANTH_OPUS_45, ANTHROPIC_NATIVE_SEARCH),
-  'claude-sonnet-4-5':  m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_45, ANTHROPIC_NATIVE_SEARCH),
   /* Anthropic: Claude 4.1 */
   'claude-opus-4-1':    m(200000,  32000,  'messages', true, true, 15,    75,    ANTH_OPUS_41, ANTHROPIC_NATIVE_SEARCH),
   /* Anthropic: Claude 4 */
   'claude-sonnet-4':    m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_4, ANTHROPIC_NATIVE_SEARCH),
   'claude-opus-4':      m(200000,  32000,  'messages', true, true, 15,    75,    ANTH_OPUS_4, ANTHROPIC_NATIVE_SEARCH),
   /* Anthropic: Claude 3.x */
-  'claude-haiku-4-5':   m(200000,  64000,  'messages', true, true, 1,     5,     null, ANTHROPIC_NATIVE_SEARCH),
   'claude-3-5-sonnet':  m(200000,  8192,   'messages', true, true, 3,     15,    null),
   'claude-3-5-haiku':   m(200000,  8192,   'messages', true, true, 0.8,   4,     null, ANTHROPIC_NATIVE_SEARCH),
   'claude-3-opus':      m(200000,  4096,   'messages', true, true, 15,    75,    null),

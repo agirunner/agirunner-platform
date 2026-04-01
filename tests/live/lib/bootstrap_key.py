@@ -69,6 +69,29 @@ SHARED_BOOTSTRAP_DEFAULTS = {
     "RUNTIME_IMAGE": "agirunner-runtime:local",
 }
 
+PROVIDER_MODEL_DEFAULTS = {
+    "anthropic": {
+        "model_id": "claude-sonnet-4-6",
+        "endpoint_type": "messages",
+    },
+    "google": {
+        "model_id": "gemini-3.1-pro-preview",
+        "endpoint_type": "generate-content",
+    },
+    "gemini": {
+        "model_id": "gemini-3.1-pro-preview",
+        "endpoint_type": "generate-content",
+    },
+    "openai": {
+        "model_id": "gpt-5.4",
+        "endpoint_type": "responses",
+    },
+    "openai-compatible": {
+        "model_id": "gpt-5.4",
+        "endpoint_type": "responses",
+    },
+}
+
 IGNORED_PARTS = {
     ".git",
     ".pytest_cache",
@@ -86,6 +109,12 @@ IGNORED_SUFFIXES = {".pyc", ".pyo"}
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def resolve_provider_model_defaults(provider_type: str | None) -> dict[str, str]:
+    normalized_provider = (provider_type or "").strip().lower()
+    defaults = PROVIDER_MODEL_DEFAULTS.get(normalized_provider) or PROVIDER_MODEL_DEFAULTS["openai"]
+    return dict(defaults)
 
 
 def should_skip_path(path: Path) -> bool:
@@ -131,13 +160,18 @@ def compute_shared_bootstrap_key(
     environ: Mapping[str, str] | None = None,
 ) -> str:
     env = environ or os.environ
-    model_endpoint_type = env.get("LIVE_TEST_MODEL_ENDPOINT_TYPE") or SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_MODEL_ENDPOINT_TYPE"]
+    provider_defaults = resolve_provider_model_defaults(env.get("LIVE_TEST_PROVIDER_TYPE"))
+    model_id = env.get("LIVE_TEST_MODEL_ID") or provider_defaults["model_id"]
+    model_endpoint_type = env.get("LIVE_TEST_MODEL_ENDPOINT_TYPE") or provider_defaults["endpoint_type"]
     payload = {
         "env": {
             key: (
                 env.get("LIVE_TEST_PROVIDER_API_KEY")
                 or env.get("LIVE_TEST_OPENAI_API_KEY", "")
                 if key == "LIVE_TEST_PROVIDER_API_KEY"
+                else model_id
+                if key in {"LIVE_TEST_MODEL_ID", "LIVE_TEST_ORCHESTRATOR_MODEL_ID", "LIVE_TEST_SPECIALIST_MODEL_ID"}
+                and not env.get(key)
                 else model_endpoint_type
                 if key in {"LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", "LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE"}
                 and not env.get(key)

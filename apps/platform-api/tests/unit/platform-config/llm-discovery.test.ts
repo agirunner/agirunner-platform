@@ -84,6 +84,12 @@ describe('LlmDiscoveryService', () => {
       expect(model.reasoningConfig!.options).toContain('max');
     });
 
+    it('does not expose deprecated claude 4.5 variants', () => {
+      expect(MODEL_CATALOG['claude-sonnet-4-5']).toBeUndefined();
+      expect(MODEL_CATALOG['claude-opus-4-5']).toBeUndefined();
+      expect(MODEL_CATALOG['claude-haiku-4-5']).toBeUndefined();
+    });
+
     it('contains gemini-3.1-pro-preview with thinking_level (no minimal)', () => {
       const model = MODEL_CATALOG['gemini-3.1-pro-preview'];
       expect(model).toBeDefined();
@@ -109,20 +115,6 @@ describe('LlmDiscoveryService', () => {
       expect(model.reasoningConfig!.type).toBe('thinking_budget');
       expect(model.reasoningConfig!.min).toBe(0);
       expect(model.reasoningConfig!.max).toBe(24576);
-    });
-
-    it('marks claude-haiku-4-5 with no effort support', () => {
-      const model = MODEL_CATALOG['claude-haiku-4-5'];
-      expect(model).toBeDefined();
-      expect(model.reasoningConfig).toBeNull();
-    });
-
-    it('contains claude-opus-4-5 with effort config', () => {
-      const model = MODEL_CATALOG['claude-opus-4-5'];
-      expect(model).toBeDefined();
-      expect(model.reasoningConfig).not.toBeNull();
-      expect(model.reasoningConfig!.type).toBe('effort');
-      expect(model.reasoningConfig!.default).toBe('high');
     });
 
     it('includes cost and capability data for all entries', () => {

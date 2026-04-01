@@ -5,6 +5,7 @@ import json
 import os
 from typing import Any
 
+from bootstrap_key import resolve_provider_model_defaults
 from live_test_api import ApiClient, TraceRecorder
 from seed_live_test_environment import (
     clear_assignments,
@@ -42,18 +43,19 @@ def main() -> None:
     provider_auth_mode = env("LIVE_TEST_PROVIDER_AUTH_MODE", "oauth")
     provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
+    provider_model_defaults = resolve_provider_model_defaults(provider_type)
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY") or None
     oauth_profile_id = env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
     oauth_session_json = env("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
-    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
-    model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
+    model_id = env("LIVE_TEST_MODEL_ID", provider_model_defaults["model_id"])
+    model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", provider_model_defaults["endpoint_type"])
     system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
-    orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", "gpt-5.4")
+    orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
     orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     orchestrator_reasoning_effort = env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low")
-    specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4")
+    specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", model_id)
     specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
