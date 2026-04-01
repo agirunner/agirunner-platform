@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -41,6 +43,58 @@ class RunnerContractTests(unittest.TestCase):
         )
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("unsupported batch", completed.stderr)
+
+    def test_wrapper_exports_required_default_environment_for_deterministic_run_invocation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / "local.env"
+            env_file.write_text("PLATFORM_API_PORT=18080\nDASHBOARD_PORT=13000\n", encoding="utf-8")
+            capture_path = Path(tmpdir) / "capture.json"
+            python_dir = Path(tmpdir) / "bin"
+            python_dir.mkdir()
+            fake_python = python_dir / "python3"
+            fake_python.write_text(
+                "\n".join(
+                    [
+                        "#!/usr/bin/env python3",
+                        "import json",
+                        "import os",
+                        "import sys",
+                        f"capture_path = {str(capture_path)!r}",
+                        "payload = {",
+                        "  'args': sys.argv[1:],",
+                        "  'platform_api_base_url': os.environ.get('PLATFORM_API_BASE_URL'),",
+                        "  'dashboard_base_url': os.environ.get('DASHBOARD_BASE_URL'),",
+                        "  'mcp_secret': os.environ.get('LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET'),",
+                        "}",
+                        "with open(capture_path, 'w', encoding='utf-8') as handle:",
+                        "    json.dump(payload, handle)",
+                        "raise SystemExit(0)",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o755)
+
+            env = os.environ.copy()
+            env["LIVE_TEST_ENV_FILE"] = str(env_file)
+            env["PATH"] = f"{python_dir}:{env.get('PATH', '')}"
+
+            completed = subprocess.run(
+                ["bash", str(RUNNER), "--playbook", "bug-fix", "--variant", "smoke"],
+                cwd=SUITE_ROOT.parents[2],
+                check=False,
+                text=True,
+                capture_output=True,
+                env=env,
+            )
+
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            payload = json.loads(capture_path.read_text(encoding="utf-8"))
+            self.assertTrue(payload["args"][0].endswith("/tests/community-playbooks/lib/runner.py"))
+            self.assertEqual(["--playbook", "bug-fix", "--variant", "smoke"], payload["args"][1:])
+            self.assertEqual("http://127.0.0.1:18080", payload["platform_api_base_url"])
+            self.assertEqual("http://127.0.0.1:13000", payload["dashboard_base_url"])
+            self.assertEqual("live-test-parameterized-secret", payload["mcp_secret"])
 
     def test_execute_bootstrap_only_runs_prepare_environment(self) -> None:
         args = argparse.Namespace(
