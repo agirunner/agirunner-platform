@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { DatabaseQueryable } from '../../db/database.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
+  readBoardTasks,
   readPendingDispatches,
   selectFocusedWorkItem,
 } from '../workflow-instruction-layer/orchestrator-context.js';
@@ -193,14 +194,38 @@ function buildOrchestratorCurrentFocus(
   const nextExpectedAction = asOptionalString(focusedWorkItem.next_expected_action) ?? null;
   const boardPosition = asOptionalString(focusedWorkItem.column_id) ?? null;
   const focusedStageName = asOptionalString(focusedWorkItem.stage_name) ?? null;
+  const focusedWorkItemId = asOptionalString(focusedWorkItem.id) ?? null;
+  const activeSubordinateTask = selectActiveSubordinateTask(orchestratorContext, {
+    workItemId: focusedWorkItemId,
+    stageName: focusedStageName ?? activeStageName,
+  });
   const exactAuthoredStageRoles = readExactAuthoredStageRoles(
     workflow,
     focusedStageName ?? activeStageName,
   );
+  if (activeSubordinateTask) {
+    return {
+      lifecycle,
+      work_item_id: focusedWorkItemId,
+      stage_name: focusedStageName ?? activeStageName,
+      board_position: boardPosition,
+      next_expected_actor:
+        asOptionalString(activeSubordinateTask.role) ?? nextExpectedActor,
+      next_expected_action:
+        'wait for the active specialist task to complete before routing more work',
+      active_subordinate_task_id: asOptionalString(activeSubordinateTask.id) ?? null,
+      active_subordinate_task_role: asOptionalString(activeSubordinateTask.role) ?? null,
+      active_subordinate_task_title: asOptionalString(activeSubordinateTask.title) ?? null,
+      active_subordinate_task_state: asOptionalString(activeSubordinateTask.state) ?? null,
+      ...(exactAuthoredStageRoles.length > 0
+        ? { exact_authored_stage_roles: exactAuthoredStageRoles }
+        : {}),
+    };
+  }
   if (nextExpectedActor || nextExpectedAction || boardPosition || focusedStageName) {
     return {
       lifecycle,
-      work_item_id: asOptionalString(focusedWorkItem.id) ?? null,
+      work_item_id: focusedWorkItemId,
       stage_name: focusedStageName ?? activeStageName,
       board_position: boardPosition,
       next_expected_actor: nextExpectedActor,
@@ -291,6 +316,10 @@ function renderOrchestratorExecutionBrief(
     const workItemSeedRequired = currentFocus.work_item_seed_required === true;
     const nextExpectedActor = asOptionalString(currentFocus.next_expected_actor);
     const nextExpectedAction = asOptionalString(currentFocus.next_expected_action);
+    const activeSubordinateTaskId = asOptionalString(currentFocus.active_subordinate_task_id);
+    const activeSubordinateTaskRole = asOptionalString(currentFocus.active_subordinate_task_role);
+    const activeSubordinateTaskTitle = asOptionalString(currentFocus.active_subordinate_task_title);
+    const activeSubordinateTaskState = asOptionalString(currentFocus.active_subordinate_task_state);
     const exactAuthoredStageRoles = Array.isArray(currentFocus.exact_authored_stage_roles)
       ? currentFocus.exact_authored_stage_roles
         .map((value) => asOptionalString(value))
@@ -300,10 +329,22 @@ function renderOrchestratorExecutionBrief(
     if (stageName) lines.push(`Stage: ${stageName}`);
     if (boardPosition) lines.push(`Board position: ${boardPosition}`);
     if (workItemId) lines.push(`Work item id: ${workItemId}`);
+    if (activeSubordinateTaskId) lines.push(`Active specialist task id: ${activeSubordinateTaskId}`);
+    if (activeSubordinateTaskRole) lines.push(`Active specialist role: ${activeSubordinateTaskRole}`);
+    if (activeSubordinateTaskTitle) lines.push(`Active specialist task: ${activeSubordinateTaskTitle}`);
+    if (activeSubordinateTaskState) lines.push(`Active specialist state: ${activeSubordinateTaskState}`);
     if (nextExpectedActor) lines.push(`Next expected actor: ${nextExpectedActor}`);
     if (nextExpectedAction) lines.push(`Next expected action: ${nextExpectedAction}`);
     if (exactAuthoredStageRoles.length > 0) {
       lines.push(`Exact authored stage roles: ${exactAuthoredStageRoles.join(', ')}`);
+    }
+    if (activeSubordinateTaskId) {
+      lines.push(
+        'An active specialist task already exists for this work item.',
+      );
+      lines.push(
+        'Do not create another task for this work item in the current activation.',
+      );
     }
     if (workItemSeedRequired) {
       lines.push(
@@ -342,4 +383,33 @@ function renderOrchestratorExecutionBrief(
 function hashCanonicalJson(value: unknown): string {
   const payload = JSON.stringify(value);
   return createHash('sha256').update(payload).digest('hex');
+}
+
+function selectActiveSubordinateTask(
+  orchestratorContext: Record<string, unknown>,
+  anchor: { workItemId: string | null; stageName: string | null },
+): Record<string, unknown> | null {
+  const tasks = readBoardTasks(orchestratorContext);
+  const matchedTask = tasks.find((task) => {
+    if (task.is_orchestrator_task === true || !isOpenSubordinateTask(task)) {
+      return false;
+    }
+    if (anchor.workItemId) {
+      return asOptionalString(task.work_item_id) === anchor.workItemId;
+    }
+    if (anchor.stageName) {
+      return asOptionalString(task.stage_name) === anchor.stageName;
+    }
+    return false;
+  });
+  return matchedTask ?? null;
+}
+
+function isOpenSubordinateTask(task: Record<string, unknown>): boolean {
+  const state = asOptionalString(task.state);
+  return state === 'ready'
+    || state === 'claimed'
+    || state === 'in_progress'
+    || state === 'awaiting_approval'
+    || state === 'output_pending_assessment';
 }

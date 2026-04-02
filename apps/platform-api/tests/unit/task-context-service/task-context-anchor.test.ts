@@ -141,4 +141,61 @@ describe('buildOrchestratorExecutionBrief', () => {
       'Exact authored stage roles: Software Developer, Code Reviewer',
     );
   });
+
+  it('tells the orchestrator to wait when an active specialist task already exists for the focused work item', () => {
+    const brief = buildOrchestratorExecutionBrief({
+      workflow: {
+        lifecycle: 'planned',
+        current_stage: 'reproduce',
+        active_stages: ['reproduce'],
+      },
+      orchestratorContext: {
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'reproduce',
+              column_id: 'active',
+            },
+          ],
+          tasks: [
+            {
+              id: 'task-specialist-1',
+              title: 'Reproduce audit export hang',
+              role: 'Software Developer',
+              state: 'in_progress',
+              work_item_id: 'wi-1',
+              stage_name: 'reproduce',
+              is_orchestrator_task: false,
+            },
+          ],
+          pending_dispatches: [],
+        },
+      },
+      workflowLiveVisibility: {
+        mode: 'enhanced',
+        execution_context_id: 'activation-1',
+      },
+    });
+
+    expect(brief).toEqual(
+      expect.objectContaining({
+        current_focus: expect.objectContaining({
+          lifecycle: 'planned',
+          work_item_id: 'wi-1',
+          stage_name: 'reproduce',
+          active_subordinate_task_id: 'task-specialist-1',
+          active_subordinate_task_role: 'Software Developer',
+          next_expected_actor: 'Software Developer',
+          next_expected_action: 'wait for the active specialist task to complete before routing more work',
+        }),
+      }),
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Active specialist task id: task-specialist-1',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Do not create another task for this work item in the current activation.',
+    );
+  });
 });
