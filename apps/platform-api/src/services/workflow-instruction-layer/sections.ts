@@ -216,6 +216,7 @@ function formatPlannedHandoffSemantics() {
     'If the current work item can close now and successor-stage routing or a gate request is still pending, complete_work_item first, then apply that explicit mutation before submit_handoff instead of parking the closable work item and narrating the next wait state.',
     'If closing the current work item unlocks the immediate successor stage, close the work item first, inspect the successor-stage contract, route that successor work, and only then submit_handoff.',
     'If the next checkpoint is a human approval or release decision, call request_gate_approval successfully before submit_handoff. Do not describe the workflow as waiting on human approval until that control has actually been invoked.',
+    'Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.',
     'Create or move successor work into the next stage before dispatching successor-role specialists.',
     'Only actual invoked approvals, assessments, and escalations create blocking workflow state. Process prose may instruct you to invoke those controls, but there is no separate governance metadata to consult.',
     'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation; do not require direct escalation-record inspection before honoring it.',

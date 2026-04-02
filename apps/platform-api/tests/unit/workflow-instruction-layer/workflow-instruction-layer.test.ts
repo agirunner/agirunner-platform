@@ -179,6 +179,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(result?.content).toContain('If the current work item can close now and successor-stage routing or a gate request is still pending, complete_work_item first, then apply that explicit mutation before submit_handoff instead of parking the closable work item and narrating the next wait state.');
     expect(result?.content).toContain('If closing the current work item unlocks the immediate successor stage, close the work item first, inspect the successor-stage contract, route that successor work, and only then submit_handoff.');
     expect(result?.content).toContain('If the next checkpoint is a human approval or release decision, call request_gate_approval successfully before submit_handoff. Do not describe the workflow as waiting on human approval until that control has actually been invoked.');
+    expect(result?.content).toContain('Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.');
     expect(result?.content).toContain('## Stage Role Coverage');
     expect(result?.content).toContain('## Pending Dispatches');
     expect(result?.content).toContain('## Operator Visibility');

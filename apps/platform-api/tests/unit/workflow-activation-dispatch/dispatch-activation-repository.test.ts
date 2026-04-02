@@ -139,6 +139,9 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
           );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).not.toContain('record_operator_update');

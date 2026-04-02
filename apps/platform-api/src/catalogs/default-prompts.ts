@@ -166,6 +166,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.
 - If the current work item can close now and that closure unlocks the successor stage or a human gate, complete_work_item first, then apply the successor-stage or gate mutation in the same activation before submit_handoff.
 - Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.
+- Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
 - Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.
 - Use advance_stage only if the predecessor still shows as current and successor-stage routing has not already moved the workflow on.
