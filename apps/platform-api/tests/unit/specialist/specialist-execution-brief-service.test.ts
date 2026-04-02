@@ -254,6 +254,12 @@ describe('buildSpecialistExecutionBrief', () => {
       'Read that exact path first, and if it is missing, use file_list, glob, grep, or git discovery to find the current equivalent before trying alternate filenames.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'If the current repository file set is unknown, start with file_list, glob, grep, or git discovery before the first direct repo file_read.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Do not probe guessed filenames just to learn whether they exist.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Read task context files from `/workspace/context/...`, never `context/...`, `repo/context/...`, or `/tmp/workspace/...` paths.',
     );
     expect(brief?.rendered_markdown).toContain(
