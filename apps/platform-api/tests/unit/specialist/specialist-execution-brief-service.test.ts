@@ -248,6 +248,12 @@ describe('buildSpecialistExecutionBrief', () => {
       'If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before calling any file tool.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'If task input, predecessor handoff, or linked deliverables name an exact repo-relative path, treat that path as authoritative.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Read that exact path first, and if it is missing, use file_list, glob, grep, or git discovery to find the current equivalent before trying alternate filenames.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Read task context files from `/workspace/context/...`, never `context/...`, `repo/context/...`, or `/tmp/workspace/...` paths.',
     );
     expect(brief?.rendered_markdown).toContain(

@@ -58,6 +58,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Use repo-relative or tool-returned paths, never guessed /tmp/workspace paths.
 - Read listed files only. Optional context files may not exist.
 - Do not read guessed files directly. If a file was not explicitly created in the current step or returned by another tool, list or search first.
+- If task input, predecessor handoff, or linked deliverables name an exact repo-relative path, treat that path as authoritative. Read that exact path first, and if it is missing, use file_list, glob, grep, or git discovery to find the current equivalent before trying alternate filenames.
 - Use file_edit only after reading the current file and only when old_text still matches exactly.
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
 - If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat stale edit payloads.
