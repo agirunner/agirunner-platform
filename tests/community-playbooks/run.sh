@@ -23,8 +23,12 @@ Usage:
 EOF
 }
 
-SUITE_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_ROOT}/env/local.env}"
-load_live_test_env "${SUITE_ENV_FILE}"
+BASE_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_ROOT}/env/local.env}"
+SUITE_ENV_FILE="${COMMUNITY_PLAYBOOKS_ENV_FILE:-${SUITE_ROOT}/env/local.env}"
+load_live_test_env "${BASE_ENV_FILE}"
+if [[ "${SUITE_ENV_FILE}" != "${BASE_ENV_FILE}" && -f "${SUITE_ENV_FILE}" ]]; then
+  load_live_test_env "${SUITE_ENV_FILE}"
+fi
 export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
 export DASHBOARD_BASE_URL="${DASHBOARD_BASE_URL:-http://127.0.0.1:${DASHBOARD_PORT:-3000}}"
 export LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET="${LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET:-live-test-parameterized-secret}"

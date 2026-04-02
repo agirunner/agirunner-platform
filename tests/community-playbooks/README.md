@@ -1,11 +1,22 @@
 # Community Playbooks Live Suite
 
-This suite runs realistic workflows against the imported community catalog.
+`tests/community-playbooks/` runs realistic workflows against the imported community catalog on top of the shared live stack.
 
 It exists separately from `tests/live` on purpose:
 - `tests/live` stresses hostile edge cases and protocol semantics
-- `tests/community-playbooks` runs believable standard workloads for the
-  unmodified community playbooks
+- `tests/community-playbooks` runs believable standard workloads for the unmodified community playbooks
+
+Operator surfaces:
+- [`env/local.env.example`](./env/local.env.example)
+  - optional suite-local overrides loaded after the live-suite env
+- [`run.sh`](./run.sh)
+  - supported public entrypoint for bootstrap, import, and run selection
+- [`catalog/`](./catalog)
+  - test-owned community playbook inputs and default batches
+- [`fixtures/`](./fixtures)
+  - uploaded files, host workspaces, and remote MCP fixture inputs
+- [`results/`](./results)
+  - suite-local outputs and summaries
 
 Rules:
 - community catalog source of truth is `agirunner-playbooks`
@@ -34,7 +45,10 @@ Default behavior:
 - execute the selected `smoke`, `matrix`, and `controls` runs
 
 Environment:
-- the runner loads `tests/live/env/local.env`
+- `tests/live/env/local.env` remains the required base env file
+- if present, `tests/community-playbooks/env/local.env` is loaded after the live env and can override suite-local values
+- set `COMMUNITY_PLAYBOOKS_ENV_FILE` to point at a different suite override file
+- `--provider` may also use the provider-specific alias secrets listed in [`env/local.env.example`](./env/local.env.example)
 - the suite reuses the live runtime/container stack
 - the suite seeds a deterministic research MCP server for the `mcp` variants
 - the community suite uses its own result tree under
