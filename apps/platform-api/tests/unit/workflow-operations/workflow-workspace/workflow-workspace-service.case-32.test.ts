@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('keeps selected task scope free of raw output-descriptor fallback deliverables', async () => {
+  it('replaces workflow-scope deliverables with selected work-item fallback in task scope', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -180,13 +180,14 @@ describe('WorkflowWorkspaceService', () => {
       taskId: 'task-1',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({ descriptor_id: 'workflow-deliverable' }),
+    expect(result.deliverables.final_deliverables).toEqual([]);
+    expect(result.deliverables.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'output:artifact:task-output',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+      }),
     ]);
-    expect(result.deliverables.final_deliverables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'artifact:task-output' })]),
-    );
-    expect(result.deliverables.in_progress_deliverables).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 

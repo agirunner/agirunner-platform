@@ -14,7 +14,7 @@ const briefsService = {
 };
 
 describe('WorkflowWorkspaceService', () => {
-  it('does not synthesize task-local output descriptors into deliverables when selected task scope has no canonical packet', async () => {
+  it('synthesizes selected work-item output descriptors when task scope has no canonical packet', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -139,8 +139,14 @@ describe('WorkflowWorkspaceService', () => {
     });
 
     expect(result.deliverables.final_deliverables).toEqual([]);
-    expect(result.deliverables.in_progress_deliverables).toEqual([]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(0);
+    expect(result.deliverables.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'output:artifact:task-output',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+      }),
+    ]);
+    expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 
 });

@@ -34,6 +34,17 @@ describe('orchestratorControlRoutes', () => {
         if (sql.includes('pg_advisory_xact_lock')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('SELECT wi.id, wi.stage_name, w.lifecycle AS workflow_lifecycle')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: reviewWorkItemId,
+              stage_name: 'review',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
         if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-review-revision-3']);
           return { rowCount: 0, rows: [] };
