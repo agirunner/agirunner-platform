@@ -49,7 +49,7 @@ export class TaskQueryService {
   }
 
   toTaskResponse(task: Record<string, unknown>): TaskResponseRecord {
-    const sanitizedTask = sanitizeTaskRecord(task);
+    const sanitizedTask = sanitizeTaskRecord(stripPrivateTaskResponseFields(task));
     const metadata = (sanitizedTask.metadata ?? {}) as Record<string, unknown>;
     const executionEnvironment = normalizeExecutionEnvironmentSnapshot(
       sanitizedTask.execution_environment_snapshot,
@@ -240,6 +240,11 @@ function sanitizeTaskRecord(task: Record<string, unknown>): Record<string, unkno
     redactionValue: SECRET_REDACTION,
     allowSecretReferences: false,
   }) as Record<string, unknown>;
+}
+
+function stripPrivateTaskResponseFields(task: Record<string, unknown>): Record<string, unknown> {
+  const { resource_bindings: _resourceBindings, ...rest } = task;
+  return rest;
 }
 
 function readTaskContextRecord(value: unknown): Record<string, unknown> {

@@ -200,7 +200,7 @@ describe('TaskQueryService task responses', () => {
     expect(response).not.toHaveProperty('wait_reason');
   });
 
-  it('redacts plaintext secrets and secret refs from task API responses', () => {
+  it('redacts task payload secrets and omits secret-bearing resource bindings from task API responses', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
       tenant_id: tenantId,
@@ -254,8 +254,7 @@ describe('TaskQueryService task responses', () => {
     expect(response.input.credentials.git_token).toBe('redacted://task-secret');
     expect(response.input.credentials.git_token_ref).toBe('redacted://task-secret');
     expect(response.role_config.llm_api_key).toBe('redacted://task-secret');
-    expect(response.resource_bindings[0].credentials.ssh_private_key).toBe('redacted://task-secret');
-    expect(response.resource_bindings[0].credentials.secret_ref).toBe('redacted://task-secret');
+    expect(response).not.toHaveProperty('resource_bindings');
   });
 
   it('preserves dotted workflow event titles in task API responses', () => {
