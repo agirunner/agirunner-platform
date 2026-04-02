@@ -108,6 +108,13 @@ export async function assertPlannedStageEntryRoleCanStart(
   throw new ValidationError(
     `Cannot seed planned stage '${stageName}' with role '${normalizedOwnerRole}' before the required upstream handoff exists. ` +
       `Start with one of: ${starterRoles.join(', ')}.`,
+    {
+      recovery_hint: 'orchestrator_guided_recovery',
+      reason_code: 'planned_stage_starter_role_required',
+      stage_name: stageName,
+      requested_role: normalizedOwnerRole,
+      allowed_starter_roles: starterRoles,
+    },
   );
 }
 

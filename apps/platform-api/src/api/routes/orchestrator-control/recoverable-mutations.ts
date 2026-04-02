@@ -53,6 +53,29 @@ function readAllowedErrorReasonCode(error: unknown, allowed: readonly string[]):
   return reasonCode && allowed.includes(reasonCode) ? reasonCode : null;
 }
 
+function readValidationErrorDetails(error: unknown): Record<string, unknown> {
+  if (!(error instanceof ValidationError)) {
+    return {};
+  }
+  const details = error.details;
+  return details && typeof details === 'object' && !Array.isArray(details)
+    ? (details as Record<string, unknown>)
+    : {};
+}
+
+function readValidationStringDetail(details: Record<string, unknown>, key: string): string | null {
+  const value = details[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readValidationStringArrayDetail(details: Record<string, unknown>, key: string): string[] {
+  const value = details[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
 export async function createWorkflowWorkItemOrNoop(
   app: FastifyInstance,
   identity: ApiKeyIdentity,
@@ -266,7 +289,7 @@ function buildRecoverableCreateWorkItemNoop(
     { stage_name: input.stage_name, reason_code: reasonCode },
   );
 
-  return buildRecoverableGuidedNoop({
+  const response = buildRecoverableGuidedNoop({
     reasonCode,
     safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
@@ -284,6 +307,18 @@ function buildRecoverableCreateWorkItemNoop(
       task_id: taskScope.id,
     },
   });
+
+  if (reasonCode !== 'planned_stage_starter_role_required') {
+    return response;
+  }
+
+  const details = readValidationErrorDetails(error);
+  return {
+    ...response,
+    stage_name: readValidationStringDetail(details, 'stage_name') ?? input.stage_name,
+    requested_role: readValidationStringDetail(details, 'requested_role'),
+    allowed_starter_roles: readValidationStringArrayDetail(details, 'allowed_starter_roles'),
+  };
 }
 
 function classifyRecoverableCreateWorkItemReason(error: unknown): string | null {
@@ -291,6 +326,7 @@ function classifyRecoverableCreateWorkItemReason(error: unknown): string | null 
     'predecessor_not_ready',
     'predecessor_waiting_for_gate',
     'predecessor_waiting_for_handoff',
+    'planned_stage_starter_role_required',
   ]);
 }
 
@@ -671,6 +707,23 @@ function recoverableCreateWorkItemActions(
   const baseTargetId = input.parent_work_item_id ?? taskScope.work_item_id ?? taskScope.workflow_id;
   const baseTargetType = input.parent_work_item_id ? 'work_item' : 'workflow';
   switch (reasonCode) {
+    case 'planned_stage_starter_role_required':
+      return [
+        {
+          action_code: 'inspect_stage_contract',
+          target_type: 'workflow',
+          target_id: taskScope.workflow_id,
+          why: `The first work item in planned stage '${input.stage_name}' must start with one of the stage's authored starter roles.`,
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'retry_create_work_item_with_authored_stage_starter',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'Retry create_work_item using one of the allowed starter roles instead of the current role guess.',
+          requires_orchestrator_judgment: true,
+        },
+      ];
     case 'predecessor_waiting_for_gate':
       return [
         {

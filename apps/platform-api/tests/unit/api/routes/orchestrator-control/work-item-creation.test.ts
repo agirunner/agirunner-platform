@@ -320,6 +320,132 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).not.toHaveProperty('work_item_id');
   });
 
+  it('returns guided recovery when a planned stage is seeded with a non-starter role', async () => {
+    const workflowService = {
+      createWorkflowWorkItem: vi.fn(async () => {
+        throw new ValidationError('starter role required', {
+          recovery_hint: 'orchestrator_guided_recovery',
+          reason_code: 'planned_stage_starter_role_required',
+          stage_name: 'review',
+          requested_role: 'Software Developer',
+          allowed_starter_roles: ['Code Reviewer', 'Security Reviewer'],
+        });
+      }),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'create_work_item',
+            'create-wi-stage-starter-role',
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('planned_stage_starter_role_required');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'planned_stage_starter_role_required',
+            reason_code: 'planned_stage_starter_role_required',
+            requested_role: 'Software Developer',
+            allowed_starter_roles: ['Code Reviewer', 'Security Reviewer'],
+          });
+          return {
+            rowCount: 1,
+            rows: [{
+              response: params?.[4],
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-stage-starter-role']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-stage-starter-role',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: '11111111-1111-4111-8111-111111111111',
+              stage_name: 'implement',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: null,
+              event_type: null,
+              payload: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', workflowService);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-stage-starter-role/work-items',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-wi-stage-starter-role',
+        parent_work_item_id: '11111111-1111-4111-8111-111111111111',
+        title: 'Review audit export worker-loop guard fix',
+        goal: 'Review the implemented fix.',
+        acceptance_criteria: 'Code review and security review are complete.',
+        stage_name: 'review',
+        owner_role: 'Software Developer',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        mutation_outcome: 'recoverable_not_applied',
+        recovery_class: 'planned_stage_starter_role_required',
+        reason_code: 'planned_stage_starter_role_required',
+        requested_role: 'Software Developer',
+        allowed_starter_roles: ['Code Reviewer', 'Security Reviewer'],
+      }),
+    );
+  });
+
 
   it('accepts create_work_item without column_id so the playbook intake lane can apply', async () => {
     const workflowService = {
