@@ -122,7 +122,7 @@ func cloneAnyMap(source map[string]any) map[string]any {
 
 func copyStringSlice(values []string) []string {
 	if len(values) == 0 {
-		return nil
+		return []string{}
 	}
 	cloned := make([]string, len(values))
 	copy(cloned, values)

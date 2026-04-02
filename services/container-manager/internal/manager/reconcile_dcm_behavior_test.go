@@ -233,6 +233,40 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	}
 }
 
+func TestDCMRegistersConnectedRuntimeIdentityWithEmptyRoutingTagsArray(t *testing.T) {
+	docker := newMockDockerClient()
+	target := makeRuntimeTarget("tmpl-empty-tags", "runtime:v1", 5, 1, 10)
+	target.RoutingTags = nil
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(platform.workerRegistrations) != 1 {
+		t.Fatalf("expected 1 worker registration, got %d", len(platform.workerRegistrations))
+	}
+	if len(platform.agentRegistrations) != 1 {
+		t.Fatalf("expected 1 agent registration, got %d", len(platform.agentRegistrations))
+	}
+	if platform.workerRegistrations[0].RoutingTags == nil {
+		t.Fatal("expected worker registration routing tags to serialize as an empty array, got nil")
+	}
+	if len(platform.workerRegistrations[0].RoutingTags) != 0 {
+		t.Fatalf("expected empty worker routing tags, got %v", platform.workerRegistrations[0].RoutingTags)
+	}
+	if platform.agentRegistrations[0].RoutingTags == nil {
+		t.Fatal("expected agent registration routing tags to serialize as an empty array, got nil")
+	}
+	if len(platform.agentRegistrations[0].RoutingTags) != 0 {
+		t.Fatalf("expected empty agent routing tags, got %v", platform.agentRegistrations[0].RoutingTags)
+	}
+}
+
 func TestDCMRuntimeContainerHasCorrectLabels(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{
