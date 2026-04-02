@@ -57,4 +57,5 @@ CLAUDE.md
 docs/superpowers/
 apps/dashboard/test-results/
 test-results/
+tests/community-playbooks/env/local.env
 tests/live/env/local.env
