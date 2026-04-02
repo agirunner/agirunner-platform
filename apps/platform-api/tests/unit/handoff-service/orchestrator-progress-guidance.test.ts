@@ -365,4 +365,110 @@ describe('HandoffService orchestrator progress guidance', () => {
       }),
     );
   });
+
+  it('rejects a handoff-only endgame when the current work item must close before successor-stage routing', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [makeTaskRow({
+            id: 'task-orchestrator',
+            role: 'orchestrator',
+            stage_name: 'verify',
+            work_item_id: 'work-item-verify-1',
+            is_orchestrator_task: true,
+            metadata: { task_kind: 'orchestrator' },
+          })],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'work-item-verify-1',
+              stage_name: 'verify',
+              completed_at: null,
+              created_at: new Date('2026-04-02T11:17:59Z'),
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'task-qa-1',
+              role: 'QA Reviewer',
+              state: 'completed',
+              work_item_id: 'work-item-verify-1',
+              is_orchestrator_task: false,
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [
+                { name: 'review', goal: 'Review the fix' },
+                { name: 'verify', goal: 'Verify the fix' },
+                { name: 'release-approval', goal: 'Record the release decision' },
+              ],
+            },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.submitTaskHandoff('tenant-1', 'task-orchestrator', {
+        request_id: 'handoff:task-orchestrator:r0:route-release-approval',
+        summary: 'Verify findings are complete and release approval is next.',
+        completion: 'full',
+      }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Focused work can close now and its immediate successor stage can start after closure. Complete the work item, route the successor stage, then submit_handoff.',
+      details: {
+        reason_code: 'orchestrator_close_then_successor_stage_progress_required',
+        recoverable: true,
+        recovery_hint: 'complete_work_item_then_route_successor_stage_before_handoff',
+        safetynet_behavior_id: ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET.id,
+        recovery: {
+          status: 'action_required',
+          reason: 'orchestrator_close_then_successor_stage_progress_required',
+          action: 'complete_work_item_then_route_successor_stage_before_handoff',
+          target_type: 'workflow',
+          target_id: 'workflow-1',
+        },
+        closure_context: expect.objectContaining({
+          work_item_can_close_now: true,
+          workflow_can_close_now: false,
+          next_stage_can_start_now: false,
+          close_then_successor_stage_can_start_now: true,
+          next_stage_name: 'release-approval',
+          stage_name: 'verify',
+          work_item_id: 'work-item-verify-1',
+        }),
+      },
+    });
+
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET,
+      'orchestrator handoff rejected because workflow progress could still be applied in the same activation',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-verify-1',
+        task_id: 'task-orchestrator',
+        stage_name: 'verify',
+        reason_code: 'orchestrator_close_then_successor_stage_progress_required',
+        next_stage_name: 'release-approval',
+        work_item_can_close_now: true,
+      }),
+    );
+  });
 });

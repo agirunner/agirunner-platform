@@ -134,6 +134,9 @@ describe('WorkflowActivationDispatchService', () => {
             'If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'If the current work item can close now and that closure unlocks the successor stage or a human gate, complete_work_item first, then apply the successor-stage or gate mutation in the same activation before submit_handoff.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');

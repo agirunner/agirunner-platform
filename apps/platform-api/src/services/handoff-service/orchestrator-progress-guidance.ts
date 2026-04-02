@@ -137,11 +137,21 @@ export async function assertOrchestratorProgressBeforeHandoff(
   const openFocusedStageWorkItems = focusStageName
     ? workItems.filter((row) => row.stage_name === focusStageName && row.completed_at == null)
     : [];
+  const openSuccessorStageWorkItems = nextStageName
+    ? workItems.filter((row) => row.stage_name === nextStageName && row.completed_at == null)
+    : [];
   const workItemCanCloseNow = Boolean(
     focusWorkItemId
       && focusWorkItem?.completed_at == null
       && focusedOpenSpecialistTasks.length === 0
       && activeBlockingControls === 0,
+  );
+  const closeThenSuccessorStageCanStartNow = Boolean(
+    workItemCanCloseNow
+      && nextStageName
+      && openFocusedStageWorkItems.length === 1
+      && openFocusedStageWorkItems[0]?.id === focusWorkItemId
+      && openSuccessorStageWorkItems.length === 0,
   );
   const nextStageCanStartNow = Boolean(
     nextStageName
@@ -158,7 +168,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
     return;
   }
 
-  if (!workItemCanCloseNow && !nextStageCanStartNow && !workflowCanCloseNow) {
+  if (!workItemCanCloseNow && !closeThenSuccessorStageCanStartNow && !nextStageCanStartNow && !workflowCanCloseNow) {
     return;
   }
 
@@ -167,18 +177,28 @@ export async function assertOrchestratorProgressBeforeHandoff(
     : activeAdvisoryControls > 0
       ? 'can_close_with_callouts'
       : 'ready_to_close';
-  const targetType = workflowCanCloseNow || nextStageCanStartNow ? 'workflow' : 'work_item';
-  const targetId = workflowCanCloseNow || nextStageCanStartNow ? task.workflow_id : focusWorkItemId;
+  const targetType = workflowCanCloseNow || closeThenSuccessorStageCanStartNow || nextStageCanStartNow
+    ? 'workflow'
+    : 'work_item';
+  const targetId = workflowCanCloseNow || closeThenSuccessorStageCanStartNow || nextStageCanStartNow
+    ? task.workflow_id
+    : focusWorkItemId;
   const recoveryAction = workflowCanCloseNow
     ? 'complete_workflow_before_handoff'
+    : closeThenSuccessorStageCanStartNow
+      ? 'complete_work_item_then_route_successor_stage_before_handoff'
     : nextStageCanStartNow
       ? 'route_successor_stage_before_handoff'
       : 'progress_or_close_work_item_before_handoff';
-  const reasonCode = nextStageCanStartNow
+  const reasonCode = closeThenSuccessorStageCanStartNow
+    ? 'orchestrator_close_then_successor_stage_progress_required'
+    : nextStageCanStartNow
     ? 'orchestrator_successor_stage_progress_required'
     : 'orchestrator_progress_mutation_required';
   const contextSummary = workflowCanCloseNow
     ? 'The workflow can close now and no specialist work remains active.'
+    : closeThenSuccessorStageCanStartNow
+      ? `Work item ${focusWorkItemId ?? 'unknown'} in stage ${focusStageName ?? 'unknown'} can close now, and doing so unlocks immediate successor-stage routing for ${nextStageName ?? 'unknown'}.`
     : nextStageCanStartNow
       ? `Stage ${focusStageName ?? 'unknown'} has no active specialist work left and its immediate successor stage ${nextStageName ?? 'unknown'} can start now.`
       : `Work item ${focusWorkItemId ?? 'unknown'} in stage ${focusStageName ?? 'unknown'} has no active specialist tasks and no blocking controls, so the activation must progress it before ending.`;
@@ -194,6 +214,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
       reason_code: reasonCode,
       workflow_can_close_now: workflowCanCloseNow,
       work_item_can_close_now: workItemCanCloseNow,
+      close_then_successor_stage_can_start_now: closeThenSuccessorStageCanStartNow,
       next_stage_can_start_now: nextStageCanStartNow,
       next_stage_name: nextStageName,
       closure_readiness: closureReadiness,
@@ -204,6 +225,8 @@ export async function assertOrchestratorProgressBeforeHandoff(
   throw new ValidationError(
     workflowCanCloseNow
       ? 'Workflow can close now. Perform the explicit workflow-closing mutation before submit_handoff.'
+      : closeThenSuccessorStageCanStartNow
+        ? 'Focused work can close now and its immediate successor stage can start after closure. Complete the work item, route the successor stage, then submit_handoff.'
       : nextStageCanStartNow
         ? 'Successor stage can start now. Route it before submit_handoff.'
       : 'Focused work can still progress now. Perform the required workflow mutation before submit_handoff.',
@@ -223,6 +246,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
       closure_context: {
         workflow_can_close_now: workflowCanCloseNow,
         work_item_can_close_now: workItemCanCloseNow,
+        close_then_successor_stage_can_start_now: closeThenSuccessorStageCanStartNow,
         next_stage_can_start_now: nextStageCanStartNow,
         next_stage_name: nextStageName,
         closure_readiness: closureReadiness,
@@ -242,6 +266,30 @@ export async function assertOrchestratorProgressBeforeHandoff(
               requires_orchestrator_judgment: true,
             },
           ]
+        : closeThenSuccessorStageCanStartNow
+          ? [
+              {
+                action_code: 'complete_current_work_item',
+                target_type: 'work_item',
+                target_id: focusWorkItemId,
+                why: 'The current work item can close now, and leaving it open blocks immediate successor-stage routing.',
+                requires_orchestrator_judgment: true,
+              },
+              {
+                action_code: 'inspect_successor_stage_contract',
+                target_type: 'workflow',
+                target_id: task.workflow_id,
+                why: `Closing the current work item unlocks the immediate successor stage '${nextStageName ?? 'unknown'}'.`,
+                requires_orchestrator_judgment: false,
+              },
+              {
+                action_code: 'route_successor_stage_work',
+                target_type: 'workflow',
+                target_id: task.workflow_id,
+                why: `Create successor work in '${nextStageName ?? 'unknown'}' after closing the current work item and before ending this activation.`,
+                requires_orchestrator_judgment: true,
+              },
+            ]
         : nextStageCanStartNow
           ? [
               {

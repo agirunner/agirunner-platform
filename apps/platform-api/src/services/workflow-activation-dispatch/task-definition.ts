@@ -120,6 +120,7 @@ function buildActivationTaskInput(
       'Do not inspect repositories directly from the orchestrator activation. When repository evidence is required, read existing specialist outputs and artifacts or dispatch specialist work that performs the repository inspection.',
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation instead of stopping at a recommendation.',
       'If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.',
+      'If the current work item can close now and that closure unlocks the successor stage or a human gate, complete_work_item first, then apply the successor-stage or gate mutation in the same activation before submit_handoff.',
       'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
       'Return a concise operator-facing summary of what changed, what is blocked, and the next action you recommend.',
     ]
@@ -210,6 +211,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'Before seeding a planned successor stage, inspect the target stage contract and use one of its exact authored starter roles.',
       'If read_stage_status returns starter_roles for that stage, copy one exactly and do not reuse the predecessor role unless it appears there.',
       'If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.',
+      'If the current work item can close now and that closure unlocks the successor stage or a human gate, complete_work_item first, then apply the successor-stage or gate mutation in the same activation before submit_handoff.',
       'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
       'Do not poll running tasks in a loop.',
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',

@@ -341,9 +341,9 @@ const entries: SafetynetEntry[] = [
     mechanism: 'fallback',
     default_policy: 'enabled',
     disposition: 'keep',
-    trigger: 'an orchestrator activation tries to end on submit_handoff even though the focused work can still be explicitly routed or closed now',
+    trigger: 'an orchestrator activation tries to end on submit_handoff even though the focused work can still be explicitly routed or closed now, including close-then-route successor-stage endgames',
     nominal_contract: 'orchestrator handoffs should reflect canonical post-mutation workflow state and should not park a workflow that can still legally progress in the same activation',
-    intervention: 'platform returns structured recoverable guidance telling the orchestrator to perform the required workflow progression mutation before resubmitting the handoff',
+    intervention: 'platform returns structured recoverable guidance telling the orchestrator whether it must close focused work, route successor-stage work, request a human gate, or complete the workflow before resubmitting the handoff',
     risk_if_triggered: 'low; preserves correctness while stopping silent no-op parking loops that would otherwise burn provider tokens',
     operator_visibility: 'recoverable orchestrator-progress responses should carry the safetynet id when returned',
     owner_module: 'src/services/handoff-service/orchestrator-progress-guidance.ts',
@@ -351,7 +351,7 @@ const entries: SafetynetEntry[] = [
     metrics_key:
       'platform_safetynet_trigger_total{behavior="platform.handoff.orchestrator_progress_guidance"}',
     log_event_type: 'platform.safetynet.triggered',
-    review_notes: 'keep limited to orchestrator handoff attempts that leave closeable or routeable work open with no active subordinate work',
+    review_notes: 'keep limited to orchestrator handoff attempts that leave closeable or routeable work open with no active subordinate work, including cases where closing current work immediately unlocks successor-stage routing',
     status: 'active',
   },
   {
