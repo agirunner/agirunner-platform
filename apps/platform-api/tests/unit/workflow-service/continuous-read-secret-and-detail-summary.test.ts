@@ -190,14 +190,15 @@ describe('WorkflowService continuous workflow reads', () => {
         stage_name: 'review',
       },
     ]);
-    expect(workflow.tasks[0]).not.toHaveProperty('context');
-    expect(workflow.tasks[0]).not.toHaveProperty('output');
-    expect(workflow.tasks[0]).not.toHaveProperty('error');
-    expect(workflow.tasks[0]).not.toHaveProperty('role_config');
-    expect(workflow.tasks[0]).not.toHaveProperty('environment');
-    expect(workflow.tasks[0]).not.toHaveProperty('resource_bindings');
-    expect(workflow.tasks[0]).not.toHaveProperty('metrics');
-    expect(workflow.tasks[0]).not.toHaveProperty('git_info');
+    const tasks = workflow.tasks as Array<Record<string, unknown>>;
+    expect(tasks[0]).not.toHaveProperty('context');
+    expect(tasks[0]).not.toHaveProperty('output');
+    expect(tasks[0]).not.toHaveProperty('error');
+    expect(tasks[0]).not.toHaveProperty('role_config');
+    expect(tasks[0]).not.toHaveProperty('environment');
+    expect(tasks[0]).not.toHaveProperty('resource_bindings');
+    expect(tasks[0]).not.toHaveProperty('metrics');
+    expect(tasks[0]).not.toHaveProperty('git_info');
   });
 
   it('normalizes continuous board summaries from workflow stage state instead of playbook order alone', async () => {

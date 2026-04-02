@@ -3,6 +3,7 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from '../workflow-task-policy/assessment-subject-service.js';
+import { areJsonValuesEquivalent } from '../json-equivalence.js';
 import {
   PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
   mustGetSafetynetEntry,
