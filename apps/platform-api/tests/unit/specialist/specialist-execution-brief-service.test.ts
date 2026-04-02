@@ -254,6 +254,12 @@ describe('buildSpecialistExecutionBrief', () => {
       'Prefer file_read, file_list, glob, or grep for context files instead of shelling them directly.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'If an ad hoc script needs to import repository files, write that script inside the repo or use absolute/file-URL imports.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Do not put importable scripts in `/tmp` and then use `./src/...` or other repo-relative imports, because those imports resolve relative to the script file, not your shell cwd.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.',
     );
     expect(brief?.rendered_markdown).toContain(
