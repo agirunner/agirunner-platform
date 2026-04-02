@@ -2,7 +2,8 @@
   "workspace_profiles": {
     "git_remote_product_app": {
       "storage_type": "git_remote",
-      "seed_path": "fixtures/host-workspaces/product-app-repo"
+      "seed_path": "fixtures/host-workspaces/product-app-repo",
+      "default_execution_environment_alias": "node-base"
     },
     "git_remote_services_stack": {
       "storage_type": "git_remote",

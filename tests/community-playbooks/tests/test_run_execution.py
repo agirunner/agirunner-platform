@@ -21,12 +21,26 @@ class FakeRunApi:
         self.created_workspace_payloads: list[dict[str, object]] = []
         self.created_workflow_payloads: list[dict[str, object]] = []
         self.approval_calls: list[dict[str, str]] = []
+        self.default_execution_environment_calls: list[str] = []
+        self.call_order: list[str] = []
+
+    def list_execution_environments(self) -> list[dict[str, object]]:
+        return [
+            {"id": "env-debian", "catalog_key": "debian-base", "slug": "debian-base"},
+            {"id": "env-node", "catalog_key": "node-base", "slug": "node-base"},
+        ]
+
+    def set_default_execution_environment(self, environment_id: str) -> None:
+        self.call_order.append(f"set_default:{environment_id}")
+        self.default_execution_environment_calls.append(environment_id)
 
     def create_workspace(self, payload: dict[str, object]) -> dict[str, str]:
+        self.call_order.append("create_workspace")
         self.created_workspace_payloads.append(payload)
         return {"id": "ws-1", "slug": str(payload["slug"])}
 
     def create_workflow(self, payload: dict[str, object]) -> dict[str, str]:
+        self.call_order.append("create_workflow")
         self.created_workflow_payloads.append(payload)
         return {"id": "wf-1", "state": "planned", "workspace_id": "ws-1"}
 
@@ -180,6 +194,46 @@ class RunExecutionTests(unittest.TestCase):
             self.assertEqual(1, len(api.created_workflow_payloads))
             self.assertEqual(1, len(api.approval_calls))
             self.assertTrue(Path(result["result_file"]).is_file())
+
+    def test_execute_run_applies_profile_default_execution_environment_before_launch(self) -> None:
+        api = FakeRunApi()
+        playbook = {
+            "id": "pb-1",
+            "slug": "bug-fix",
+            "name": "Bug Fix",
+            "definition": {"parameters": []},
+        }
+        run_spec = {
+            "id": "bug-fix-approval",
+            "batch": "controls",
+            "playbook_slug": "bug-fix",
+            "variant": "approval",
+            "workspace_profile_record": {
+                "storage_type": "workspace_artifacts",
+                "default_execution_environment_alias": "node-base",
+            },
+            "launch_inputs": {},
+            "uploads": [],
+            "operator_actions": [{"kind": "approval", "decision": "approve"}],
+            "steering_script": [],
+            "expected_outcome": {"kind": "approved_engineering_handoff"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            execute_run(
+                api,
+                playbook,
+                run_spec,
+                results_dir=Path(tmpdir),
+                timeout_seconds=2,
+                poll_interval_seconds=0,
+            )
+
+        self.assertEqual(["env-node"], api.default_execution_environment_calls)
+        self.assertEqual(
+            ["set_default:env-node", "create_workspace", "create_workflow"],
+            api.call_order[:3],
+        )
 
     def test_execute_run_can_pause_for_manual_approval_review(self) -> None:
         api = FakeRunApi()

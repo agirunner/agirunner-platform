@@ -43,6 +43,10 @@ class ResolveMetadataTests(unittest.TestCase):
         self.assertEqual(1, len(resolved))
         run = resolved[0]
         self.assertEqual("bug-fix", run["playbook_slug"])
+        self.assertEqual(
+            "node-base",
+            run["workspace_profile_record"]["default_execution_environment_alias"],
+        )
         self.assertIn("launch_inputs", run)
         self.assertEqual(
             {"issue_summary", "reproduction_context", "acceptance_scope"},
@@ -66,6 +70,14 @@ class ResolveMetadataTests(unittest.TestCase):
         broken["runs"][0]["workload_variant"] = "does-not-exist"
 
         with self.assertRaisesRegex(RuntimeError, "unknown workload variant"):
+            validate_metadata(broken)
+
+    def test_validate_metadata_rejects_blank_default_execution_environment_alias(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+        broken = copy.deepcopy(metadata)
+        broken["workspace_profiles"]["git_remote_product_app"]["default_execution_environment_alias"] = ""
+
+        with self.assertRaisesRegex(RuntimeError, "default_execution_environment_alias"):
             validate_metadata(broken)
 
 

@@ -114,6 +114,14 @@ def validate_metadata(metadata: dict[str, Any]) -> None:
         storage_type = str(profile.get("storage_type") or "").strip()
         if storage_type not in {"git_remote", "host_directory", "workspace_artifacts"}:
             raise RuntimeError(f"workspace profile {profile_name!r} uses unsupported storage type {storage_type!r}")
+        default_execution_environment_alias = profile.get("default_execution_environment_alias")
+        if default_execution_environment_alias is not None and (
+            not isinstance(default_execution_environment_alias, str)
+            or not default_execution_environment_alias.strip()
+        ):
+            raise RuntimeError(
+                f"workspace profile {profile_name!r} must use a non-empty default_execution_environment_alias when provided"
+            )
         seed_path = profile.get("seed_path")
         if storage_type in {"git_remote", "host_directory"}:
             if not isinstance(seed_path, str) or not seed_path.strip():

@@ -8,6 +8,31 @@ from community_catalog_api import CommunityCatalogApi, extract_data
 
 
 class CommunityRunApi(CommunityCatalogApi):
+    def list_execution_environments(self) -> list[dict[str, Any]]:
+        return list(
+            extract_data(
+                self.client.request(
+                    "GET",
+                    "/api/v1/execution-environments",
+                    expected=(200,),
+                    label="execution-environments.list",
+                )
+            )
+        )
+
+    def set_default_execution_environment(self, environment_id: str) -> dict[str, Any]:
+        return dict(
+            extract_data(
+                self.client.request(
+                    "POST",
+                    f"/api/v1/execution-environments/{environment_id}/set-default",
+                    payload={},
+                    expected=(200,),
+                    label=f"execution-environments.set-default:{environment_id}",
+                )
+            )
+        )
+
     def list_logs(
         self,
         *,

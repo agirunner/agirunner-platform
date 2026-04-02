@@ -19,6 +19,30 @@ from run_playbook import build_workflow_launch_payload
 from workspace_prep import build_workspace_create_input, prepare_workspace_materials
 
 
+def _apply_profile_default_execution_environment(api: Any, run_spec: dict[str, Any]) -> dict[str, Any] | None:
+    profile = dict(run_spec.get("workspace_profile_record") or {})
+    alias = str(profile.get("default_execution_environment_alias") or "").strip()
+    if alias == "":
+        return None
+
+    for environment in api.list_execution_environments():
+        if not isinstance(environment, dict):
+            continue
+        candidate_aliases = {
+            str(environment.get("slug") or "").strip(),
+            str(environment.get("catalog_key") or "").strip(),
+        }
+        if alias not in candidate_aliases:
+            continue
+        environment_id = str(environment.get("id") or "").strip()
+        if environment_id == "":
+            raise RuntimeError(f"execution environment alias {alias!r} is missing an id")
+        api.set_default_execution_environment(environment_id)
+        return environment
+
+    raise RuntimeError(f"workspace profile requested unknown default execution environment alias {alias!r}")
+
+
 def summarize_workspace_packet(packet: dict[str, Any]) -> dict[str, Any]:
     deliverables = packet.get("deliverables")
     if not isinstance(deliverables, dict):
@@ -180,6 +204,7 @@ def execute_run(
 ) -> dict[str, Any]:
     timeout_budget = default_timeout_seconds() if timeout_seconds is None else timeout_seconds
     poll_interval = default_poll_interval_seconds() if poll_interval_seconds is None else poll_interval_seconds
+    selected_default_execution_environment = _apply_profile_default_execution_environment(api, run_spec)
     prepared_workspace = prepare_workspace_materials(run_spec, output_root=results_dir / "prepared-workspaces")
     workspace_payload = build_workspace_create_input(
         run_spec,
@@ -296,6 +321,7 @@ def execute_run(
             "workspace_packet": packet_summary,
         },
         "prepared_workspace": prepared_workspace,
+        "selected_default_execution_environment": selected_default_execution_environment,
         "timed_out": timed_out,
         "provider_blocker_message": provider_blocker_message,
         "passed": len(failures) == 0,
