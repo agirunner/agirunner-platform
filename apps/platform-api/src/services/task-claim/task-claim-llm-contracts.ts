@@ -134,12 +134,12 @@ function describeGitContract(task: Record<string, unknown>): Record<string, unkn
   const credentials = isRecord(task.credentials) ? task.credentials : {};
   return {
     git_repository_binding_count: countGitRepositoryBindings(bindings),
-    binding_contains_git_credentials: bindingsContainGitCredentials(bindings),
-    has_git_token: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
-    has_git_ssh_private_key:
+    git_binding_has_credentials: bindingsContainGitCredentials(bindings),
+    git_token_present: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
+    git_ssh_private_key_present:
       typeof credentials.git_ssh_private_key === 'string' &&
       credentials.git_ssh_private_key.trim().length > 0,
-    has_git_ssh_known_hosts:
+    git_ssh_known_hosts_present:
       typeof credentials.git_ssh_known_hosts === 'string' &&
       credentials.git_ssh_known_hosts.trim().length > 0,
   };

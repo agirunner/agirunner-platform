@@ -313,10 +313,10 @@ describe('TaskClaimService', () => {
         max_iterations: 100,
         llm_max_retries: 5,
         git_repository_binding_count: 1,
-        binding_contains_git_credentials: false,
-        has_git_token: true,
-        has_git_ssh_private_key: false,
-        has_git_ssh_known_hosts: false,
+        git_binding_has_credentials: false,
+        git_token_present: true,
+        git_ssh_private_key_present: false,
+        git_ssh_known_hosts_present: false,
       }),
     });
   });
