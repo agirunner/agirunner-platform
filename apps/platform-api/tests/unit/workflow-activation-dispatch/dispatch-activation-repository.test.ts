@@ -130,6 +130,12 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'If read_stage_status returns starter_roles for that stage, copy one exactly and do not reuse the predecessor role unless it appears there.',
           );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).not.toContain('record_operator_update');
@@ -161,6 +167,12 @@ describe('WorkflowActivationDispatchService', () => {
                 git_user_email: 'smoke@example.test',
               },
             }),
+          );
+          expect((inserted.input as { description: string }).description).toContain(
+            'If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.',
+          );
+          expect((inserted.input as { description: string }).description).toContain(
+            'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
           );
           return { rowCount: 1, rows: [{ id: 'task-repo' }] };
         }

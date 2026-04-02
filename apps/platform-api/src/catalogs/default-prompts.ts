@@ -163,6 +163,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Before seeding a planned successor stage, inspect the target stage contract and use one of its exact authored starter roles.
 - If read_stage_status returns starter_roles for the target stage, copy one exactly and do not reuse the predecessor role unless it appears there.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
+- If a planned successor stage or human gate can start now, apply that routing or gate mutation before submit_handoff.
+- Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
 - Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.
 - Use advance_stage only if the predecessor still shows as current and successor-stage routing has not already moved the workflow on.
