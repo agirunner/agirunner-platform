@@ -268,9 +268,9 @@ function formatRoleNameContract(
     ),
   ];
   if (roleNames.length === 0) {
-    return 'Use only exact authored role names when creating tasks. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.';
+    return 'Use only exact authored role names when creating work items or tasks. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.';
   }
-  return `Use only these exact authored role names when creating tasks: ${roleNames.join(', ')}. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.`;
+  return `Use only these exact authored role names when creating work items or tasks: ${roleNames.join(', ')}. Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.`;
 }
 
 function roleCatalogNames(roles: Array<{ name: string; description: string | null }>) {

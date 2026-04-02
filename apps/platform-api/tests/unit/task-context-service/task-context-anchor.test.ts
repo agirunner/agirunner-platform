@@ -140,6 +140,12 @@ describe('buildOrchestratorExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Exact authored stage roles: Software Developer, Code Reviewer',
     );
+    expect(brief?.rendered_markdown).toContain(
+      'When you create work items or tasks for this stage, use only those exact role labels.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Do not substitute synonyms, normalized titles, or broader role families even if they sound equivalent.',
+    );
   });
 
   it('tells the orchestrator to wait when an active specialist task already exists for the focused work item', () => {

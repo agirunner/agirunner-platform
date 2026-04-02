@@ -337,6 +337,12 @@ function renderOrchestratorExecutionBrief(
     if (nextExpectedAction) lines.push(`Next expected action: ${nextExpectedAction}`);
     if (exactAuthoredStageRoles.length > 0) {
       lines.push(`Exact authored stage roles: ${exactAuthoredStageRoles.join(', ')}`);
+      lines.push(
+        'When you create work items or tasks for this stage, use only those exact role labels.',
+      );
+      lines.push(
+        'Do not substitute synonyms, normalized titles, or broader role families even if they sound equivalent.',
+      );
     }
     if (activeSubordinateTaskId) {
       lines.push(

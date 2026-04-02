@@ -170,7 +170,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(result?.content).toContain('## Workflow Mode: planned');
     expect(result?.content).toContain('## Stage Routing');
     expect(result?.content).toContain('## Role Name Contract');
-    expect(result?.content).toContain('Use only these exact authored role names when creating tasks: triager.');
+    expect(result?.content).toContain('Use only these exact authored role names when creating work items or tasks: triager.');
     expect(result?.content).toContain('Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.');
     expect(result?.content).toContain('## Stage Role Coverage');
     expect(result?.content).toContain('## Pending Dispatches');
