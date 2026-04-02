@@ -41,6 +41,15 @@ interface ReviewedTaskContextRow {
   is_orchestrator_task: boolean | null;
 }
 
+interface AssessmentSubjectWorkItemContextRow {
+  id: string;
+  stage_name: string | null;
+  parent_work_item_id: string | null;
+  parent_id: string | null;
+  parent_stage_name: string | null;
+  workflow_lifecycle: string | null;
+}
+
 export async function normalizeOrchestratorTaskCreateInput(
   pool: FastifyInstance['pgPool'],
   tenantId: string,
@@ -344,10 +353,79 @@ async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
   body: z.infer<typeof orchestratorTaskCreateSchema>,
   context: OrchestratorCreateWorkItemContext,
 ) {
-  if (context.event_type !== 'task.handoff_submitted' || !body.work_item_id) {
+  if (!body.work_item_id) {
     return null;
   }
 
+  if (context.event_type === 'task.handoff_submitted') {
+    const targetWorkItemSubject = await loadLatestDeliveryAssessmentSubjectLinkage(
+      db,
+      tenantId,
+      workflowId,
+      body.work_item_id,
+    );
+    if (!targetWorkItemSubject) {
+      return null;
+    }
+    return {
+      ...targetWorkItemSubject,
+      subjectWorkItemId: targetWorkItemSubject.subjectWorkItemId ?? body.work_item_id,
+    };
+  }
+
+  if (context.event_type !== 'work_item.updated') {
+    return null;
+  }
+
+  const targetWorkItemSubject = await loadLatestDeliveryAssessmentSubjectLinkage(
+    db,
+    tenantId,
+    workflowId,
+    body.work_item_id,
+  );
+  if (targetWorkItemSubject) {
+    return {
+      ...targetWorkItemSubject,
+      subjectWorkItemId: targetWorkItemSubject.subjectWorkItemId ?? body.work_item_id,
+    };
+  }
+
+  const targetContext = await loadAssessmentSubjectWorkItemContext(
+    db,
+    tenantId,
+    workflowId,
+    body.work_item_id,
+  );
+  const predecessorWorkItemId = resolveSameActivationPredecessorWorkItemId(
+    targetContext,
+    context,
+  );
+  if (!predecessorWorkItemId) {
+    return null;
+  }
+
+  const predecessorSubject = await loadLatestDeliveryAssessmentSubjectLinkage(
+    db,
+    tenantId,
+    workflowId,
+    predecessorWorkItemId,
+  );
+  if (!predecessorSubject) {
+    return null;
+  }
+
+  return {
+    ...predecessorSubject,
+    subjectWorkItemId: predecessorSubject.subjectWorkItemId ?? predecessorWorkItemId,
+  };
+}
+
+async function loadLatestDeliveryAssessmentSubjectLinkage(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+) {
   const result = await db.query<{
     subject_task_id: string | null;
     subject_work_item_id: string | null;
@@ -364,7 +442,7 @@ async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
         AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
       ORDER BY th.sequence DESC, th.created_at DESC
       LIMIT 1`,
-    [tenantId, workflowId, body.work_item_id],
+    [tenantId, workflowId, workItemId],
   );
   const row = result.rows[0];
   if (!row?.subject_task_id) {
@@ -373,10 +451,65 @@ async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
 
   return {
     subjectTaskId: row.subject_task_id,
-    subjectWorkItemId: row.subject_work_item_id ?? body.work_item_id,
+    subjectWorkItemId: row.subject_work_item_id ?? null,
     subjectHandoffId: null,
     subjectRevision: row.subject_revision ?? null,
   };
+}
+
+async function loadAssessmentSubjectWorkItemContext(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+) {
+  const result = await db.query<AssessmentSubjectWorkItemContextRow>(
+    `SELECT wi.id,
+            wi.stage_name,
+            wi.parent_work_item_id,
+            parent.id AS parent_id,
+            parent.stage_name AS parent_stage_name,
+            w.lifecycle AS workflow_lifecycle
+       FROM workflow_work_items wi
+       JOIN workflows w
+         ON w.tenant_id = wi.tenant_id
+        AND w.id = wi.workflow_id
+       LEFT JOIN workflow_work_items parent
+         ON parent.tenant_id = wi.tenant_id
+        AND parent.workflow_id = wi.workflow_id
+        AND parent.id = wi.parent_work_item_id
+      WHERE wi.tenant_id = $1
+        AND wi.workflow_id = $2
+        AND wi.id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, workItemId],
+  );
+  return result.rows[0] ?? null;
+}
+
+function resolveSameActivationPredecessorWorkItemId(
+  targetContext: AssessmentSubjectWorkItemContextRow | null,
+  context: OrchestratorCreateWorkItemContext,
+) {
+  if (
+    !targetContext
+    || targetContext.workflow_lifecycle !== 'planned'
+    || !targetContext.parent_id
+    || !targetContext.parent_stage_name
+    || targetContext.parent_stage_name === targetContext.stage_name
+  ) {
+    return null;
+  }
+
+  const activationWorkItemId = readString(context.payload.work_item_id);
+  if (!activationWorkItemId) {
+    return null;
+  }
+  if (activationWorkItemId !== targetContext.parent_id) {
+    return null;
+  }
+
+  return targetContext.parent_id;
 }
 
 function shouldDefaultActivationReviewedTaskLinkage(
