@@ -3,7 +3,7 @@
 [![Latest Tag](https://img.shields.io/github/v/tag/agirunner/agirunner-platform?sort=semver&label=latest%20tag)](https://github.com/agirunner/agirunner-platform/tags)
 [![Images](https://img.shields.io/badge/images-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/orgs/agirunner/packages?repo_name=agirunner-platform)
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![License](https://img.shields.io/github/license/agirunner/agirunner-platform)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-97CA00)](./LICENSE)
 
 API-first agent orchestration plane and operator surface for Agirunner.
 
