@@ -160,6 +160,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - When prose calls for approval, assessment, escalation, or rework, invoke the real control explicitly.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
 - Do not keep successor-stage work anchored to the predecessor stage.
+- Before seeding a planned successor stage, inspect the target stage contract and use one of its exact authored starter roles.
+- If read_stage_status returns starter_roles for the target stage, copy one exactly and do not reuse the predecessor role unless it appears there.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
 - Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.

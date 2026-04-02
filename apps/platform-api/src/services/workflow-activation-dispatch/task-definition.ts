@@ -196,6 +196,8 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'Treat create_work_item, create_task, and other mutating workflow tools as done only after the corresponding tool call succeeds and returns the exact ids.',
       'After you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish the activation and wait for the next event.',
       'If no subordinate work is active and the workflow should progress, perform the workflow mutation now rather than ending with only a recommendation.',
+      'Before seeding a planned successor stage, inspect the target stage contract and use one of its exact authored starter roles.',
+      'If read_stage_status returns starter_roles for that stage, copy one exactly and do not reuse the predecessor role unless it appears there.',
       'Do not poll running tasks in a loop.',
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',
       'Always include a unique request_id on mutating workflow control tool calls.',

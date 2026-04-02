@@ -80,7 +80,7 @@ describe('buildWorkflowInstructionLayer', () => {
             },
             stages: [
               { name: 'triage', goal: 'Triage inbound work', involves: ['triager'] },
-              { name: 'implementation', goal: 'Build the work.' },
+              { name: 'implementation', goal: 'Build the work.', involves: ['builder', 'qa-reviewer'] },
             ],
             orchestrator: {
               max_active_tasks: 2,
@@ -172,6 +172,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(result?.content).toContain('## Role Name Contract');
     expect(result?.content).toContain('Use only these exact authored role names when creating work items or tasks: triager.');
     expect(result?.content).toContain('Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.');
+    expect(result?.content).toContain('Starter roles for "implementation": builder, qa-reviewer.');
+    expect(result?.content).toContain('When you seed the first work item in "implementation", use one of those exact starter roles instead of guessing from the predecessor stage.');
     expect(result?.content).toContain('## Stage Role Coverage');
     expect(result?.content).toContain('## Pending Dispatches');
     expect(result?.content).toContain('## Operator Visibility');

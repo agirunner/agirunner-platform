@@ -65,8 +65,11 @@ export function buildOrchestratorSections(params: {
   if (stage) {
     sections.push(`## Current Stage\n${stage.name}\nGoal: ${stage.goal}`);
     const successorStage = nextStageName(params.definition, stage.name);
+    const successorStarterRoles = successorStage
+      ? starterRolesForStage(params.definition, successorStage)
+      : [];
     if (lifecycle === 'planned') {
-      sections.push(`## Stage Routing\n${formatStageRouting(stage.name, successorStage)}`);
+      sections.push(`## Stage Routing\n${formatStageRouting(stage.name, successorStage, successorStarterRoles)}`);
       sections.push(`## Stage Name Contract\n${formatStageNameContract(params.definition)}`);
       sections.push(`## Role Name Contract\n${formatRoleNameContract(params.definition, roleCatalogNames(roleCatalog), stage)}`);
       const emptyStageGuidance = formatEmptyPlannedStageGuidance(
@@ -219,6 +222,7 @@ function formatPlannedHandoffSemantics() {
 function formatStageRouting(
   currentStageName: string,
   successorStageName: string | null,
+  successorStarterRoles: string[],
 ) {
   if (!successorStageName) {
     return [
@@ -227,7 +231,7 @@ function formatStageRouting(
     ].join('\n');
   }
 
-  return [
+  const lines = [
     `Current stage: ${currentStageName}`,
     `Successor stage after acceptance: ${successorStageName}`,
     `Creating successor work in "${successorStageName}" and closing the accepted predecessor work item is itself the forward-routing mutation for this planned workflow.`,
@@ -238,7 +242,15 @@ function formatStageRouting(
     'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
     'If a request_changes outcome already reopened the subject task, do not create another same-role rework task on the assessor work item; wait for the reopened subject to resubmit and then route it through the required follow-up step.',
     'If continuity for the current work item says the next expected action is rework, route only that next expected actor until a new subject handoff lands. Do not create additional assessor, approval, or successor tasks on that work item before the rework handoff changes continuity.',
-  ].join('\n');
+  ];
+  if (successorStarterRoles.length > 0) {
+    lines.push(`Starter roles for "${successorStageName}": ${successorStarterRoles.join(', ')}.`);
+    lines.push(
+      `When you seed the first work item in "${successorStageName}", use one of those exact starter roles instead of guessing from the predecessor stage.`,
+    );
+  }
+
+  return lines.join('\n');
 }
 
 function formatStageNameContract(definition: ReturnType<typeof parsePlaybookDefinition>) {

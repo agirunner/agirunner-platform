@@ -124,6 +124,12 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.',
           );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Before seeding a planned successor stage, inspect the target stage contract and use one of its exact authored starter roles.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'If read_stage_status returns starter_roles for that stage, copy one exactly and do not reuse the predecessor role unless it appears there.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).not.toContain('record_operator_update');
