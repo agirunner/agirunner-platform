@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -38,6 +40,7 @@ func (m *Manager) issueConnectedRuntimeIdentity(
 	request connectedRuntimeIdentityRequest,
 ) (connectedRuntimeIdentity, error) {
 	heartbeatSeconds := m.connectedRuntimeHeartbeatSeconds()
+	normalizedPlaybookID := normalizeConnectedRuntimePlaybookID(request.PlaybookID)
 	workerResponse, err := m.platform.RegisterWorker(WorkerRegistrationRequest{
 		Name:                     strings.TrimSpace(request.WorkerName),
 		RuntimeType:              "external",
@@ -54,13 +57,10 @@ func (m *Manager) issueConnectedRuntimeIdentity(
 		Name:                     strings.TrimSpace(request.WorkerName),
 		RoutingTags:              copyStringSlice(request.RoutingTags),
 		ExecutionMode:            strings.TrimSpace(request.ExecutionMode),
-		PlaybookID:               strings.TrimSpace(request.PlaybookID),
+		PlaybookID:               normalizedPlaybookID,
 		WorkerID:                 workerResponse.WorkerID,
 		HeartbeatIntervalSeconds: heartbeatSeconds,
-		Metadata: map[string]any{
-			"playbook_id": request.PlaybookID,
-			"pool_kind":   request.PoolKind,
-		},
+		Metadata:                 connectedRuntimeAgentMetadata(normalizedPlaybookID, request.PoolKind),
 	})
 	if err != nil {
 		m.releaseConnectedRuntimeIdentity(ctx, workerResponse.WorkerID)
@@ -127,4 +127,25 @@ func copyStringSlice(values []string) []string {
 	cloned := make([]string, len(values))
 	copy(cloned, values)
 	return cloned
+}
+
+func normalizeConnectedRuntimePlaybookID(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if _, err := uuid.Parse(trimmed); err != nil {
+		return ""
+	}
+	return trimmed
+}
+
+func connectedRuntimeAgentMetadata(playbookID, poolKind string) map[string]any {
+	metadata := map[string]any{
+		"pool_kind": poolKind,
+	}
+	if playbookID != "" {
+		metadata["playbook_id"] = playbookID
+	}
+	return metadata
 }

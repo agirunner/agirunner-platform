@@ -267,6 +267,38 @@ func TestDCMRegistersConnectedRuntimeIdentityWithEmptyRoutingTagsArray(t *testin
 	}
 }
 
+func TestDCMGenericSpecialistTargetOmitsAgentPlaybookScope(t *testing.T) {
+	docker := newMockDockerClient()
+	target := makeRuntimeTarget("specialist", "runtime:v1", 5, 1, 10)
+	target.PlaybookName = "Specialist Agents"
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(platform.agentRegistrations) != 1 {
+		t.Fatalf("expected 1 agent registration, got %d", len(platform.agentRegistrations))
+	}
+	registration := platform.agentRegistrations[0]
+	if registration.PlaybookID != "" {
+		t.Fatalf("expected generic specialist runtime to omit playbook scope, got %q", registration.PlaybookID)
+	}
+	if registration.Metadata == nil {
+		t.Fatal("expected agent metadata to be present")
+	}
+	if _, ok := registration.Metadata["playbook_id"]; ok {
+		t.Fatalf("expected generic specialist agent metadata to omit playbook_id, got %v", registration.Metadata["playbook_id"])
+	}
+	if registration.Metadata["pool_kind"] != "specialist" {
+		t.Fatalf("expected pool_kind specialist, got %v", registration.Metadata["pool_kind"])
+	}
+}
+
 func TestDCMRuntimeContainerHasCorrectLabels(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{
