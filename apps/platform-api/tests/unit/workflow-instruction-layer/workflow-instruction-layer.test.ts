@@ -174,6 +174,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(result?.content).toContain('Do not paraphrase, shorten, slugify, hyphenate, or invent alternate role names.');
     expect(result?.content).toContain('Starter roles for "implementation": builder, qa-reviewer.');
     expect(result?.content).toContain('When you seed the first work item in "implementation", use one of those exact starter roles instead of guessing from the predecessor stage.');
+    expect(result?.content).toContain('If a review or assessment checkpoint on a different work item finishes with request_changes and no assessor tasks remain open on that checkpoint, complete that checkpoint work item and wait on the reopened subject task instead of ending on submit_handoff alone.');
     expect(result?.content).toContain('## Stage Role Coverage');
     expect(result?.content).toContain('## Pending Dispatches');
     expect(result?.content).toContain('## Operator Visibility');

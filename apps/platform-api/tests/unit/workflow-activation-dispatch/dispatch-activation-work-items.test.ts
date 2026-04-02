@@ -391,4 +391,142 @@ describe('WorkflowActivationDispatchService', () => {
       client.query.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO tasks')),
     ).toHaveLength(1);
   });
+
+  it('aligns a planned activation to the primary event work item stage', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-review-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-review-1',
+              reason: 'task.handoff_submitted',
+              event_type: 'task.handoff_submitted',
+              payload: {
+                task_id: 'security-review-task-1',
+                stage_name: 'review',
+                work_item_id: 'review-work-item-1',
+              },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-04-02T11:53:49Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              workspace_id: 'workspace-1',
+              lifecycle: 'planned',
+              current_stage: 'implement',
+              active_stages: ['implement', 'review'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'Bug Fix',
+              playbook_outcome: 'Ship tested code',
+              workspace_repository_url: null,
+              workspace_settings: null,
+              workflow_git_branch: null,
+              workflow_parameters: null,
+              playbook_definition: {
+                stages: [
+                  { name: 'reproduce' },
+                  { name: 'implement' },
+                  { name: 'review' },
+                ],
+              },
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-review-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-review-1',
+              request_id: 'req-review-1',
+              reason: 'task.handoff_submitted',
+              event_type: 'task.handoff_submitted',
+              payload: {
+                task_id: 'security-review-task-1',
+                stage_name: 'review',
+                work_item_id: 'review-work-item-1',
+              },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-review-1',
+              queued_at: new Date('2026-04-02T11:53:49Z'),
+              started_at: new Date('2026-04-02T11:54:21Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          const inserted = readInsertedActivationTask(params);
+          expect(params?.[2]).toBe('review-work-item-1');
+          expect(params?.[6]).toBe('review');
+          expect(inserted.input).toEqual(
+            expect.objectContaining({
+              current_stage: 'review',
+              active_stages: ['implement', 'review'],
+              events: [
+                expect.objectContaining({
+                  type: 'task.handoff_submitted',
+                  stage_name: 'review',
+                  work_item_id: 'review-work-item-1',
+                }),
+              ],
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-review-1' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    expectWorkflowStageProjection({
+      currentStage: 'implement',
+      activeStages: ['implement', 'review'],
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-review-1');
+
+    expect(taskId).toBe('task-review-1');
+  });
 });

@@ -23,12 +23,14 @@ export function buildActivationTaskDefinition(
   const repository = resolveWorkflowRepositoryContext(workflow);
   const activationReason = deriveActivationReason(activationBatch);
   const primaryEvent = derivePrimaryActivationEvent(activation, activationBatch);
+  const stageName = activationTaskStageName(workflow, primaryEvent, activationBatch);
+  const workItemId = activationTaskWorkItemId(activation, activationBatch);
 
   return {
     title: buildActivationTaskTitle(workflow),
-    stageName: activationTaskStageName(workflow, activationBatch),
-    workItemId: activationTaskWorkItemId(activation, activationBatch),
-    input: buildActivationTaskInput(workflow, activation, primaryEvent, activationBatch),
+    stageName,
+    workItemId,
+    input: buildActivationTaskInput(workflow, activation, primaryEvent, activationBatch, stageName),
     roleConfig: buildActivationRoleConfig(),
     environment: buildActivationEnvironment(repository),
     resourceBindings: buildActivationResourceBindings(repository),
@@ -48,6 +50,7 @@ function buildActivationTaskInput(
   activation: QueuedActivationRow,
   primaryEvent: QueuedActivationRow,
   activationBatch: QueuedActivationRow[],
+  stageName: string | null,
 ): Record<string, unknown> {
   const repository = resolveWorkflowRepositoryContext(workflow);
   const activationReason = deriveActivationReason(activationBatch);
@@ -76,7 +79,7 @@ function buildActivationTaskInput(
     activation_dispatch_attempt: activation.dispatch_attempt,
     activation_dispatch_token: activation.dispatch_token,
     lifecycle: workflow.lifecycle,
-    ...(workflow.lifecycle !== 'ongoing' ? { current_stage: workflow.current_stage } : {}),
+    ...(workflow.lifecycle !== 'ongoing' ? { current_stage: stageName ?? workflow.current_stage } : {}),
     active_stages: workflow.active_stages,
     repository: buildActivationRepositoryInput(repository),
     events: queuedEvents,
@@ -130,8 +133,14 @@ function buildActivationTaskInput(
 
 function activationTaskStageName(
   workflow: WorkflowDispatchRow,
+  primaryEvent: QueuedActivationRow,
   activationBatch: QueuedActivationRow[],
 ): string | null {
+  const primaryEventStageName = asNullableString(primaryEvent.payload.stage_name);
+  if (primaryEventStageName) {
+    return primaryEventStageName;
+  }
+
   if (workflow.lifecycle !== 'ongoing') {
     return workflow.current_stage ?? null;
   }
@@ -201,6 +210,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'Do not poll running tasks in a loop.',
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',
       'Always include a unique request_id on mutating workflow control tool calls.',
+      'If a review or assessment checkpoint on a different work item finishes with request_changes and no assessor tasks remain open on that checkpoint, complete that checkpoint work item and wait on the reopened subject task instead of ending on submit_handoff alone.',
       'Every orchestrator activation MUST finish with submit_handoff before task completion, including return-to-pending and legitimate wait-state activations.',
       'record_operator_brief is optional operator-facing narrative. It never replaces submit_handoff and is not a completion write.',
       'If you routed work, requested a gate, closed or reopened work, or chose to wait after inspection because canonical workflow state shows real active subordinate work or an explicit gate/escalation wait, submit_handoff in that same activation before attempting completion.',
