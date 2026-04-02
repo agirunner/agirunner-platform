@@ -110,7 +110,7 @@ export async function retryTask(
   }
 
   const expectedStates: TaskState[] = payload.force
-    ? ['failed', 'cancelled', 'completed', 'ready', 'pending', 'awaiting_approval', 'output_pending_assessment', 'escalated']
+    ? ['failed', 'completed', 'ready', 'pending', 'awaiting_approval', 'output_pending_assessment', 'escalated']
     : ['failed'];
   if (!expectedStates.includes(task.state as TaskState)) {
     throw new ConflictError('Task is not retryable');

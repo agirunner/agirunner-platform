@@ -49,7 +49,7 @@ describe('GuidedClosureRecoveryHelpersService guidance and delegation', () => {
     expect(guidance.work_so_far).toContain('Settle the task or escalation from that handoff');
   });
 
-  it('updates task input before retrying corrected work', async () => {
+  it('passes corrected input through the retry contract without mutating task input first', async () => {
     const taskService = {
       updateTaskInput: vi.fn(async () => ({ id: 'task-1' })),
       retryTask: vi.fn(async () => ({ id: 'task-1', state: 'ready' })),
@@ -70,16 +70,14 @@ describe('GuidedClosureRecoveryHelpersService guidance and delegation', () => {
       corrected_input: { brief: 'Use the corrected reviewer contract.' },
     }, {} as never);
 
-    expect(taskService.updateTaskInput).toHaveBeenCalledWith(
-      'tenant-1',
-      'task-1',
-      { brief: 'Use the corrected reviewer contract.' },
-      {} as never,
-    );
+    expect(taskService.updateTaskInput).not.toHaveBeenCalled();
     expect(taskService.retryTask).toHaveBeenCalledWith(
       identity,
       'task-1',
-      { force: true },
+      {
+        force: true,
+        override_input: { brief: 'Use the corrected reviewer contract.' },
+      },
       {} as never,
     );
     expect(result).toEqual({ id: 'task-1', state: 'ready' });

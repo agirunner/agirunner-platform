@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ValidationError } from '../../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../../src/errors/domain-errors.js';
 import { TaskLifecycleService } from '../../../src/services/task-lifecycle/task-lifecycle-service.js';
 type TaskLifecycleDependencies = ConstructorParameters<typeof TaskLifecycleService>[0];
 describe('TaskLifecycleService worker identity + payload semantics', () => {
@@ -111,6 +111,47 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'wf-1',
       client,
     );
+  });
+
+  it('rejects force retry for cancelled tasks', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-cancelled',
+        state: 'cancelled',
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-1',
+        assigned_agent_id: null,
+        assigned_worker_id: null,
+        retry_count: 1,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    await expect(
+      service.retryTask(
+        {
+          id: 'admin-key',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin',
+        },
+        'task-cancelled',
+        { force: true },
+      ),
+    ).rejects.toThrow(ConflictError);
+    expect(client.query).not.toHaveBeenCalled();
   });
 
 

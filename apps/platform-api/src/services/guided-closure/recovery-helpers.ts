@@ -76,16 +76,13 @@ export class GuidedClosureRecoveryHelpersService {
     client?: DatabaseClient,
   ): Promise<Record<string, unknown>> {
     if (client) {
-      await this.deps.taskService.updateTaskInput(
-        identity.tenantId,
-        taskId,
-        input.corrected_input,
-        client,
-      );
       return this.deps.taskService.retryTask(
         identity,
         taskId,
-        { force: true },
+        {
+          force: true,
+          override_input: input.corrected_input,
+        },
         client,
       );
     }
