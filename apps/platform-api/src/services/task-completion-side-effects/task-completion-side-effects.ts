@@ -1,7 +1,6 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type { LogService } from '../../logging/execution/log-service.js';
-import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../workflow-stage/planned-work-item-auto-close.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkItemContinuityService } from '../work-item-continuity-service/work-item-continuity-service.js';
 import { enqueueAndDispatchImmediateWorkflowActivation } from '../workflow-activation/workflow-immediate-activation.js';
@@ -150,13 +149,6 @@ export async function applyTaskCompletionSideEffects(
         client,
       );
     }
-    await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
-      eventService,
-      identity,
-      String(task.workflow_id),
-      asOptionalString(task.work_item_id),
-      client,
-    );
     const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
       client,
       identity.tenantId,

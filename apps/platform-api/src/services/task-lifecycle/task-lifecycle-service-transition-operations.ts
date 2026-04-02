@@ -8,6 +8,7 @@ import {
   type TaskState,
 } from '../../orchestration/task-state-machine.js';
 import { applyTaskCompletionSideEffects } from '../task-completion-side-effects/task-completion-side-effects.js';
+import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from '../workflow-stage/planned-work-item-auto-close.js';
 import { enqueueAndDispatchImmediatePlaybookActivation } from '../workflow-activation/workflow-immediate-activation.js';
 import type {
   TaskLifecycleServiceOperationContext,
@@ -223,6 +224,19 @@ export async function applyStateTransition(
           rejectTask: (nextIdentity, managedTaskId, payload, nextClient) =>
             context.rejectTask(nextIdentity, managedTaskId, payload, nextClient),
         },
+      );
+    }
+    if (
+      resolvedNextState === 'completed'
+      && typeof updatedTask.workflow_id === 'string'
+      && typeof updatedTask.work_item_id === 'string'
+    ) {
+      await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
+        context.deps.eventService,
+        identity,
+        updatedTask.workflow_id,
+        updatedTask.work_item_id,
+        client,
       );
     }
     if (resolvedNextState === 'output_pending_assessment' && !updatedTask.is_orchestrator_task) {
