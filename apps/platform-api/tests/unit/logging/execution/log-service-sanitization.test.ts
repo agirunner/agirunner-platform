@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildExecutionContractLogPayload } from '../../../../src/services/task-claim/task-claim-llm-contracts.js';
 import {
   createLogEntry,
   createLogServiceHarness,
@@ -103,6 +104,63 @@ describe('LogService', () => {
       expect(payload.credentials).toBe('[REDACTED]');
       expect(error.message).toBe('[REDACTED]');
       expect(error.stack).toBe('[REDACTED]');
+    });
+
+    it('preserves execution contract diagnostics without redacting benign auth presence flags', async () => {
+      const { pool, service } = createLogServiceHarness();
+
+      const payload = buildExecutionContractLogPayload({
+        llmResolution: {
+          resolved: {
+            provider: { providerType: 'anthropic' },
+            model: {
+              modelId: 'claude-sonnet-4-6',
+              contextWindow: 200000,
+              maxOutputTokens: 64000,
+              endpointType: 'messages',
+              inputCostPerMillionUsd: 3,
+              outputCostPerMillionUsd: 15,
+            },
+            reasoningConfig: { effort: 'low', reasoning_effort: 'low' },
+          },
+        } as never,
+        loopContract: {
+          loopMode: 'tpaov',
+          maxIterations: 800,
+          llmMaxRetries: 5,
+        },
+        executionContainer: null,
+        executionEnvironment: null,
+        agentId: 'agent-1',
+        workerId: null,
+        task: {
+          role_config: {},
+          resource_bindings: [{
+            type: 'git_repository',
+            repository_url: 'https://github.com/example/repo.git',
+          }],
+          credentials: {
+            git_token: 'ghp_example',
+          },
+        },
+      });
+
+      await service.insert(createLogEntry({
+        source: 'platform',
+        category: 'task_lifecycle',
+        operation: 'task.execution_contract_resolved',
+        payload,
+      }));
+
+      const [, params] = getInsertCall(pool)!;
+      const insertedPayload = JSON.parse(params[10] as string);
+      expect(insertedPayload).toMatchObject({
+        llm_output_limit: 64000,
+        git_binding_has_auth: false,
+        git_http_auth_present: true,
+        git_ssh_material_present: false,
+        git_ssh_host_verifier_present: false,
+      });
     });
   });
 });

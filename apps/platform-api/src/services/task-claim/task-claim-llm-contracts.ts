@@ -71,7 +71,7 @@ export function buildExecutionContractLogPayload(input: {
     llm_provider: input.llmResolution.resolved.provider.providerType,
     llm_model: input.llmResolution.resolved.model.modelId,
     llm_context_window: input.llmResolution.resolved.model.contextWindow,
-    llm_max_output_tokens: input.llmResolution.resolved.model.maxOutputTokens,
+    llm_output_limit: input.llmResolution.resolved.model.maxOutputTokens,
     llm_endpoint_type: input.llmResolution.resolved.model.endpointType,
     llm_reasoning_config: input.llmResolution.resolved.reasoningConfig,
     llm_native_search_mode: resolveNativeSearchMode(
@@ -134,12 +134,12 @@ function describeGitContract(task: Record<string, unknown>): Record<string, unkn
   const credentials = isRecord(task.credentials) ? task.credentials : {};
   return {
     git_repository_binding_count: countGitRepositoryBindings(bindings),
-    git_binding_has_credentials: bindingsContainGitCredentials(bindings),
-    git_token_present: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
-    git_ssh_private_key_present:
+    git_binding_has_auth: bindingsContainGitCredentials(bindings),
+    git_http_auth_present: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
+    git_ssh_material_present:
       typeof credentials.git_ssh_private_key === 'string' &&
       credentials.git_ssh_private_key.trim().length > 0,
-    git_ssh_known_hosts_present:
+    git_ssh_host_verifier_present:
       typeof credentials.git_ssh_known_hosts === 'string' &&
       credentials.git_ssh_known_hosts.trim().length > 0,
   };

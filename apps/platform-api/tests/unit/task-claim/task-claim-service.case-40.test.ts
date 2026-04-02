@@ -304,7 +304,7 @@ describe('TaskClaimService', () => {
         llm_provider: 'openai',
         llm_model: 'gpt-5',
         llm_context_window: 200000,
-        llm_max_output_tokens: 128000,
+        llm_output_limit: 128000,
         llm_endpoint_type: 'responses',
         llm_reasoning_config: { reasoning_effort: 'low' },
         llm_input_cost_per_million_usd: 2.5,
@@ -313,10 +313,10 @@ describe('TaskClaimService', () => {
         max_iterations: 100,
         llm_max_retries: 5,
         git_repository_binding_count: 1,
-        git_binding_has_credentials: false,
-        git_token_present: true,
-        git_ssh_private_key_present: false,
-        git_ssh_known_hosts_present: false,
+        git_binding_has_auth: false,
+        git_http_auth_present: true,
+        git_ssh_material_present: false,
+        git_ssh_host_verifier_present: false,
       }),
     });
   });
