@@ -15,7 +15,6 @@ import {
   readOptionalString,
   selectFocusedWorkItemForClosure,
 } from './helpers.js';
-import { nextStageNameFor } from '../playbook-workflow-control/playbook-workflow-control-utils.js';
 
 export function buildClosureContext(params: {
   definition: { stages: Array<{ name: string; involves?: string[] }> };
@@ -35,7 +34,7 @@ export function buildClosureContext(params: {
   const stage = focusedStageName
     ? params.definition.stages.find((entry) => entry.name === focusedStageName) ?? null
     : null;
-  const nextStageName = focusedStageName ? nextStageNameFor(params.definition, focusedStageName) : null;
+  const nextStageName = focusedStageName ? nextStageNameForStageList(params.definition.stages, focusedStageName) : null;
   const stageRoles = (stage?.involves ?? [])
     .map((role) => role.trim())
     .filter((role) => role.length > 0);
@@ -151,6 +150,17 @@ export function buildClosureContext(params: {
     retry_window: retryWindow,
     reroute_candidates: rerouteCandidates,
   });
+}
+
+function nextStageNameForStageList(
+  stages: Array<{ name: string }>,
+  currentStageName: string,
+): string | null {
+  const index = stages.findIndex((stage) => stage.name === currentStageName);
+  if (index === -1) {
+    return null;
+  }
+  return stages[index + 1]?.name ?? null;
 }
 
 function summarizeStageGates(
