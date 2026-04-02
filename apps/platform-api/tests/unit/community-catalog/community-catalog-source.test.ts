@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { CommunityCatalogSourceService } from '../../../src/services/community-catalog/community-catalog-source.js';
@@ -233,6 +237,35 @@ describe('CommunityCatalogSourceService', () => {
     expect(detail.specialists).toHaveLength(1);
     expect(detail.skills).toHaveLength(1);
   });
+
+  it('reads catalog files from a local root without remote fetches when configured', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'community-catalog-source-'));
+    try {
+      writeCatalogFile(root, 'catalog/playbooks.yaml', PLAYBOOKS_YAML);
+      writeCatalogFile(root, 'catalog/specialists.yaml', SPECIALISTS_YAML);
+      writeCatalogFile(root, 'catalog/skills.yaml', SKILLS_YAML);
+      writeCatalogFile(root, 'catalog/tool-profiles.yaml', TOOL_PROFILES_YAML);
+      writeCatalogFile(root, 'playbooks/engineering/bug-fix/playbook.yaml', PLAYBOOK_YAML);
+      writeCatalogFile(root, 'playbooks/engineering/bug-fix/README.md', README_MD);
+      writeCatalogFile(root, 'specialists/engineering/developer/specialist.yaml', SPECIALIST_YAML);
+      writeCatalogFile(root, 'skills/engineering/bug-reproduction-discipline/SKILL.md', SKILL_MD);
+      const fetcher = createCatalogFetcher(async () => new Response('unexpected remote fetch', { status: 500 }));
+      const service = new CommunityCatalogSourceService({
+        fetcher,
+        localRoot: root,
+        repository: 'agirunner/agirunner-playbooks',
+        ref: 'main',
+        rawBaseUrl: 'https://raw.example.test',
+      });
+
+      const selection = await service.loadSelection(['bug-fix']);
+
+      expect(selection.packages).toHaveLength(1);
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
 });
 
 function createTextResponse(value: string): Response {
@@ -246,4 +279,10 @@ function createCatalogFetcher(
   handler: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>,
 ): typeof fetch {
   return vi.fn(handler) as unknown as typeof fetch;
+}
+
+function writeCatalogFile(root: string, relativePath: string, content: string): void {
+  const fullPath = join(root, relativePath);
+  mkdirSync(dirname(fullPath), { recursive: true });
+  writeFileSync(fullPath, content, 'utf8');
 }

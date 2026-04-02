@@ -13,6 +13,7 @@ import { RoleDefinitionService } from '../services/role-definition/role-definiti
 import { SpecialistSkillService } from '../services/specialist/specialist-skill-service.js';
 
 interface CommunityCatalogBootstrapConfig {
+  COMMUNITY_CATALOG_LOCAL_ROOT?: string;
   COMMUNITY_CATALOG_RAW_BASE_URL: string;
   COMMUNITY_CATALOG_REF: string;
   COMMUNITY_CATALOG_REPOSITORY: string;
@@ -32,6 +33,7 @@ export function registerCommunityCatalogServices(
   input: RegisterCommunityCatalogServicesInput,
 ): void {
   const sourceService = new CommunityCatalogSourceService({
+    localRoot: input.config.COMMUNITY_CATALOG_LOCAL_ROOT,
     repository: input.config.COMMUNITY_CATALOG_REPOSITORY,
     ref: input.config.COMMUNITY_CATALOG_REF,
     rawBaseUrl: input.config.COMMUNITY_CATALOG_RAW_BASE_URL,

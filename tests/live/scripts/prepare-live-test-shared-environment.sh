@@ -24,6 +24,7 @@ LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
 LIVE_TEST_FIXTURES_REMOTE_NAME="${LIVE_TEST_FIXTURES_REMOTE_NAME:-origin}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
+PLAYBOOKS_REPO_PATH="${PLAYBOOKS_REPO_PATH:-${REPO_ROOT}/../../agirunner/agirunner-playbooks}"
 RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
 LIVE_TEST_REMOTE_MCP_FIXTURE_PORT="${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}"
 LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET="${LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET:-live-test-parameterized-secret}"
@@ -115,6 +116,16 @@ verify_live_test_stack_secrets() {
 
 mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
 
+if [[ -d "${PLAYBOOKS_REPO_PATH}" ]]; then
+  export COMMUNITY_CATALOG_LOCAL_HOST_ROOT="${PLAYBOOKS_REPO_PATH}"
+  export COMMUNITY_CATALOG_LOCAL_ROOT="/community-catalog-source"
+  log_live_test "using local community catalog repo ${PLAYBOOKS_REPO_PATH}"
+else
+  unset COMMUNITY_CATALOG_LOCAL_HOST_ROOT
+  unset COMMUNITY_CATALOG_LOCAL_ROOT
+  log_live_test "local community catalog repo not found; falling back to ${COMMUNITY_CATALOG_RAW_BASE_URL:-https://raw.githubusercontent.com}"
+fi
+
 log_live_test "building runtime image ${RUNTIME_IMAGE}"
 docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"
 
@@ -129,6 +140,7 @@ log_live_test "rebuilding standard docker compose stack"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   export COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES}"
   export DEFAULT_ADMIN_API_KEY PLATFORM_SERVICE_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
+  export COMMUNITY_CATALOG_LOCAL_HOST_ROOT COMMUNITY_CATALOG_LOCAL_ROOT
   export LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
     -f "${LIVE_TEST_COMPOSE_FILE}" \

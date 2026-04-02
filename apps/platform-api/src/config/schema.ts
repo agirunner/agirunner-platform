@@ -61,6 +61,7 @@ export const envSchema = z
     COMMUNITY_CATALOG_REPOSITORY: z.string().min(1).default('agirunner/agirunner-playbooks'),
     COMMUNITY_CATALOG_REF: z.string().min(1).default('main'),
     COMMUNITY_CATALOG_RAW_BASE_URL: z.string().url().default('https://raw.githubusercontent.com'),
+    COMMUNITY_CATALOG_LOCAL_ROOT: z.string().optional(),
     PLATFORM_PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
     REMOTE_MCP_HOSTED_CALLBACK_BASE_URL: optionalUrl,
     WORKSPACE_GIT_VERIFY_TIMEOUT_SECONDS: z.coerce.number().int().min(1).default(15),

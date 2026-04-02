@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 import {
   parseSkillMarkdown,
   parseYamlDocument,
@@ -18,21 +21,28 @@ interface ToolProfileManifest {
 }
 
 export class CommunityCatalogSourceService {
+  private readonly localRoot: string | null;
   private readonly repository: string;
   private readonly ref: string;
   private readonly rawBaseUrl: string;
   private readonly fetcher: typeof fetch;
+  private readonly cacheTtlMs: number;
+  private readonly textCache = new Map<string, { expiresAt: number; promise: Promise<string> }>();
 
   constructor(input?: {
+    localRoot?: string;
     repository?: string;
     ref?: string;
     rawBaseUrl?: string;
     fetcher?: typeof fetch;
+    cacheTtlMs?: number;
   }) {
+    this.localRoot = normalizeOptionalRoot(input?.localRoot);
     this.repository = input?.repository ?? 'agirunner/agirunner-playbooks';
     this.ref = input?.ref ?? 'main';
     this.rawBaseUrl = (input?.rawBaseUrl ?? 'https://raw.githubusercontent.com').replace(/\/+$/, '');
     this.fetcher = input?.fetcher ?? fetch;
+    this.cacheTtlMs = input?.cacheTtlMs ?? 60_000;
   }
 
   async listPlaybooks(): Promise<CommunityCatalogPlaybookManifestEntry[]> {
@@ -71,11 +81,12 @@ export class CommunityCatalogSourceService {
       return entry;
     });
 
-    const packages = await Promise.all(
-      playbookEntries.map((entry) =>
-        this.loadPlaybookPackage(entry, specialistManifest.specialists, skillManifest.skills),
-      ),
-    );
+    const packages: CommunityCatalogSelection['packages'] = [];
+    for (const entry of playbookEntries) {
+      packages.push(
+        await this.loadPlaybookPackage(entry, specialistManifest.specialists, skillManifest.skills),
+      );
+    }
 
     return {
       repository: this.repository,
@@ -222,9 +233,37 @@ export class CommunityCatalogSourceService {
   }
 
   private async fetchText(path: string): Promise<string> {
+    const now = Date.now();
+    const cached = this.textCache.get(path);
+    if (cached && cached.expiresAt > now) {
+      return cached.promise;
+    }
+    const promise = this.fetchTextUncached(path);
+    this.textCache.set(path, {
+      expiresAt: now + this.cacheTtlMs,
+      promise,
+    });
+    try {
+      return await promise;
+    } catch (error) {
+      if (this.textCache.get(path)?.promise === promise) {
+        this.textCache.delete(path);
+      }
+      throw error;
+    }
+  }
+
+  private async fetchTextUncached(path: string): Promise<string> {
+    if (this.localRoot) {
+      return this.readLocalText(path);
+    }
     const response = await this.fetcher(this.buildRawUrl(path));
     if (!response.ok) {
-      throw new Error(`Failed to fetch ${path}: HTTP ${response.status}`);
+      const error = new Error(`Failed to fetch ${path}: HTTP ${response.status}`);
+      if (response.status === 429) {
+        Object.assign(error, { statusCode: 429 });
+      }
+      throw error;
     }
     return response.text();
   }
@@ -232,6 +271,28 @@ export class CommunityCatalogSourceService {
   private buildRawUrl(path: string): string {
     return `${this.rawBaseUrl}/${this.repository}/${this.ref}/${path}`;
   }
+
+  private async readLocalText(path: string): Promise<string> {
+    const root = this.localRoot;
+    if (!root) {
+      throw new Error('Local catalog root is not configured');
+    }
+    const fullPath = resolve(root, path);
+    if (!isPathWithinRoot(root, fullPath)) {
+      throw new Error(`Catalog path escapes local root: ${path}`);
+    }
+    return readFile(fullPath, 'utf8');
+  }
+}
+
+function normalizeOptionalRoot(value: string | undefined): string | null {
+  return typeof value === 'string' && value.trim().length > 0
+    ? resolve(value.trim())
+    : null;
+}
+
+function isPathWithinRoot(root: string, candidate: string): boolean {
+  return candidate === root || candidate.startsWith(`${root}/`);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
