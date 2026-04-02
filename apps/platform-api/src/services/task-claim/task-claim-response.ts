@@ -1,5 +1,6 @@
 import { isExternalSecretReference } from '../../lib/oauth-crypto.js';
 import { logTaskGovernanceTransition } from '../../logging/workflow-events/task-governance-log.js';
+import { normalizeTaskState } from '../../orchestration/task-state-machine.js';
 import { flattenInstructionLayersForSystemPrompt } from '../task-context-service/task-context-service.js';
 import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';
@@ -21,7 +22,7 @@ export async function buildClaimResponse(
   const executionContainer = input.resolvedExecutionEnvironment?.executionContainer ?? null;
   const executionEnvironment = input.resolvedExecutionEnvironment?.executionEnvironment ?? null;
   const claimedTask = mergeClaimRuntimeBindings(
-    deps.toTaskResponse(input.task),
+    buildClaimTaskBase(input.task),
     input.task,
   );
 
@@ -124,6 +125,37 @@ export async function buildClaimResponse(
     execution_brief: executionBrief,
     context: instructionContext,
   };
+}
+
+function buildClaimTaskBase(task: Record<string, unknown>): Record<string, unknown> {
+  const { resource_bindings: _resourceBindings, ...rest } = task;
+  const metadata = isRecord(rest.metadata) ? rest.metadata : {};
+  return {
+    ...rest,
+    state: normalizeClaimState(rest.state),
+    description: metadata.description ?? null,
+    parent_id: metadata.parent_id ?? null,
+    verification: metadata.verification ?? null,
+    execution_environment: isRecord(rest.execution_environment_snapshot)
+      ? rest.execution_environment_snapshot
+      : null,
+    used_task_sandbox: rest.used_task_sandbox ?? false,
+  };
+}
+
+function normalizeClaimState(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const normalized = normalizeTaskState(value);
+  if (normalized) {
+    return normalized;
+  }
+  throw new Error(`Persisted task state must be canonical. Found '${value}'.`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 export async function resolveTaskLLMConfig(

@@ -274,11 +274,14 @@ describe('TaskClaimService', () => {
     };
 
     const pool = { connect: vi.fn(async () => client), query: client.query };
+    const toTaskResponse = vi.fn((task: Record<string, unknown>) => {
+      throw new Error(`claimTask should not route through the public task serializer for ${String(task.id ?? 'unknown-task')}`);
+    });
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: eventService as never,
       logService: logService as never,
-      toTaskResponse: (task) => task,
+      toTaskResponse,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
       resolveRoleConfig: vi.fn(async () => resolvedConfig),
       claimHandleSecret: 'test-claim-handle-secret',
@@ -319,6 +322,7 @@ describe('TaskClaimService', () => {
         git_ssh_host_verifier_present: false,
       }),
     });
+    expect(toTaskResponse).not.toHaveBeenCalled();
   });
 
 });
