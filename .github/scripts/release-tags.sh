@@ -8,6 +8,8 @@ usage() {
 Usage:
   release-tags.sh validate-git-tag <git-tag>
   release-tags.sh validate-image-tag <image-tag>
+  release-tags.sh git-tag-from-image-tag <image-tag>
+  release-tags.sh release-class-from-image-tag <image-tag>
   release-tags.sh publish-tags-from-git-tag <git-tag>
   release-tags.sh publish-tags-from-image-tag <image-tag>
 EOF
@@ -40,6 +42,24 @@ validate_image_tag() {
   printf '%s\n' "${image_tag}"
 }
 
+git_tag_from_image_tag() {
+  local image_tag
+  image_tag="$(validate_image_tag "$1")"
+  printf 'v%s\n' "${image_tag}"
+}
+
+release_class_from_image_tag() {
+  local image_tag
+  image_tag="$(validate_image_tag "$1")"
+
+  if [[ "${image_tag}" == *-* ]]; then
+    printf 'prerelease\n'
+    return
+  fi
+
+  printf 'release\n'
+}
+
 emit_publish_tags() {
   local version="$1"
   parse_version "${version}"
@@ -58,6 +78,12 @@ main() {
       ;;
     validate-image-tag)
       validate_image_tag "${value}"
+      ;;
+    git-tag-from-image-tag)
+      git_tag_from_image_tag "${value}"
+      ;;
+    release-class-from-image-tag)
+      release_class_from_image_tag "${value}"
       ;;
     publish-tags-from-git-tag)
       emit_publish_tags "$(validate_git_tag "${value}")"

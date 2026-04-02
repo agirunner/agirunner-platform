@@ -25,6 +25,10 @@ assert_equals "$(bash "${SCRIPT_PATH}" validate-git-tag v0.1.0-alpha.1)" "0.1.0-
 assert_equals "$(bash "${SCRIPT_PATH}" validate-git-tag v0.1.0)" "0.1.0"
 assert_equals "$(bash "${SCRIPT_PATH}" validate-image-tag 0.1.0-beta.2)" "0.1.0-beta.2"
 assert_equals "$(bash "${SCRIPT_PATH}" validate-image-tag 0.1.0)" "0.1.0"
+assert_equals "$(bash "${SCRIPT_PATH}" git-tag-from-image-tag 0.1.0-alpha.1)" "v0.1.0-alpha.1"
+assert_equals "$(bash "${SCRIPT_PATH}" git-tag-from-image-tag 0.1.0)" "v0.1.0"
+assert_equals "$(bash "${SCRIPT_PATH}" release-class-from-image-tag 0.1.0-alpha.1)" "prerelease"
+assert_equals "$(bash "${SCRIPT_PATH}" release-class-from-image-tag 0.1.0)" "release"
 
 assert_equals "$(bash "${SCRIPT_PATH}" publish-tags-from-git-tag v0.1.0-rc.1)" $'0.1.0-rc.1\nlatest'
 assert_equals "$(bash "${SCRIPT_PATH}" publish-tags-from-image-tag 0.1.0-beta.1)" $'0.1.0-beta.1\nlatest'
