@@ -106,6 +106,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
   const workflowDefinition = workflowRes.rows[0]?.definition
     ? parsePlaybookDefinition(workflowRes.rows[0].definition)
     : null;
+  const workflowIsPlanned = workflowDefinition?.lifecycle === 'planned';
   const focusWorkItem = selectProgressFocusWorkItem({
     workItems,
     specialistTasks,
@@ -166,7 +167,8 @@ export async function assertOrchestratorProgressBeforeHandoff(
       && openSpecialistTaskCount === 0
       && activeBlockingControls === 0,
   );
-  const workflowCanCloseNow = openWorkItems.length === 0
+  const workflowCanCloseNow = workflowIsPlanned
+    && openWorkItems.length === 0
     && openSpecialistTaskCount === 0
     && countWorkflowBlockingControls(stageGatesRes.rows, escalationsRes.rows) === 0
     && !nextStageName;

@@ -72,6 +72,8 @@ describe('workflow activation recovery integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'workflow-activation-recovery-model',
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
       supportsToolUse: true,
       supportsVision: false,
       isEnabled: true,
@@ -286,6 +288,22 @@ describe('workflow activation recovery integration', () => {
         state: 'processing',
         recovery_status: 'redispatched',
         redispatched_task_id: String(recoveredClaim?.id),
+      }),
+    );
+
+    const playbookControlService = (harness.workflowService as any).playbookControlService;
+    const completedRecoveredWorkItem = await playbookControlService.completeWorkItem(
+      identity,
+      String(workflow.id),
+      String(workItem.id),
+      {
+        acting_task_id: String(recoveredClaim?.id),
+      },
+    );
+    expect(completedRecoveredWorkItem).toEqual(
+      expect.objectContaining({
+        id: String(workItem.id),
+        column_id: 'done',
       }),
     );
 
