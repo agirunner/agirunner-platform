@@ -215,6 +215,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'If the current work item can close now and that closure unlocks the successor stage or a human gate, complete_work_item first, then apply the successor-stage or gate mutation in the same activation before submit_handoff.',
       'Do not describe the workflow as waiting on a successor stage or human approval until the corresponding create_work_item, create_task, or request_gate_approval call has succeeded.',
       'Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.',
+      'If you plan to wait on a specific task id, call read_task_status on that exact task immediately before record_operator_brief or submit_handoff. Do not rely on an earlier read_task_output, read_work_item_continuity, or predecessor handoff to claim the task is still active.',
       'Do not poll running tasks in a loop.',
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',
       'Always include a unique request_id on mutating workflow control tool calls.',

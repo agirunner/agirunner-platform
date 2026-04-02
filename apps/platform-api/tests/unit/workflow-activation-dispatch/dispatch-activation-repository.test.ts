@@ -142,6 +142,12 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Before submit_handoff ends on a wait-state, re-read the current workflow tasks or work item state you plan to wait on. If that successor work already finished or can now close and route onward, apply the new closure or routing mutation instead of narrating the stale wait state.',
           );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'If you plan to wait on a specific task id, call read_task_status on that exact task immediately before record_operator_brief or submit_handoff.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Do not rely on an earlier read_task_output, read_work_item_continuity, or predecessor handoff to claim the task is still active.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).not.toContain('record_operator_update');
