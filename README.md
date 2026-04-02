@@ -91,9 +91,10 @@ cp .env.example .env
 
 docker build -t agirunner-runtime:local ../agirunner-runtime
 
-printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\n" \
+printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\nPLATFORM_SERVICE_API_KEY=ar_service_%s\n" \
   "$(openssl rand -hex 32)" \
   "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 16)" \
   "$(openssl rand -hex 16)"
 ```
 
@@ -118,7 +119,11 @@ After startup:
 If you created `.env` from `.env.example`, the bootstrap admin key is
 already present on the `DEFAULT_ADMIN_API_KEY=...` line. Replace it
 with your own value before sharing the stack. The first-boot seed path
-expects that value to start with `ab_admin_def`.
+expects that value to start with `ab_admin_def`. The local contributor
+stack also expects `PLATFORM_SERVICE_API_KEY` so `container-manager`
+can talk to `platform-api` without reusing the human bootstrap key.
+Worker and agent credentials for runtime containers are then issued by
+the platform as part of the normal container lifecycle.
 
 The platform API applies migrations and seed/bootstrap work during
 startup, so there is no separate root-level migration command to run.

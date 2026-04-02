@@ -195,8 +195,23 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	if env["AGIRUNNER_RUNTIME_PLATFORM_ROUTING_TAGS"] != "role:developer,role:reviewer" {
 		t.Errorf("wrong routing tags: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ROUTING_TAGS"])
 	}
-	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-admin-key" {
-		t.Errorf("wrong admin API key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])
+	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-service-key" {
+		t.Errorf("wrong platform service key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])
+	}
+	if env["AGIRUNNER_RUNTIME_AUTH_API_KEY"] != "test-service-key" {
+		t.Errorf("wrong runtime auth api key: %s", env["AGIRUNNER_RUNTIME_AUTH_API_KEY"])
+	}
+	if env["AGIRUNNER_RUNTIME_PLATFORM_WORKER_ID"] == "" {
+		t.Error("expected worker ID to be set")
+	}
+	if env["AGIRUNNER_RUNTIME_PLATFORM_WORKER_API_KEY"] == "" {
+		t.Error("expected worker API key to be set")
+	}
+	if env["AGIRUNNER_RUNTIME_PLATFORM_AGENT_ID"] == "" {
+		t.Error("expected agent ID to be set")
+	}
+	if env["AGIRUNNER_RUNTIME_PLATFORM_AGENT_API_KEY"] == "" {
+		t.Error("expected agent API key to be set")
 	}
 	if filter := env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"]; filter != "" {
 		t.Errorf("expected no playbook filter for generic specialist runtimes, got %s", filter)
@@ -209,6 +224,12 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	}
 	if env["DOCKER_HOST"] == "" {
 		t.Error("expected DOCKER_HOST to be set")
+	}
+	if len(platform.workerRegistrations) != 1 {
+		t.Fatalf("expected 1 worker registration, got %d", len(platform.workerRegistrations))
+	}
+	if len(platform.agentRegistrations) != 1 {
+		t.Fatalf("expected 1 agent registration, got %d", len(platform.agentRegistrations))
 	}
 }
 

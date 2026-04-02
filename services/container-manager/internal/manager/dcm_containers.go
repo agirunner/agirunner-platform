@@ -31,9 +31,25 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 
 	created := 0
 	for i := 0; i < count; i++ {
-		spec := m.buildDCMRuntimeSpec(target)
+		spec, identity, err := m.prepareDCMRuntimeSpec(ctx, target)
+		if err != nil {
+			m.logger.Error("failed to prepare DCM runtime identity", "playbook_id", target.PlaybookID, "error", err)
+			m.emitLogError("container", "container.create", map[string]any{
+				"action":           "create",
+				"playbook_id":      target.PlaybookID,
+				"playbook_name":    target.PlaybookName,
+				"pool_mode":        target.PoolMode,
+				"priority":         target.Priority,
+				"pending_tasks":    target.PendingTasks,
+				"active_workflows": target.ActiveWorkflows,
+				"image":            target.Image,
+				"reason":           "identity_issue_failed",
+			}, err.Error())
+			continue
+		}
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
+			m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
 			m.logger.Error("failed to create DCM runtime", "playbook_id", target.PlaybookID, "error", err)
 			m.emitLogError("container", "container.create", map[string]any{
 				"action":           "create",
@@ -49,6 +65,8 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 		}
 		if m.config.RuntimeInternalNetwork != "" {
 			if err := m.docker.ConnectNetwork(ctx, containerID, m.config.RuntimeInternalNetwork); err != nil {
+				m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
+				_ = m.docker.RemoveContainer(ctx, containerID)
 				m.logger.Error("failed to connect runtime to internal network",
 					"container", containerID, "network", m.config.RuntimeInternalNetwork, "error", err)
 				m.emitLogError("container", "container.network_connect", map[string]any{
@@ -114,10 +132,31 @@ func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, play
 	}
 }
 
-// buildDCMRuntimeSpec constructs a ContainerSpec for a DCM-managed runtime.
-func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
+// prepareDCMRuntimeSpec constructs a ContainerSpec and pre-issued identity for
+// a DCM-managed runtime.
+func (m *Manager) prepareDCMRuntimeSpec(
+	ctx context.Context,
+	target RuntimeTarget,
+) (ContainerSpec, connectedRuntimeIdentity, error) {
 	runtimeID := uuid.New().String()
 	name := fmt.Sprintf("runtime-%s-%s", target.PlaybookID[:minLen(target.PlaybookID, 8)], runtimeID[:8])
+	identity, err := m.issueConnectedRuntimeIdentity(ctx, connectedRuntimeIdentityRequest{
+		WorkerName:    name,
+		ExecutionMode: targetExecutionMode(target),
+		RoutingTags:   target.RoutingTags,
+		PlaybookID:    strings.TrimSpace(target.PlaybookID),
+		PoolKind:      normalizePoolKind(target.PoolKind),
+		Metadata: map[string]any{
+			"runtime_id":           runtimeID,
+			"playbook_id":          strings.TrimSpace(target.PlaybookID),
+			"pool_kind":            normalizePoolKind(target.PoolKind),
+			"agent_execution_mode": targetExecutionMode(target),
+			"managed_by":           "container-manager",
+		},
+	})
+	if err != nil {
+		return ContainerSpec{}, connectedRuntimeIdentity{}, err
+	}
 
 	spec := ContainerSpec{
 		Name:        name,
@@ -126,25 +165,32 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 		MemoryLimit: target.Memory,
 		LogMaxSize:  fmt.Sprintf("%dm", m.config.RuntimeLogMaxSizeMB),
 		LogMaxFiles: strconv.Itoa(m.config.RuntimeLogMaxFiles),
-		Environment: m.buildDCMEnvironment(target, runtimeID, name),
-		Labels:      buildDCMLabels(target, runtimeID),
+		Environment: m.buildDCMEnvironment(target, runtimeID, name, identity),
+		Labels:      buildDCMLabels(target, runtimeID, identity),
 		NetworkName: m.config.RuntimeNetwork,
 	}
 	applyStackProjectLabel(spec.Labels, m.config.StackProjectName)
-	return spec
+	return spec, identity, nil
 }
 
 // buildDCMEnvironment creates environment variables for a DCM runtime container.
-func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID, workerName string) map[string]string {
+func (m *Manager) buildDCMEnvironment(
+	target RuntimeTarget,
+	runtimeID,
+	workerName string,
+	identity connectedRuntimeIdentity,
+) map[string]string {
 	environment := map[string]string{
 		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":              m.config.PlatformAPIURL,
-		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":        m.config.PlatformAdminAPIKey,
+		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":        m.config.PlatformAPIKey,
 		"AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE": targetExecutionMode(target),
 		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":           runtimeID,
 		envRuntimeWorkerName:                              workerName,
 		"AGIRUNNER_RUNTIME_IMAGE":                         target.Image,
 		"DOCKER_HOST":                                     m.config.DockerHost,
+		envRuntimeAuthAPIKey:                              m.config.PlatformAPIKey,
 	}
+	injectConnectedRuntimeIdentity(environment, map[string]string{}, identity)
 	if normalizePoolKind(target.PoolKind) != "specialist" && strings.TrimSpace(target.PlaybookID) != "" {
 		environment["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"] = target.PlaybookID
 	}
@@ -167,8 +213,8 @@ func joinRoutingTags(values []string) string {
 }
 
 // buildDCMLabels creates labels for a DCM-managed runtime container.
-func buildDCMLabels(target RuntimeTarget, runtimeID string) map[string]string {
-	return map[string]string{
+func buildDCMLabels(target RuntimeTarget, runtimeID string, identity connectedRuntimeIdentity) map[string]string {
+	labels := map[string]string{
 		labelDCMManaged:      "true",
 		labelDCMTier:         tierRuntime,
 		labelDCMPlaybookID:   target.PlaybookID,
@@ -181,6 +227,8 @@ func buildDCMLabels(target RuntimeTarget, runtimeID string) map[string]string {
 		labelDCMPriority:     strconv.Itoa(target.Priority),
 		labelManagedBy:       "true",
 	}
+	injectConnectedRuntimeIdentity(map[string]string{}, labels, identity)
+	return labels
 }
 
 // destroyContainers stops and removes containers with the given grace period.

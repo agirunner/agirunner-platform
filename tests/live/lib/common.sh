@@ -43,7 +43,7 @@ live_test_platform_api_secrets_match() {
   local container_id
   local container_env
 
-  if [[ -z "${DEFAULT_ADMIN_API_KEY:-}" || -z "${JWT_SECRET:-}" || -z "${WEBHOOK_ENCRYPTION_KEY:-}" ]]; then
+  if [[ -z "${DEFAULT_ADMIN_API_KEY:-}" || -z "${PLATFORM_SERVICE_API_KEY:-}" || -z "${JWT_SECRET:-}" || -z "${WEBHOOK_ENCRYPTION_KEY:-}" ]]; then
     return 1
   fi
 
@@ -54,6 +54,7 @@ live_test_platform_api_secrets_match() {
 
   container_env="$(docker exec "${container_id}" env 2>/dev/null)" || return 1
   grep -Fqx "DEFAULT_ADMIN_API_KEY=${DEFAULT_ADMIN_API_KEY}" <<<"${container_env}" || return 1
+  grep -Fqx "PLATFORM_SERVICE_API_KEY=${PLATFORM_SERVICE_API_KEY}" <<<"${container_env}" || return 1
   grep -Fqx "JWT_SECRET=${JWT_SECRET}" <<<"${container_env}" || return 1
   grep -Fqx "WEBHOOK_ENCRYPTION_KEY=${WEBHOOK_ENCRYPTION_KEY}" <<<"${container_env}" || return 1
 }

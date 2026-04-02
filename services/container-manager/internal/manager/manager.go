@@ -60,7 +60,6 @@ type ContainerSpec struct {
 type Config struct {
 	PlatformAPIURL              string
 	PlatformAPIKey              string
-	PlatformAdminAPIKey         string
 	PlatformAPIRequestTimeout   time.Duration
 	PlatformLogIngestTimeout    time.Duration
 	DockerHost                  string
@@ -98,6 +97,9 @@ type PlatformAPI interface {
 	DrainRuntime(runtimeID string) error
 	AcknowledgeWorkerRestart(desiredStateID string) error
 	FailTask(taskID, reason string) error
+	RegisterWorker(input WorkerRegistrationRequest) (WorkerRegistrationResult, error)
+	RegisterAgent(input AgentRegistrationRequest) (AgentRegistrationResult, error)
+	DeleteWorker(workerID string) error
 }
 
 // Manager implements the desired-state reconciliation loop.

@@ -53,6 +53,14 @@ type reconcileSnapshotResponse struct {
 	Data ReconcileSnapshot `json:"data"`
 }
 
+type workerRegistrationEnvelope struct {
+	Data WorkerRegistrationResult `json:"data"`
+}
+
+type agentRegistrationEnvelope struct {
+	Data AgentRegistrationResult `json:"data"`
+}
+
 // FetchDesiredState retrieves all enabled worker desired states.
 func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 	url := fmt.Sprintf("%s/api/v1/fleet/workers?enabled=true", c.baseURL)
@@ -241,6 +249,97 @@ func (c *PlatformClient) ReportImage(image ContainerImage) error {
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("image report API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+func (c *PlatformClient) RegisterWorker(input WorkerRegistrationRequest) (WorkerRegistrationResult, error) {
+	body, err := json.Marshal(input)
+	if err != nil {
+		return WorkerRegistrationResult{}, fmt.Errorf("marshal worker registration: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/workers/register", c.baseURL), bytes.NewReader(body))
+	if err != nil {
+		return WorkerRegistrationResult{}, fmt.Errorf("create worker registration request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return WorkerRegistrationResult{}, fmt.Errorf("worker registration request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	payload, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return WorkerRegistrationResult{}, fmt.Errorf("read worker registration response: %w", readErr)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return WorkerRegistrationResult{}, fmt.Errorf("worker registration API returned HTTP %d: %s", resp.StatusCode, string(payload))
+	}
+
+	var wrapped workerRegistrationEnvelope
+	if err := json.Unmarshal(payload, &wrapped); err != nil {
+		return WorkerRegistrationResult{}, fmt.Errorf("decode worker registration response: %w", err)
+	}
+	return wrapped.Data, nil
+}
+
+func (c *PlatformClient) RegisterAgent(input AgentRegistrationRequest) (AgentRegistrationResult, error) {
+	body, err := json.Marshal(input)
+	if err != nil {
+		return AgentRegistrationResult{}, fmt.Errorf("marshal agent registration: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/agents/register", c.baseURL), bytes.NewReader(body))
+	if err != nil {
+		return AgentRegistrationResult{}, fmt.Errorf("create agent registration request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return AgentRegistrationResult{}, fmt.Errorf("agent registration request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	payload, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return AgentRegistrationResult{}, fmt.Errorf("read agent registration response: %w", readErr)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return AgentRegistrationResult{}, fmt.Errorf("agent registration API returned HTTP %d: %s", resp.StatusCode, string(payload))
+	}
+
+	var wrapped agentRegistrationEnvelope
+	if err := json.Unmarshal(payload, &wrapped); err != nil {
+		return AgentRegistrationResult{}, fmt.Errorf("decode agent registration response: %w", err)
+	}
+	return wrapped.Data, nil
+}
+
+func (c *PlatformClient) DeleteWorker(workerID string) error {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/workers/%s", c.baseURL, workerID), nil)
+	if err != nil {
+		return fmt.Errorf("create worker delete request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("worker delete request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	payload, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return fmt.Errorf("read worker delete response: %w", readErr)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("worker delete API returned HTTP %d: %s", resp.StatusCode, string(payload))
 	}
 	return nil
 }

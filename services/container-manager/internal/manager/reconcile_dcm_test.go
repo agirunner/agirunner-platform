@@ -13,7 +13,7 @@ func newDCMTestManager(docker *mockDockerClient, platform *mockPlatformClient) *
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := Config{
 		PlatformAPIURL:           "http://localhost:8080",
-		PlatformAdminAPIKey:      "test-admin-key",
+		PlatformAPIKey:           "test-service-key",
 		DockerHost:               "tcp://localhost:2375",
 		ReconcileInterval:        5 * time.Second,
 		StopTimeout:              10 * time.Second,

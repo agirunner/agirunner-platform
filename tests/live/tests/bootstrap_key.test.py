@@ -40,6 +40,7 @@ class BootstrapKeyTests(unittest.TestCase):
             live_root, repo_root, runtime_root = self.create_fixture_roots(Path(tmpdir))
             base_env = {
                 "DEFAULT_ADMIN_API_KEY": "admin-a",
+                "PLATFORM_SERVICE_API_KEY": "ar_service_a",
                 "LIVE_TEST_PROVIDER_AUTH_MODE": "oauth",
                 "LIVE_TEST_PROVIDER_NAME": "OpenAI (Subscription)",
                 "LIVE_TEST_PROVIDER_TYPE": "openai",
@@ -63,7 +64,10 @@ class BootstrapKeyTests(unittest.TestCase):
     def test_shared_bootstrap_key_changes_when_library_fixtures_change(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             live_root, repo_root, runtime_root = self.create_fixture_roots(Path(tmpdir))
-            env = {"DEFAULT_ADMIN_API_KEY": "admin-a"}
+            env = {
+                "DEFAULT_ADMIN_API_KEY": "admin-a",
+                "PLATFORM_SERVICE_API_KEY": "ar_service_a",
+            }
 
             first = bootstrap_key.compute_shared_bootstrap_key(
                 live_root=live_root,

@@ -100,6 +100,7 @@ The same scenario corpus MUST run against any supported provider/auth combinatio
 Minimum required values for the common OAuth path:
 
 - `DEFAULT_ADMIN_API_KEY`
+- `PLATFORM_SERVICE_API_KEY`
 - `JWT_SECRET`
 - `WEBHOOK_ENCRYPTION_KEY`
 - `POSTGRES_DB`
@@ -131,7 +132,7 @@ Important notes:
 - Keep the OAuth session in `tests/live/env/local.env`.
 - Do not pull OAuth state from the DB.
 - OpenAI, Anthropic, and Gemini all use the same generic provider fields; only the values differ.
-- Shared bootstrap verifies that the running `platform-api` container has the same `DEFAULT_ADMIN_API_KEY`, `JWT_SECRET`, and `WEBHOOK_ENCRYPTION_KEY` values as `tests/live/env/local.env`.
+- Shared bootstrap verifies that the running `platform-api` container has the same `DEFAULT_ADMIN_API_KEY`, `PLATFORM_SERVICE_API_KEY`, `JWT_SECRET`, and `WEBHOOK_ENCRYPTION_KEY` values as `tests/live/env/local.env`.
 
 If you need to normalize the env-provided OAuth JSON shape:
 

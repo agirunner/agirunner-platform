@@ -104,6 +104,39 @@ type RuntimeTarget struct {
 	AvailableExecutionSlots   *int     `json:"available_execution_slots,omitempty"`
 }
 
+type WorkerRegistrationRequest struct {
+	Name                     string         `json:"name"`
+	RuntimeType              string         `json:"runtime_type"`
+	ConnectionMode           string         `json:"connection_mode"`
+	RoutingTags              []string       `json:"routing_tags"`
+	HeartbeatIntervalSeconds int            `json:"heartbeat_interval_seconds"`
+	Metadata                 map[string]any `json:"metadata,omitempty"`
+}
+
+type WorkerRegistrationResult struct {
+	WorkerID                 string `json:"worker_id"`
+	WorkerAPIKey             string `json:"worker_api_key"`
+	HeartbeatIntervalSeconds int    `json:"heartbeat_interval_seconds"`
+}
+
+type AgentRegistrationRequest struct {
+	Name                     string         `json:"name"`
+	RoutingTags              []string       `json:"routing_tags"`
+	ExecutionMode            string         `json:"execution_mode,omitempty"`
+	PlaybookID               string         `json:"playbook_id,omitempty"`
+	WorkerID                 string         `json:"worker_id,omitempty"`
+	HeartbeatIntervalSeconds int            `json:"heartbeat_interval_seconds,omitempty"`
+	IssueAPIKey              *bool          `json:"issue_api_key,omitempty"`
+	Metadata                 map[string]any `json:"metadata,omitempty"`
+}
+
+type AgentRegistrationResult struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	RoutingTags []string `json:"routing_tags"`
+	APIKey      string   `json:"api_key"`
+}
+
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.
 type RuntimeHeartbeat struct {
 	RuntimeID       string `json:"runtime_id"`

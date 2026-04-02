@@ -13,6 +13,7 @@ import {
 } from './postgres.js';
 
 const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_seed_llm_defaults_key';
+const PLATFORM_SERVICE_API_KEY = 'ar_service_seed_llm_defaults_key_1234567890';
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const canRunIntegration = isContainerRuntimeAvailable();
 
@@ -97,7 +98,7 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
     expect(db).not.toBeNull();
     const pool = db!.pool;
 
-    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY, PLATFORM_SERVICE_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
 
     const defaults = await pool.query<{ config_key: string; config_value: string }>(
@@ -158,5 +159,52 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
     );
 
     expect(orchestrator.rows).toEqual([{ cpu_limit: '2', memory_limit: '256m' }]);
+  }, 120_000);
+
+  it('seeds and rotates the default platform service key', async () => {
+    expect(db).not.toBeNull();
+    const pool = db!.pool;
+
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY, PLATFORM_SERVICE_API_KEY } as NodeJS.ProcessEnv);
+
+    const firstKeys = await pool.query<{
+      scope: string;
+      owner_type: string;
+      label: string;
+      is_revoked: boolean;
+      key_prefix: string;
+    }>(
+      `SELECT scope, owner_type, label, is_revoked, key_prefix
+         FROM api_keys
+        WHERE tenant_id = $1
+          AND label = 'default-platform-service-key'`,
+      [DEFAULT_TENANT_ID],
+    );
+
+    expect(firstKeys.rows).toEqual([
+      {
+        scope: 'service',
+        owner_type: 'service',
+        label: 'default-platform-service-key',
+        is_revoked: false,
+        key_prefix: expect.any(String),
+      },
+    ]);
+
+    const rotatedServiceKey = 'ar_service_seed_llm_defaults_key_rotated_1234567890';
+    await seedDefaultTenant(
+      pool,
+      { DEFAULT_ADMIN_API_KEY, PLATFORM_SERVICE_API_KEY: rotatedServiceKey } as NodeJS.ProcessEnv,
+    );
+
+    const rotatedKeys = await pool.query<{ count: string; scope: string; label: string }>(
+      `SELECT COUNT(*)::text AS count, MIN(scope) AS scope, MIN(label) AS label
+         FROM api_keys
+        WHERE tenant_id = $1
+          AND label = 'default-platform-service-key'`,
+      [DEFAULT_TENANT_ID],
+    );
+
+    expect(rotatedKeys.rows).toEqual([{ count: '1', scope: 'service', label: 'default-platform-service-key' }]);
   }, 120_000);
 });

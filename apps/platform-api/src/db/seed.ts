@@ -18,6 +18,7 @@ import bcrypt from 'bcryptjs';
 import type { DatabaseQueryable } from './database.js';
 
 import { deriveApiKeyLookupHash } from '../auth/api-key-derivation.js';
+import { ValidationError } from '../errors/domain-errors.js';
 
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -39,11 +40,14 @@ export const DEFAULT_ADMIN_KEY_PREFIX = 'ar_admin_def';
  * first boot without scraping logs.
  */
 const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
+const PLATFORM_SERVICE_API_KEY_ENV = 'PLATFORM_SERVICE_API_KEY';
+const DEFAULT_PLATFORM_SERVICE_KEY_LABEL = 'default-platform-service-key';
 
 interface ExistingDefaultKeyRow {
   id: string;
   key_hash: string;
   key_lookup_hash: string | null;
+  key_prefix: string;
 }
 
 export async function seedDefaultTenant(db: DatabaseQueryable, source: NodeJS.ProcessEnv = process.env): Promise<void> {
@@ -55,6 +59,7 @@ export async function seedDefaultTenant(db: DatabaseQueryable, source: NodeJS.Pr
   );
 
   await seedDefaultAdminKey(db, source);
+  await seedDefaultPlatformServiceKey(db, source);
 }
 
 /**
@@ -141,6 +146,68 @@ async function seedDefaultAdminKey(db: DatabaseQueryable, source: NodeJS.Process
   console.info('');
 }
 
+async function seedDefaultPlatformServiceKey(
+  db: DatabaseQueryable,
+  source: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
+  const configuredKey = getConfiguredPlatformServiceKey(source);
+  if (!configuredKey) {
+    return;
+  }
+
+  const configuredLookupHash = deriveApiKeyLookupHash(configuredKey);
+  const existing = await db.query<ExistingDefaultKeyRow>(
+    `SELECT id, key_hash, key_lookup_hash, key_prefix
+       FROM api_keys
+      WHERE tenant_id = $1
+        AND scope = 'service'
+        AND owner_type = 'service'
+        AND label = $2
+      LIMIT 1`,
+    [DEFAULT_TENANT_ID, DEFAULT_PLATFORM_SERVICE_KEY_LABEL],
+  );
+
+  if (existing.rowCount) {
+    const [row] = existing.rows;
+    const matches = await bcrypt.compare(configuredKey, row.key_hash);
+    if (!matches || row.key_lookup_hash !== configuredLookupHash) {
+      await db.query(
+        `UPDATE api_keys
+            SET key_hash = $1,
+                key_lookup_hash = $2,
+                key_prefix = $3,
+                expires_at = $4,
+                is_revoked = false
+          WHERE id = $5`,
+        [
+          await bcrypt.hash(configuredKey, 12),
+          configuredLookupHash,
+          configuredKey.slice(0, 12),
+          DEFAULT_API_KEY_EXPIRY,
+          row.id,
+        ],
+      );
+      console.info(`[seed] Default platform service key rotated from ${PLATFORM_SERVICE_API_KEY_ENV}.`);
+    }
+    return;
+  }
+
+  await db.query(
+    `INSERT INTO api_keys (tenant_id, key_hash, key_lookup_hash, key_prefix, scope, owner_type, label, expires_at)
+     VALUES ($1, $2, $3, $4, 'service', 'service', $5, $6)`,
+    [
+      DEFAULT_TENANT_ID,
+      await bcrypt.hash(configuredKey, 12),
+      configuredLookupHash,
+      configuredKey.slice(0, 12),
+      DEFAULT_PLATFORM_SERVICE_KEY_LABEL,
+      DEFAULT_API_KEY_EXPIRY,
+    ],
+  );
+
+  console.info(`[seed] Default platform service key loaded from ${PLATFORM_SERVICE_API_KEY_ENV}.`);
+}
+
 function getConfiguredDefaultAdminKey(source: NodeJS.ProcessEnv = process.env): string | null {
   const raw = source[DEFAULT_ADMIN_API_KEY_ENV];
   if (!raw || raw.trim().length === 0) {
@@ -150,6 +217,22 @@ function getConfiguredDefaultAdminKey(source: NodeJS.ProcessEnv = process.env): 
   const key = raw.trim();
   if (key.length < 1) {
     throw new Error(`${DEFAULT_ADMIN_API_KEY_ENV} must not be empty.`);
+  }
+
+  return key;
+}
+
+function getConfiguredPlatformServiceKey(source: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = source[PLATFORM_SERVICE_API_KEY_ENV];
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+
+  const key = raw.trim();
+  if (!/^ar_service_[A-Za-z0-9_-]{16,}$/.test(key)) {
+    throw new ValidationError(
+      `${PLATFORM_SERVICE_API_KEY_ENV} must use the canonical ar_service_<secret> format.`,
+    );
   }
 
   return key;

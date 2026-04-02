@@ -143,9 +143,23 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 	}
 
 	for i := currentCount; i < targetCount; i++ {
-		spec := m.buildContainerSpec(ds, i)
+		spec, identity, err := m.prepareDesiredStateContainerSpec(ctx, ds, i)
+		if err != nil {
+			m.logger.Error("failed to prepare desired-state container", "worker", ds.WorkerName, "error", err)
+			m.emitLogError("container", "container.wds_create", map[string]any{
+				"action":           "create",
+				"worker":           ds.WorkerName,
+				"image":            ds.RuntimeImage,
+				"desired_state_id": ds.ID,
+				"version":          ds.Version,
+				"role":             ds.Role,
+				"reason":           "identity_issue_failed",
+			}, err.Error())
+			continue
+		}
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
+			m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
 			m.logger.Error("failed to create container", "worker", ds.WorkerName, "error", err)
 			m.emitLogError("container", "container.wds_create", map[string]any{
 				"action":           "create",
@@ -158,6 +172,7 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			continue
 		}
 		if err := m.attachDesiredStateInternalNetwork(ctx, ds, containerID); err != nil {
+			m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
 			m.logger.Error("failed to finalize container runtime contract",
 				"worker", ds.WorkerName,
 				"container", containerID,
@@ -231,13 +246,19 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 
 	created := 0
 	for i := 0; i < ds.Replicas; i++ {
-		spec := m.buildContainerSpec(ds, i)
+		spec, identity, err := m.prepareDesiredStateContainerSpec(ctx, ds, i)
+		if err != nil {
+			m.logger.Error("failed to prepare container for restart", "worker", ds.WorkerName, "error", err)
+			continue
+		}
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
+			m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
 			m.logger.Error("failed to recreate container after restart", "worker", ds.WorkerName, "error", err)
 			continue
 		}
 		if err := m.attachDesiredStateInternalNetwork(ctx, ds, containerID); err != nil {
+			m.releaseConnectedRuntimeIdentity(ctx, identity.WorkerID)
 			m.logger.Error("failed to finalize restarted container runtime contract",
 				"worker", ds.WorkerName,
 				"container", containerID,
@@ -341,12 +362,43 @@ func (m *Manager) attachDesiredStateInternalNetwork(ctx context.Context, ds Desi
 	return nil
 }
 
-func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) ContainerSpec {
-	name := ds.WorkerName
+func (m *Manager) prepareDesiredStateContainerSpec(
+	ctx context.Context,
+	ds DesiredState,
+	replicaIndex int,
+) (ContainerSpec, connectedRuntimeIdentity, error) {
+	containerWorkerName := ds.WorkerName
 	if ds.Replicas > 1 {
-		name = fmt.Sprintf("%s-%d", ds.WorkerName, replicaIndex)
+		containerWorkerName = fmt.Sprintf("%s-%d", ds.WorkerName, replicaIndex)
 	}
 
+	var identity connectedRuntimeIdentity
+	if isOrchestratorDesiredState(ds) {
+		issuedIdentity, err := m.issueConnectedRuntimeIdentity(ctx, connectedRuntimeIdentityRequest{
+			WorkerName:    strings.TrimSpace(ds.WorkerName),
+			ExecutionMode: orchestratorExecutionMode,
+			PlaybookID:    "",
+			PoolKind:      normalizePoolKind(ds.PoolKind),
+			Metadata: map[string]any{
+				"desired_state_id":     ds.ID,
+				"agent_execution_mode": orchestratorExecutionMode,
+				"managed_by":           "container-manager",
+			},
+		})
+		if err != nil {
+			return ContainerSpec{}, connectedRuntimeIdentity{}, err
+		}
+		identity = issuedIdentity
+	}
+
+	return m.buildContainerSpec(ds, containerWorkerName, identity), identity, nil
+}
+
+func (m *Manager) buildContainerSpec(
+	ds DesiredState,
+	containerWorkerName string,
+	identity connectedRuntimeIdentity,
+) ContainerSpec {
 	env := make(map[string]string)
 	for k, v := range ds.Environment {
 		env[k] = fmt.Sprintf("%v", v)
@@ -360,7 +412,7 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 	}
 
 	spec := ContainerSpec{
-		Name:        strings.ReplaceAll(name, " ", "-"),
+		Name:        strings.ReplaceAll(containerWorkerName, " ", "-"),
 		Image:       ds.RuntimeImage,
 		CPULimit:    ds.CPULimit,
 		MemoryLimit: ds.MemoryLimit,
@@ -376,5 +428,8 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 	}
 	applyStackProjectLabel(spec.Labels, m.config.StackProjectName)
 	applyOrchestratorRuntimeContract(&spec, m.config, ds)
+	if identity.WorkerID != "" {
+		injectConnectedRuntimeIdentity(spec.Environment, spec.Labels, identity)
+	}
 	return spec
 }

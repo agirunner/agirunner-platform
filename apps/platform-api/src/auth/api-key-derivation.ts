@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-const CANONICAL_API_KEY_PATTERN = /^ar_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
-const LEGACY_API_KEY_PATTERN = /^(?:ar|ab)_[A-Za-z0-9_-]{6,}_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
+const CANONICAL_API_KEY_PATTERN = /^ar_(admin|agent|worker|service)_[A-Za-z0-9_-]{16,}$/;
+const LEGACY_API_KEY_PATTERN = /^(?:ar|ab)_[A-Za-z0-9_-]{6,}_(admin|agent|worker|service)_[A-Za-z0-9_-]{16,}$/;
 
 export function isSupportedApiKeyFormat(apiKeyRaw: string): boolean {
   return CANONICAL_API_KEY_PATTERN.test(apiKeyRaw) || LEGACY_API_KEY_PATTERN.test(apiKeyRaw);

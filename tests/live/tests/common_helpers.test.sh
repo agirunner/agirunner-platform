@@ -8,6 +8,7 @@ source "${LIVE_TEST_ROOT}/lib/common.sh"
 
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches() {
   DEFAULT_ADMIN_API_KEY="admin-secret"
+  PLATFORM_SERVICE_API_KEY="service-secret"
   JWT_SECRET="jwt-secret"
   WEBHOOK_ENCRYPTION_KEY="webhook-secret"
 
@@ -19,6 +20,7 @@ test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches() 
     if [[ "$1" == "exec" ]]; then
       cat <<'EOF'
 DEFAULT_ADMIN_API_KEY=admin-secret
+PLATFORM_SERVICE_API_KEY=service-secret
 JWT_SECRET=jwt-secret
 WEBHOOK_ENCRYPTION_KEY=webhook-secret
 EOF
@@ -33,6 +35,7 @@ EOF
 
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts() {
   DEFAULT_ADMIN_API_KEY="admin-secret"
+  PLATFORM_SERVICE_API_KEY="service-secret"
   JWT_SECRET="jwt-secret"
   WEBHOOK_ENCRYPTION_KEY="webhook-secret"
 
@@ -44,6 +47,7 @@ test_live_test_platform_api_secrets_match_fails_when_container_env_drifts() {
     if [[ "$1" == "exec" ]]; then
       cat <<'EOF'
 DEFAULT_ADMIN_API_KEY=admin-secret
+PLATFORM_SERVICE_API_KEY=stale-service
 JWT_SECRET=stale-jwt
 WEBHOOK_ENCRYPTION_KEY=stale-webhook
 EOF

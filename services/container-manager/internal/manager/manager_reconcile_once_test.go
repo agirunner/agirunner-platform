@@ -99,7 +99,7 @@ func TestReconcileOnceOrchestratorContractMismatchReplacesContainer(t *testing.T
 	}
 	manager := newTestManager(docker, platform)
 	manager.config.PlatformAPIURL = "http://platform-api:8080"
-	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.PlatformAPIKey = "test-service-key"
 	manager.config.DockerHost = "tcp://socket-proxy:2375"
 	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
 	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"
@@ -126,8 +126,8 @@ func TestReconcileOnceOrchestratorContractMismatchReplacesContainer(t *testing.T
 	if spec.NetworkName != "agirunner-platform_platform_net" {
 		t.Fatalf("expected runtime network attached, got %q", spec.NetworkName)
 	}
-	if spec.Environment[envPlatformAdminAPIKey] != "test-admin-key" {
-		t.Fatalf("expected admin api key injected, got %q", spec.Environment[envPlatformAdminAPIKey])
+	if spec.Environment[envPlatformAdminAPIKey] != "test-service-key" {
+		t.Fatalf("expected platform service key injected, got %q", spec.Environment[envPlatformAdminAPIKey])
 	}
 	if spec.Environment[envRuntimeWorkerName] != "orchestrator-primary" {
 		t.Fatalf("expected worker name injected, got %q", spec.Environment[envRuntimeWorkerName])
@@ -185,7 +185,7 @@ func TestReconcileOnceOrchestratorContractMismatchDefersReplacementWhenActiveTas
 	}
 	manager := newTestManager(docker, platform)
 	manager.config.PlatformAPIURL = "http://platform-api:8080"
-	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.PlatformAPIKey = "test-service-key"
 	manager.config.DockerHost = "tcp://socket-proxy:2375"
 	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
 	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"
@@ -225,7 +225,7 @@ func TestReconcileOnceKeepsOrchestratorContainerWhenContractMatches(t *testing.T
 	}
 	manager := newTestManager(docker, platform)
 	manager.config.PlatformAPIURL = "http://platform-api:8080"
-	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.PlatformAPIKey = "test-service-key"
 	manager.config.DockerHost = "tcp://socket-proxy:2375"
 	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
 	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"

@@ -219,6 +219,9 @@ type mockPlatformClient struct {
 	failTaskErr            error
 	getTaskStateErr        error
 	ackRestartErr          error
+	workerRegistrations    []WorkerRegistrationRequest
+	agentRegistrations     []AgentRegistrationRequest
+	deletedWorkerIDs       []string
 }
 
 // failedTaskRecord captures a FailTask call for test assertions.
@@ -326,6 +329,30 @@ func (m *mockPlatformClient) FailTask(taskID, reason string) error {
 	return nil
 }
 
+func (m *mockPlatformClient) RegisterWorker(input WorkerRegistrationRequest) (WorkerRegistrationResult, error) {
+	m.workerRegistrations = append(m.workerRegistrations, input)
+	return WorkerRegistrationResult{
+		WorkerID:                 "worker-1",
+		WorkerAPIKey:             "worker-key-1",
+		HeartbeatIntervalSeconds: input.HeartbeatIntervalSeconds,
+	}, nil
+}
+
+func (m *mockPlatformClient) RegisterAgent(input AgentRegistrationRequest) (AgentRegistrationResult, error) {
+	m.agentRegistrations = append(m.agentRegistrations, input)
+	return AgentRegistrationResult{
+		ID:          "agent-1",
+		Name:        input.Name,
+		RoutingTags: input.RoutingTags,
+		APIKey:      "agent-key-1",
+	}, nil
+}
+
+func (m *mockPlatformClient) DeleteWorker(workerID string) error {
+	m.deletedWorkerIDs = append(m.deletedWorkerIDs, workerID)
+	return nil
+}
+
 func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Manager {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := Config{
@@ -397,7 +424,7 @@ func TestBuildContainerSpec_SetsDockerLogRotation(t *testing.T) {
 	mgr := newTestManager(newMockDockerClient(), &mockPlatformClient{})
 	ds := makeDesiredState("worker-1", "orchestrator-primary", "agirunner-runtime:local", 1, 1)
 
-	spec := mgr.buildContainerSpec(ds, 0)
+	spec := mgr.buildContainerSpec(ds, ds.WorkerName, connectedRuntimeIdentity{})
 
 	if spec.LogMaxSize != "10m" {
 		t.Fatalf("expected desired-state log max size 10m, got %q", spec.LogMaxSize)

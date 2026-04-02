@@ -13,6 +13,7 @@ make_test_env() {
   mkdir -p "${root}/env" "${root}/scripts" "${root}/scenarios" "${root}/results"
   cat >"${root}/env/local.env" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
+PLATFORM_SERVICE_API_KEY=ar_service_test-service-key
 JWT_SECRET=test-jwt
 WEBHOOK_ENCRYPTION_KEY=test-webhook
 EOF

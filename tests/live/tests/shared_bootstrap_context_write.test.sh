@@ -27,6 +27,7 @@ if [[ "${1:-}" == "compose" ]]; then
     printf 'JWT_SECRET=%s\n' "${JWT_SECRET}"
     printf 'WEBHOOK_ENCRYPTION_KEY=%s\n' "${WEBHOOK_ENCRYPTION_KEY}"
     printf 'DEFAULT_ADMIN_API_KEY=%s\n' "${DEFAULT_ADMIN_API_KEY}"
+    printf 'PLATFORM_SERVICE_API_KEY=%s\n' "${PLATFORM_SERVICE_API_KEY}"
     exit 0
   fi
   exit 0
@@ -65,6 +66,7 @@ make_fake_roots() {
 
   cat >"${root}/env/local.env" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
+PLATFORM_SERVICE_API_KEY=ar_service_test-service-key
 JWT_SECRET=test-jwt
 WEBHOOK_ENCRYPTION_KEY=test-webhook
 EOF

@@ -57,14 +57,14 @@ export const taskStreamRoutes: FastifyPluginAsync = async (app) => {
       controller.abort();
     });
 
-    const adminApiKey = process.env.DEFAULT_ADMIN_API_KEY ?? '';
+    const serviceApiKey = process.env.PLATFORM_SERVICE_API_KEY ?? '';
 
     let upstreamResponse: Response;
     try {
       upstreamResponse = await fetch(upstreamUrl, {
         signal: controller.signal,
         headers: {
-          Authorization: `Bearer ${adminApiKey}`,
+          Authorization: `Bearer ${serviceApiKey}`,
           Accept: 'text/event-stream',
         },
       });

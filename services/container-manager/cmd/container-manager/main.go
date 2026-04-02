@@ -26,7 +26,6 @@ func main() {
 	cfg := manager.Config{
 		PlatformAPIURL:         envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
 		PlatformAPIKey:         envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
-		PlatformAdminAPIKey:    envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
 		DockerHost:             envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
 		RuntimeNetwork:         envOrDefault("RUNTIME_NETWORK", ""),
 		RuntimeInternalNetwork: envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),

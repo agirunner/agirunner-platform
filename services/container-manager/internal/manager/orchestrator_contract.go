@@ -54,9 +54,10 @@ func applyOrchestratorRuntimeContract(spec *ContainerSpec, cfg Config, ds Desire
 	if internalNetwork != "" {
 		spec.Labels[labelRuntimeInternalNetwork] = internalNetwork
 	}
-	adminKey := strings.TrimSpace(cfg.PlatformAdminAPIKey)
-	if adminKey != "" {
-		spec.Environment[envPlatformAdminAPIKey] = adminKey
+	serviceKey := strings.TrimSpace(cfg.PlatformAPIKey)
+	if serviceKey != "" {
+		spec.Environment[envPlatformAdminAPIKey] = serviceKey
+		spec.Environment[envRuntimeAuthAPIKey] = serviceKey
 	}
 	spec.Environment[envPlatformAgentExecMode] = orchestratorExecutionMode
 	spec.Labels[labelExecutionMode] = orchestratorExecutionMode

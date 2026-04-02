@@ -73,7 +73,7 @@ func TestBuildDCMLabelsIncludesGracePeriod(t *testing.T) {
 	target := makeRuntimeTarget("tmpl-1", "img:v1", 5, 0, 10)
 	target.GracePeriodSeconds = 90
 
-	labels := buildDCMLabels(target, "rt-1")
+	labels := buildDCMLabels(target, "rt-1", connectedRuntimeIdentity{})
 
 	got := labels[labelDCMGracePeriod]
 	want := "90"
@@ -86,7 +86,7 @@ func TestBuildDCMLabelsGracePeriodZeroStoredAsZero(t *testing.T) {
 	target := makeRuntimeTarget("tmpl-1", "img:v1", 5, 0, 10)
 	target.GracePeriodSeconds = 0
 
-	labels := buildDCMLabels(target, "rt-1")
+	labels := buildDCMLabels(target, "rt-1", connectedRuntimeIdentity{})
 
 	got := labels[labelDCMGracePeriod]
 	if got != "0" {
