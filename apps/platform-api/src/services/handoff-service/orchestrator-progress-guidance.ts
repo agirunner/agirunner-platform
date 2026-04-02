@@ -103,12 +103,18 @@ export async function assertOrchestratorProgressBeforeHandoff(
 
   const workItems = workItemsRes.rows;
   const specialistTasks = tasksRes.rows.filter((row) => row.is_orchestrator_task !== true);
-  const focusWorkItem = selectFocusedWorkItem(workItems, task.work_item_id, task.stage_name);
-  const focusWorkItemId = focusWorkItem?.id ?? null;
-  const focusStageName = focusWorkItem?.stage_name ?? task.stage_name ?? null;
   const workflowDefinition = workflowRes.rows[0]?.definition
     ? parsePlaybookDefinition(workflowRes.rows[0].definition)
     : null;
+  const focusWorkItem = selectProgressFocusWorkItem({
+    workItems,
+    specialistTasks,
+    taskWorkItemId: task.work_item_id,
+    taskStageName: task.stage_name,
+    workflowDefinition,
+  });
+  const focusWorkItemId = focusWorkItem?.id ?? null;
+  const focusStageName = focusWorkItem?.stage_name ?? task.stage_name ?? null;
   const nextStageName = focusStageName && workflowDefinition
     ? nextStageNameFor(workflowDefinition, focusStageName)
     : null;
@@ -156,6 +162,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
   const nextStageCanStartNow = Boolean(
     nextStageName
       && openFocusedStageWorkItems.length === 0
+      && openSuccessorStageWorkItems.length === 0
       && openSpecialistTaskCount === 0
       && activeBlockingControls === 0,
   );
@@ -351,6 +358,45 @@ function selectFocusedWorkItem(
   }
 
   return workItems.find((row) => row.completed_at == null) ?? workItems[0] ?? null;
+}
+
+function selectProgressFocusWorkItem(input: {
+  workItems: WorkItemRow[];
+  specialistTasks: TaskRow[];
+  taskWorkItemId: string | null;
+  taskStageName: string | null;
+  workflowDefinition: ReturnType<typeof parsePlaybookDefinition> | null;
+}): WorkItemRow | null {
+  const initialFocus = selectFocusedWorkItem(
+    input.workItems,
+    input.taskWorkItemId,
+    input.taskStageName,
+  );
+  if (!initialFocus || initialFocus.completed_at == null || !input.workflowDefinition || !initialFocus.stage_name) {
+    return initialFocus;
+  }
+
+  const immediateSuccessorStageName = nextStageNameFor(input.workflowDefinition, initialFocus.stage_name);
+  if (!immediateSuccessorStageName) {
+    return initialFocus;
+  }
+
+  const openSuccessorStageWorkItems = input.workItems.filter(
+    (row) => row.stage_name === immediateSuccessorStageName && row.completed_at == null,
+  );
+  if (openSuccessorStageWorkItems.length !== 1) {
+    return initialFocus;
+  }
+
+  const successorFocus = openSuccessorStageWorkItems[0];
+  const successorHasSpecialistHistory = input.specialistTasks.some(
+    (row) => row.work_item_id === successorFocus.id,
+  );
+  if (!successorHasSpecialistHistory) {
+    return initialFocus;
+  }
+
+  return successorFocus;
 }
 
 function isOpenSpecialistTask(state: string | null): boolean {
