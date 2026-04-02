@@ -15,6 +15,7 @@ import {
   readOptionalString,
   selectFocusedWorkItemForClosure,
 } from './helpers.js';
+import { nextStageNameFor } from '../playbook-workflow-control/playbook-workflow-control-utils.js';
 
 export function buildClosureContext(params: {
   definition: { stages: Array<{ name: string; involves?: string[] }> };
@@ -34,6 +35,7 @@ export function buildClosureContext(params: {
   const stage = focusedStageName
     ? params.definition.stages.find((entry) => entry.name === focusedStageName) ?? null
     : null;
+  const nextStageName = focusedStageName ? nextStageNameFor(params.definition, focusedStageName) : null;
   const stageRoles = (stage?.involves ?? [])
     .map((role) => role.trim())
     .filter((role) => role.length > 0);
@@ -116,10 +118,14 @@ export function buildClosureContext(params: {
         .filter((value): value is string => Boolean(value)),
     ),
   );
-  const workItemCanCloseNow = activeBlockingControls.length === 0 && focusedOpenSpecialistTasks.length === 0;
+  const focusedWorkItemCompleted = focusedWorkItem.completed_at !== null && focusedWorkItem.completed_at !== undefined;
+  const workItemCanCloseNow = !focusedWorkItemCompleted
+    && activeBlockingControls.length === 0
+    && focusedOpenSpecialistTasks.length === 0;
   const workflowCanCloseNow = params.workItems.every((row) => row.completed_at !== null && row.completed_at !== undefined)
     && specialistTasks.every((row) => !isOpenSpecialistTask(row))
-    && activeBlockingControls.length === 0;
+    && activeBlockingControls.length === 0
+    && !nextStageName;
   const closureReadiness = activeBlockingControls.length > 0
     ? 'blocked'
     : activeAdvisoryControls.length > 0 || preferredObligations.length > 0

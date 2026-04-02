@@ -380,4 +380,141 @@ describe('buildOrchestratorTaskContext', () => {
       retry_window: null,
     }));
   });
+
+  it('does not advertise workflow closure while a successor stage is still pending', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              lifecycle: 'planned',
+              metadata: {},
+              playbook_name: 'Linear Flow',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }, { id: 'done', label: 'Done', is_terminal: true }] },
+                lifecycle: 'planned',
+                stages: [
+                  { name: 'implement', goal: 'Implement the fix', involves: ['Software Developer'] },
+                  { name: 'review', goal: 'Review the fix', involves: ['Code Reviewer'] },
+                ],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return { rows: [] };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [{
+              id: 'wi-implement',
+              parent_work_item_id: null,
+              stage_name: 'implement',
+              title: 'Implement the fix',
+              goal: 'Implement the fix',
+              column_id: 'done',
+              owner_role: 'Software Developer',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'high',
+              completed_at: '2026-04-02T11:17:59.000Z',
+              notes: null,
+              metadata: {},
+              current_subject_revision: 1,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return {
+            rows: [
+              {
+                id: 'stage-implement',
+                lifecycle: 'planned',
+                name: 'implement',
+                position: 0,
+                goal: 'Implement the fix',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+              {
+                id: 'stage-review',
+                lifecycle: 'planned',
+                name: 'review',
+                position: 1,
+                goal: 'Review the fix',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM tasks')) {
+          return {
+            rows: [{
+              id: 'task-dev-1',
+              title: 'Implement the fix',
+              role: 'Software Developer',
+              state: 'completed',
+              work_item_id: 'wi-implement',
+              stage_name: 'implement',
+              activation_id: null,
+              assigned_agent_id: null,
+              claimed_at: null,
+              started_at: '2026-04-02T11:14:30.000Z',
+              completed_at: '2026-04-02T11:17:59.000Z',
+              is_orchestrator_task: false,
+              input: {},
+              metadata: {},
+              retry_count: 0,
+              rework_count: 0,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates') || sql.includes('FROM workflow_subject_escalations') || sql.includes('FROM workflow_tool_results')) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildOrchestratorTaskContext(db as never, 'tenant-1', {
+      id: 'task-orchestrator-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+      work_item_id: 'wi-implement',
+      stage_name: 'implement',
+    });
+
+    expect(context?.closure_context).toEqual(expect.objectContaining({
+      workflow_can_close_now: false,
+      work_item_can_close_now: false,
+      closure_readiness: 'not_ready',
+      open_specialist_task_count: 0,
+    }));
+  });
 });

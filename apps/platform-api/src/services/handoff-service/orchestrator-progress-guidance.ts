@@ -1,5 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ValidationError } from '../../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
+import { nextStageNameFor } from '../playbook-workflow-control/playbook-workflow-control-utils.js';
 import { logSafetynetTriggered } from '../safetynet/logging.js';
 import {
   PLATFORM_HANDOFF_ORCHESTRATOR_PROGRESS_GUIDANCE_ID,
@@ -39,6 +41,10 @@ interface EscalationRow {
   closure_effect: string | null;
 }
 
+interface WorkflowDefinitionRow {
+  definition: unknown;
+}
+
 export async function assertOrchestratorProgressBeforeHandoff(
   tenantId: string,
   task: TaskContextRow,
@@ -48,7 +54,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
     return;
   }
 
-  const [workItemsRes, tasksRes, stageGatesRes, escalationsRes] = await Promise.all([
+  const [workItemsRes, tasksRes, stageGatesRes, escalationsRes, workflowRes] = await Promise.all([
     db.query<WorkItemRow>(
       `SELECT id, stage_name, completed_at, created_at
          FROM workflow_work_items
@@ -82,6 +88,17 @@ export async function assertOrchestratorProgressBeforeHandoff(
           AND status = 'open'`,
       [tenantId, task.workflow_id],
     ),
+    db.query<WorkflowDefinitionRow>(
+      `SELECT p.definition
+         FROM workflows w
+         JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+        WHERE w.tenant_id = $1
+          AND w.id = $2
+        LIMIT 1`,
+      [tenantId, task.workflow_id],
+    ),
   ]);
 
   const workItems = workItemsRes.rows;
@@ -89,6 +106,12 @@ export async function assertOrchestratorProgressBeforeHandoff(
   const focusWorkItem = selectFocusedWorkItem(workItems, task.work_item_id, task.stage_name);
   const focusWorkItemId = focusWorkItem?.id ?? null;
   const focusStageName = focusWorkItem?.stage_name ?? task.stage_name ?? null;
+  const workflowDefinition = workflowRes.rows[0]?.definition
+    ? parsePlaybookDefinition(workflowRes.rows[0].definition)
+    : null;
+  const nextStageName = focusStageName && workflowDefinition
+    ? nextStageNameFor(workflowDefinition, focusStageName)
+    : null;
 
   const focusedOpenSpecialistTasks = focusWorkItemId
     ? specialistTasks.filter(
@@ -111,21 +134,31 @@ export async function assertOrchestratorProgressBeforeHandoff(
     closureEffect: 'advisory',
   });
   const openWorkItems = workItems.filter((row) => row.completed_at == null);
+  const openFocusedStageWorkItems = focusStageName
+    ? workItems.filter((row) => row.stage_name === focusStageName && row.completed_at == null)
+    : [];
   const workItemCanCloseNow = Boolean(
     focusWorkItemId
       && focusWorkItem?.completed_at == null
       && focusedOpenSpecialistTasks.length === 0
       && activeBlockingControls === 0,
   );
+  const nextStageCanStartNow = Boolean(
+    nextStageName
+      && openFocusedStageWorkItems.length === 0
+      && openSpecialistTaskCount === 0
+      && activeBlockingControls === 0,
+  );
   const workflowCanCloseNow = openWorkItems.length === 0
     && openSpecialistTaskCount === 0
-    && countWorkflowBlockingControls(stageGatesRes.rows, escalationsRes.rows) === 0;
+    && countWorkflowBlockingControls(stageGatesRes.rows, escalationsRes.rows) === 0
+    && !nextStageName;
 
   if (openSpecialistTaskCount > 0) {
     return;
   }
 
-  if (!workItemCanCloseNow && !workflowCanCloseNow) {
+  if (!workItemCanCloseNow && !nextStageCanStartNow && !workflowCanCloseNow) {
     return;
   }
 
@@ -134,14 +167,21 @@ export async function assertOrchestratorProgressBeforeHandoff(
     : activeAdvisoryControls > 0
       ? 'can_close_with_callouts'
       : 'ready_to_close';
-  const targetType = workflowCanCloseNow ? 'workflow' : 'work_item';
-  const targetId = workflowCanCloseNow ? task.workflow_id : focusWorkItemId;
+  const targetType = workflowCanCloseNow || nextStageCanStartNow ? 'workflow' : 'work_item';
+  const targetId = workflowCanCloseNow || nextStageCanStartNow ? task.workflow_id : focusWorkItemId;
   const recoveryAction = workflowCanCloseNow
     ? 'complete_workflow_before_handoff'
-    : 'progress_or_close_work_item_before_handoff';
+    : nextStageCanStartNow
+      ? 'route_successor_stage_before_handoff'
+      : 'progress_or_close_work_item_before_handoff';
+  const reasonCode = nextStageCanStartNow
+    ? 'orchestrator_successor_stage_progress_required'
+    : 'orchestrator_progress_mutation_required';
   const contextSummary = workflowCanCloseNow
     ? 'The workflow can close now and no specialist work remains active.'
-    : `Work item ${focusWorkItemId ?? 'unknown'} in stage ${focusStageName ?? 'unknown'} has no active specialist tasks and no blocking controls, so the activation must progress it before ending.`;
+    : nextStageCanStartNow
+      ? `Stage ${focusStageName ?? 'unknown'} has no active specialist work left and its immediate successor stage ${nextStageName ?? 'unknown'} can start now.`
+      : `Work item ${focusWorkItemId ?? 'unknown'} in stage ${focusStageName ?? 'unknown'} has no active specialist tasks and no blocking controls, so the activation must progress it before ending.`;
 
   logSafetynetTriggered(
     ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET,
@@ -151,9 +191,11 @@ export async function assertOrchestratorProgressBeforeHandoff(
       work_item_id: focusWorkItemId,
       task_id: task.id,
       stage_name: focusStageName,
-      reason_code: 'orchestrator_progress_mutation_required',
+      reason_code: reasonCode,
       workflow_can_close_now: workflowCanCloseNow,
       work_item_can_close_now: workItemCanCloseNow,
+      next_stage_can_start_now: nextStageCanStartNow,
+      next_stage_name: nextStageName,
       closure_readiness: closureReadiness,
       open_specialist_task_count: openSpecialistTaskCount,
     },
@@ -162,15 +204,17 @@ export async function assertOrchestratorProgressBeforeHandoff(
   throw new ValidationError(
     workflowCanCloseNow
       ? 'Workflow can close now. Perform the explicit workflow-closing mutation before submit_handoff.'
+      : nextStageCanStartNow
+        ? 'Successor stage can start now. Route it before submit_handoff.'
       : 'Focused work can still progress now. Perform the required workflow mutation before submit_handoff.',
     {
-      reason_code: 'orchestrator_progress_mutation_required',
+      reason_code: reasonCode,
       recoverable: true,
       recovery_hint: recoveryAction,
       safetynet_behavior_id: ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET.id,
       recovery: {
         status: 'action_required',
-        reason: 'orchestrator_progress_mutation_required',
+        reason: reasonCode,
         action: recoveryAction,
         target_type: targetType,
         target_id: targetId,
@@ -179,6 +223,8 @@ export async function assertOrchestratorProgressBeforeHandoff(
       closure_context: {
         workflow_can_close_now: workflowCanCloseNow,
         work_item_can_close_now: workItemCanCloseNow,
+        next_stage_can_start_now: nextStageCanStartNow,
+        next_stage_name: nextStageName,
         closure_readiness: closureReadiness,
         active_blocking_control_count: activeBlockingControls,
         active_advisory_control_count: activeAdvisoryControls,
@@ -196,6 +242,23 @@ export async function assertOrchestratorProgressBeforeHandoff(
               requires_orchestrator_judgment: true,
             },
           ]
+        : nextStageCanStartNow
+          ? [
+              {
+                action_code: 'inspect_successor_stage_contract',
+                target_type: 'workflow',
+                target_id: task.workflow_id,
+                why: `The immediate successor stage '${nextStageName ?? 'unknown'}' is the next legal planned workflow step.`,
+                requires_orchestrator_judgment: false,
+              },
+              {
+                action_code: 'route_successor_stage_work',
+                target_type: 'workflow',
+                target_id: task.workflow_id,
+                why: `Create successor work in '${nextStageName ?? 'unknown'}' before ending this activation.`,
+                requires_orchestrator_judgment: true,
+              },
+            ]
         : [
             {
               action_code: 'inspect_focused_work_item',

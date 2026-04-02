@@ -70,6 +70,16 @@ describe('HandoffService orchestrator progress guidance', () => {
             },
           ],
           rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [{ name: 'verify', goal: 'Verify the work' }],
+            },
+          }],
+          rowCount: 1,
         }),
     };
 
@@ -178,6 +188,19 @@ describe('HandoffService orchestrator progress guidance', () => {
         })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [
+                { name: 'implement', goal: 'Implement the change' },
+                { name: 'review', goal: 'Review the change' },
+              ],
+            },
+          }],
+          rowCount: 1,
+        })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -237,5 +260,109 @@ describe('HandoffService orchestrator progress guidance', () => {
     }));
 
     expect(logSafetynetTriggered).not.toHaveBeenCalled();
+  });
+
+  it('rejects a handoff-only endgame when the immediate successor stage can start now', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [makeTaskRow({
+            id: 'task-orchestrator',
+            role: 'orchestrator',
+            stage_name: 'implement',
+            work_item_id: 'work-item-implement-1',
+            is_orchestrator_task: true,
+            metadata: { task_kind: 'orchestrator' },
+          })],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'work-item-implement-1',
+              stage_name: 'implement',
+              completed_at: new Date('2026-04-02T11:17:59Z'),
+              created_at: new Date('2026-04-02T11:14:08Z'),
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'task-dev-1',
+              role: 'Software Developer',
+              state: 'completed',
+              work_item_id: 'work-item-implement-1',
+              is_orchestrator_task: false,
+            },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [
+                { name: 'reproduce', goal: 'Reproduce the bug' },
+                { name: 'implement', goal: 'Implement the fix' },
+                { name: 'review', goal: 'Review the fix' },
+              ],
+            },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.submitTaskHandoff('tenant-1', 'task-orchestrator', {
+        request_id: 'handoff:task-orchestrator:r0:route-review',
+        summary: 'Implement fix work is complete.',
+        completion: 'full',
+      }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Successor stage can start now. Route it before submit_handoff.',
+      details: {
+        reason_code: 'orchestrator_successor_stage_progress_required',
+        recoverable: true,
+        recovery_hint: 'route_successor_stage_before_handoff',
+        safetynet_behavior_id: ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET.id,
+        recovery: {
+          status: 'action_required',
+          reason: 'orchestrator_successor_stage_progress_required',
+          action: 'route_successor_stage_before_handoff',
+          target_type: 'workflow',
+          target_id: 'workflow-1',
+        },
+        closure_context: expect.objectContaining({
+          workflow_can_close_now: false,
+          work_item_can_close_now: false,
+          next_stage_can_start_now: true,
+          next_stage_name: 'review',
+          stage_name: 'implement',
+          work_item_id: 'work-item-implement-1',
+        }),
+      },
+    });
+
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET,
+      'orchestrator handoff rejected because workflow progress could still be applied in the same activation',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-implement-1',
+        task_id: 'task-orchestrator',
+        stage_name: 'implement',
+        reason_code: 'orchestrator_successor_stage_progress_required',
+        next_stage_name: 'review',
+      }),
+    );
   });
 });
