@@ -36,6 +36,7 @@ describe('WorkflowOperationsStreamService', () => {
           latest_event_id: 120,
           snapshot_version: 'workflow-operations:120',
           items: [{ item_id: 'console-1', created_at: '2026-03-27T22:46:00.000Z' }],
+          counts: { all: 1, turn_updates: 1, briefs: 0, steering: 0 },
           next_cursor: 'console-cursor',
           live_visibility_mode: 'enhanced',
         },
@@ -102,6 +103,7 @@ describe('WorkflowOperationsStreamService', () => {
         event_type: 'live_console_append',
         payload: {
           items: [],
+          counts: { all: 1, turn_updates: 1, briefs: 0, steering: 0 },
           next_cursor: 'console-cursor',
         },
       }),
@@ -241,6 +243,7 @@ describe('WorkflowOperationsStreamService', () => {
             { item_id: 'console-2', created_at: '2026-03-27T22:47:00.000Z' },
             { item_id: 'console-1', created_at: '2026-03-27T22:46:00.000Z' },
           ],
+          counts: { all: 2, turn_updates: 1, briefs: 1, steering: 0 },
           next_cursor: 'console-cursor',
           live_visibility_mode: 'enhanced',
         },
@@ -298,6 +301,7 @@ describe('WorkflowOperationsStreamService', () => {
         event_type: 'live_console_append',
         payload: {
           items: [{ item_id: 'console-2', created_at: '2026-03-27T22:47:00.000Z' }],
+          counts: { all: 2, turn_updates: 1, briefs: 1, steering: 0 },
           next_cursor: 'console-cursor',
         },
       }),

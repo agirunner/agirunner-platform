@@ -177,14 +177,18 @@ function mergeLiveConsolePacket(
     [...appendedItems, ...packet.live_console.items],
     (item) => item.item_id,
   );
+  const nextCounts = readLiveConsoleCounts(record?.counts, packet.live_console.counts);
   const totalCount =
-    typeof packet.live_console.total_count === 'number'
-      ? Math.max(packet.live_console.total_count, items.length)
-      : items.length;
+    typeof nextCounts?.all === 'number'
+      ? nextCounts.all
+      : typeof packet.live_console.total_count === 'number'
+        ? Math.max(packet.live_console.total_count, items.length)
+        : items.length;
 
   return {
     ...packet.live_console,
     items,
+    counts: nextCounts,
     total_count: totalCount,
     next_cursor: readOptionalText(record?.next_cursor) ?? packet.live_console.next_cursor,
   };
@@ -350,6 +354,26 @@ function readArray(value: unknown): unknown[] {
 
 function readOptionalText(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function readLiveConsoleCounts(
+  value: unknown,
+  fallback: DashboardWorkflowWorkspacePacket['live_console']['counts'],
+): DashboardWorkflowWorkspacePacket['live_console']['counts'] {
+  const record = readRecord(value);
+  if (!record) {
+    return fallback;
+  }
+  return {
+    all: readOptionalNumber(record.all) ?? fallback?.all,
+    turn_updates: readOptionalNumber(record.turn_updates) ?? fallback?.turn_updates,
+    briefs: readOptionalNumber(record.briefs) ?? fallback?.briefs,
+    steering: readOptionalNumber(record.steering) ?? fallback?.steering,
+  };
+}
+
+function readOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function dedupeById<T>(items: T[], readId: (item: T) => string): T[] {

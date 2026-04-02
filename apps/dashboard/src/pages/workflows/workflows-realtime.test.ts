@@ -349,4 +349,119 @@ describe('applyWorkspaceStreamBatch', () => {
     expect(next.sticky_strip?.approvals_count).toBe(1);
     expect(next.bottom_tabs.counts.needs_action).toBe(1);
   });
+
+  it('updates live console filter badge counts when append events arrive', () => {
+    const next = applyWorkspaceStreamBatch(
+      {
+        generated_at: '2026-03-30T12:00:00.000Z',
+        latest_event_id: 11,
+        snapshot_version: 'workflow-operations:11',
+        workflow_id: 'workflow-1',
+        workflow: null,
+        sticky_strip: null,
+        board: { columns: [], work_items: [], active_stages: [], awaiting_gate_count: 0, stage_summary: [] },
+        bottom_tabs: {
+          current_scope_kind: 'workflow',
+          current_work_item_id: null,
+          current_task_id: null,
+          counts: {
+            details: 1,
+            needs_action: 0,
+            live_console_activity: 2,
+            briefs: 0,
+            history: 0,
+            deliverables: 0,
+          },
+        },
+        needs_action: { items: [], total_count: 0, default_sort: 'priority_desc' },
+        steering: { items: [], total_count: 0 },
+        live_console: {
+          generated_at: '2026-03-30T12:00:00.000Z',
+          latest_event_id: 11,
+          snapshot_version: 'workflow-operations:11',
+          items: [
+            {
+              item_id: 'console-1',
+              item_kind: 'task_turn_update',
+              source_kind: 'specialist',
+              source_label: 'Software Developer',
+              headline: 'Existing update',
+              summary: 'Existing update',
+              created_at: '2026-03-30T12:00:00.000Z',
+              work_item_id: null,
+              task_id: null,
+              linked_target_ids: [],
+              scope_binding: 'record',
+            },
+            {
+              item_id: 'console-2',
+              item_kind: 'milestone_brief',
+              source_kind: 'orchestrator',
+              source_label: 'Orchestrator',
+              headline: 'Existing brief',
+              summary: 'Existing brief',
+              created_at: '2026-03-30T12:00:30.000Z',
+              work_item_id: null,
+              task_id: null,
+              linked_target_ids: [],
+              scope_binding: 'record',
+            },
+          ],
+          total_count: 2,
+          counts: { all: 2, turn_updates: 1, briefs: 1, steering: 0 },
+          next_cursor: 'cursor-1',
+          live_visibility_mode: 'enhanced',
+        },
+        briefs: { items: [], total_count: 0, next_cursor: null },
+        history: { items: [], groups: [], total_count: 0, next_cursor: null },
+        deliverables: { inputs_and_provenance: [], final_deliverables: [], in_progress_deliverables: [], next_cursor: null, total_count: 0 },
+        redrive_lineage: null,
+      } as never,
+      {
+        generated_at: '2026-03-30T12:01:00.000Z',
+        latest_event_id: 12,
+        snapshot_version: 'workflow-operations:12',
+        cursor: 'workflow-operations:12',
+        events: [
+          {
+            event_type: 'live_console_append',
+            cursor: 'workflow-operations:12',
+            snapshot_version: 'workflow-operations:12',
+            workflow_id: 'workflow-1',
+            payload: {
+              items: [
+                {
+                  item_id: 'console-3',
+                  item_kind: 'steering_message',
+                  source_kind: 'operator',
+                  source_label: 'Operator',
+                  headline: 'New steering',
+                  summary: 'New steering',
+                  created_at: '2026-03-30T12:01:00.000Z',
+                  work_item_id: null,
+                  task_id: null,
+                  linked_target_ids: [],
+                  scope_binding: 'record',
+                },
+              ],
+              counts: { all: 3, turn_updates: 1, briefs: 1, steering: 1 },
+              next_cursor: 'cursor-2',
+            },
+          },
+        ],
+      },
+    );
+
+    expect(next).toBeDefined();
+    if (!next) {
+      throw new Error('expected workspace packet');
+    }
+    expect(next.live_console.items).toHaveLength(3);
+    expect(next.live_console.counts).toEqual({
+      all: 3,
+      turn_updates: 1,
+      briefs: 1,
+      steering: 1,
+    });
+  });
 });

@@ -156,6 +156,7 @@ function buildWorkspaceEvents(
       events.push(
         eventEnvelope('live_console_append', workspace.snapshot_version, workspace.workflow_id, {
           items: liveConsoleItems,
+          counts: workspace.live_console.counts,
           next_cursor: workspace.live_console.next_cursor,
         }),
       );
@@ -198,6 +199,7 @@ function buildWorkspaceEvents(
     eventEnvelope('steering_replace', workspace.snapshot_version, workspace.workflow_id, workspace.steering),
     eventEnvelope('live_console_append', workspace.snapshot_version, workspace.workflow_id, {
       items: liveConsoleItems,
+      counts: workspace.live_console.counts,
       next_cursor: workspace.live_console.next_cursor,
     }),
     eventEnvelope('briefs_append', workspace.snapshot_version, workspace.workflow_id, {
