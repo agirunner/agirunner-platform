@@ -53,8 +53,8 @@ export function sanitizeTaskReadModel(task: Record<string, unknown>) {
     execution_backend: task.execution_backend ?? null,
     used_task_sandbox: task.used_task_sandbox ?? false,
     role: task.role ?? null,
-    input: sanitizeTaskPayload(task.input),
-    metadata: sanitizeTaskPayload(task.metadata),
+    input: sanitizeTaskPayload(stripInternalTaskReadFields(task.input)),
+    metadata: sanitizeTaskPayload(stripInternalTaskReadFields(task.metadata)),
     assigned_agent_id: task.assigned_agent_id ?? null,
     assigned_worker_id: task.assigned_worker_id ?? null,
     depends_on: Array.isArray(task.depends_on)
@@ -145,6 +145,15 @@ function sanitizeTaskPayload(value: unknown) {
     redactionValue: 'redacted://task-secret',
     allowSecretReferences: false,
   }) as Record<string, unknown>;
+}
+
+function stripInternalTaskReadFields(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+
+  const { activation_dispatch_token: _activationDispatchToken, ...rest } = value as Record<string, unknown>;
+  return rest;
 }
 
 function normalizeWorkflowWorkItemSummary(
