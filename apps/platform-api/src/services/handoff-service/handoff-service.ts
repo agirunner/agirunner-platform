@@ -34,6 +34,7 @@ import {
   promoteTaskDeliverable,
   updateExistingHandoff,
 } from './handoff-service.persistence.js';
+import { assertOrchestratorProgressBeforeHandoff } from './orchestrator-progress-guidance.js';
 import {
   readInteger,
   readOptionalString,
@@ -127,6 +128,7 @@ export class HandoffService {
     assertMatchingTaskAttempt(task, input);
     const payload = buildNormalizedHandoffPayload(task, input);
     assertHandoffStateAllowed(task, payload);
+    await assertOrchestratorProgressBeforeHandoff(tenantId, task, db);
 
     const replayMatch = await loadExistingHandoff(
       tenantId,

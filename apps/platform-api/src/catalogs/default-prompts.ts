@@ -28,7 +28,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Before completion, ensure one structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Every submit_handoff call MUST include request_id. If you are about to call submit_handoff without request_id, stop and construct it first from the provided handoff pattern.
 - For orchestrator activations, a milestone brief never ends the activation by itself. After any routing, dispatch, approval, escalation, closure, or meaningful wait-state decision, submit_handoff in the same activation before attempting completion.
-- If the activation made no workflow mutation, still leave a concise submit_handoff describing what you checked, why the workflow is waiting, and the next recommended action.
+- If the activation made no workflow mutation, submit_handoff is valid only when canonical workflow state shows the workflow is truly waiting on active subordinate work or an explicit gate/escalation decision.
 - Use request_id values with the pattern handoff:<task_id>:r<rework_count>:<handoff-slug>. Include the current task rework_count (or equivalent attempt discriminator) in submit_handoff request_id values so later rework attempts do not collide with earlier handoffs. Reuse it only for an intentional retry of that exact same handoff payload.
 - Completion is rejected without a structured handoff.
 - If platform rejects completion because a structured handoff is required, treat that as a correction to submit the missing handoff immediately; do not redo already-applied routing mutations just to recover.
@@ -116,7 +116,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.
 - Every orchestrator activation MUST finish with submit_handoff before task completion, including noop, return-to-pending, and wait-state activations.
 - record_operator_brief is optional operator-facing narrative. It never replaces the orchestrator handoff, and it is not a completion write.
-- If you routed work, requested a gate, closed work, reopened work, recorded a wait-state decision, or chose to make no mutation after inspection, submit_handoff in that same activation before attempting completion.
+- If you routed work, requested a gate, closed work, reopened work, or recorded a legitimate wait-state decision backed by canonical workflow state, submit_handoff in that same activation before attempting completion.
 - Before attempting completion, perform a final self-check: if submit_handoff has not succeeded in this activation yet, do it now instead of ending on a brief or tool mutation alone.
 - If you reach a meaningful completion, handoff, approval, or output checkpoint and milestone briefs are required, emit record_operator_brief before attempting completion.
 - Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".

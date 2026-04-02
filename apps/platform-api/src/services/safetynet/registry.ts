@@ -26,6 +26,8 @@ export const PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID =
   'platform.handoff.replay_conflict_guidance';
 export const PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID =
   'platform.handoff.required_handoff_guidance';
+export const PLATFORM_HANDOFF_ORCHESTRATOR_PROGRESS_GUIDANCE_ID =
+  'platform.handoff.orchestrator_progress_guidance';
 export const PLATFORM_HANDOFF_SCHEMA_GUIDANCE_ID =
   'platform.handoff.schema_guidance';
 export const PLATFORM_OPERATOR_BRIEF_SCHEMA_GUIDANCE_ID =
@@ -328,6 +330,28 @@ const entries: SafetynetEntry[] = [
       'platform_safetynet_trigger_total{behavior="platform.handoff.required_handoff_guidance"}',
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'keep limited to required structured-handoff completion guards',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_HANDOFF_ORCHESTRATOR_PROGRESS_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Orchestrator progress guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'an orchestrator activation tries to end on submit_handoff even though the focused work can still be explicitly routed or closed now',
+    nominal_contract: 'orchestrator handoffs should reflect canonical post-mutation workflow state and should not park a workflow that can still legally progress in the same activation',
+    intervention: 'platform returns structured recoverable guidance telling the orchestrator to perform the required workflow progression mutation before resubmitting the handoff',
+    risk_if_triggered: 'low; preserves correctness while stopping silent no-op parking loops that would otherwise burn provider tokens',
+    operator_visibility: 'recoverable orchestrator-progress responses should carry the safetynet id when returned',
+    owner_module: 'src/services/handoff-service/orchestrator-progress-guidance.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.handoff.orchestrator_progress_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep limited to orchestrator handoff attempts that leave closeable or routeable work open with no active subordinate work',
     status: 'active',
   },
   {
