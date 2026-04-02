@@ -26,6 +26,8 @@ export const PLATFORM_HANDOFF_REPLAY_CONFLICT_GUIDANCE_ID =
   'platform.handoff.replay_conflict_guidance';
 export const PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID =
   'platform.handoff.required_handoff_guidance';
+export const PLATFORM_HANDOFF_SCHEMA_GUIDANCE_ID =
+  'platform.handoff.schema_guidance';
 export const PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID =
   'platform.continuity.stale_write_suppression';
 export const PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID =
@@ -324,6 +326,28 @@ const entries: SafetynetEntry[] = [
       'platform_safetynet_trigger_total{behavior="platform.handoff.required_handoff_guidance"}',
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'keep limited to required structured-handoff completion guards',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_HANDOFF_SCHEMA_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Handoff schema guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'submit_handoff sends known nested structured fields with stringified JSON or other invalid shapes and platform can return recoverable guidance instead of a generic schema dead-end',
+    nominal_contract: 'handoff submissions should use native JSON objects and arrays for structured fields on the first attempt',
+    intervention: 'platform returns structured recoverable guidance for known nested submit_handoff shape mistakes and logs the safetynet trigger before rejecting the mutation',
+    risk_if_triggered: 'low; preserves correctness while making a common structured payload mistake explicit and actionable',
+    operator_visibility: 'recoverable submit_handoff schema guidance responses should carry the safetynet id when returned',
+    owner_module: 'src/api/routes/task-platform/handoff-schema-guidance.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.handoff.schema_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to known nested structured submit_handoff field-shape mistakes; do not broaden into generic schema rewriting',
     status: 'active',
   },
   {

@@ -298,4 +298,96 @@ describe('task platform handoff routes validation', () => {
     expect(response.json().error.message).toContain('Invalid request body');
     expect(response.json().error.message).toContain('Unrecognized key');
   });
+
+  it('returns recoverable guidance when role_data is a quoted JSON string', async () => {
+    app = buildTaskPlatformHandoffsApp(async (sql: string) => {
+      if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            activation_id: null,
+            assigned_agent_id: 'agent-1',
+            is_orchestrator_task: false,
+            state: 'in_progress',
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await registerTaskPlatformHandoffsRoutes(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-1',
+        summary: 'Assessment completed.',
+        completion: 'full',
+        resolution: 'approved',
+        role_data: '{"subject_task_id":"task-99"}',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.json().error.recovery_hint).toBe('resubmit_handoff_with_native_json');
+    expect(response.json().error.message).toContain('role_data must be an object');
+    expect(response.json().error.details.reason_code).toBe('submit_handoff_invalid_nested_shape');
+    expect(response.json().error.details.recoverable).toBe(true);
+    expect(response.json().error.details.safetynet_behavior_id).toBe('platform.handoff.schema_guidance');
+    expect(response.json().error.details.invalid_fields).toEqual(['role_data']);
+  });
+
+  it('returns recoverable guidance when recommended_next_actions uses string entries', async () => {
+    app = buildTaskPlatformHandoffsApp(async (sql: string) => {
+      if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            activation_id: null,
+            assigned_agent_id: 'agent-1',
+            is_orchestrator_task: false,
+            state: 'in_progress',
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await registerTaskPlatformHandoffsRoutes(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-1',
+        summary: 'Assessment completed.',
+        completion: 'full',
+        resolution: 'request_changes',
+        recommended_next_actions: ['{"action_code":"reroute_review"}'],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.json().error.recovery_hint).toBe('resubmit_handoff_with_native_json');
+    expect(response.json().error.message).toContain('recommended_next_actions must be an array of objects');
+    expect(response.json().error.details.reason_code).toBe('submit_handoff_invalid_nested_shape');
+    expect(response.json().error.details.recoverable).toBe(true);
+    expect(response.json().error.details.safetynet_behavior_id).toBe('platform.handoff.schema_guidance');
+    expect(response.json().error.details.invalid_fields).toEqual(['recommended_next_actions']);
+  });
 });

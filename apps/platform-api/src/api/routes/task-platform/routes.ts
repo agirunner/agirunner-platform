@@ -24,6 +24,7 @@ import { WorkspaceMemoryScopeService } from '../../../services/workspace/memory/
 import { TaskAgentScopeService } from '../../../services/task/task-agent-scope-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
+import { parseTaskHandoffBodyOrThrow } from './handoff-schema-guidance.js';
 import { registerTaskPlatformMemoryReadRoutes } from './memory-read-routes.js';
 import { runIdempotentTaskRouteAction } from './route-idempotency.js';
 
@@ -127,7 +128,7 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const body = parseOrThrow(taskHandoffSchema.safeParse(request.body));
+      const body = parseTaskHandoffBodyOrThrow(taskHandoffSchema.safeParse(request.body), params.id);
       await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
       const data = await handoffService.submitTaskHandoff(
         request.auth!.tenantId,
