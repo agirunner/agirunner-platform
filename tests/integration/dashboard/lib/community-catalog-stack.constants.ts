@@ -1,10 +1,18 @@
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(CURRENT_DIR, '../../../..');
 
-export const COMMUNITY_CATALOG_REPO_ROOT = resolve(REPO_ROOT, '../agirunner-playbooks');
+const COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES = [
+  resolve(REPO_ROOT, '../../agirunner/agirunner-playbooks'),
+  resolve(REPO_ROOT, '../agirunner-playbooks'),
+];
+
+export const COMMUNITY_CATALOG_REPO_ROOT =
+  COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES.find((path) => existsSync(path))
+  ?? COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES[0];
 export const COMMUNITY_CATALOG_FIXTURE_REPOSITORY = 'fixtures/agirunner-playbooks';
 export const COMMUNITY_CATALOG_FIXTURE_REF = 'main';
 export const COMMUNITY_CATALOG_FIXTURE_PORT = 8791;
@@ -14,7 +22,7 @@ export const COMMUNITY_CATALOG_POSTGRES_CONTAINER_NAME =
   'agirunner-platform-community-catalog-e2e-postgres';
 export const COMMUNITY_CATALOG_POSTGRES_PORT = 55432;
 export const COMMUNITY_CATALOG_DATABASE_URL =
-  `postgresql://agirunner:agirunner@127.0.0.1:${COMMUNITY_CATALOG_POSTGRES_PORT}/agirunner`;
+  `postgresql://agirunner:agirunner@127.0.0.1:${COMMUNITY_CATALOG_POSTGRES_PORT}/agirunner`; // pragma: allowlist secret
 
 export const COMMUNITY_CATALOG_ADMIN_API_KEY =
   'ab_admin_defcommunity-catalog-playwright-key';
@@ -34,7 +42,7 @@ export const COMMUNITY_CATALOG_ARTIFACT_LOCAL_ROOT = resolve(
 export const COMMUNITY_CATALOG_POSTGRES_IMAGE = 'postgres:16-alpine';
 export const COMMUNITY_CATALOG_POSTGRES_DB = 'agirunner';
 export const COMMUNITY_CATALOG_POSTGRES_USER = 'agirunner';
-export const COMMUNITY_CATALOG_POSTGRES_PASSWORD = 'agirunner';
+export const COMMUNITY_CATALOG_POSTGRES_PASSWORD = 'agirunner'; // pragma: allowlist secret
 
 export const COMMUNITY_CATALOG_PLATFORM_URL = `http://localhost:${COMMUNITY_CATALOG_PLATFORM_PORT}`;
 export const COMMUNITY_CATALOG_DASHBOARD_URL = `http://localhost:${COMMUNITY_CATALOG_DASHBOARD_PORT}`;

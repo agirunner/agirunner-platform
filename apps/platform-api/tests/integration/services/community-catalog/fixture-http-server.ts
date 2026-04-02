@@ -1,11 +1,17 @@
 import { createServer, type Server } from 'node:http';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = resolve(CURRENT_DIR, '../../../../../../..');
-const PLAYBOOKS_REPO_ROOT = resolve(WORKSPACE_ROOT, 'agirunner-playbooks');
+const PLAYBOOKS_REPO_ROOT_CANDIDATES = [
+  resolve(WORKSPACE_ROOT, '../agirunner/agirunner-playbooks'),
+  resolve(WORKSPACE_ROOT, 'agirunner-playbooks'),
+];
+const PLAYBOOKS_REPO_ROOT = PLAYBOOKS_REPO_ROOT_CANDIDATES.find((path) => existsSync(path))
+  ?? PLAYBOOKS_REPO_ROOT_CANDIDATES[0];
 
 export interface CommunityCatalogFixtureServer {
   baseUrl: string;
