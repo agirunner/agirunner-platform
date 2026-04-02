@@ -162,5 +162,37 @@ describe('LogService', () => {
         git_ssh_host_verifier_present: false,
       });
     });
+
+    it('preserves benign token usage metrics on llm completion logs', async () => {
+      const { pool, service } = createLogServiceHarness();
+
+      await service.insert(createLogEntry({
+        source: 'runtime',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        payload: {
+          input_tokens: 500,
+          output_tokens: 120,
+          total_tokens: 620,
+          reasoning_tokens: 300,
+          tokens_before: 1800,
+          tokens_after: 1500,
+          tokens_saved: 300,
+        },
+      }));
+
+      const [, params] = getInsertCall(pool)!;
+      const insertedPayload = JSON.parse(params[10] as string);
+      expect(insertedPayload).toMatchObject({
+        input_tokens: 500,
+        output_tokens: 120,
+        total_tokens: 620,
+        reasoning_tokens: 300,
+        tokens_before: 1800,
+        tokens_after: 1500,
+        tokens_saved: 300,
+      });
+    });
   });
 });

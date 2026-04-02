@@ -93,6 +93,10 @@ const NON_SECRET_TOKEN_METRIC_KEYS = new Set([
   'total_tokens_output',
   'max_output_tokens',
   'max_output_tokens_omission_reason',
+  'reasoning_tokens',
+  'tokens_before',
+  'tokens_after',
+  'tokens_saved',
 ]);
 
 function redactPayload(payload: Record<string, unknown>): Record<string, unknown> {

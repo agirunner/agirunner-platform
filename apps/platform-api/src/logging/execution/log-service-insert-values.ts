@@ -28,6 +28,10 @@ const NON_SECRET_TOKEN_METRIC_KEYS = new Set([
   'total_tokens_input',
   'total_tokens_output',
   'max_output_tokens',
+  'reasoning_tokens',
+  'tokens_before',
+  'tokens_after',
+  'tokens_saved',
 ]);
 
 export function buildInsertValues(
