@@ -30,7 +30,12 @@ class BootstrapTests(unittest.TestCase):
                         context = prepare_environment()
 
         self.assertEqual(expected_context, context)
-        run_command_mock.assert_called_once()
+        run_command_mock.assert_called_once_with(
+            ["bash", str(prepare_environment.__globals__["PREPARE_SCRIPT"])],
+            cwd=prepare_environment.__globals__["repo_root"](),
+            capture_output=True,
+            env={"LIVE_TEST_ENV_LOAD_MODE": "preserve_existing"},
+        )
         read_json_mock.assert_called_once_with(Path(tmpdir) / BOOTSTRAP_CONTEXT_PATH)
 
 

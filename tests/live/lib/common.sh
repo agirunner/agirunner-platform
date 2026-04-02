@@ -315,7 +315,15 @@ require_live_test_value() {
 
 load_live_test_env() {
   local env_file="$1"
+  local load_mode="${2:-${LIVE_TEST_ENV_LOAD_MODE:-authoritative}}"
   require_live_test_file "${env_file}" "live test env file"
+  case "${load_mode}" in
+    authoritative|preserve_existing) ;;
+    *)
+      echo "[tests/live] unsupported env load mode: ${load_mode}" >&2
+      exit 1
+      ;;
+  esac
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# ]] && continue
     if [[ "${line}" != *=* ]]; then
@@ -330,6 +338,10 @@ load_live_test_env() {
     if [[ ! "${name}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
       echo "[tests/live] invalid env key in ${env_file}: ${name}" >&2
       exit 1
+    fi
+
+    if [[ "${load_mode}" == "preserve_existing" && -n "${!name:-}" ]]; then
+      continue
     fi
 
     local value="${line#*=}"

@@ -47,7 +47,12 @@ def validate_bootstrap_context(context: dict[str, Any]) -> dict[str, Any]:
 
 
 def prepare_environment() -> dict[str, Any]:
-    run_command(["bash", str(PREPARE_SCRIPT)], cwd=repo_root(), capture_output=True)
+    run_command(
+        ["bash", str(PREPARE_SCRIPT)],
+        cwd=repo_root(),
+        capture_output=True,
+        env={"LIVE_TEST_ENV_LOAD_MODE": "preserve_existing"},
+    )
     context = read_json_file(bootstrap_context_file())
     if not isinstance(context, dict):
         raise RuntimeError("community bootstrap context must be a JSON object")
