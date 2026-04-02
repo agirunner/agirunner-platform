@@ -59,7 +59,7 @@ EOF
   fi
 }
 
-test_load_live_test_env_preserves_existing_env_overrides() {
+test_load_live_test_env_uses_env_file_as_authoritative_source() {
   local env_file
   env_file="$(mktemp)"
   cat >"${env_file}" <<'EOF'
@@ -74,16 +74,16 @@ EOF
 
   load_live_test_env "${env_file}"
 
-  if [[ "${LIVE_TEST_PROVIDER_AUTH_MODE}" != "api_key" ]]; then
-    echo "expected provider auth mode override to survive env load" >&2
+  if [[ "${LIVE_TEST_PROVIDER_AUTH_MODE}" != "oauth" ]]; then
+    echo "expected env file to override stale provider auth mode" >&2
     exit 1
   fi
-  if [[ "${LIVE_TEST_PROVIDER_TYPE}" != "anthropic" ]]; then
-    echo "expected provider type override to survive env load" >&2
+  if [[ "${LIVE_TEST_PROVIDER_TYPE}" != "openai" ]]; then
+    echo "expected env file to override stale provider type" >&2
     exit 1
   fi
-  if [[ "${LIVE_TEST_PROVIDER_NAME}" != "Anthropic" ]]; then
-    echo "expected provider name override to survive env load" >&2
+  if [[ "${LIVE_TEST_PROVIDER_NAME}" != "OpenAI (Subscription)" ]]; then
+    echo "expected env file to override stale provider name" >&2
     exit 1
   fi
 }
@@ -123,5 +123,5 @@ test_ensure_live_test_external_network_creates_missing_network() {
 
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts
-test_load_live_test_env_preserves_existing_env_overrides
+test_load_live_test_env_uses_env_file_as_authoritative_source
 test_ensure_live_test_external_network_creates_missing_network

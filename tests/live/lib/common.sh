@@ -332,10 +332,6 @@ load_live_test_env() {
       exit 1
     fi
 
-    if [[ -n "${!name:-}" ]]; then
-      continue
-    fi
-
     local value="${line#*=}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
