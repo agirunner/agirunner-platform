@@ -121,6 +121,10 @@ export async function assertOrchestratorProgressBeforeHandoff(
     && openSpecialistTaskCount === 0
     && countWorkflowBlockingControls(stageGatesRes.rows, escalationsRes.rows) === 0;
 
+  if (openSpecialistTaskCount > 0) {
+    return;
+  }
+
   if (!workItemCanCloseNow && !workflowCanCloseNow) {
     return;
   }

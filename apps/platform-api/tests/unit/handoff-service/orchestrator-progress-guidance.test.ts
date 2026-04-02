@@ -125,7 +125,7 @@ describe('HandoffService orchestrator progress guidance', () => {
     );
   });
 
-  it('allows an orchestrator handoff when active specialist work still exists', async () => {
+  it('allows an orchestrator handoff when active specialist work still exists elsewhere in the workflow', async () => {
     const pool = {
       query: vi
         .fn()
@@ -133,7 +133,7 @@ describe('HandoffService orchestrator progress guidance', () => {
           rows: [makeTaskRow({
             id: 'task-orchestrator',
             role: 'orchestrator',
-            stage_name: 'verify',
+            stage_name: 'review',
             work_item_id: null,
             is_orchestrator_task: true,
             metadata: { task_kind: 'orchestrator' },
@@ -143,25 +143,38 @@ describe('HandoffService orchestrator progress guidance', () => {
         .mockResolvedValueOnce({
           rows: [
             {
-              id: 'work-item-verify-1',
-              stage_name: 'verify',
+              id: 'work-item-review-1',
+              stage_name: 'review',
+              completed_at: null,
+              created_at: new Date('2026-04-02T10:35:00Z'),
+            },
+            {
+              id: 'work-item-implement-1',
+              stage_name: 'implement',
               completed_at: null,
               created_at: new Date('2026-04-02T10:31:16Z'),
             },
           ],
-          rowCount: 1,
+          rowCount: 2,
         })
         .mockResolvedValueOnce({
           rows: [
             {
-              id: 'task-qa-1',
-              role: 'QA Reviewer',
+              id: 'task-dev-1',
+              role: 'Software Developer',
               state: 'in_progress',
-              work_item_id: 'work-item-verify-1',
+              work_item_id: 'work-item-implement-1',
+              is_orchestrator_task: false,
+            },
+            {
+              id: 'task-review-1',
+              role: 'Code Reviewer',
+              state: 'completed',
+              work_item_id: 'work-item-review-1',
               is_orchestrator_task: false,
             },
           ],
-          rowCount: 1,
+          rowCount: 2,
         })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -179,9 +192,9 @@ describe('HandoffService orchestrator progress guidance', () => {
             request_id: 'handoff:task-orchestrator:r0:waiting',
             role: 'orchestrator',
             team_name: null,
-            stage_name: 'verify',
+            stage_name: 'review',
             sequence: 0,
-            summary: 'Waiting on QA verification.',
+            summary: 'Waiting on implement rework.',
             completion: 'full',
             completion_state: 'full',
             resolution: null,
@@ -214,13 +227,13 @@ describe('HandoffService orchestrator progress guidance', () => {
     await expect(
       service.submitTaskHandoff('tenant-1', 'task-orchestrator', {
         request_id: 'handoff:task-orchestrator:r0:waiting',
-        summary: 'Waiting on QA verification.',
+        summary: 'Waiting on implement rework.',
         completion: 'full',
       }),
     ).resolves.toEqual(expect.objectContaining({
       id: 'handoff-1',
       role: 'orchestrator',
-      summary: 'Waiting on QA verification.',
+      summary: 'Waiting on implement rework.',
     }));
 
     expect(logSafetynetTriggered).not.toHaveBeenCalled();
