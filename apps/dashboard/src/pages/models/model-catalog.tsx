@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import { SubsectionPanel } from './models-page.chrome.js';
-import { formatContextWindow } from './models-page.defaults.js';
+import { formatContextWindow, getModelEnablementState } from './models-page.defaults.js';
 import type { LlmModel, LlmProvider } from './models-page.types.js';
 
 export function ModelCatalog(props: {
@@ -170,21 +170,33 @@ function renderProviderGroup(
                   const rightEnabled = right.is_enabled !== false ? 0 : 1;
                   return leftEnabled - rightEnabled;
                 })
-                .map((model) => (
-                  <TableRow key={model.id ?? model.model_id}>
-                    <TableCell className="font-mono text-sm">{model.model_id}</TableCell>
-                    <TableCell>{formatContextWindow(model.context_window)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{model.endpoint_type ?? '-'}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={model.is_enabled !== false}
-                        onCheckedChange={(checked) => handlers.onToggleEnabled(model.id, checked)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                .map((model) => {
+                  const enablement = getModelEnablementState(model);
+                  const isCurrentlyEnabled = model.is_enabled !== false;
+                  return (
+                    <TableRow key={model.id ?? model.model_id}>
+                      <TableCell className="font-mono text-sm">{model.model_id}</TableCell>
+                      <TableCell>{formatContextWindow(model.context_window)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{model.endpoint_type ?? '-'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Switch
+                            checked={isCurrentlyEnabled}
+                            disabled={!enablement.canEnable && !isCurrentlyEnabled}
+                            onCheckedChange={(checked) => handlers.onToggleEnabled(model.id, checked)}
+                          />
+                          {enablement.reason ? (
+                            <p className="max-w-56 text-xs leading-5 text-muted">
+                              {enablement.reason}
+                            </p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         </div>

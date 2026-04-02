@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAssignmentRoleRows,
   formatContextWindow,
+  getModelEnablementState,
   getProviderTypeDefaults,
   reasoningBadgeVariant,
   reasoningLabel,
@@ -91,6 +92,53 @@ describe('reasoningBadgeVariant', () => {
   it('returns default for models with reasoning support', () => {
     const config = { type: 'effort' as const, options: ['low', 'medium', 'high'], default: 'high' };
     expect(reasoningBadgeVariant(config)).toBe('default');
+  });
+});
+
+describe('getModelEnablementState', () => {
+  it('allows enablement when both limits are present', () => {
+    expect(
+      getModelEnablementState({
+        id: 'model-1',
+        model_id: 'claude-sonnet-4-6',
+        context_window: 200000,
+        max_output_tokens: 8192,
+        is_enabled: true,
+      }),
+    ).toEqual({
+      canEnable: true,
+      reason: null,
+    });
+  });
+
+  it('blocks enablement when the context window is missing', () => {
+    expect(
+      getModelEnablementState({
+        id: 'model-1',
+        model_id: 'claude-sonnet-4-6',
+        context_window: undefined,
+        max_output_tokens: 8192,
+        is_enabled: false,
+      }),
+    ).toEqual({
+      canEnable: false,
+      reason: 'Needs context window and max output tokens before it can be enabled.',
+    });
+  });
+
+  it('blocks enablement when max output tokens are missing', () => {
+    expect(
+      getModelEnablementState({
+        id: 'model-1',
+        model_id: 'claude-sonnet-4-6',
+        context_window: 200000,
+        max_output_tokens: undefined,
+        is_enabled: false,
+      }),
+    ).toEqual({
+      canEnable: false,
+      reason: 'Needs context window and max output tokens before it can be enabled.',
+    });
   });
 });
 

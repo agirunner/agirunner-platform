@@ -64,6 +64,56 @@ describe('ModelCatalogService models and assignments', () => {
     })).resolves.toEqual(sampleModel);
   });
 
+  it('rejects enabling a model without a context window', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
+
+    await expect(
+      service.createModel(TENANT_ID, {
+        providerId: PROVIDER_ID,
+        modelId: 'claude-missing-context',
+        maxOutputTokens: 8192,
+        supportsToolUse: true,
+        supportsVision: true,
+        isEnabled: true,
+        reasoningConfig: null,
+      }),
+    ).rejects.toThrow('Enabled models must define both context window and max output tokens');
+  });
+
+  it('rejects enabling a model without max output tokens', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
+
+    await expect(
+      service.createModel(TENANT_ID, {
+        providerId: PROVIDER_ID,
+        modelId: 'claude-missing-output',
+        contextWindow: 200000,
+        supportsToolUse: true,
+        supportsVision: true,
+        isEnabled: true,
+        reasoningConfig: null,
+      }),
+    ).rejects.toThrow('Enabled models must define both context window and max output tokens');
+  });
+
+  it('rejects enabling an existing model when the stored limits are incomplete', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ ...sampleModel, context_window: null, max_output_tokens: 8192 }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [{ ...sampleModel, context_window: null, max_output_tokens: 8192 }],
+        rowCount: 1,
+      });
+
+    await expect(
+      service.updateModel(TENANT_ID, MODEL_ID, {
+        isEnabled: true,
+      }),
+    ).rejects.toThrow('Enabled models must define both context window and max output tokens');
+  });
+
   it('deletes a model and clears dependent assignments and system defaults', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })

@@ -1,6 +1,7 @@
 import type { AddProviderDraft, ProviderType } from './models-page.support.js';
 import type {
   AssignmentRoleRow,
+  LlmModel,
   ReasoningConfigSchema,
   RoleAssignment,
   RoleDefinitionSummary,
@@ -26,6 +27,19 @@ export function formatContextWindow(n?: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
   return String(n);
+}
+
+export function getModelEnablementState(model: Pick<LlmModel, 'context_window' | 'max_output_tokens'>): {
+  canEnable: boolean;
+  reason: string | null;
+} {
+  if (hasRequiredModelLimits(model)) {
+    return { canEnable: true, reason: null };
+  }
+  return {
+    canEnable: false,
+    reason: 'Needs context window and max output tokens before it can be enabled.',
+  };
 }
 
 export function reasoningLabel(config?: ReasoningConfigSchema | null): string {
@@ -101,4 +115,8 @@ export function buildAssignmentRoleRows(
 
   staleRows.sort((left, right) => left.name.localeCompare(right.name));
   return [orchestratorRow, ...activeRoles, ...staleRows];
+}
+
+function hasRequiredModelLimits(model: Pick<LlmModel, 'context_window' | 'max_output_tokens'>): boolean {
+  return typeof model.context_window === 'number' && typeof model.max_output_tokens === 'number';
 }

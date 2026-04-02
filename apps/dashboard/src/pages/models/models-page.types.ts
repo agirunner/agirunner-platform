@@ -41,6 +41,7 @@ export interface LlmModel {
   provider_id?: string | null;
   provider_name?: string | null;
   context_window?: number;
+  max_output_tokens?: number;
   endpoint_type?: string;
   reasoning_config?: ReasoningConfigSchema | null;
   is_enabled?: boolean;

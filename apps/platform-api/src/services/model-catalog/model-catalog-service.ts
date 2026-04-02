@@ -1,6 +1,6 @@
 import type { DatabasePool } from '../../db/database.js';
 import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
 import { readProviderSecret } from '../../lib/oauth-crypto.js';
 import {
   type DiscoveredModel,
@@ -176,6 +176,12 @@ export class ModelCatalogService {
     const validated = createModelSchema.parse(input);
 
     await this.getStoredProvider(tenantId, validated.providerId);
+    if (validated.isEnabled) {
+      assertModelCanBeEnabled({
+        contextWindow: validated.contextWindow,
+        maxOutputTokens: validated.maxOutputTokens,
+      });
+    }
 
     const result = await this.pool.query<ModelRow>(
       `INSERT INTO llm_models (
@@ -204,6 +210,22 @@ export class ModelCatalogService {
 
   async updateModel(tenantId: string, id: string, input: UpdateModelInput): Promise<ModelRow> {
     const validated = updateModelSchema.parse(input);
+    const shouldValidateEnablement =
+      validated.isEnabled === true ||
+      validated.contextWindow !== undefined ||
+      validated.maxOutputTokens !== undefined;
+
+    if (shouldValidateEnablement) {
+      const current = await this.getModel(tenantId, id);
+      const nextIsEnabled = validated.isEnabled ?? current.is_enabled !== false;
+      if (nextIsEnabled) {
+        assertModelCanBeEnabled({
+          contextWindow: validated.contextWindow ?? current.context_window,
+          maxOutputTokens: validated.maxOutputTokens ?? current.max_output_tokens,
+        });
+      }
+    }
+
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
     let paramIndex = 3;
@@ -314,6 +336,10 @@ export class ModelCatalogService {
     const created: ModelRow[] = [];
 
     for (const model of models) {
+      const canEnableModel = hasRequiredModelLimits({
+        contextWindow: model.contextWindow,
+        maxOutputTokens: model.maxOutputTokens,
+      });
       const result = await this.pool.query<ModelRow>(
         `INSERT INTO llm_models (
           tenant_id, provider_id, model_id, context_window,
@@ -344,7 +370,7 @@ export class ModelCatalogService {
           model.supportsVision,
           model.inputCostPerMillionUsd,
           model.outputCostPerMillionUsd,
-          enableAll || isDefaultEnabledModel(model.modelId),
+          canEnableModel && (enableAll || isDefaultEnabledModel(model.modelId)),
         ],
       );
       if (result.rows[0]) created.push(result.rows[0]);
@@ -468,4 +494,22 @@ export class ModelCatalogService {
     return row;
   }
 
+}
+
+function assertModelCanBeEnabled(input: {
+  contextWindow: number | null | undefined;
+  maxOutputTokens: number | null | undefined;
+}): void {
+  if (!hasRequiredModelLimits(input)) {
+    throw new ValidationError(
+      'Enabled models must define both context window and max output tokens',
+    );
+  }
+}
+
+function hasRequiredModelLimits(input: {
+  contextWindow: number | null | undefined;
+  maxOutputTokens: number | null | undefined;
+}): boolean {
+  return typeof input.contextWindow === 'number' && typeof input.maxOutputTokens === 'number';
 }

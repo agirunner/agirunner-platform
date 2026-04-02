@@ -128,6 +128,8 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       await service.createModel(TENANT_ID, {
         providerId: PROVIDER_ID,
         modelId: 'o3',
+        contextWindow: 200000,
+        maxOutputTokens: 100000,
         reasoningConfig,
         supportsToolUse: true,
         supportsVision: false,
@@ -148,6 +150,8 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       await service.createModel(TENANT_ID, {
         providerId: PROVIDER_ID,
         modelId: 'gpt-4o',
+        contextWindow: 128000,
+        maxOutputTokens: 16384,
         supportsToolUse: true,
         supportsVision: false,
         isEnabled: true,
@@ -166,6 +170,8 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       await service.createModel(TENANT_ID, {
         providerId: PROVIDER_ID,
         modelId: 'gpt-5.4',
+        contextWindow: 200000,
+        maxOutputTokens: 100000,
         endpointType: 'responses',
         supportsToolUse: true,
         supportsVision: false,
@@ -328,7 +334,31 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       await service.bulkCreateModels(TENANT_ID, PROVIDER_ID, models, true);
 
       const params = pool.query.mock.calls[0][1] as unknown[];
-      expect(params[11]).toBe(true); // enableAll overrides default policy
+      expect(params[11]).toBe(false); // incomplete models stay disabled even when enableAll is set
+    });
+
+    it('keeps default-enabled discovery models disabled until both limits are known', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleModel], rowCount: 1 });
+
+      const models = [
+        {
+          modelId: 'claude-sonnet-4-6',
+          displayName: 'Claude Sonnet',
+          contextWindow: 200000,
+          maxOutputTokens: null,
+          endpointType: 'messages',
+          supportsToolUse: true,
+          supportsVision: true,
+          inputCostPerMillionUsd: 3,
+          outputCostPerMillionUsd: 15,
+          reasoningConfig: sampleReasoningConfig,
+        },
+      ];
+
+      await service.bulkCreateModels(TENANT_ID, PROVIDER_ID, models);
+
+      const params = pool.query.mock.calls[0][1] as unknown[];
+      expect(params[11]).toBe(false);
     });
   });
 

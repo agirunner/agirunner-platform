@@ -18,6 +18,7 @@ import { ModelCatalog } from './model-catalog.js';
 import {
   buildAssignmentRoleRows,
   formatContextWindow,
+  getModelEnablementState,
   getProviderTypeDefaults,
   reasoningBadgeVariant,
   reasoningLabel,
@@ -34,6 +35,7 @@ import type { ProviderDeleteTarget } from './models-page.types.js';
 export {
   buildAssignmentRoleRows,
   formatContextWindow,
+  getModelEnablementState,
   getProviderTypeDefaults,
   reasoningBadgeVariant,
   reasoningLabel,
