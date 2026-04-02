@@ -335,4 +335,153 @@ describe('orchestratorControlRoutes create_task guided recovery', () => {
       ],
     });
   });
+
+  it('returns structured recovery guidance before createTask when a successor-stage task still points at the predecessor work item', async () => {
+    const taskService = {
+      createTask: vi.fn(),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-task-stage-mismatch']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT wi.id, wi.stage_name, w.lifecycle AS workflow_lifecycle')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', workItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: workItemId,
+              stage_name: 'reproduce',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{ response: params?.[4] }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: workItemId,
+              stage_name: 'reproduce',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_work_items parent')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', workItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: workItemId,
+              stage_name: 'reproduce',
+              parent_work_item_id: null,
+              parent_id: null,
+              parent_stage_name: null,
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id = $3') && sql.includes('stage_name = $4')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', workItemId, 'implement']);
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: null,
+              payload: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-task-stage-mismatch',
+        title: 'Implement the bounded fix',
+        description: 'Route the successor-stage implementation work.',
+        work_item_id: workItemId,
+        stage_name: 'implement',
+        role: 'Software Developer',
+        type: 'code',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.createTask).not.toHaveBeenCalled();
+    expect(response.json().data).toMatchObject({
+      mutation_outcome: 'recoverable_not_applied',
+      recovery_class: 'task_stage_mismatch',
+      reason_code: 'task_stage_mismatch',
+      state_snapshot: {
+        workflow_id: 'workflow-1',
+        work_item_id: workItemId,
+        task_id: 'task-orchestrator',
+        current_stage: 'reproduce',
+      },
+      suggested_next_actions: [
+        expect.objectContaining({
+          action_code: 'inspect_work_item_stage',
+          target_type: 'work_item',
+          target_id: workItemId,
+        }),
+        expect.objectContaining({
+          action_code: 'create_or_move_work_item_for_requested_stage',
+          target_type: 'work_item',
+          target_id: workItemId,
+        }),
+      ],
+    });
+  });
 });

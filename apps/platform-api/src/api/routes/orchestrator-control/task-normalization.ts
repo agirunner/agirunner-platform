@@ -10,6 +10,7 @@ export {
   buildRecoverableCreateTaskNoopFromGuardError,
   buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied,
   buildRecoverableCreateTaskNoopIfNotReady,
+  buildRecoverableCreateTaskNoopIfStageMismatch,
   loadExistingReviewTaskForSameRevision,
   loadExistingReworkTaskForAssessmentRequest,
 } from './task-create-guards.js';

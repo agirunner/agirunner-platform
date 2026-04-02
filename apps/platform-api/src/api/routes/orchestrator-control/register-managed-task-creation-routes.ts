@@ -17,6 +17,7 @@ import {
   buildRecoverableCreateTaskNoopFromGuardError,
   buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied,
   buildRecoverableCreateTaskNoopIfNotReady,
+  buildRecoverableCreateTaskNoopIfStageMismatch,
   loadExistingReviewTaskForSameRevision,
   loadExistingReworkTaskForAssessmentRequest,
   loadOrchestratorCreateWorkItemContext,
@@ -109,6 +110,17 @@ export function registerOrchestratorManagedTaskCreationRoutes(
             );
           if (duplicateAppliedAssessmentRequestNoop) {
             return duplicateAppliedAssessmentRequestNoop;
+          }
+
+          const stageMismatchNoop = await buildRecoverableCreateTaskNoopIfStageMismatch(
+            client,
+            request.auth!.tenantId,
+            taskScope.workflow_id,
+            taskScope,
+            createInput,
+          );
+          if (stageMismatchNoop) {
+            return stageMismatchNoop;
           }
 
           const verificationNotReadyNoop = await buildRecoverableCreateTaskNoopIfNotReady(

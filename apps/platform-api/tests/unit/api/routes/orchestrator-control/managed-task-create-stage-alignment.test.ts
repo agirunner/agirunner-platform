@@ -70,6 +70,17 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-approval-task-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT wi.id, wi.stage_name, w.lifecycle AS workflow_lifecycle')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', approvalWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: approvalWorkItemId,
+              stage_name: 'approval',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
           return { rowCount: 1, rows: [{ response: createdTask }] };
         }
@@ -205,6 +216,17 @@ describe('orchestratorControlRoutes', () => {
         if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-inferred-assessment-1']);
           return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT wi.id, wi.stage_name, w.lifecycle AS workflow_lifecycle')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', implementationWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: implementationWorkItemId,
+              stage_name: 'implementation',
+              workflow_lifecycle: 'planned',
+            }],
+          };
         }
         if (sql.includes("COALESCE(metadata->>'subject_task_id'")) {
           expect(params).toEqual([

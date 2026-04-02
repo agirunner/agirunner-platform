@@ -36,6 +36,12 @@ interface ExistingReworkTaskRow {
   id: string;
 }
 
+interface LinkedWorkItemStageRow {
+  id: string;
+  stage_name: string | null;
+  workflow_lifecycle: string | null;
+}
+
 interface ActivationTaskReviewRequestStateRow {
   id: string;
   role: string | null;
@@ -179,6 +185,94 @@ export async function buildRecoverableCreateTaskNoopIfNotReady(
       workflow_id: taskScope.workflow_id,
       work_item_id: body.work_item_id,
       task_id: subjectTask.id ?? subjectTaskId,
+    },
+  });
+}
+
+export async function buildRecoverableCreateTaskNoopIfStageMismatch(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<Record<string, unknown> | null> {
+  if (!body.work_item_id || !body.stage_name) {
+    return null;
+  }
+  if (
+    body.work_item_id === taskScope.work_item_id
+    && body.stage_name === taskScope.stage_name
+  ) {
+    return null;
+  }
+
+  const result = await db.query<LinkedWorkItemStageRow>(
+    `SELECT wi.id, wi.stage_name, w.lifecycle AS workflow_lifecycle
+       FROM workflow_work_items wi
+       JOIN workflows w
+         ON w.tenant_id = wi.tenant_id
+        AND w.id = wi.workflow_id
+      WHERE wi.tenant_id = $1
+        AND wi.workflow_id = $2
+        AND wi.id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, body.work_item_id],
+  );
+  const linkedWorkItem = result.rows[0];
+  if (
+    !linkedWorkItem
+    || linkedWorkItem.workflow_lifecycle !== 'planned'
+    || linkedWorkItem.stage_name === body.stage_name
+  ) {
+    return null;
+  }
+
+  const details: RecoverableCreateTaskGuidanceDetails = {
+    reasonCode: 'task_stage_mismatch',
+    workflowId,
+    workItemId: body.work_item_id,
+    requestedRole: body.role?.trim() ?? null,
+    linkedWorkItemStageName: linkedWorkItem.stage_name,
+    requestedStageName: body.stage_name,
+    definedRoles: [],
+    allowedRoles: [],
+    successorStageName: null,
+    nextExpectedActor: null,
+    nextExpectedAction: null,
+  };
+
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable create_task noop returned before dispatching a successor-stage task on the wrong work item',
+    {
+      workflow_id: workflowId,
+      work_item_id: body.work_item_id,
+      reason_code: details.reasonCode,
+      linked_work_item_stage_name: linkedWorkItem.stage_name,
+      requested_stage_name: body.stage_name,
+    },
+  );
+
+  return buildRecoverableGuidedNoop({
+    reasonCode: details.reasonCode,
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: taskScope.id,
+      current_stage: linkedWorkItem.stage_name ?? taskScope.stage_name ?? null,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: recoverableCreateTaskCorrectionActions(
+      details,
+      'work_item',
+      body.work_item_id,
+    ),
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: taskScope.id,
     },
   });
 }
