@@ -114,7 +114,7 @@ def main() -> None:
     )
     host_workspace_path = env("LIVE_TEST_HOST_WORKSPACE_PATH") or None
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
-    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
+    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "1"))
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
     library_profile = env("LIVE_TEST_PROFILE", "sdlc-baseline")

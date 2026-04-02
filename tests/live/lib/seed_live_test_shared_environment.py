@@ -69,7 +69,7 @@ def main() -> None:
         provider_reasoning_defaults["specialist_reasoning_effort"],
     )
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
-    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
+    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "1"))
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
     execution_environment_selection_seed = env("LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED") or None

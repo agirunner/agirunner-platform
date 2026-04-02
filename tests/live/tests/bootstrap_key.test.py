@@ -124,6 +124,10 @@ class BootstrapKeyTests(unittest.TestCase):
             bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_SPECIALIST_REASONING_EFFORT"],
             "low",
         )
+        self.assertEqual(
+            bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_ORCHESTRATOR_REPLICAS"],
+            "1",
+        )
 
     def create_fixture_roots(self, root: Path) -> tuple[Path, Path, Path]:
         live_root = root / "tests-live"

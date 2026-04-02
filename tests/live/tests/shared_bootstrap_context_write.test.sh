@@ -187,5 +187,63 @@ assert payload["shared_bootstrap_key"] != "old-key", payload
 PY
 }
 
+test_shared_bootstrap_uses_single_orchestrator_and_low_openai_defaults() {
+  local temp_root
+  temp_root="$(mktemp -d)"
+  trap 'rm -rf "${temp_root}"' RETURN
+
+  make_fake_bin "${temp_root}"
+  make_fake_roots "${temp_root}"
+
+  local context_file="${temp_root}/results/bootstrap/context.json"
+  local capture_script="${temp_root}/seed_capture.py"
+  cat >"${capture_script}" <<'EOF'
+#!/usr/bin/env python3
+from pathlib import Path
+import json
+import os
+
+Path(os.environ["LIVE_TEST_SHARED_CONTEXT_FILE"]).write_text(
+    json.dumps(
+        {
+            "shared_bootstrap_key": os.environ["LIVE_TEST_SHARED_BOOTSTRAP_KEY"],
+            "orchestrator_replicas": os.environ["LIVE_TEST_ORCHESTRATOR_REPLICAS"],
+            "system_reasoning": os.environ["LIVE_TEST_SYSTEM_REASONING_EFFORT"],
+            "specialist_reasoning": os.environ["LIVE_TEST_SPECIALIST_REASONING_EFFORT"],
+        }
+    ),
+    encoding="utf-8",
+)
+EOF
+  chmod +x "${capture_script}"
+
+  PATH="${temp_root}/bin:${PATH}" \
+    LIVE_TEST_ENV_FILE="${temp_root}/env/local.env" \
+    LIVE_TEST_PLATFORM_ROOT="${temp_root}/platform" \
+    RUNTIME_REPO_PATH="${temp_root}/runtime" \
+    FIXTURES_REPO_PATH="${temp_root}/fixtures" \
+    LIVE_TEST_LIBRARY_ROOT="${temp_root}/library" \
+    LIVE_TEST_COMPOSE_FILE="${temp_root}/platform/docker-compose.yml" \
+    LIVE_TEST_COMPOSE_LIVE_TEST_FILE="${temp_root}/platform/tests/live/docker-compose.live-test.yml" \
+    LIVE_TEST_RUN_SCRIPT="${capture_script}" \
+    LIVE_TEST_ARTIFACTS_DIR="${temp_root}/results" \
+    LIVE_TEST_BOOTSTRAP_DIR="${temp_root}/results/bootstrap" \
+    LIVE_TEST_SHARED_CONTEXT_FILE="${context_file}" \
+    LIVE_TEST_TRACE_DIR="${temp_root}/results/bootstrap/api-trace" \
+    "${SCRIPT_UNDER_TEST}"
+
+  python3 - "${context_file}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["orchestrator_replicas"] == "1", payload
+assert payload["system_reasoning"] == "low", payload
+assert payload["specialist_reasoning"] == "low", payload
+PY
+}
+
 test_shared_bootstrap_preserves_previous_context_when_seed_fails
 test_shared_bootstrap_replaces_context_after_successful_seed
+test_shared_bootstrap_uses_single_orchestrator_and_low_openai_defaults

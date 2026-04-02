@@ -124,7 +124,7 @@ def seed_environment_context() -> dict[str, Any]:
         provider_reasoning_defaults["specialist_reasoning_effort"],
     )
     worker_name = read_env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
-    orchestrator_replicas = int(read_env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
+    orchestrator_replicas = int(read_env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "1"))
     runtime_image = read_env("RUNTIME_IMAGE", "agirunner-runtime:local")
     execution_environment_selection_seed = read_env(
         "LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED",
