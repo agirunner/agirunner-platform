@@ -367,6 +367,61 @@ describe('workflow routes operator briefs', () => {
     );
   });
 
+  it('returns recoverable guidance when shorthand linked deliverables omit label or path', async () => {
+    const recordBriefWrite = vi.fn();
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-5',
+        execution_context_id: 'execution-5',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'specialist',
+        payload: {
+          short_brief: {
+            headline: 'Advisory patch plan created for audit export hang.',
+          },
+          detailed_brief_json: {
+            headline: 'Advisory patch plan created for audit export hang.',
+            status_kind: 'completed',
+          },
+          linked_deliverables: [
+            {
+              path: 'docs/patch-plan.md',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.json().error.recovery_hint).toBe('resubmit_operator_brief_with_deliverable_label');
+    expect(response.json().error.message).toContain('linked_deliverables');
+    expect(response.json().error.message).toContain('label and path');
+    expect(response.json().error.details.reason_code).toBe(
+      'record_operator_brief_invalid_linked_deliverable_shorthand',
+    );
+    expect(response.json().error.details.recoverable).toBe(true);
+    expect(response.json().error.details.safetynet_behavior_id).toBe(
+      'platform.operator_brief.schema_guidance',
+    );
+    expect(response.json().error.details.invalid_fields).toEqual(['payload.linked_deliverables']);
+    expect(recordBriefWrite).not.toHaveBeenCalled();
+  });
+
   it('accepts operator brief route writes when runtime-derived fields are omitted', async () => {
     const recordBriefWrite = vi.fn().mockResolvedValue({
       record_id: 'brief-4',

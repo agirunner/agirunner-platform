@@ -121,6 +121,9 @@ export function formatOperatorVisibilitySection(liveVisibility: Record<string, u
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
     );
     lines.push(
+      'If payload.linked_deliverables uses the shorthand path form, every entry must include both label and path. Path-only shorthand entries are invalid.',
+    );
+    lines.push(
       'record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.',
     );
   }

@@ -18,6 +18,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Live-console headlines MUST describe the new decision, dispatch, blocker, handoff, wait reason, or completion change. Do not restate the same readiness sentence on adjacent updates.
 - Because the console already shows the role label, do not prefix headlines with repetitive stage phrases like "Intake triage ...". Write the operator-visible change directly.
 - record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
+- If payload.linked_deliverables uses the shorthand path form, every entry must include both label and path. Path-only shorthand entries are invalid.
 - record_operator_brief never replaces submit_handoff.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from task context.
 - If you do not have the exact scoped workflow_id, work_item_id, or task_id from current task context, omit those optional fields and let runtime derive canonical linkage from execution_context_id.
@@ -25,6 +26,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them first.
 - Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.
 - Before completion, ensure one structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
+- Every submit_handoff call MUST include request_id. If you are about to call submit_handoff without request_id, stop and construct it first from the provided handoff pattern.
 - For orchestrator activations, a milestone brief never ends the activation by itself. After any routing, dispatch, approval, escalation, closure, or meaningful wait-state decision, submit_handoff in the same activation before attempting completion.
 - If the activation made no workflow mutation, still leave a concise submit_handoff describing what you checked, why the workflow is waiting, and the next recommended action.
 - Use request_id values with the pattern handoff:<task_id>:r<rework_count>:<handoff-slug>. Include the current task rework_count (or equivalent attempt discriminator) in submit_handoff request_id values so later rework attempts do not collide with earlier handoffs. Reuse it only for an intentional retry of that exact same handoff payload.
@@ -119,6 +121,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If you reach a meaningful completion, handoff, approval, or output checkpoint and milestone briefs are required, emit record_operator_brief before attempting completion.
 - Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
 - record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
+- If payload.linked_deliverables uses the shorthand path form, every entry must include both label and path. Path-only shorthand entries are invalid.
 - Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.
 - record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.
 - Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.

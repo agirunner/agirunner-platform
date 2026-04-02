@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
 import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
 import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import { parseWorkflowOperatorBriefBodyOrThrow } from './operator-brief-schema-guidance.js';
 
 const workflowOperatorFileUploadSchema = z.object({
   description: z.string().max(2000).optional(),
@@ -184,7 +185,11 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const body = parseOrThrow(workflowOperatorBriefCreateSchema.safeParse(request.body ?? {}));
+      const body = parseWorkflowOperatorBriefBodyOrThrow(
+        workflowOperatorBriefCreateSchema.safeParse(request.body ?? {}),
+        request.body ?? {},
+        params.id,
+      );
       assertBodyWorkflowId(params.id, body.workflow_id);
       const brief = await app.workflowOperatorBriefService.recordBriefWrite(request.auth!, params.id, {
         requestId: body.request_id,

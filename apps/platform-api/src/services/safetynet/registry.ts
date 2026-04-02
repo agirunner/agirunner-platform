@@ -28,6 +28,8 @@ export const PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID =
   'platform.handoff.required_handoff_guidance';
 export const PLATFORM_HANDOFF_SCHEMA_GUIDANCE_ID =
   'platform.handoff.schema_guidance';
+export const PLATFORM_OPERATOR_BRIEF_SCHEMA_GUIDANCE_ID =
+  'platform.operator_brief.schema_guidance';
 export const PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID =
   'platform.continuity.stale_write_suppression';
 export const PLATFORM_CONTINUITY_OPTIONAL_WRITE_SKIP_GUIDANCE_ID =
@@ -348,6 +350,28 @@ const entries: SafetynetEntry[] = [
       'platform_safetynet_trigger_total{behavior="platform.handoff.schema_guidance"}',
     log_event_type: 'platform.safetynet.triggered',
     review_notes: 'keep narrow to known nested structured submit_handoff field-shape mistakes; do not broaden into generic schema rewriting',
+    status: 'active',
+  },
+  {
+    kind: 'safetynet_behavior',
+    id: PLATFORM_OPERATOR_BRIEF_SCHEMA_GUIDANCE_ID,
+    layer: 'platform',
+    name: 'Operator brief schema guidance',
+    classification: 'protective',
+    mechanism: 'fallback',
+    default_policy: 'enabled',
+    disposition: 'keep',
+    trigger: 'record_operator_brief sends shorthand linked deliverables without the required label/path pair and platform can return recoverable guidance instead of a generic schema dead-end',
+    nominal_contract: 'operator brief submissions should use valid shorthand linked deliverables with both label and path on the first attempt',
+    intervention: 'platform returns structured recoverable guidance for the known shorthand linked-deliverable shape mistake and logs the safetynet trigger before rejecting the mutation',
+    risk_if_triggered: 'low; preserves correctness while making a common linked-deliverable payload mistake explicit and actionable',
+    operator_visibility: 'recoverable operator-brief schema guidance responses should carry the safetynet id when returned',
+    owner_module: 'src/api/routes/workflows/operator-brief-schema-guidance.ts',
+    test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
+    metrics_key:
+      'platform_safetynet_trigger_total{behavior="platform.operator_brief.schema_guidance"}',
+    log_event_type: 'platform.safetynet.triggered',
+    review_notes: 'keep narrow to the shorthand linked-deliverable label/path requirement; do not broaden into generic operator-brief schema rewriting',
     status: 'active',
   },
   {

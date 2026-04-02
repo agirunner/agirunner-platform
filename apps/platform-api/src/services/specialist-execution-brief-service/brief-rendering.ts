@@ -105,6 +105,9 @@ export function renderBrief(
         'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
       );
       lines.push(
+        'If payload.linked_deliverables uses the shorthand path form, every entry must include both label and path. Path-only shorthand entries are invalid.',
+      );
+      lines.push(
         'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',
       );
       lines.push(
