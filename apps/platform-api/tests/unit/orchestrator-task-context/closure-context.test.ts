@@ -265,4 +265,119 @@ describe('buildOrchestratorTaskContext', () => {
       reroute_candidates: ['brand-reviewer'],
     });
   });
+
+  it('does not treat cancelled specialist tasks as retryable failures in closure context', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              lifecycle: 'planned',
+              metadata: {},
+              playbook_name: 'Linear Flow',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }, { id: 'done', label: 'Done', is_terminal: true }] },
+                lifecycle: 'planned',
+                stages: [{ name: 'review', goal: 'Review the work', involves: ['reviewer'] }],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return { rows: [] };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [{
+              id: 'wi-1',
+              parent_work_item_id: null,
+              stage_name: 'review',
+              title: 'Review the change',
+              goal: 'Review the work',
+              column_id: 'planned',
+              owner_role: 'reviewer',
+              next_expected_actor: 'reviewer',
+              next_expected_action: 'approve',
+              rework_count: 0,
+              priority: 'normal',
+              completed_at: null,
+              notes: null,
+              metadata: {},
+              current_subject_revision: 1,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return {
+            rows: [{
+              id: 'stage-review',
+              lifecycle: 'planned',
+              name: 'review',
+              position: 0,
+              goal: 'Review the work',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+              first_work_item_at: null,
+              last_completed_work_item_at: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks')) {
+          return {
+            rows: [{
+              id: 'task-review-cancelled',
+              title: 'Review the change',
+              role: 'reviewer',
+              state: 'cancelled',
+              work_item_id: 'wi-1',
+              stage_name: 'review',
+              activation_id: null,
+              assigned_agent_id: null,
+              claimed_at: null,
+              started_at: '2026-03-24T10:00:00.000Z',
+              completed_at: '2026-03-24T10:05:00.000Z',
+              is_orchestrator_task: false,
+              input: {},
+              metadata: {
+                retry_available_at: '2026-03-24T10:15:00.000Z',
+                retry_backoff_seconds: 60,
+                retry_last_error: 'operator cancelled the task',
+              },
+              retry_count: 1,
+              rework_count: 0,
+              error: { message: 'operator cancelled the task' },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates') || sql.includes('FROM workflow_subject_escalations') || sql.includes('FROM workflow_tool_results')) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildOrchestratorTaskContext(db as never, 'tenant-1', {
+      id: 'task-orchestrator-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+      work_item_id: 'wi-1',
+    });
+
+    expect(context?.closure_context).toEqual(expect.objectContaining({
+      recent_failures: [],
+      last_retry_reason: null,
+      retry_window: null,
+    }));
+  });
 });

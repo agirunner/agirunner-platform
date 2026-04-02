@@ -212,7 +212,7 @@ function countAttemptsByKey(values: string[]) {
 }
 
 function isFailureState(state: string | null) {
-  return state === 'failed' || state === 'escalated' || state === 'cancelled';
+  return state === 'failed' || state === 'escalated';
 }
 
 function readFailureReason(task: Record<string, unknown>) {
