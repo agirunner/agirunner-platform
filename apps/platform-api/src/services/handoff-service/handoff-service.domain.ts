@@ -314,8 +314,9 @@ function buildSystemOwnedRoleData(
   branchId: string | null,
 ) {
   const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task);
-  const roleData = sanitizeHandoffRecord(input.role_data);
-  const closureEffect = normalizeClosureEffect(input.closure_effect ?? roleData.closure_effect);
+  const submittedRoleData = sanitizeHandoffRecord(input.role_data);
+  const roleData = stripSystemOwnedSubjectLinkage(submittedRoleData);
+  const closureEffect = normalizeClosureEffect(input.closure_effect ?? submittedRoleData.closure_effect);
 
   if (taskKind === 'delivery') {
     const persistedRevision = readInteger(normalizeRecord(task.metadata).output_revision) ?? 0;
@@ -348,4 +349,16 @@ function buildSystemOwnedRoleData(
     ...(branchId ? { branch_id: branchId } : {}),
   });
   return normalized;
+}
+
+function stripSystemOwnedSubjectLinkage(roleData: Record<string, unknown>) {
+  const {
+    subject_task_id: _subjectTaskId,
+    subject_work_item_id: _subjectWorkItemId,
+    subject_handoff_id: _subjectHandoffId,
+    subject_revision: _subjectRevision,
+    branch_id: _branchId,
+    ...remaining
+  } = roleData;
+  return remaining;
 }

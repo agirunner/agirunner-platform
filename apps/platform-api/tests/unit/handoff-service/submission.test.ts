@@ -242,6 +242,74 @@ describe('HandoffService submission', () => {
     expect(logSafetynetTriggeredMock).not.toHaveBeenCalled();
   });
 
+  it('drops invented assessment subject handoff ids from role_data', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [makeTaskRow({
+            role: 'reviewer',
+            stage_name: 'review',
+            input: {
+              subject_task_id: 'subject-task-1',
+              subject_revision: 2,
+            },
+            metadata: { team_name: 'review', task_kind: 'approval' },
+          })],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            ...makeHandoffRow({
+              id: 'handoff-assessment-1',
+              task_id: 'task-1',
+              request_id: 'req-assessment-1',
+              role: 'reviewer',
+              stage_name: 'review',
+              sequence: 1,
+              summary: 'Approved the reviewed subject.',
+              resolution: 'approved',
+              decision_state: 'approved',
+              role_data: {
+                task_kind: 'approval',
+                subject_task_id: 'subject-task-1',
+                subject_revision: 2,
+              },
+              created_at: new Date('2026-03-25T01:00:00Z'),
+            }),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-assessment-1',
+      summary: 'Approved the reviewed subject.',
+      completion: 'full',
+      resolution: 'approved',
+      role_data: {
+        subject_handoff_id: 'invented-handoff-id',
+      },
+    });
+
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    const roleData = JSON.parse(String(insertCall?.[1]?.[22] ?? '{}'));
+    expect(roleData).toEqual(expect.objectContaining({
+      task_kind: 'approval',
+      subject_task_id: 'subject-task-1',
+      subject_revision: 2,
+    }));
+    expect(roleData).not.toHaveProperty('subject_handoff_id');
+    expect(logSafetynetTriggeredMock).not.toHaveBeenCalled();
+  });
+
   it('derives delivery subject revision from rework count when metadata output revision is stale', async () => {
     const pool = {
       query: vi
