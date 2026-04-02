@@ -260,6 +260,15 @@ describe('buildSpecialistExecutionBrief', () => {
       'Do not probe guessed filenames just to learn whether they exist.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'When a file is already modified or you already changed it earlier in this task, never paraphrase old_text from memory.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Copy the exact current snippet from the latest file_read before using file_edit.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'If you need multiple prose, bullet, or table edits in an already-modified file, prefer one fresh file_write over a chain of fragile file_edit calls.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Read task context files from `/workspace/context/...`, never `context/...`, `repo/context/...`, or `/tmp/workspace/...` paths.',
     );
     expect(brief?.rendered_markdown).toContain(

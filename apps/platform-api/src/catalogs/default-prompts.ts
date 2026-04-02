@@ -61,6 +61,8 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - If task input, predecessor handoff, or linked deliverables name an exact repo-relative path, treat that path as authoritative. Read that exact path first, and if it is missing, use file_list, glob, grep, or git discovery to find the current equivalent before trying alternate filenames.
 - On repository-backed investigation tasks, if the current file set is unknown, start with file_list, glob, grep, or git discovery before the first direct repo file_read. Do not probe guessed filenames just to learn whether they exist.
 - Use file_edit only after reading the current file and only when old_text still matches exactly.
+- When a file is already modified or you already changed it earlier in this task, never paraphrase old_text from memory. Copy the exact current snippet from the latest file_read before using file_edit.
+- If you need multiple prose, bullet, or table edits in an already-modified file, prefer one fresh file_write over a chain of fragile file_edit calls.
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
 - If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat stale edit payloads.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
