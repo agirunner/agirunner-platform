@@ -64,8 +64,8 @@ SHARED_BOOTSTRAP_DEFAULTS = {
     "LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET": "live-test-parameterized-secret",
     "LIVE_TEST_REMOTE_MCP_FIXTURE_PORT": "18080",
     "LIVE_TEST_SPECIALIST_MODEL_ID": "gpt-5.4",
-    "LIVE_TEST_SPECIALIST_REASONING_EFFORT": "medium",
-    "LIVE_TEST_SYSTEM_REASONING_EFFORT": "medium",
+    "LIVE_TEST_SPECIALIST_REASONING_EFFORT": "low",
+    "LIVE_TEST_SYSTEM_REASONING_EFFORT": "low",
     "PLATFORM_API_PORT": "8080",
     "PLATFORM_SERVICE_API_KEY": "ar_service_live-test-default",
     "RUNTIME_IMAGE": "agirunner-runtime:local",
@@ -111,14 +111,14 @@ PROVIDER_REASONING_DEFAULTS = {
         "specialist_reasoning_effort": "low",
     },
     "openai": {
-        "system_reasoning_effort": "medium",
+        "system_reasoning_effort": "low",
         "orchestrator_reasoning_effort": "low",
-        "specialist_reasoning_effort": "medium",
+        "specialist_reasoning_effort": "low",
     },
     "openai-compatible": {
-        "system_reasoning_effort": "medium",
+        "system_reasoning_effort": "low",
         "orchestrator_reasoning_effort": "low",
-        "specialist_reasoning_effort": "medium",
+        "specialist_reasoning_effort": "low",
     },
 }
 

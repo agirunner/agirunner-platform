@@ -61,10 +61,33 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual("OpenAI (Subscription)", applied["LIVE_TEST_PROVIDER_NAME"])
         self.assertEqual("gpt-5.4", applied["LIVE_TEST_MODEL_ID"])
         self.assertEqual("responses", applied["LIVE_TEST_MODEL_ENDPOINT_TYPE"])
+        self.assertEqual("low", applied["LIVE_TEST_SYSTEM_REASONING_EFFORT"])
+        self.assertEqual("low", applied["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
+        self.assertEqual("low", applied["LIVE_TEST_SPECIALIST_REASONING_EFFORT"])
         self.assertEqual(
             '{"credentials":{"accessToken":"token","refreshToken":"refresh"}}',
             environ["LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON"],
         )
+
+    def test_apply_provider_selection_sets_openai_api_defaults(self) -> None:
+        environ = {
+            "LIVE_TEST_OPENAI_API_KEY": "openai-key",
+        }
+
+        applied = apply_provider_selection(
+            "openai-api",
+            environ,
+            env_file=SUITE_ROOT / "tests-do-not-read-local.env",
+        )
+
+        self.assertEqual("api_key", applied["LIVE_TEST_PROVIDER_AUTH_MODE"])
+        self.assertEqual("openai", applied["LIVE_TEST_PROVIDER_TYPE"])
+        self.assertEqual("OpenAI (API Key)", applied["LIVE_TEST_PROVIDER_NAME"])
+        self.assertEqual("gpt-5.4", applied["LIVE_TEST_MODEL_ID"])
+        self.assertEqual("responses", applied["LIVE_TEST_MODEL_ENDPOINT_TYPE"])
+        self.assertEqual("low", applied["LIVE_TEST_SYSTEM_REASONING_EFFORT"])
+        self.assertEqual("low", applied["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
+        self.assertEqual("low", applied["LIVE_TEST_SPECIALIST_REASONING_EFFORT"])
 
     def test_snapshot_section_satisfies_provider_secret_without_extra_env(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

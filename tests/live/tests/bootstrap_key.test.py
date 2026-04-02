@@ -35,6 +35,13 @@ class BootstrapKeyTests(unittest.TestCase):
         self.assertEqual(defaults["orchestrator_reasoning_effort"], "low")
         self.assertEqual(defaults["specialist_reasoning_effort"], "low")
 
+    def test_provider_reasoning_defaults_use_low_for_openai(self) -> None:
+        defaults = bootstrap_key.resolve_provider_reasoning_defaults("openai")
+
+        self.assertEqual(defaults["system_reasoning_effort"], "low")
+        self.assertEqual(defaults["orchestrator_reasoning_effort"], "low")
+        self.assertEqual(defaults["specialist_reasoning_effort"], "low")
+
     def test_shared_bootstrap_key_changes_when_env_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             live_root, repo_root, runtime_root = self.create_fixture_roots(Path(tmpdir))
@@ -104,6 +111,18 @@ class BootstrapKeyTests(unittest.TestCase):
         self.assertEqual(
             bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_SPECIALIST_MODEL_ID"],
             "gpt-5.4",
+        )
+        self.assertEqual(
+            bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_SYSTEM_REASONING_EFFORT"],
+            "low",
+        )
+        self.assertEqual(
+            bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"],
+            "low",
+        )
+        self.assertEqual(
+            bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_SPECIALIST_REASONING_EFFORT"],
+            "low",
         )
 
     def create_fixture_roots(self, root: Path) -> tuple[Path, Path, Path]:
