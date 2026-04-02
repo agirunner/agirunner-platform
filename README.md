@@ -7,6 +7,12 @@
 
 API-first agent orchestration plane and operator surface for Agirunner.
 
+> Looking for the full Agirunner product, quick start, and deployment
+> path? Start with
+> [agirunner](https://github.com/agirunner/agirunner) and
+> [docs.agirunner.dev](https://docs.agirunner.dev). This repository is
+> the public implementation repo for the platform itself.
+
 The Agirunner Platform is the part of Agirunner that defines work,
 launches it, routes it, presents it to operators, and keeps the system
 coherent over time. It owns playbooks, workflows, work items,
