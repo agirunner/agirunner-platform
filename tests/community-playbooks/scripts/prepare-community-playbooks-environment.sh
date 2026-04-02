@@ -30,6 +30,7 @@ require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
 require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
 require_live_test_file "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" "live test compose override file"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+require_live_test_value "PLATFORM_SERVICE_API_KEY" "${PLATFORM_SERVICE_API_KEY:-}"
 require_live_test_value "JWT_SECRET" "${JWT_SECRET:-}"
 require_live_test_value "WEBHOOK_ENCRYPTION_KEY" "${WEBHOOK_ENCRYPTION_KEY:-}"
 require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
@@ -49,7 +50,7 @@ log_live_test "rebuilding compose stack for community playbooks"
   cd "${LIVE_TEST_PLATFORM_ROOT}"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   export COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES}"
-  export DEFAULT_ADMIN_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
+  export DEFAULT_ADMIN_API_KEY PLATFORM_SERVICE_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
     -f "${LIVE_TEST_COMPOSE_FILE}" \
     -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
