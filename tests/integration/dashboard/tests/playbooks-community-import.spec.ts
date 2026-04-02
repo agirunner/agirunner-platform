@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { loginToWorkflows } from './support/workflows-auth.js';
+import { loginToWorkflows } from '../lib/workflows-auth.js';
 import {
   assertImportedCatalogSelectionMatchesRepo,
   closeCommunityCatalogPool,
   importCatalogPlaybooks,
   loadCatalogSelection,
   resetCommunityCatalogState,
-} from './support/community-catalog-fixtures.js';
+} from '../lib/community-catalog-fixtures.js';
 
 const SINGLE_PLAYBOOK_ID = 'bug-fix';
 const SUBSET_CATEGORY = 'research';

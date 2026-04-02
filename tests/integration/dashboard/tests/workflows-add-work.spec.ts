@@ -2,12 +2,12 @@ import { Buffer } from 'node:buffer';
 
 import { expect, type Page, test } from '@playwright/test';
 
-import { loginToWorkflows, workflowRailButton } from './support/workflows-auth.js';
+import { loginToWorkflows, workflowRailButton } from '../lib/workflows-auth.js';
 import {
   createSeededWorkflowInputPacket,
   createSeededWorkflowWorkItem,
   seedWorkflowsScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 

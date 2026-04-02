@@ -3,16 +3,16 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
+} from '../lib/workflows-auth.js';
 import {
   ADMIN_API_KEY,
   PLATFORM_API_URL,
-} from './support/platform-env.js';
+} from '../lib/platform-env.js';
 import {
   appendWorkflowExecutionTurn,
   appendWorkflowEvent,
   seedWorkflowsScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('seeds the selected workflow workspace with backend-backed live console and brief records', async () => {
   const scenario = await seedWorkflowsScenario();

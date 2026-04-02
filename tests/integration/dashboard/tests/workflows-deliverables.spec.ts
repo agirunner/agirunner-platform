@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
-import { routeDeliverablesWorkspace } from './support/workflows-deliverables-routing.js';
-import { seedWorkflowDeliverablesScenario } from './support/workflows-deliverables-fixtures.js';
+} from '../lib/workflows-auth.js';
+import { routeDeliverablesWorkspace } from '../lib/workflows-deliverables-routing.js';
+import { seedWorkflowDeliverablesScenario } from '../lib/workflows-deliverables-fixtures.js';
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 

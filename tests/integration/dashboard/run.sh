@@ -95,15 +95,22 @@ assert_no_runtime_specialists() {
 
 normalize_spec_arg() {
   local arg="$1"
-  local relative_path
-  if [[ "$arg" == "$SUITE_DIR/"* ]]; then
-    relative_path="${arg#"$SUITE_DIR/"}"
-    printf '%s\n' "$relative_path"
+  if [[ "$arg" == -* ]]; then
+    printf '%s\n' "$arg"
     return 0
   fi
+  if [[ "$arg" == "$SUITE_DIR/"* ]]; then
+    arg="${arg#"$SUITE_DIR/"}"
+  fi
   if [[ "$arg" == "tests/integration/dashboard/"* ]]; then
-    relative_path="${arg#"tests/integration/dashboard/"}"
-    printf '%s\n' "$relative_path"
+    arg="${arg#"tests/integration/dashboard/"}"
+  fi
+  if [[ "$arg" == tests/* ]]; then
+    printf '%s\n' "$arg"
+    return 0
+  fi
+  if [[ "$arg" == *.spec.ts || "$arg" == *.test.ts ]]; then
+    printf 'tests/%s\n' "$arg"
     return 0
   fi
   printf '%s\n' "$arg"

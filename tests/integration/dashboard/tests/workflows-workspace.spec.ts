@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
+} from '../lib/workflows-auth.js';
 import {
   createTask,
   seedWorkflowsScenario,
   setWorkflowState,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('restores workflow scope, selected work item, and tab state across refresh and live console', async ({ page }) => {
   await seedWorkflowsScenario();

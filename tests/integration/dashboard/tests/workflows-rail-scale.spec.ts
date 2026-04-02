@@ -3,15 +3,15 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   ADMIN_API_KEY,
   PLATFORM_API_URL,
-} from './support/platform-env.js';
+} from '../lib/platform-env.js';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
+} from '../lib/workflows-auth.js';
 import {
   createWorkflowViaApi,
   seedWorkflowsScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('keeps the selected workflow stable while the rail grows and reorders', async ({ page }) => {
   const scenario = await seedWorkflowsScenario({ bulkWorkflowCount: 205 });

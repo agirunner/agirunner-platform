@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test';
 import {
   ADMIN_API_KEY,
   PLATFORM_API_URL,
-} from './support/platform-env.js';
+} from '../lib/platform-env.js';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
-import { appendWorkflowExecutionTurn, appendWorkflowEvent, seedWorkflowsScenario } from './support/workflows-fixtures.js';
+} from '../lib/workflows-auth.js';
+import { appendWorkflowExecutionTurn, appendWorkflowEvent, seedWorkflowsScenario } from '../lib/workflows-fixtures.js';
 
 test('recovers from a dropped workflow stream and backfills later updates', async ({ page }) => {
   await page.route('**/api/v1/operations/workflows/**/stream**', async (route) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseBenchmarkLoadArgs } from './benchmark-load.js';
+import { parseBenchmarkLoadArgs } from '../lib/benchmark-load.js';
 
 describe('parseBenchmarkLoadArgs', () => {
   it('uses seeded benchmark defaults that stay non-live and repeatable', () => {

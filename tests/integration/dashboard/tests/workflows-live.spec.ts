@@ -5,8 +5,8 @@ import {
   loginToWorkflowsWithPrefill,
   workflowsPrimaryNavLink,
   workflowRailButton,
-} from './support/workflows-auth.js';
-import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
+} from '../lib/workflows-auth.js';
+import { seedWorkflowsScenario } from '../lib/workflows-fixtures.js';
 
 test('redirects into Workflows and defaults the workbench by workflow posture', async ({ page }) => {
   await seedWorkflowsScenario();

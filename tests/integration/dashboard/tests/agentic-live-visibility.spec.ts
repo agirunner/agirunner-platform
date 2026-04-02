@@ -3,11 +3,11 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
+} from '../lib/workflows-auth.js';
 import {
   createWorkflowViaApi,
   seedWorkflowsScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('keeps workflow live visibility on tenant defaults and removes workflow-page override controls', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();

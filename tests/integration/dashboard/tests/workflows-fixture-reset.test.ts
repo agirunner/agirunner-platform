@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DEFAULT_TENANT_ID } from './support/platform-env.js';
-import { sqlText, sqlUuid } from './support/workflows-common.js';
-import { resetWorkflowsState } from './support/workflows-fixture-reset.js';
-import { buildWorkflowLoadSeedSql } from './support/workflows-load-seed.js';
-import { runPsql } from './support/workflows-runtime.js';
+import { DEFAULT_TENANT_ID } from '../lib/platform-env.js';
+import { sqlText, sqlUuid } from '../lib/workflows-common.js';
+import { resetWorkflowsState } from '../lib/workflows-fixture-reset.js';
+import { buildWorkflowLoadSeedSql } from '../lib/workflows-load-seed.js';
+import { runPsql } from '../lib/workflows-runtime.js';
 
 const WORKSPACE_ID = '00000000-0000-0000-0000-000000000201';
 const PLANNED_PLAYBOOK_ID = '00000000-0000-0000-0000-000000000202';

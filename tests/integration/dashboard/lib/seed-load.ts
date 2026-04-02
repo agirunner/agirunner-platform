@@ -8,10 +8,10 @@ import {
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
-} from './support/platform-env.js';
-import { resetWorkflowsState } from './support/workflows-fixture-reset.js';
-import { buildWorkflowLoadSeedSql } from './support/workflows-load-seed.js';
-import { createPlaybook } from './support/workflows-records-api.js';
+} from './platform-env.js';
+import { resetWorkflowsState } from './workflows-fixture-reset.js';
+import { buildWorkflowLoadSeedSql } from './workflows-load-seed.js';
+import { createPlaybook } from './workflows-records-api.js';
 
 interface ApiRecord {
   id: string;

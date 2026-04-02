@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test, type Page, type Response } from '@playwright/test';
 
-import { ADMIN_API_KEY, DEFAULT_TENANT_ID, PLATFORM_API_URL } from './support/platform-env.js';
-import { createPlaybook, createWorkflowViaApi, seedWorkflowsScenario } from './support/workflows-fixtures.js';
-import { loginToWorkflows, workflowRailButton } from './support/workflows-auth.js';
-import { runPsql } from './support/workflows-runtime.js';
+import { ADMIN_API_KEY, DEFAULT_TENANT_ID, PLATFORM_API_URL } from '../lib/platform-env.js';
+import { createPlaybook, createWorkflowViaApi, seedWorkflowsScenario } from '../lib/workflows-fixtures.js';
+import { loginToWorkflows, workflowRailButton } from '../lib/workflows-auth.js';
+import { runPsql } from '../lib/workflows-runtime.js';
 
 test('filters the workflows rail by playbook through the advanced filters popover', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();

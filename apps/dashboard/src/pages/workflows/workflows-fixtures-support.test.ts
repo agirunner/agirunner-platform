@@ -8,7 +8,7 @@ vi.mock('node:child_process', () => ({
   execFileSync,
 }));
 
-import { appendWorkflowEvent } from '../../../../../tests/integration/dashboard/support/workflows-fixtures.js';
+import { appendWorkflowEvent } from '../../../../../tests/integration/dashboard/lib/workflows-fixtures.js';
 
 describe('workflows-fixtures appendWorkflowEvent', () => {
   beforeEach(() => {
@@ -24,9 +24,11 @@ describe('workflows-fixtures appendWorkflowEvent', () => {
     ).resolves.toBeUndefined();
 
     expect(execFileSync).toHaveBeenCalledTimes(1);
-    const firstCall = execFileSync.mock.calls[0] as unknown as [string, string[], { input: string }];
+    const firstCall = execFileSync.mock.calls[0] as unknown as [string, string[], { encoding: string }];
     expect(firstCall[0]).toBe('docker');
-    expect(firstCall[2].input).toContain('"headline":"Initial execution burst"');
-    expect(firstCall[2].input).toContain('"summary":"Fresh workflow work entered the live console."');
+    expect(firstCall[1]).toContain('-c');
+    const sql = firstCall[1][firstCall[1].length - 1];
+    expect(sql).toContain('"headline":"Initial execution burst"');
+    expect(sql).toContain('"summary":"Fresh workflow work entered the live console."');
   });
 });

@@ -2,12 +2,12 @@ import { Buffer } from 'node:buffer';
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { loginToWorkflows } from './support/workflows-auth.js';
+import { loginToWorkflows } from '../lib/workflows-auth.js';
 import {
   listWorkflowInputPackets,
   listWorkflows,
   seedLaunchDialogScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('keeps launch selector options populated on every open', async ({ page }) => {
   await seedLaunchDialogScenario();

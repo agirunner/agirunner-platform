@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
-import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
-import { workflowsViewports } from './support/workflows-viewports.js';
+} from '../lib/workflows-auth.js';
+import { seedWorkflowsScenario } from '../lib/workflows-fixtures.js';
+import { workflowsViewports } from '../lib/workflows-viewports.js';
 
 for (const viewport of workflowsViewports) {
   test(`renders the workflows shell on ${viewport.name}`, async ({ page }) => {

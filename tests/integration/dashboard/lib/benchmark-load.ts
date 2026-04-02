@@ -3,11 +3,11 @@ import { pathToFileURL } from 'node:url';
 
 import { chromium } from '@playwright/test';
 
-import { ADMIN_API_KEY, DASHBOARD_BASE_URL, PLATFORM_API_URL } from './support/platform-env.js';
+import { ADMIN_API_KEY, DASHBOARD_BASE_URL, PLATFORM_API_URL } from './platform-env.js';
 import {
   assertSeededScenarioIsInert,
   settleFixtureWorkflowActivations,
-} from './support/workflows-validation.js';
+} from './workflows-validation.js';
 import {
   parseSeedLoadArgs,
   seedWorkflowLoadCorpus,

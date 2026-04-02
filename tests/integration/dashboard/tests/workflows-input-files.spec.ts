@@ -3,11 +3,11 @@ import { expect, test } from '@playwright/test';
 import {
   loginToWorkflows,
   workflowRailButton,
-} from './support/workflows-auth.js';
+} from '../lib/workflows-auth.js';
 import {
   createSeededWorkflowInputPacket,
   seedWorkflowsScenario,
-} from './support/workflows-fixtures.js';
+} from '../lib/workflows-fixtures.js';
 
 test('shows scope-pure workflow and work-item input files in Details', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();

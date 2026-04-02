@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseSeedLoadArgs } from './seed-load.js';
+import { parseSeedLoadArgs } from '../lib/seed-load.js';
 
 describe('parseSeedLoadArgs', () => {
   it('reads the default seeded load configuration', () => {

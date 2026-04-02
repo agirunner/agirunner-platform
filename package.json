@@ -11,7 +11,7 @@
     "test": "corepack pnpm -r test",
     "test:ci": "corepack pnpm -r test",
     "test:integration:dashboard": "./tests/integration/dashboard/run.sh",
-    "test:integration:dashboard:perf": "./tests/integration/dashboard/benchmark-load.sh",
+    "test:integration:dashboard:perf": "./tests/integration/dashboard/scripts/benchmark-load.sh",
     "test:v2-contract": "./scripts/test-v2-contract.sh",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
