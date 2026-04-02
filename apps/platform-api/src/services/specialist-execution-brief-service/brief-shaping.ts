@@ -189,7 +189,7 @@ export function buildSpecialistExecutionBrief(
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: repoBacked
-      ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. The image already includes repo checkout and git, but optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; probe them first or install them before chaining them into commands.'
+      ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. Repo checkout and git are already present. Optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; verify or install them before use.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
     likely_relevant_files: likelyRelevantFiles,
     verification_commands: normalizeStrings(taskInput.verification_commands),
@@ -215,17 +215,13 @@ function buildAssessmentOutputExpectations(
   const action = readString(workItem.next_expected_action);
   if (action === 'assess' && actor) {
     lines.push(`Expected review actor: ${actor}.`);
-    lines.push(
-      `${actor} is expected to assess the current output before the work item moves forward.`,
-    );
+    lines.push(`${actor} should assess the current output before the work item moves forward.`);
   } else if (action === 'approve') {
-    lines.push('A human approval step is currently active for this work item.');
+    lines.push('A human approval step is active for this work item.');
   } else if (action === 'handoff' && actor) {
     lines.push(`Prepare a clear successor handoff for ${actor}.`);
   } else if (action === 'rework' && actor) {
-    lines.push(
-      `The current output is in rework for ${actor}. Address the requested changes directly.`,
-    );
+    lines.push(`The current output is in rework for ${actor}. Address the requested changes.`);
   }
   void role;
   lines.push(

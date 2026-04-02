@@ -245,7 +245,7 @@ export async function hasOperatorBriefForExecutionContext(
 }
 
 export function buildMissingMilestoneBriefMessage(contract: OperatorReportingContract): string {
-  return `This task reached a meaningful completion or handoff checkpoint without a required record_operator_brief for execution context ${contract.executionContextId}. Emit one milestone record_operator_brief with source_kind ${contract.sourceKind}, payload.short_brief.headline, and payload.detailed_brief_json.{headline,status_kind,summary} before retrying completion. Use request_id values starting with ${contract.operatorBriefRequestIdPrefix}.`;
+  return `This task reached a meaningful completion or handoff checkpoint without the required record_operator_brief for execution context ${contract.executionContextId}. Emit one milestone record_operator_brief with source_kind ${contract.sourceKind}, payload.short_brief.headline, and payload.detailed_brief_json.{headline,status_kind,summary} before retrying completion. Use request_id values starting with ${contract.operatorBriefRequestIdPrefix}.`;
 }
 
 export function releasesParallelismSlot(previousState: TaskState, nextState: TaskState) {

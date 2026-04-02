@@ -81,18 +81,18 @@ export function formatOperatorVisibilitySection(liveVisibility: Record<string, u
   if (taskId) lines.push(`Task id: ${taskId}`);
   if (executionContextId) lines.push(`Execution context id: ${executionContextId}`);
   lines.push(
-    'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
+    'Standard live visibility comes from canonical workflow events and required briefs, not an extra model-authored operator-update tool.',
   );
   if (mode === 'enhanced') {
     lines.push(
-      'Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.',
+      'Enhanced live visibility streams trimmed execution output automatically from persisted loop phases. Do not add a reporting step just to keep the console moving.',
     );
   }
   lines.push(
     'Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
   );
   lines.push(
-    'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
+    'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive canonical linkage from execution_context_id.',
   );
 
   if (liveVisibility.milestone_briefs_required === true && recordOperatorBriefTool) {

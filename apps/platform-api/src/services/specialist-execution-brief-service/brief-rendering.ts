@@ -61,20 +61,20 @@ export function renderBrief(
     if (brief.operator_visibility.task_id) {
       const reworkCount = readNonNegativeInteger(workItem.rework_count);
       lines.push(
-        'submit_handoff is the required task-completion write on this task. record_operator_brief never satisfies that completion contract.',
+        'submit_handoff is the required completion write on this task. record_operator_brief never satisfies that contract.',
       );
       lines.push(
-        `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:r${reworkCount}:<handoff-slug> for submit_handoff writes on this task. Include the current rework count so later rework attempts do not collide with earlier handoffs. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
+        `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:r${reworkCount}:<handoff-slug> for submit_handoff writes on this task. Include the current rework count so later rework attempts do not collide. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
       lines.push(
         'workflow_id, work_item_id, and task_id are never top-level submit_handoff fields. Those ids come from current task context and execution linkage, not from handoff payload guesswork.',
       );
     }
     lines.push(
-      'Enhanced live visibility is streamed automatically from execution output. Do not add a reporting step just to keep the console moving.',
+      'Enhanced live visibility streams automatically from execution output. Do not add reporting steps just to keep the console moving.',
     );
     lines.push(
-      'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
+      'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive canonical linkage from execution_context_id. Never guess them.',
     );
     lines.push(
       'Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
@@ -111,10 +111,10 @@ export function renderBrief(
         'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',
       );
       lines.push(
-        'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
+        'detailed_brief_json must include headline and status_kind and should carry the fuller summary and sections.',
       );
       lines.push(
-        'Example: { payload: { short_brief: { headline: "Rollback review is ready for approval." }, detailed_brief_json: { headline: "Rollback review is ready for approval.", status_kind: "in_progress", summary: "Rollback handling passed review and is ready for approval.", sections: { validation: ["Verified rollback path against the current implementation."] } } } }',
+        'Example: { payload: { short_brief: { headline: "Rollback review is ready for approval." }, detailed_brief_json: { headline: "Rollback review is ready for approval.", status_kind: "in_progress", summary: "Rollback handling is ready for approval.", sections: { validation: ["Verified the rollback path against the current implementation."] } } } }',
       );
     }
   }

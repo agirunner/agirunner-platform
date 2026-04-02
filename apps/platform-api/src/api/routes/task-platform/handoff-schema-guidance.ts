@@ -13,13 +13,13 @@ const HANDOFF_SCHEMA_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
 
 const structuredFieldGuidance = {
   role_data:
-    'role_data must be an object when provided; omit it or send a native JSON object, not a quoted JSON string.',
+    'role_data must be an object when provided. Omit it or send native JSON, not a quoted JSON string.',
   completion_callouts:
-    'completion_callouts must be an object when provided; omit it or send a native JSON object, not a quoted JSON string.',
+    'completion_callouts must be an object when provided. Omit it or send native JSON, not a quoted JSON string.',
   recommended_next_actions:
-    'recommended_next_actions must be an array of objects; do not quote the JSON or use freeform string entries.',
+    'recommended_next_actions must be an array of objects. Do not quote the JSON or use freeform string entries.',
   waived_steps:
-    'waived_steps must be an array of objects; do not quote the JSON or use freeform string entries.',
+    'waived_steps must be an array of objects. Do not quote the JSON or use freeform string entries.',
 } satisfies Record<string, string>;
 
 type StructuredField = keyof typeof structuredFieldGuidance;
@@ -40,7 +40,7 @@ export function parseTaskHandoffBodyOrThrow<T>(
   }
 
   const message = [
-    'submit_handoff structured fields must use native JSON objects or arrays instead of quoted JSON strings.',
+    'submit_handoff structured fields must use native JSON objects or arrays, not quoted JSON strings.',
     ...fields.map((field) => structuredFieldGuidance[field]),
   ].join(' ');
 
