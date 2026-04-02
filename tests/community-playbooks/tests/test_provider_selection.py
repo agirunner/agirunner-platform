@@ -129,6 +129,40 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual("low", overrides["LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT"])
         self.assertEqual("low", overrides["LIVE_TEST_SPECIALIST_REASONING_EFFORT"])
 
+    def test_explicit_provider_secret_overrides_snapshot_secret(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / "local.env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        "# BEGIN LOCAL PROVIDER SNAPSHOTS",
+                        "# Gemini API",
+                        "# LIVE_TEST_PROVIDER_AUTH_MODE=api_key",
+                        "# LIVE_TEST_PROVIDER_TYPE=google",
+                        "# LIVE_TEST_PROVIDER_NAME=Gemini",
+                        "# LIVE_TEST_PROVIDER_BASE_URL=https://generativelanguage.googleapis.com",
+                        "# LIVE_TEST_MODEL_ID=gemini-3.1-pro-preview",
+                        "# LIVE_TEST_MODEL_ENDPOINT_TYPE=generate-content",
+                        "# LIVE_TEST_ORCHESTRATOR_MODEL_ID=gemini-3.1-pro-preview",
+                        "# LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE=generate-content",
+                        "# LIVE_TEST_SPECIALIST_MODEL_ID=gemini-3.1-pro-preview",
+                        "# LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE=generate-content",
+                        "# LIVE_TEST_PROVIDER_API_KEY=snapshot-key",
+                        "# END LOCAL PROVIDER SNAPSHOTS",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            overrides = resolve_provider_env_overrides(
+                "gemini",
+                {"LIVE_TEST_GEMINI_API_KEY": "explicit-key"},
+                env_file=env_file,
+            )
+
+        self.assertEqual("explicit-key", overrides["LIVE_TEST_PROVIDER_API_KEY"])
+
     def test_resolve_provider_env_overrides_requires_provider_secret(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "LIVE_TEST_GEMINI_API_KEY"):
             resolve_provider_env_overrides(

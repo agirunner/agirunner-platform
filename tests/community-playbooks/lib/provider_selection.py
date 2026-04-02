@@ -182,13 +182,35 @@ def resolve_provider_env_overrides(
     }
     overrides.update(snapshot_values)
 
-    if normalized_key == "anthropic" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
-        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_ANTHROPIC_API_KEY")
-    elif normalized_key == "gemini" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
-        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_GEMINI_API_KEY")
-    elif normalized_key == "openai-api" and not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
-        overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_OPENAI_API_KEY")
+    explicit_provider_api_key = str(environ.get("LIVE_TEST_PROVIDER_API_KEY") or "").strip()
+    if explicit_provider_api_key:
+        overrides["LIVE_TEST_PROVIDER_API_KEY"] = explicit_provider_api_key
+
+    if normalized_key == "anthropic":
+        explicit_secret = str(environ.get("LIVE_TEST_ANTHROPIC_API_KEY") or "").strip()
+        if explicit_secret:
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = explicit_secret
+        elif not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_ANTHROPIC_API_KEY")
+    elif normalized_key == "gemini":
+        explicit_secret = str(environ.get("LIVE_TEST_GEMINI_API_KEY") or "").strip()
+        if explicit_secret:
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = explicit_secret
+        elif not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_GEMINI_API_KEY")
+    elif normalized_key == "openai-api":
+        explicit_secret = str(environ.get("LIVE_TEST_OPENAI_API_KEY") or "").strip()
+        if explicit_secret:
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = explicit_secret
+        elif not overrides.get("LIVE_TEST_PROVIDER_API_KEY"):
+            overrides["LIVE_TEST_PROVIDER_API_KEY"] = read_required_secret(environ, "LIVE_TEST_OPENAI_API_KEY")
     elif normalized_key == "openai-oauth":
+        explicit_profile_id = str(environ.get("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or "").strip()
+        if explicit_profile_id:
+            overrides["LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"] = explicit_profile_id
+        explicit_session_json = str(environ.get("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON") or "").strip()
+        if explicit_session_json:
+            overrides["LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON"] = explicit_session_json
         if not overrides.get("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"):
             overrides["LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID"] = read_required_secret(
                 environ,
