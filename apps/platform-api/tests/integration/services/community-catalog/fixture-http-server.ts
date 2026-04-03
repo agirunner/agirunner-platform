@@ -1,17 +1,8 @@
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
-const WORKSPACE_ROOT = resolve(CURRENT_DIR, '../../../../../../..');
-const PLAYBOOKS_REPO_ROOT_CANDIDATES = [
-  resolve(WORKSPACE_ROOT, '../agirunner/agirunner-playbooks'),
-  resolve(WORKSPACE_ROOT, 'agirunner-playbooks'),
-];
-const PLAYBOOKS_REPO_ROOT = PLAYBOOKS_REPO_ROOT_CANDIDATES.find((path) => existsSync(path))
-  ?? PLAYBOOKS_REPO_ROOT_CANDIDATES[0];
+import { createCommunityCatalogFixtureRoot } from './fixture-catalog-root.js';
 
 export interface CommunityCatalogFixtureServer {
   baseUrl: string;
@@ -21,12 +12,19 @@ export interface CommunityCatalogFixtureServer {
 }
 
 export async function startCommunityCatalogFixtureServer(input?: {
+  root?: string;
   repository?: string;
   ref?: string;
 }): Promise<CommunityCatalogFixtureServer> {
   const repository = input?.repository ?? 'fixtures/agirunner-playbooks';
   const ref = input?.ref ?? 'main';
   const expectedPrefix = `/${repository}/${ref}/`;
+  const fixtureRoot = input?.root
+    ? {
+        path: input.root,
+        cleanup: async () => undefined,
+      }
+    : await createCommunityCatalogFixtureRoot();
 
   const server = createServer(async (request, response) => {
     try {
@@ -37,8 +35,8 @@ export async function startCommunityCatalogFixtureServer(input?: {
       }
 
       const relativePath = pathname.slice(expectedPrefix.length);
-      const filePath = resolve(PLAYBOOKS_REPO_ROOT, relativePath);
-      if (!filePath.startsWith(PLAYBOOKS_REPO_ROOT)) {
+      const filePath = resolve(fixtureRoot.path, relativePath);
+      if (!filePath.startsWith(fixtureRoot.path)) {
         response.writeHead(403).end('forbidden');
         return;
       }
@@ -67,7 +65,10 @@ export async function startCommunityCatalogFixtureServer(input?: {
     baseUrl: `http://127.0.0.1:${address.port}`,
     repository,
     ref,
-    stop: () => closeServer(server),
+    stop: async () => {
+      await closeServer(server);
+      await fixtureRoot.cleanup();
+    },
   };
 }
 
