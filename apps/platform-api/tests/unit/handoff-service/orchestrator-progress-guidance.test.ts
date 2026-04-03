@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
 import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
+import { assertOrchestratorProgressBeforeHandoff } from '../../../src/services/handoff-service/orchestrator-progress-guidance.js';
 import { logSafetynetTriggered } from '../../../src/services/safetynet/logging.js';
 import {
   PLATFORM_HANDOFF_ORCHESTRATOR_PROGRESS_GUIDANCE_ID,
@@ -133,6 +134,49 @@ describe('HandoffService orchestrator progress guidance', () => {
         work_item_can_close_now: true,
       }),
     );
+  });
+
+  it('allows an orchestrator handoff after the workflow was already completed', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [],
+          rowCount: 0,
+        })
+        .mockResolvedValueOnce({
+          rows: [],
+          rowCount: 0,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            state: 'completed',
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [],
+            },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    await expect(
+      assertOrchestratorProgressBeforeHandoff(
+        'tenant-1',
+        makeTaskRow({
+          id: 'task-orchestrator',
+          role: 'orchestrator',
+          stage_name: 'close',
+          work_item_id: null,
+          is_orchestrator_task: true,
+          metadata: { task_kind: 'orchestrator' },
+        }),
+        pool as never,
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it('allows an orchestrator handoff when active specialist work still exists elsewhere in the workflow', async () => {

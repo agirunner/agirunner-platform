@@ -42,6 +42,7 @@ interface EscalationRow {
 }
 
 interface WorkflowDefinitionRow {
+  state: string | null;
   definition: unknown;
 }
 
@@ -89,7 +90,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
       [tenantId, task.workflow_id],
     ),
     db.query<WorkflowDefinitionRow>(
-      `SELECT p.definition
+      `SELECT w.state, p.definition
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
@@ -103,6 +104,10 @@ export async function assertOrchestratorProgressBeforeHandoff(
 
   const workItems = workItemsRes.rows;
   const specialistTasks = tasksRes.rows.filter((row) => row.is_orchestrator_task !== true);
+  const workflowState = workflowRes.rows[0]?.state ?? null;
+  if (isTerminalWorkflowState(workflowState)) {
+    return;
+  }
   const workflowDefinition = workflowRes.rows[0]?.definition
     ? parsePlaybookDefinition(workflowRes.rows[0].definition)
     : null;
@@ -449,4 +454,8 @@ function normalizeClosureEffect(value: string | null): 'blocking' | 'advisory' |
     return null;
   }
   return value;
+}
+
+function isTerminalWorkflowState(value: string | null): boolean {
+  return value === 'completed' || value === 'failed' || value === 'cancelled';
 }
