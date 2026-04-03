@@ -4,6 +4,8 @@ import { loginToWorkflows } from '../lib/workflows-auth.js';
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 
+const TEST_RELEASE_VERSION = '9.8.7-rc.1';
+
 test('shows the reported runtime version instead of a moving image tag', async ({ page }) => {
   await routeVersionSummary(page);
 
@@ -13,7 +15,7 @@ test('shows the reported runtime version instead of a moving image tag', async (
   const popover = page.locator('[data-radix-popper-content-wrapper]').last();
   await expect(popover.getByText('Running Versions')).toBeVisible();
   await expect(popover).toContainText('ghcr.io/agirunner/agirunner-runtime:latest');
-  await expect(popover).toContainText('0.1.0-alpha.1');
+  await expect(popover).toContainText(TEST_RELEASE_VERSION);
   await expect(popover).toContainText('2 containers | 1 orchestrator | 1 specialist runtime');
 });
 
@@ -31,7 +33,7 @@ async function routeVersionSummary(page: Page): Promise<void> {
             {
               image: 'ghcr.io/agirunner/agirunner-runtime:latest',
               image_digest: 'sha256:runtime-version-summary', // pragma: allowlist secret
-              version: '0.1.0-alpha.1',
+              version: TEST_RELEASE_VERSION,
               revision: 'runtime-alpha-1',
               total_containers: 2,
               orchestrator_containers: 1,

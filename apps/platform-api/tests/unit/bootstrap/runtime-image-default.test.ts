@@ -14,6 +14,9 @@ import {
   seedRuntimeDefaults,
 } from '../../../src/bootstrap/seed/runtime-defaults.js';
 
+const TEST_RELEASE_VERSION = '9.8.7-rc.1';
+const TEST_RELEASE_RUNTIME_IMAGE = `ghcr.io/agirunner/agirunner-runtime:${TEST_RELEASE_VERSION}`;
+
 describe('runtime image bootstrap defaults', () => {
   it('falls back to the local runtime tag when the platform version is local or unlabeled', () => {
     expect(resolveSeedRuntimeImage(undefined, undefined)).toBe(DEFAULT_RUNTIME_IMAGE);
@@ -23,29 +26,22 @@ describe('runtime image bootstrap defaults', () => {
   });
 
   it('derives the matching published runtime image from a released platform version', () => {
-    expect(resolveSeedRuntimeImage(undefined, '0.1.0-alpha.1')).toBe(
-      'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
-    );
+    expect(resolveSeedRuntimeImage(undefined, TEST_RELEASE_VERSION)).toBe(TEST_RELEASE_RUNTIME_IMAGE);
     expect(deriveManagedRuntimeImage('0.1.0')).toBe(
       'ghcr.io/agirunner/agirunner-runtime:0.1.0',
     );
   });
 
   it('preserves an explicit runtime image override when one is configured', () => {
-    expect(
-      resolveSeedRuntimeImage(
-        'ghcr.io/custom/runtime:9.9.9',
-        '0.1.0-alpha.1',
-      ),
-    ).toBe('ghcr.io/custom/runtime:9.9.9');
+    expect(resolveSeedRuntimeImage('ghcr.io/custom/runtime:9.9.9', TEST_RELEASE_VERSION)).toBe(
+      'ghcr.io/custom/runtime:9.9.9',
+    );
   });
 
   it('classifies only moving defaults as managed runtime aliases', () => {
     expect(isManagedRuntimeImageAlias('ghcr.io/agirunner/agirunner-runtime:latest')).toBe(true);
     expect(isManagedRuntimeImageAlias('agirunner-runtime:local')).toBe(true);
-    expect(isManagedRuntimeImageAlias('ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1')).toBe(
-      false,
-    );
+    expect(isManagedRuntimeImageAlias(TEST_RELEASE_RUNTIME_IMAGE)).toBe(false);
     expect(isManagedRuntimeImageAlias('ghcr.io/custom/runtime@sha256:deadbeef')).toBe(false);
   });
 
@@ -86,7 +82,7 @@ describe('runtime image bootstrap defaults', () => {
       existingDefaults: new Map([
         [
           'specialist_runtime_default_image',
-          'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+          TEST_RELEASE_RUNTIME_IMAGE,
         ],
       ]),
     });
@@ -108,13 +104,13 @@ describe('runtime image bootstrap defaults', () => {
       ]),
     });
 
-    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    await seedRuntimeDefaults(service, TEST_RELEASE_RUNTIME_IMAGE);
 
     expect(service.createDefaultCalls).toEqual([]);
     expect(service.upsertDefaultCalls).toContainEqual({
       tenantId: DEFAULT_TENANT_ID,
       configKey: 'specialist_runtime_default_image',
-      configValue: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+      configValue: TEST_RELEASE_RUNTIME_IMAGE,
     });
   });
 
@@ -123,12 +119,12 @@ describe('runtime image bootstrap defaults', () => {
       existingDefaults: new Map([['specialist_runtime_default_image', 'agirunner-runtime:local']]),
     });
 
-    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    await seedRuntimeDefaults(service, TEST_RELEASE_RUNTIME_IMAGE);
 
     expect(service.upsertDefaultCalls).toContainEqual({
       tenantId: DEFAULT_TENANT_ID,
       configKey: 'specialist_runtime_default_image',
-      configValue: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+      configValue: TEST_RELEASE_RUNTIME_IMAGE,
     });
   });
 
@@ -139,7 +135,7 @@ describe('runtime image bootstrap defaults', () => {
       ]),
     });
 
-    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    await seedRuntimeDefaults(service, TEST_RELEASE_RUNTIME_IMAGE);
 
     expect(service.createDefaultCalls).toEqual([]);
     expect(
@@ -157,12 +153,12 @@ describe('runtime image bootstrap defaults', () => {
       },
     });
 
-    await seedOrchestratorWorker(db, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    await seedOrchestratorWorker(db, TEST_RELEASE_RUNTIME_IMAGE);
 
     expect(db.calls).toHaveLength(2);
     expect(db.calls[1]).toMatchObject({
       params: [
-        'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+        TEST_RELEASE_RUNTIME_IMAGE,
         'orchestrator-row',
         DEFAULT_TENANT_ID,
       ],
@@ -178,7 +174,7 @@ describe('runtime image bootstrap defaults', () => {
       },
     });
 
-    await seedOrchestratorWorker(db, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    await seedOrchestratorWorker(db, TEST_RELEASE_RUNTIME_IMAGE);
 
     expect(db.calls).toHaveLength(1);
     expect(db.calls[0]?.sql).toContain('FROM worker_desired_state');

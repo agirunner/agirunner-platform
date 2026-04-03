@@ -6,6 +6,8 @@ import {
   shortenRevision,
 } from './layout-version-summary.js';
 
+const TEST_RELEASE_VERSION = '9.8.7-rc.1';
+
 describe('layout version summary helpers', () => {
   it('shortens git revisions for compact sidebar display', () => {
     expect(shortenRevision('runtime-revision-demo')).toBe('runtime');
@@ -32,12 +34,12 @@ describe('layout version summary helpers', () => {
       describeRuntimeVersionLabel({
         image: 'ghcr.io/agirunner/agirunner-runtime:latest',
         image_digest: 'sha256:runtime',
-        version: '0.1.0-alpha.1',
+        version: TEST_RELEASE_VERSION,
         revision: 'rev-runtime-alpha-1',
         total_containers: 1,
         orchestrator_containers: 1,
         specialist_runtime_containers: 0,
       }),
-    ).toBe('0.1.0-alpha.1');
+    ).toBe(TEST_RELEASE_VERSION);
   });
 });

@@ -7,6 +7,8 @@ import {
 } from './runtime-defaults.form.js';
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 
+const TEST_RELEASE_RUNTIME_IMAGE = 'ghcr.io/agirunner/agirunner-runtime:9.8.7-rc.1';
+
 describe('runtime defaults form', () => {
   it('hydrates real values for every field even when no row exists yet', () => {
     const values = buildFormValues([]);
@@ -29,14 +31,14 @@ describe('runtime defaults form', () => {
       {
         id: 'seed-2',
         config_key: 'specialist_runtime_default_image',
-        config_value: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+        config_value: TEST_RELEASE_RUNTIME_IMAGE,
         config_type: 'string',
         description: null,
       },
     ]);
 
     expect(values['agent.specialist_context_preserve_memory_ops']).toBe('9');
-    expect(values['specialist_runtime_default_image']).toBe('ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+    expect(values['specialist_runtime_default_image']).toBe(TEST_RELEASE_RUNTIME_IMAGE);
   });
 
   it('upserts canonical defaults when a displayed field has no stored row yet', () => {

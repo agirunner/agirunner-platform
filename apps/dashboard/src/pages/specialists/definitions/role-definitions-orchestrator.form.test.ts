@@ -9,6 +9,8 @@ import {
   ORCHESTRATOR_INHERIT_MODEL,
 } from './role-definitions-orchestrator.form.js';
 
+const TEST_RELEASE_RUNTIME_IMAGE = 'ghcr.io/agirunner/agirunner-runtime:9.8.7-rc.1';
+
 describe('role definitions orchestrator form', () => {
   it('builds a direct prompt draft from the live platform instructions record', () => {
     expect(
@@ -60,7 +62,7 @@ describe('role definitions orchestrator form', () => {
     expect(buildOrchestratorPoolDraft(workers)).toEqual({
       workerId: 'worker-primary',
       workerName: 'orch-primary',
-      runtimeImage: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+      runtimeImage: TEST_RELEASE_RUNTIME_IMAGE,
       cpuLimit: '2',
       memoryLimit: '2Gi',
       replicas: '3',
@@ -87,7 +89,7 @@ function createWorker(overrides: Partial<FleetWorkerRecord>): FleetWorkerRecord 
     worker_name: 'orch-default',
     role: 'orchestrator',
     pool_kind: 'orchestrator',
-    runtime_image: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+    runtime_image: TEST_RELEASE_RUNTIME_IMAGE,
     cpu_limit: '2',
     memory_limit: '2Gi',
     network_policy: 'default',
