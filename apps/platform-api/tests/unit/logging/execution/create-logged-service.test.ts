@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ValidationError } from '../../../../src/errors/domain-errors.js';
 import { createLoggedService, methodToAction } from '../../../../src/logging/execution/create-logged-service.js';
 
 describe('methodToAction', () => {
@@ -301,6 +302,44 @@ describe('createLoggedService', () => {
           request_id: 'req-task-create-1',
           error_message: 'invalid input value for enum task_state: "paused"',
         }),
+      }),
+    );
+  });
+
+  it('skipsFailedLifecycleLogsForRecoverableGuidedErrors', async () => {
+    const error = new ValidationError(
+      "Role 'Release Manager' is not defined in planned workflow playbook 'workflow-1'.",
+      {
+        recovery_hint: 'orchestrator_guided_recovery',
+        reason_code: 'role_not_defined_in_playbook',
+        recoverable: true,
+      },
+    );
+    const service = {
+      createTask: vi.fn().mockRejectedValue(error),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'TaskService', logService as never);
+
+    await expect(
+      wrapped.createTask({
+        request_id: 'req-task-create-guided-recovery',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'close',
+        role: 'Release Manager',
+      }),
+    ).rejects.toThrow("Role 'Release Manager' is not defined in planned workflow playbook 'workflow-1'.");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'error',
+        status: 'failed',
+        operation: 'task_lifecycle.task.created',
       }),
     );
   });

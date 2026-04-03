@@ -184,6 +184,9 @@ export function createLoggedService<T extends object>(
           const durationMs = Math.round(performance.now() - start);
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
           const errorObj = err instanceof Error ? err : new Error(String(err));
+          if (isRecoverableGuidanceError(err)) {
+            throw err;
+          }
           const records = collectContextRecords(undefined, args);
           const context = resolveLogContext(undefined, args, config.nameField, config.entityType);
           const actor = actorFromAuth(ctx?.auth, {
@@ -266,6 +269,17 @@ function isEscalationMethod(category: string, method: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isRecoverableGuidanceError(error: unknown): boolean {
+  if (!isRecord(error)) {
+    return false;
+  }
+  const details = error.details;
+  if (!isRecord(details)) {
+    return false;
+  }
+  return details.recoverable === true || typeof details.recovery_hint === 'string';
 }
 
 interface LoggedServiceContext {
