@@ -108,7 +108,80 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+const LOG_LEVEL_RANK: Record<(typeof validLevels)[number], number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+function normalizeLogLevelAlias(raw: string): (typeof validLevels)[number] | null {
+  const value = raw.trim().toLowerCase();
+  if (value === 'warning') {
+    return 'warn';
+  }
+  return (validLevels as readonly string[]).includes(value)
+    ? (value as (typeof validLevels)[number])
+    : null;
+}
+
+function mergeLegacyLevelAlias(
+  current: (typeof validLevels)[number] | undefined,
+  next: (typeof validLevels)[number],
+): (typeof validLevels)[number] {
+  if (!current) {
+    return next;
+  }
+  return LOG_LEVEL_RANK[current] <= LOG_LEVEL_RANK[next] ? current : next;
+}
+
+function mergeLevelThreshold(
+  current: string | undefined,
+  next: (typeof validLevels)[number] | undefined,
+): string | undefined {
+  if (!next) {
+    return current;
+  }
+  const normalizedCurrent = current ? normalizeLogLevelAlias(current) : null;
+  if (!normalizedCurrent) {
+    return next;
+  }
+  return LOG_LEVEL_RANK[normalizedCurrent] >= LOG_LEVEL_RANK[next] ? normalizedCurrent : next;
+}
+
+function parseStatusAndLevelFilters(query: Record<string, string | undefined>): Pick<LogFilters, 'level' | 'status'> {
+  const rawStatuses = parseCsv(query.status);
+  if (!rawStatuses?.length) {
+    return { level: query.level, status: undefined };
+  }
+
+  const statuses: string[] = [];
+  let derivedLevel: (typeof validLevels)[number] | undefined;
+
+  for (const rawStatus of rawStatuses) {
+    const normalizedStatus = rawStatus.trim().toLowerCase();
+    if ((validStatuses as readonly string[]).includes(normalizedStatus)) {
+      statuses.push(normalizedStatus);
+      continue;
+    }
+
+    const aliasLevel = normalizeLogLevelAlias(normalizedStatus);
+    if (aliasLevel) {
+      derivedLevel = mergeLegacyLevelAlias(derivedLevel, aliasLevel);
+      continue;
+    }
+
+    throw new SchemaValidationFailedError('Invalid log status query value', { value: rawStatus });
+  }
+
+  return {
+    level: mergeLevelThreshold(query.level, derivedLevel),
+    status: statuses.length > 0 ? statuses : undefined,
+  };
+}
+
 function parseCommonLogFilters(query: Record<string, string | undefined>): LogFilters {
+  const { level, status } = parseStatusAndLevelFilters(query);
   return {
     workspaceId: query.workspace_id,
     workflowId: query.workflow_id,
@@ -122,9 +195,9 @@ function parseCommonLogFilters(query: Record<string, string | undefined>): LogFi
     traceId: query.trace_id,
     source: parseCsv(query.source),
     category: parseCsv(query.category),
-    level: query.level,
+    level,
     operation: parseCsv(query.operation),
-    status: parseCsv(query.status),
+    status,
     role: parseCsv(query.role),
     actorKind: parseCsv(query.actor_kind ?? query.actor_type ?? query.actor),
     actorId: parseCsv(query.actor_id),
