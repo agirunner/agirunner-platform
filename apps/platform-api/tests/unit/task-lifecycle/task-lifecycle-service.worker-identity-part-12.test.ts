@@ -99,6 +99,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           work_item_id: 'wi-human',
         }),
         'Need operator guidance',
+        'blocking',
         'task-agent-escalate-human',
       ]),
     );

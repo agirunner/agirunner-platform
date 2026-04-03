@@ -77,6 +77,7 @@ export async function maybeOpenTaskWorkItemEscalation(
     subjectRevision: linkage.subjectRevision,
     reason,
     createdByTaskId: taskId,
+    closureEffect: 'blocking',
   });
 }
 

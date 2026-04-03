@@ -358,6 +358,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           work_item_id: 'wi-manual',
         }),
         'Need operator guidance',
+        'blocking',
         'task-manual-escalate-work-item',
       ]),
     );

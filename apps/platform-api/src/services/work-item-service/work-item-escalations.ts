@@ -16,6 +16,7 @@ export interface OpenWorkItemEscalationInput {
   subjectRevision: number | null;
   reason: string;
   createdByTaskId: string | null;
+  closureEffect?: 'blocking' | 'advisory';
 }
 
 export interface ResolveWorkItemEscalationInput {
@@ -58,6 +59,7 @@ export async function openWorkItemEscalation(
   db: DatabaseClient | DatabasePool,
   input: OpenWorkItemEscalationInput,
 ) {
+  const closureEffect = input.closureEffect ?? 'blocking';
   const existing = await db.query<{ id: string }>(
     `SELECT id
        FROM workflow_subject_escalations
@@ -77,9 +79,10 @@ export async function openWorkItemEscalation(
           subject_ref,
           subject_revision,
           reason,
+          closure_effect,
           status,
           created_by_task_id
-       ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'open', $7)`,
+       ) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, 'open', $8)`,
       [
         input.tenantId,
         input.workflowId,
@@ -87,6 +90,7 @@ export async function openWorkItemEscalation(
         input.subjectRef,
         input.subjectRevision,
         input.reason,
+        closureEffect,
         input.createdByTaskId,
       ],
     );

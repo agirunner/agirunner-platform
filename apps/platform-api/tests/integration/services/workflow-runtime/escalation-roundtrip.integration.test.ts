@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runWorkflowActivationDispatchTick } from '../../../../src/jobs/lifecycle-monitor.js';
+import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
 import { ModelCatalogService } from '../../../../src/services/model-catalog/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults/runtime-defaults-service.js';
+import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator/workflow-operator-brief-service.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
@@ -147,6 +149,8 @@ describe('V2 escalation round-trip integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'escalation-flow-model',
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
       supportsToolUse: true,
       supportsVision: false,
       isEnabled: true,
@@ -222,10 +226,38 @@ describe('V2 escalation round-trip integration', () => {
       playbook_id: String(playbook.id),
       name: 'Escalation Run',
     });
+    const handoffService = new HandoffService(db.pool);
+    const workflowOperatorBriefService = new WorkflowOperatorBriefService(db.pool);
+    const recordOrchestratorBrief = async (taskId: string, activationId: string, headline: string) => {
+      await workflowOperatorBriefService.recordBrief(identity, String(workflow.id), {
+        requestId: `operator-brief:${activationId}:${taskId}`,
+        executionContextId: activationId,
+        sourceKind: 'orchestrator',
+        sourceRoleName: 'Orchestrator',
+        briefKind: 'milestone',
+        payload: {
+          shortBrief: {
+            headline,
+          },
+          detailedBriefJson: {
+            headline,
+            status_kind: 'completed',
+            summary: headline,
+          },
+        },
+      });
+    };
     const workItem = await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
       request_id: 'wi-escalation-1',
       title: 'Handle edge-case policy branch',
       goal: 'Finish implementation with operator guidance if blocked',
+    });
+    const specialistTask = await harness.taskService.createTask(identity, {
+      title: 'Implement policy edge case',
+      role: 'developer',
+      work_item_id: String(workItem.id),
+      request_id: 'specialist-escalation-1',
+      input: { description: 'Implement the policy branch and escalate if guidance is required' },
     });
 
     await runWorkflowActivationDispatchTick(
@@ -255,6 +287,17 @@ describe('V2 escalation round-trip integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(initialOrchestratorClaim?.id), {
+      request_id: 'escalation-orchestrator-handoff-1',
+      summary: 'Queued specialist work for implementation.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordOrchestratorBrief(
+      String(initialOrchestratorClaim?.id),
+      String(initialOrchestratorClaim?.activation_id),
+      'Queued specialist work for implementation.',
+    );
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgent?.id)), String(initialOrchestratorClaim?.id), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
@@ -296,20 +339,23 @@ describe('V2 escalation round-trip integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(workItemOrchestratorClaim?.id), {
+      request_id: 'escalation-orchestrator-handoff-2',
+      summary: 'Registered the queued work item for specialist execution.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordOrchestratorBrief(
+      String(workItemOrchestratorClaim?.id),
+      String(workItemOrchestratorClaim?.activation_id),
+      'Registered the queued work item for specialist execution.',
+    );
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgent?.id)), String(workItemOrchestratorClaim?.id), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
       output: {
         summary: 'Registered the queued work item for specialist execution',
       },
-    });
-
-    const specialistTask = await harness.taskService.createTask(identity, {
-      title: 'Implement policy edge case',
-      role: 'developer',
-      work_item_id: String(workItem.id),
-      request_id: 'specialist-escalation-1',
-      input: { description: 'Implement the policy branch and escalate if guidance is required' },
     });
 
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
@@ -372,6 +418,17 @@ describe('V2 escalation round-trip integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(escalationOrchestratorClaim?.id), {
+      request_id: 'escalation-orchestrator-handoff-3',
+      summary: 'Escalation noted and awaiting operator response.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordOrchestratorBrief(
+      String(escalationOrchestratorClaim?.id),
+      String(escalationOrchestratorClaim?.activation_id),
+      'Escalation noted and awaiting operator response.',
+    );
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgent?.id)), String(escalationOrchestratorClaim?.id), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
@@ -432,6 +489,17 @@ describe('V2 escalation round-trip integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(resolutionOrchestratorClaim?.id), {
+      request_id: 'escalation-orchestrator-handoff-4',
+      summary: 'Operator guidance merged back into the work queue.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordOrchestratorBrief(
+      String(resolutionOrchestratorClaim?.id),
+      String(resolutionOrchestratorClaim?.activation_id),
+      'Operator guidance merged back into the work queue.',
+    );
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgent?.id)), String(resolutionOrchestratorClaim?.id), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,

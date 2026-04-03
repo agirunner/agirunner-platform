@@ -414,6 +414,7 @@ async function applyAssessmentEscalationAction(
     subjectRevision: context.subjectRevision,
     reason: context.feedback,
     createdByTaskId: context.assessmentTaskId,
+    closureEffect: 'blocking',
   });
 
   const payload = {
