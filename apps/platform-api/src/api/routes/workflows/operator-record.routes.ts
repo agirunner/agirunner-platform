@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../../auth/fastify-auth-hook.js';
 import { applyArtifactPreviewHeaders } from '../../../bootstrap/plugins.js';
 import { SchemaValidationFailedError } from '../../../errors/domain-errors.js';
+import {
+  deriveDeliverableLifecycleFromBriefStatus,
+  resolveEffectiveStatusKind,
+} from '../../../services/workflow-operator/workflow-operator-brief-service.domain.js';
 import { parseWorkflowOperatorBriefBodyOrThrow } from './operator-brief-schema-guidance.js';
 
 const workflowOperatorFileUploadSchema = z.object({
@@ -115,7 +119,10 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
-function mapLinkedDeliverableInput(entry: Record<string, unknown>) {
+function mapLinkedDeliverableInput(
+  entry: Record<string, unknown>,
+  briefStatusKind: string,
+) {
   if ('descriptor_kind' in entry) {
     return {
       descriptorKind: String(entry.descriptor_kind),
@@ -136,12 +143,13 @@ function mapLinkedDeliverableInput(entry: Record<string, unknown>) {
   const summary = typeof entry.summary_brief === 'string' && entry.summary_brief.trim().length > 0
     ? entry.summary_brief
     : undefined;
+  const lifecycle = deriveDeliverableLifecycleFromBriefStatus(briefStatusKind);
 
   return {
     descriptorKind: 'deliverable_packet',
-    deliveryStage: 'final',
+    deliveryStage: lifecycle.deliveryStage,
     title: label,
-    state: 'final',
+    state: lifecycle.state,
     summaryBrief: summary,
     workItemId: entry.work_item_id as string | undefined,
     previewCapabilities: {
@@ -190,6 +198,11 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         request.body ?? {},
         params.id,
       );
+      const effectiveStatusKind = resolveEffectiveStatusKind(
+        body.status_kind,
+        body.payload.detailed_brief_json,
+        body.brief_scope ?? 'deliverable_context',
+      );
       assertBodyWorkflowId(params.id, body.workflow_id);
       const brief = await app.workflowOperatorBriefService.recordBriefWrite(request.auth!, params.id, {
         requestId: body.request_id,
@@ -206,7 +219,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
           shortBrief: body.payload.short_brief,
           detailedBriefJson: body.payload.detailed_brief_json,
           linkedDeliverables: body.payload.linked_deliverables.map((entry) =>
-            mapLinkedDeliverableInput(entry as Record<string, unknown>),
+            mapLinkedDeliverableInput(entry as Record<string, unknown>, effectiveStatusKind),
           ),
           linkedTargetIds: body.payload.linked_target_ids,
         },

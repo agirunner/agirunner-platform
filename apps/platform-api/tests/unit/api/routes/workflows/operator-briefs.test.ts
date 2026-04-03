@@ -367,6 +367,76 @@ describe('workflow routes operator briefs', () => {
     );
   });
 
+  it('maps shorthand linked deliverables to interim packets when the source brief is still in progress', async () => {
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-4b',
+      sequence_number: 8,
+      deduped: false,
+      record: {
+        id: 'brief-4b',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Release readiness is being reviewed.' },
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-4b',
+        execution_context_id: 'execution-4b',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'orchestrator',
+        status_kind: 'in_progress',
+        payload: {
+          short_brief: {
+            headline: 'Release readiness is being reviewed.',
+          },
+          detailed_brief_json: {
+            headline: 'Release readiness is being reviewed.',
+            status_kind: 'in_progress',
+          },
+          linked_deliverables: [
+            {
+              label: 'Release-readiness record',
+              path: 'docs/release-audit-release-readiness.md',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordBriefWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-4b',
+        payload: expect.objectContaining({
+          linkedDeliverables: [
+            expect.objectContaining({
+              descriptorKind: 'deliverable_packet',
+              deliveryStage: 'in_progress',
+              title: 'Release-readiness record',
+              state: 'draft',
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it('returns recoverable guidance when shorthand linked deliverables omit label or path', async () => {
     const recordBriefWrite = vi.fn();
 

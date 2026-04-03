@@ -215,6 +215,8 @@ describe('WorkflowOperatorBriefService recording: nested payloads', () => {
       'workflow-1',
       expect.objectContaining({
         sourceBriefId: 'brief-1',
+        deliveryStage: 'in_progress',
+        state: 'draft',
       }),
     );
     expect(result).toEqual(

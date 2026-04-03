@@ -8,6 +8,11 @@ import type {
 } from './workflow-operator-brief-service.types.js';
 import type { WorkflowOperatorBriefRecord } from './workflow-operator-brief-service.js';
 
+export interface DeliverableLifecycle {
+  deliveryStage: 'final' | 'in_progress';
+  state: 'final' | 'draft';
+}
+
 export function deriveDefaultBriefScope(
   executionContext: { workItemId?: string | null; taskId?: string | null },
   payload: { linkedDeliverables?: Array<unknown> },
@@ -30,6 +35,36 @@ export function deriveDefaultBriefScope(
 
 export function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
   return statusKind === 'completed' || statusKind === 'final' || statusKind === 'approved';
+}
+
+export function deriveDeliverableLifecycleFromBriefStatus(
+  statusKind: string | null | undefined,
+): DeliverableLifecycle {
+  if (isDeliverableOutcomeStatus(sanitizeOptionalText(statusKind))) {
+    return {
+      deliveryStage: 'final',
+      state: 'final',
+    };
+  }
+  return {
+    deliveryStage: 'in_progress',
+    state: 'draft',
+  };
+}
+
+export function normalizeDeliverableLifecycleForBriefStatus<T extends { deliveryStage: string; state: string }>(
+  deliverable: T,
+  statusKind: string | null | undefined,
+): T {
+  if (isDeliverableOutcomeStatus(sanitizeOptionalText(statusKind))) {
+    return deliverable;
+  }
+  const lifecycle = deriveDeliverableLifecycleFromBriefStatus(statusKind);
+  return {
+    ...deliverable,
+    deliveryStage: lifecycle.deliveryStage,
+    state: lifecycle.state,
+  };
 }
 
 export function resolveEffectiveStatusKind(

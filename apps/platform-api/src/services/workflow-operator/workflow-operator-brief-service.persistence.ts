@@ -8,6 +8,8 @@ import {
   buildBriefPreviewSummary,
   buildInlinePreviewCapabilities,
   buildInlineSummaryTarget,
+  deriveDeliverableLifecycleFromBriefStatus,
+  normalizeDeliverableLifecycleForBriefStatus,
   normalizeNullableText,
   readBriefHeadline,
   readBriefSummary,
@@ -111,7 +113,7 @@ async function materializeLinkedDeliverables(
   const descriptorIds: string[] = [];
   for (const deliverable of deliverables) {
     const record = await deliverableService.upsertDeliverable(identity, workflowId, {
-      ...deliverable,
+      ...normalizeDeliverableLifecycleForBriefStatus(deliverable, briefRow.status_kind),
       sourceBriefId: briefRow.id,
     });
     descriptorIds.push(record.descriptor_id);
@@ -135,6 +137,7 @@ async function buildSynthesizedDeliverable(
   ]);
   const artifactTargets = artifacts.map((artifact, index) => buildArtifactTarget(artifact, index === 0));
   const headline = readBriefHeadline(briefRow);
+  const lifecycle = deriveDeliverableLifecycleFromBriefStatus(briefRow.status_kind);
   return {
     descriptorId:
       existingDescriptor
@@ -143,9 +146,9 @@ async function buildSynthesizedDeliverable(
         : undefined,
     workItemId: attributedWorkItemId,
     descriptorKind: 'brief_packet',
-    deliveryStage: 'final',
+    deliveryStage: lifecycle.deliveryStage,
     title: headline,
-    state: 'final',
+    state: lifecycle.state,
     summaryBrief: readBriefSummary(briefRow),
     previewCapabilities: artifacts.length > 0
       ? buildArtifactPreviewCapabilities(artifacts[0])
