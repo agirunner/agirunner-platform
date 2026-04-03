@@ -65,6 +65,8 @@ export function WorkflowBottomWorkbench(props: {
   const tabPanelShellClassName = 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden';
   const liveConsoleTabPanelContentClassName =
     'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4';
+  const deliverablesTabPanelContentClassName =
+    'flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden px-4 py-4';
   const scrollableTabPanelContentClassName =
     'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4';
 
@@ -138,6 +140,16 @@ export function WorkflowBottomWorkbench(props: {
               onLoadMore={props.onLoadMoreActivity}
             />
           </div>
+        ) : activeTab === 'deliverables' ? (
+          <div className={deliverablesTabPanelContentClassName}>
+            <WorkflowDeliverables
+              packet={props.packet.deliverables}
+              selectedWorkItemId={currentWorkItemId}
+              selectedWorkItemTitle={currentWorkItemTitle}
+              scope={resolvedScope}
+              onLoadMore={props.onLoadMoreDeliverables}
+            />
+          </div>
         ) : (
           <div className={scrollableTabPanelContentClassName}>
             {activeTab === 'details' && props.workflow ? (
@@ -162,15 +174,6 @@ export function WorkflowBottomWorkbench(props: {
                 scopeSubject={resolvedScope.subject}
                 scopeLabel={resolvedScope.banner}
                 onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
-              />
-            ) : null}
-            {activeTab === 'deliverables' ? (
-              <WorkflowDeliverables
-                packet={props.packet.deliverables}
-                selectedWorkItemId={currentWorkItemId}
-                selectedWorkItemTitle={currentWorkItemTitle}
-                scope={resolvedScope}
-                onLoadMore={props.onLoadMoreDeliverables}
               />
             ) : null}
           </div>

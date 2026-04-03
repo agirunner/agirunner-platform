@@ -4,11 +4,29 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type {
   DashboardWorkflowDeliverableRecord,
+  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
-import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
-import { normalizeDeliverablesPacket } from './workflow-deliverables.support.js';
+import {
+  buildBrowserRows,
+  formatEntryTimestamp,
+  type DeliverableBrowserRow,
+} from './workflow-deliverable-browser-support.js';
+import {
+  normalizeDeliverablesPacket,
+  sanitizeDeliverableTarget,
+} from './workflow-deliverables.support.js';
+import {
+  WorkflowDeliverableDownloadButton,
+  WorkflowDeliverablePreview,
+} from './workflow-deliverable-preview.js';
+
+interface DeliverableTableRow {
+  key: string;
+  deliverable: DashboardWorkflowDeliverableRecord;
+  browserRow: DeliverableBrowserRow;
+}
 
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
@@ -18,76 +36,74 @@ export function WorkflowDeliverables(props: {
   onLoadMore(): void;
 }): JSX.Element {
   const packet = normalizeDeliverablesPacket(props.packet);
-  const normalizedScope = props.scope;
-  const selectedWorkItemId = props.selectedWorkItemId;
-  const [selectedDeliverableId, setSelectedDeliverableId] = useState<string | null>(null);
   const scopedDeliverables = buildScopedDeliverables(
     packet,
-    normalizedScope.scopeKind,
-    selectedWorkItemId,
+    props.scope.scopeKind,
+    props.selectedWorkItemId,
   );
+  const tableRows = buildDeliverableTableRows(scopedDeliverables);
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col gap-4 pb-1 pr-1">
+    <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col gap-4 pb-1 pr-1">
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-foreground">Deliverables</p>
           <Badge variant="outline">
-            {normalizedScope.scopeKind === 'workflow' ? 'Workflow' : 'Work item'}
+            {props.scope.scopeKind === 'workflow' ? 'Workflow' : 'Work item'}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          {buildDeliverablesScopeDescription(normalizedScope.scopeKind, props.selectedWorkItemTitle)}
+          {buildDeliverablesScopeDescription(props.scope.scopeKind, props.selectedWorkItemTitle)}
         </p>
       </div>
 
-      {scopedDeliverables.length === 0 ? (
+      {tableRows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {buildEmptyMessage(normalizedScope.scopeKind, props.selectedWorkItemTitle)}
+          {buildEmptyMessage(props.scope.scopeKind, props.selectedWorkItemTitle)}
         </p>
       ) : (
-        <>
-          <div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
-            <table className="w-full table-fixed border-collapse text-sm">
-              <colgroup>
-                <col className="w-[36%]" />
-                <col className="w-[12%]" />
-                <col className="w-[14%]" />
-                <col className="w-[12%]" />
-                <col className="w-[16%]" />
-                <col className="w-[10%]" />
-              </colgroup>
-              <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Deliverable</th>
-                  <th className="px-3 py-2 text-left font-medium">Stage</th>
-                  <th className="px-3 py-2 text-left font-medium">Kind</th>
-                  <th className="px-3 py-2 text-left font-medium">Scope</th>
-                  <th className="px-3 py-2 text-left font-medium">Recorded</th>
-                  <th className="px-3 py-2 text-right font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scopedDeliverables.map((deliverable) => {
-                  const isSelected = deliverable.descriptor_id === selectedDeliverableId;
-                  return (
-                    <DeliverableTableEntry
-                      key={deliverable.descriptor_id}
-                      deliverable={deliverable}
-                      isSelected={isSelected}
-                      scopeKind={normalizedScope.scopeKind}
-                      onToggle={() =>
-                        setSelectedDeliverableId((current) =>
-                          current === deliverable.descriptor_id ? null : deliverable.descriptor_id,
-                        )
-                      }
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <div
+          data-workflows-deliverables-scroll-region="true"
+          className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/70 bg-background/70"
+        >
+          <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-[42%]" />
+              <col className="w-[10%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+            </colgroup>
+            <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Deliverable</th>
+                <th className="px-3 py-2 text-left font-medium">Stage</th>
+                <th className="px-3 py-2 text-left font-medium">Kind</th>
+                <th className="px-3 py-2 text-left font-medium">Scope</th>
+                <th className="px-3 py-2 text-left font-medium">Recorded</th>
+                <th className="px-3 py-2 text-right font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row) => {
+                const isSelected = row.key === selectedRowKey;
+                return (
+                  <DeliverableTableEntry
+                    key={row.key}
+                    row={row}
+                    isSelected={isSelected}
+                    scopeKind={props.scope.scopeKind}
+                    onToggle={() =>
+                      setSelectedRowKey((current) => (current === row.key ? null : row.key))
+                    }
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {packet.next_cursor ? (
@@ -106,29 +122,33 @@ export function WorkflowDeliverables(props: {
 }
 
 function DeliverableTableEntry(props: {
-  deliverable: DashboardWorkflowDeliverableRecord;
+  row: DeliverableTableRow;
   isSelected: boolean;
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'];
   onToggle(): void;
 }): JSX.Element {
-  const stageLabel = props.deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
-  const createdLabel = formatEntryTimestamp(props.deliverable.created_at);
+  const { deliverable, browserRow } = props.row;
+  const stageLabel = deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
+  const createdLabel = formatEntryTimestamp(browserRow.createdAt) ?? '—';
   const scopeLabel =
     props.scopeKind === 'workflow'
-      ? props.deliverable.work_item_id
+      ? deliverable.work_item_id
         ? 'Work item'
         : 'Workflow'
       : 'Work item';
+  const rowLabel = readRowLabel(props.row);
+  const hasActions = browserRow.canView || browserRow.rowKind === 'artifact';
 
   return (
     <>
       <tr className={`border-t border-border/60 ${props.isSelected ? 'bg-accent/5' : ''}`}>
         <td className="px-3 py-3 align-top">
           <div className="grid gap-1">
-            <p className="font-medium text-foreground">{props.deliverable.title}</p>
-            {props.deliverable.summary_brief ? (
+            <p className="font-medium text-foreground">{deliverable.title}</p>
+            {rowLabel ? <p className="text-xs text-foreground/80">{rowLabel}</p> : null}
+            {deliverable.summary_brief ? (
               <p className="line-clamp-2 text-xs text-muted-foreground">
-                {props.deliverable.summary_brief}
+                {deliverable.summary_brief}
               </p>
             ) : null}
           </div>
@@ -136,43 +156,52 @@ function DeliverableTableEntry(props: {
         <td className="px-3 py-3 align-top">
           <Badge variant="secondary">{stageLabel}</Badge>
         </td>
-        <td className="px-3 py-3 align-top text-muted-foreground">
-          {humanizeToken(props.deliverable.descriptor_kind)}
-        </td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{browserRow.typeLabel}</td>
         <td className="px-3 py-3 align-top text-muted-foreground">{scopeLabel}</td>
-        <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel ?? '—'}</td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel}</td>
         <td className="px-3 py-3 align-top">
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant={props.isSelected ? 'secondary' : 'ghost'}
-              size="sm"
-              aria-expanded={props.isSelected}
-              onClick={props.onToggle}
-            >
-              {props.isSelected ? 'Hide' : 'Open'}
-            </Button>
-          </div>
+          {hasActions ? (
+            <div className="flex justify-end gap-2">
+              {browserRow.rowKind === 'artifact' ? (
+                <WorkflowDeliverableDownloadButton
+                  row={browserRow}
+                  deliverableTitle={deliverable.title}
+                />
+              ) : null}
+              {browserRow.canView ? (
+                <Button
+                  type="button"
+                  variant={props.isSelected ? 'secondary' : 'ghost'}
+                  size="sm"
+                  aria-expanded={props.isSelected}
+                  onClick={props.onToggle}
+                >
+                  {props.isSelected ? 'Hide' : 'View'}
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex justify-end text-muted-foreground">—</div>
+          )}
         </td>
       </tr>
 
       {props.isSelected ? (
         <tr className="border-t border-border/40 bg-muted/10">
           <td colSpan={6} className="px-4 py-4">
-            <div className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-4">
+            <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
               <div className="grid gap-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-foreground">{props.deliverable.title}</p>
+                  <p className="text-sm font-semibold text-foreground">{deliverable.title}</p>
                   <Badge variant="secondary">{stageLabel}</Badge>
-                  <Badge variant="outline">
-                    {humanizeToken(props.deliverable.descriptor_kind)}
-                  </Badge>
+                  <Badge variant="outline">{browserRow.typeLabel}</Badge>
                 </div>
-                {props.deliverable.summary_brief ? (
-                  <p className="text-sm text-muted-foreground">{props.deliverable.summary_brief}</p>
+                {rowLabel ? <p className="text-sm text-foreground">{rowLabel}</p> : null}
+                {deliverable.summary_brief ? (
+                  <p className="text-sm text-muted-foreground">{deliverable.summary_brief}</p>
                 ) : null}
               </div>
-              <WorkflowDeliverableBrowser deliverable={props.deliverable} />
+              <WorkflowDeliverablePreview row={browserRow} />
             </div>
           </td>
         </tr>
@@ -190,18 +219,84 @@ function buildScopedDeliverables(
     [...deliverables].sort(compareDeliverables);
 
   if (scopeKind === 'workflow') {
-    return dedupeDeliverablesByIdentity(sortByStageAndTime([
-      ...packet.final_deliverables,
-      ...packet.in_progress_deliverables,
-    ]));
+    return dedupeDeliverablesByIdentity(
+      sortByStageAndTime([...packet.final_deliverables, ...packet.in_progress_deliverables]),
+    );
   }
 
   const matchesSelectedWorkItem = (deliverable: DashboardWorkflowDeliverableRecord): boolean =>
     selectedWorkItemId !== null && deliverable.work_item_id === selectedWorkItemId;
 
-  return dedupeDeliverablesByIdentity(sortByStageAndTime(
-    [...packet.final_deliverables, ...packet.in_progress_deliverables].filter(matchesSelectedWorkItem),
-  ));
+  return dedupeDeliverablesByIdentity(
+    sortByStageAndTime(
+      [...packet.final_deliverables, ...packet.in_progress_deliverables].filter(
+        matchesSelectedWorkItem,
+      ),
+    ),
+  );
+}
+
+function buildDeliverableTableRows(
+  deliverables: DashboardWorkflowDeliverableRecord[],
+): DeliverableTableRow[] {
+  const rows: DeliverableTableRow[] = [];
+
+  for (const deliverable of deliverables) {
+    const browserRows = buildBrowserRows(deliverable);
+    if (browserRows.length === 0) {
+      rows.push({
+        key: `${deliverable.descriptor_id}:record`,
+        deliverable,
+        browserRow: buildFallbackBrowserRow(deliverable),
+      });
+      continue;
+    }
+    for (const browserRow of browserRows) {
+      rows.push({
+        key: `${deliverable.descriptor_id}:${browserRow.key}`,
+        deliverable,
+        browserRow,
+      });
+    }
+  }
+
+  return rows;
+}
+
+function buildFallbackBrowserRow(
+  deliverable: DashboardWorkflowDeliverableRecord,
+): DeliverableBrowserRow {
+  return {
+    rowKind: 'reference',
+    key: `record:${deliverable.descriptor_id}`,
+    label: deliverable.title,
+    typeLabel: humanizeToken(deliverable.descriptor_kind || 'deliverable_record'),
+    createdAt: deliverable.created_at,
+    sizeBytes: null,
+    canView: false,
+    target: buildFallbackTarget(deliverable),
+  };
+}
+
+function buildFallbackTarget(
+  deliverable: DashboardWorkflowDeliverableRecord,
+): DashboardWorkflowDeliverableTarget {
+  const target = sanitizeDeliverableTarget(deliverable.primary_target);
+  if (target.label.length > 0) {
+    return target;
+  }
+  return {
+    ...target,
+    label: deliverable.title,
+  };
+}
+
+function readRowLabel(row: DeliverableTableRow): string | null {
+  const trimmed = readText(row.browserRow.label);
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed === row.deliverable.title ? null : trimmed;
 }
 
 function dedupeDeliverablesByIdentity(
@@ -327,12 +422,4 @@ function readText(value: unknown): string | null {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function formatEntryTimestamp(value: string): string | null {
-  const millis = new Date(value).getTime();
-  if (!Number.isFinite(millis)) {
-    return null;
-  }
-  return new Date(millis).toLocaleString();
 }

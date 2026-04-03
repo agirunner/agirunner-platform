@@ -1,147 +1,47 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
+import { dashboardApi } from '../../../lib/api.js';
 import { Button } from '../../../components/ui/button.js';
+import type {
+  DashboardTaskArtifactContent,
+  DashboardTaskArtifactRecord,
+} from '../../../lib/api.js';
 import {
   describeArtifactPreview,
   formatArtifactPreviewText,
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
   renderArtifactPreviewMarkup,
 } from '../../artifact-preview/artifact-preview-support.js';
-import { dashboardApi } from '../../../lib/api.js';
 import type {
-  DashboardTaskArtifactContent,
-  DashboardTaskArtifactRecord,
-  DashboardWorkflowDeliverableRecord,
-} from '../../../lib/api.js';
-import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
-import {
-  buildBrowserRows,
-  formatArtifactSize,
-  formatEntryTimestamp,
-  type ArtifactBrowserRow,
-  type DeliverableBrowserRow,
+  ArtifactBrowserRow,
+  DeliverableBrowserRow,
 } from './workflow-deliverable-browser-support.js';
+import { formatArtifactSize } from './workflow-deliverable-browser-support.js';
+import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
 
 interface TaskArtifactIdentity {
   taskId: string;
   artifactId: string;
 }
 
-export function WorkflowDeliverableBrowser(props: {
-  deliverable: DashboardWorkflowDeliverableRecord;
-}): JSX.Element | null {
-  const rows = useMemo(() => buildBrowserRows(props.deliverable), [props.deliverable]);
-  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
-  const selectedRow = rows.find((row) => row.key === selectedRowKey) ?? null;
-
-  if (rows.length === 0) {
-    return null;
+export function WorkflowDeliverablePreview(props: {
+  row: DeliverableBrowserRow;
+}): JSX.Element {
+  if (props.row.rowKind === 'artifact') {
+    return <ArtifactPreviewPanel row={props.row} />;
   }
-
-  return (
-    <div className="grid gap-3">
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
-        <table className="w-full table-fixed border-collapse text-sm">
-          <colgroup>
-            <col className="w-[45%]" />
-            <col className="w-[17%]" />
-            <col className="w-[20%]" />
-            <col className="w-[18%]" />
-          </colgroup>
-          <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Item</th>
-              <th className="px-3 py-2 text-left font-medium">Type</th>
-              <th className="px-3 py-2 text-left font-medium">Recorded</th>
-              <th className="px-3 py-2 text-right font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const isSelected = row.key === selectedRow?.key;
-              return (
-                <tr
-                  key={row.key}
-                  className={isSelected ? 'bg-accent/5' : 'border-t border-border/60'}
-                >
-                  <td className="px-3 py-2 align-top">
-                    {row.canView ? (
-                      <button
-                        type="button"
-                        className="text-left font-medium text-foreground underline-offset-4 hover:underline"
-                        onClick={() => toggleRowSelection(row.key, setSelectedRowKey)}
-                      >
-                        {row.label}
-                      </button>
-                    ) : (
-                      <span className="font-medium text-foreground">{row.label}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 align-top text-muted-foreground">{row.typeLabel}</td>
-                  <td className="px-3 py-2 align-top text-muted-foreground">
-                    {formatEntryTimestamp(row.createdAt) ?? '—'}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    <div className="flex justify-end gap-2">
-                      {row.canView ? (
-                        <Button
-                          type="button"
-                          variant={isSelected ? 'secondary' : 'ghost'}
-                          size="sm"
-                          onClick={() => toggleRowSelection(row.key, setSelectedRowKey)}
-                        >
-                          {isSelected ? 'Hide' : 'View'}
-                        </Button>
-                      ) : null}
-                      {row.rowKind === 'artifact' ? (
-                        <ArtifactDownloadButton
-                          row={row}
-                          deliverableTitle={props.deliverable.title}
-                        />
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {selectedRow && selectedRow.canView ? (
-        <section className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="grid gap-1">
-              <p className="text-sm font-semibold text-foreground">{selectedRow.label}</p>
-              <p className="text-xs text-muted-foreground">{selectedRow.typeLabel}</p>
-            </div>
-          </div>
-          {selectedRow.rowKind === 'artifact' ? (
-            <ArtifactPreviewPanel row={selectedRow} />
-          ) : selectedRow.rowKind === 'inline' ? (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
-              {selectedRow.content}
-            </pre>
-          ) : (
-            <WorkflowDeliverableTargetLink target={selectedRow.target} />
-          )}
-        </section>
-      ) : null}
-    </div>
-  );
+  if (props.row.rowKind === 'inline') {
+    return (
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
+        {props.row.content}
+      </pre>
+    );
+  }
+  return <WorkflowDeliverableTargetLink target={props.row.target} />;
 }
 
-function toggleRowSelection(
-  rowKey: string,
-  setSelectedRowKey: (value: string | null | ((current: string | null) => string | null)) => void,
-): void {
-  setSelectedRowKey((current) => (current === rowKey ? null : rowKey));
-}
-
-export { resolveBrowserDownloadHref } from './workflow-deliverable-browser-support.js';
-
-function ArtifactDownloadButton(props: {
+export function WorkflowDeliverableDownloadButton(props: {
   row: ArtifactBrowserRow;
   deliverableTitle: string;
 }): JSX.Element {
@@ -167,7 +67,7 @@ function ArtifactPreviewPanel(props: {
       />
     );
   }
-  return <ArtifactPreviewClient {...props} />;
+  return <ArtifactPreviewClient row={props.row} />;
 }
 
 function ArtifactPreviewClient(props: {

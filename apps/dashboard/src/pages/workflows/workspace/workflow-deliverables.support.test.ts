@@ -6,6 +6,7 @@ import {
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
+import { resolveBrowserDownloadHref } from './workflow-deliverable-browser-support.js';
 
 describe('workflow deliverables support', () => {
   it('rewrites deprecated task artifact routes to direct artifact links without deprecated return navigation', () => {
@@ -102,6 +103,17 @@ describe('workflow deliverables support', () => {
       ),
     ).toBe(true);
     expect(isInPlaceArtifactPreviewTarget('https://example.invalid/repo/pull/42')).toBe(false);
+  });
+
+  it('rewrites artifact preview links to canonical download endpoints', () => {
+    expect(
+      resolveBrowserDownloadHref('http://localhost:3000/artifacts/tasks/task-1/artifact-1'),
+    ).toBe('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download');
+    expect(
+      resolveBrowserDownloadHref(
+        'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+      ),
+    ).toBe('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download');
   });
 
   it('normalizes malformed targets instead of throwing when target fields are missing', () => {
