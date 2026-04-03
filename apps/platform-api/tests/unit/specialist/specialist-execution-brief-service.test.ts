@@ -262,6 +262,30 @@ describe('buildSpecialistExecutionBrief', () => {
     );
   });
 
+  it('renders the task contract goal and acceptance criteria', () => {
+    const brief = buildSpecialistExecutionBrief({
+      ...buildInput(),
+      taskInput: {
+        description: 'Document the bounded fix recommendation or advisory patch package.',
+      },
+      workItem: {
+        ...buildInput().workItem,
+        goal: 'Produce the smallest safe fix or advisory patch package for release review.',
+        acceptance_criteria: [
+          'Implement the smallest safe fix available in the seeded repository or document an advisory patch package when the real worker path is unavailable.',
+        ],
+      },
+    });
+
+    expect(brief?.rendered_markdown).toContain('## Task Contract');
+    expect(brief?.rendered_markdown).toContain(
+      'Goal: Document the bounded fix recommendation or advisory patch package.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Implement the smallest safe fix available in the seeded repository or document an advisory patch package when the real worker path is unavailable.',
+    );
+  });
+
   it('changes refresh_key when active workflow controls change', () => {
     const base = buildInput();
     const initial = buildSpecialistExecutionBrief(base);

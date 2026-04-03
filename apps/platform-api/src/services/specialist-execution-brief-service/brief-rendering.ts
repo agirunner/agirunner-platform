@@ -23,6 +23,16 @@ export function renderBrief(
   if (brief.current_focus.stage_name) lines.push(`Stage: ${brief.current_focus.stage_name}`);
   if (brief.current_focus.stage_goal) lines.push(`Stage goal: ${brief.current_focus.stage_goal}`);
   if (brief.current_focus.board_position) lines.push(`Board position: ${brief.current_focus.board_position}`);
+  if (brief.goal || brief.acceptance_criteria.length > 0) {
+    lines.push('', '## Task Contract');
+    if (brief.goal) {
+      lines.push(`Goal: ${brief.goal}`);
+    }
+    if (brief.acceptance_criteria.length > 0) {
+      lines.push('Acceptance criteria:');
+      lines.push(...brief.acceptance_criteria.map((line) => `- ${line}`));
+    }
+  }
   if (brief.predecessor_handoff_summary?.summary) {
     lines.push('', '## Predecessor Context');
     lines.push(`Summary: ${brief.predecessor_handoff_summary.summary}`);
