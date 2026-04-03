@@ -203,7 +203,7 @@ function pluralizeCapability(count: number, singular: string): string {
 function repositoryFailureRecoveryGuidance(rule: string): string {
   switch (rule) {
     case 'investigate_failed_commands_before_retry':
-      return 'If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency or runtime is missing, or the repo expects a different entrypoint.';
+      return 'If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency or runtime is missing, or the repo expects a different entrypoint. If the command is expected to fail as evidence, rerun it with `shell_exec.allow_nonzero_exit=true` so the non-zero exit is captured instead of logged as a failed shell step.';
     case 'prefer_repo_native_commands_before_ad_hoc_probes':
       return 'Prefer repo-native scripts, tests, build commands, or documented entrypoints before inventing ad hoc probes, source rewrites, or fragile one-off commands.';
     case 'verify_repo_entrypoints_before_project_commands':
