@@ -303,47 +303,6 @@ def dispatch_ready_workflow_actions(
         current_index += 1
     return current_index, executed
 
-
-def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: int = 100) -> dict[str, Any]:
-    after: str | None = None
-    collected: list[dict[str, Any]] = []
-
-    while True:
-        path = f"/api/v1/workflows/{workflow_id}/events?limit={per_page}"
-        if after:
-            path = f"{path}&after={after}"
-
-        snapshot = client.best_effort_request(
-            "GET",
-            path,
-            expected=(200,),
-            label="workflows.events",
-        )
-        if not snapshot.get("ok"):
-            return snapshot
-
-        payload = snapshot.get("data")
-        data = extract_data(payload)
-        page_items = data if isinstance(data, list) else []
-        collected.extend(item for item in page_items if isinstance(item, dict))
-
-        meta = payload.get("meta", {}) if isinstance(payload, dict) else {}
-        has_more = bool(meta.get("has_more"))
-        next_after = meta.get("next_after")
-        if not has_more or not isinstance(next_after, str) or next_after.strip() == "":
-            return {
-                "ok": True,
-                "data": {
-                    "data": collected,
-                    "meta": {
-                        "has_more": False,
-                        "next_after": None,
-                    },
-                },
-            }
-        after = next_after
-
-
 def collect_workflow_stage_gates(client: ApiClient, *, workflow_id: str) -> dict[str, Any]:
     return client.best_effort_request(
         "GET",

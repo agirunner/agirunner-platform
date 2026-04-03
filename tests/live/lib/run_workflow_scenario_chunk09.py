@@ -3,6 +3,63 @@ from __future__ import annotations
 from run_workflow_scenario_chunk08 import *
 
 
+def finalize_expectations_result(
+    *,
+    expectations: dict[str, Any],
+    workflow: dict[str, Any],
+    work_items: Any,
+    board: Any,
+    artifacts: Any,
+    evidence_payload: dict[str, Any],
+    execution_logs: Any | None,
+    efficiency: dict[str, Any] | None,
+    verification_mode: str,
+    approval_actions: list[dict[str, Any]],
+    failures: list[str],
+    required_failures: list[str],
+    checks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    efficiency_expectations = expectations.get("efficiency", {})
+    if isinstance(efficiency_expectations, dict) and efficiency_expectations:
+        efficiency_checks, efficiency_failures = evaluate_efficiency_expectations(
+            efficiency_expectations,
+            efficiency,
+        )
+        checks.extend(efficiency_checks)
+        failures.extend(efficiency_failures)
+
+    if verification_mode == OUTCOME_DRIVEN_VERIFICATION_MODE:
+        outcome_checks, outcome_failures = evaluate_outcome_driven_basics(
+            expectations,
+            workflow=workflow,
+            work_items=work_items,
+            board=board,
+            artifacts=artifacts,
+            evidence=evidence_payload,
+            execution_logs=execution_logs,
+        )
+        required_failure_set = set(required_failures)
+        return {
+            "passed": len(outcome_failures) == 0 and len(required_failures) == 0,
+            "failures": [*outcome_failures, *required_failures],
+            "checks": [*checks, *outcome_checks],
+            "advisories": [
+                failure
+                for failure in failures
+                if failure not in required_failure_set
+            ],
+            "approval_actions": approval_actions,
+        }
+
+    return {
+        "passed": len(failures) == 0,
+        "failures": failures,
+        "checks": checks,
+        "advisories": [],
+        "approval_actions": approval_actions,
+    }
+
+
 def evaluate_expectations(
     expectations: dict[str, Any],
     *,
