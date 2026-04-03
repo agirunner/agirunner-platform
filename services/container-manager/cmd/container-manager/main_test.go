@@ -89,6 +89,13 @@ func (noopPlatformAPI) RecordFleetEvent(manager.FleetEvent) error               
 func (noopPlatformAPI) DrainRuntime(string) error                                        { return nil }
 func (noopPlatformAPI) AcknowledgeWorkerRestart(string) error                            { return nil }
 func (noopPlatformAPI) FailTask(string, string) error                                    { return nil }
+func (noopPlatformAPI) RegisterWorker(manager.WorkerRegistrationRequest) (manager.WorkerRegistrationResult, error) {
+	return manager.WorkerRegistrationResult{}, nil
+}
+func (noopPlatformAPI) RegisterAgent(manager.AgentRegistrationRequest) (manager.AgentRegistrationResult, error) {
+	return manager.AgentRegistrationResult{}, nil
+}
+func (noopPlatformAPI) DeleteWorker(string) error { return nil }
 
 func TestRegisterControlRoutesExposesVersionSummary(t *testing.T) {
 	mgr := manager.NewWithPlatform(
@@ -108,7 +115,7 @@ func TestRegisterControlRoutesExposesVersionSummary(t *testing.T) {
 					},
 					ImageLabels: map[string]string{
 						"org.opencontainers.image.version":  "0.1.0-rc.1",
-						"org.opencontainers.image.revision": "abcdef123456",
+						"org.opencontainers.image.revision": "rev-platform-api",
 					},
 				},
 			},
