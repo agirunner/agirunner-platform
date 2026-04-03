@@ -51,4 +51,21 @@ describe('deriveWorkflowStageProjection', () => {
       activeStages: ['implementation'],
     });
   });
+
+  it('falls back to the next pending planned stage when no stage is currently active', () => {
+    const projection = deriveWorkflowStageProjection({
+      lifecycle: 'planned',
+      stageRows: [
+        { name: 'reproduce', position: 0, status: 'completed' },
+        { name: 'implement', position: 1, status: 'pending' },
+        { name: 'review', position: 2, status: 'pending' },
+      ],
+      openWorkItemStageNames: [],
+    });
+
+    expect(projection).toEqual({
+      currentStage: 'implement',
+      activeStages: [],
+    });
+  });
 });

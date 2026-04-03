@@ -86,8 +86,9 @@ export function deriveWorkflowStageProjection(
     };
   }
 
+  const currentStage = currentStageNameFromStages(input.stageRows) ?? firstPendingStageName(input.stageRows);
   return {
-    currentStage: currentStageNameFromStages(input.stageRows),
+    currentStage,
     activeStages: input.stageRows
       .filter((row) => isActiveStageStatus(row.status))
       .map((row) => row.name),
@@ -147,6 +148,16 @@ function orderStageNames(
     remaining.delete(stageName);
   }
   return ordered;
+}
+
+function firstPendingStageName(
+  stageRows: Array<Pick<WorkflowStageResponse, 'name' | 'position' | 'status'>>,
+) {
+  return stageRows
+    .slice()
+    .sort((left, right) => left.position - right.position)
+    .find((row) => row.status === 'pending')
+    ?.name ?? null;
 }
 
 function readStageOrder(
