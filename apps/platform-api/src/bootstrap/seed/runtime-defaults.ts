@@ -5,6 +5,7 @@ import { seedDefaultPrompts } from './default-prompts.js';
 import { DASHBOARD_BACKED_RUNTIME_DEFAULTS } from './dashboard-backed-runtime-defaults.js';
 import {
   DEFAULT_RUNTIME_IMAGE,
+  isManagedRuntimeImageAlias,
   resolveSeedRuntimeImage,
 } from './runtime-image-default.js';
 
@@ -478,9 +479,25 @@ async function seedBootstrapRuntimeImageDefault(
   item: ReturnType<typeof buildRuntimeDefaults>[number],
 ): Promise<void> {
   const existing = await service.getByKey(DEFAULT_TENANT_ID, item.configKey);
-  if (existing) {
+  if (!existing) {
+    await service.createDefault(DEFAULT_TENANT_ID, item);
     return;
   }
 
-  await service.createDefault(DEFAULT_TENANT_ID, item);
+  if (shouldNormalizeManagedRuntimeImage(existing.config_value)) {
+    await service.upsertDefault(DEFAULT_TENANT_ID, item);
+  }
+}
+
+function shouldNormalizeManagedRuntimeImage(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') {
+    return true;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return true;
+  }
+
+  return isManagedRuntimeImageAlias(trimmed);
 }

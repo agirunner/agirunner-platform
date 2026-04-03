@@ -1,16 +1,42 @@
 import type { DatabaseQueryable } from '../../db/database.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 import { UserService } from '../../services/user-service.js';
-import { resolveSeedRuntimeImage } from './runtime-image-default.js';
+import {
+  isManagedRuntimeImageAlias,
+  resolveSeedRuntimeImage,
+} from './runtime-image-default.js';
 
-export async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
+interface WorkerDesiredStateRow {
+  id: string;
+  runtime_image: string | null;
+}
+
+export async function seedOrchestratorWorker(
+  db: DatabaseQueryable,
+  runtimeImage: string = resolveSeedRuntimeImage(process.env.RUNTIME_IMAGE),
+): Promise<void> {
   const existing = await db.query(
-    `SELECT id FROM worker_desired_state WHERE tenant_id = $1 AND pool_kind = 'orchestrator' LIMIT 1`,
+    `SELECT id, runtime_image
+       FROM worker_desired_state
+      WHERE tenant_id = $1 AND pool_kind = 'orchestrator'
+      LIMIT 1`,
     [DEFAULT_TENANT_ID],
   );
-  if (existing.rowCount && existing.rowCount > 0) return;
+  const existingWorker = existing.rows[0] as WorkerDesiredStateRow | undefined;
+  if (existing.rowCount && existing.rowCount > 0) {
+    if (!shouldNormalizeManagedRuntimeImage(existingWorker?.runtime_image)) {
+      return;
+    }
 
-  const runtimeImage = resolveSeedRuntimeImage(process.env.RUNTIME_IMAGE);
+    await db.query(
+      `UPDATE worker_desired_state
+          SET runtime_image = $1
+        WHERE id = $2 AND tenant_id = $3`,
+      [runtimeImage, existingWorker?.id, DEFAULT_TENANT_ID],
+    );
+    console.info('[seed] Normalized default orchestrator worker runtime image.');
+    return;
+  }
 
   await db.query(
     `INSERT INTO worker_desired_state (
@@ -29,6 +55,19 @@ export async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<voi
     [DEFAULT_TENANT_ID, runtimeImage],
   );
   console.info('[seed] Created default orchestrator worker (orchestrator-primary, 1 replica).');
+}
+
+function shouldNormalizeManagedRuntimeImage(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') {
+    return true;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return true;
+  }
+
+  return isManagedRuntimeImageAlias(trimmed);
 }
 
 export async function seedAdminUser(

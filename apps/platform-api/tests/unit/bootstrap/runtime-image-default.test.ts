@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_TENANT_ID } from '../../../src/db/seed.js';
+import { seedOrchestratorWorker } from '../../../src/bootstrap/seed/bootstrap-content.js';
 import {
   DEFAULT_RUNTIME_IMAGE,
   deriveManagedRuntimeImage,
@@ -81,7 +82,12 @@ describe('runtime image bootstrap defaults', () => {
 
   it('does not overwrite a runtime image changed later through the product', async () => {
     const service = createSeedServiceMock({
-      existingKeys: new Set(['specialist_runtime_default_image']),
+      existingDefaults: new Map([
+        [
+          'specialist_runtime_default_image',
+          'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+        ],
+      ]),
     });
 
     await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:latest');
@@ -93,17 +99,104 @@ describe('runtime image bootstrap defaults', () => {
       ),
     ).toBe(false);
   });
+
+  it('normalizes an existing managed specialist runtime alias to the derived release image', async () => {
+    const service = createSeedServiceMock({
+      existingDefaults: new Map([
+        ['specialist_runtime_default_image', 'ghcr.io/agirunner/agirunner-runtime:latest'],
+      ]),
+    });
+
+    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+
+    expect(service.createDefaultCalls).toEqual([]);
+    expect(service.upsertDefaultCalls).toContainEqual({
+      tenantId: DEFAULT_TENANT_ID,
+      configKey: 'specialist_runtime_default_image',
+      configValue: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+    });
+  });
+
+  it('normalizes the legacy local specialist runtime alias in released builds', async () => {
+    const service = createSeedServiceMock({
+      existingDefaults: new Map([['specialist_runtime_default_image', 'agirunner-runtime:local']]),
+    });
+
+    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+
+    expect(service.upsertDefaultCalls).toContainEqual({
+      tenantId: DEFAULT_TENANT_ID,
+      configKey: 'specialist_runtime_default_image',
+      configValue: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+    });
+  });
+
+  it('preserves an existing explicit specialist runtime override', async () => {
+    const service = createSeedServiceMock({
+      existingDefaults: new Map([
+        ['specialist_runtime_default_image', 'ghcr.io/custom/runtime@sha256:deadbeef'],
+      ]),
+    });
+
+    await seedRuntimeDefaults(service, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+
+    expect(service.createDefaultCalls).toEqual([]);
+    expect(
+      service.upsertDefaultCalls.some(
+        (call) => call.configKey === 'specialist_runtime_default_image',
+      ),
+    ).toBe(false);
+  });
+
+  it('normalizes an existing orchestrator managed alias to the derived release image', async () => {
+    const db = createSeedDbMock({
+      workerDesiredState: {
+        id: 'orchestrator-row',
+        runtime_image: 'ghcr.io/agirunner/agirunner-runtime:latest',
+      },
+    });
+
+    await seedOrchestratorWorker(db, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+
+    expect(db.calls).toHaveLength(2);
+    expect(db.calls[1]).toMatchObject({
+      params: [
+        'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+        'orchestrator-row',
+        DEFAULT_TENANT_ID,
+      ],
+    });
+    expect(db.calls[1]?.sql).toContain('UPDATE worker_desired_state');
+  });
+
+  it('preserves an existing explicit orchestrator runtime override', async () => {
+    const db = createSeedDbMock({
+      workerDesiredState: {
+        id: 'orchestrator-row',
+        runtime_image: 'ghcr.io/custom/runtime:9.9.9',
+      },
+    });
+
+    await seedOrchestratorWorker(db, 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
+
+    expect(db.calls).toHaveLength(1);
+    expect(db.calls[0]?.sql).toContain('FROM worker_desired_state');
+  });
 });
 
-function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
-  const existingKeys = options?.existingKeys ?? new Set<string>();
+function createSeedServiceMock(options?: { existingDefaults?: Map<string, string> }) {
+  const existingDefaults = options?.existingDefaults ?? new Map<string, string>();
   const getByKeyCalls: Array<{ tenantId: string; configKey: string }> = [];
   const createDefaultCalls: Array<{
     tenantId: string;
     configKey: string;
     configValue: string;
   }> = [];
-  const upsertDefaultCalls: Array<{ tenantId: string; configKey: string }> = [];
+  const upsertDefaultCalls: Array<{
+    tenantId: string;
+    configKey: string;
+    configValue: string;
+  }> = [];
 
   return {
     getByKeyCalls,
@@ -111,12 +204,12 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
     upsertDefaultCalls,
     async getByKey(tenantId: string, configKey: string) {
       getByKeyCalls.push({ tenantId, configKey });
-      return existingKeys.has(configKey)
+      return existingDefaults.has(configKey)
         ? ({
             id: 'runtime-default-id',
             tenant_id: tenantId,
             config_key: configKey,
-            config_value: 'existing-image',
+            config_value: existingDefaults.get(configKey) ?? 'existing-image',
             config_type: 'string',
             description: 'existing',
             created_at: new Date('2026-03-31T00:00:00Z'),
@@ -151,6 +244,7 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
       upsertDefaultCalls.push({
         tenantId,
         configKey: input.configKey,
+        configValue: input.configValue,
       });
       return {
         id: 'upserted-id',
@@ -161,6 +255,31 @@ function createSeedServiceMock(options?: { existingKeys?: Set<string> }) {
         description: null,
         created_at: new Date('2026-03-31T00:00:00Z'),
         updated_at: new Date('2026-03-31T00:00:00Z'),
+      };
+    },
+  };
+}
+
+function createSeedDbMock(options?: {
+  workerDesiredState?: { id: string; runtime_image: string } | null;
+}) {
+  const calls: Array<{ sql: string; params?: unknown[] }> = [];
+  const workerDesiredState = options?.workerDesiredState ?? null;
+
+  return {
+    calls,
+    async query(sql: string, params?: unknown[]) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM worker_desired_state')) {
+        return {
+          rowCount: workerDesiredState ? 1 : 0,
+          rows: workerDesiredState ? [workerDesiredState] : [],
+        };
+      }
+
+      return {
+        rowCount: 1,
+        rows: [],
       };
     },
   };
