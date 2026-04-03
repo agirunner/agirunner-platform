@@ -1,4 +1,7 @@
+import { useState } from 'react';
+
 import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
 import type {
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
@@ -17,6 +20,7 @@ export function WorkflowDeliverables(props: {
   const packet = normalizeDeliverablesPacket(props.packet);
   const normalizedScope = props.scope;
   const selectedWorkItemId = props.selectedWorkItemId;
+  const [selectedDeliverableId, setSelectedDeliverableId] = useState<string | null>(null);
   const scopedDeliverables = buildScopedDeliverables(
     packet,
     normalizedScope.scopeKind,
@@ -42,15 +46,48 @@ export function WorkflowDeliverables(props: {
           {buildEmptyMessage(normalizedScope.scopeKind, props.selectedWorkItemTitle)}
         </p>
       ) : (
-        <div className="grid gap-3">
-          {scopedDeliverables.map((deliverable) => (
-            <DeliverableRow
-              key={deliverable.descriptor_id}
-              deliverable={deliverable}
-              showScopeBadge={normalizedScope.scopeKind === 'workflow'}
-            />
-          ))}
-        </div>
+        <>
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
+            <table className="w-full table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-[36%]" />
+                <col className="w-[12%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[16%]" />
+                <col className="w-[10%]" />
+              </colgroup>
+              <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Deliverable</th>
+                  <th className="px-3 py-2 text-left font-medium">Stage</th>
+                  <th className="px-3 py-2 text-left font-medium">Kind</th>
+                  <th className="px-3 py-2 text-left font-medium">Scope</th>
+                  <th className="px-3 py-2 text-left font-medium">Recorded</th>
+                  <th className="px-3 py-2 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopedDeliverables.map((deliverable) => {
+                  const isSelected = deliverable.descriptor_id === selectedDeliverableId;
+                  return (
+                    <DeliverableTableEntry
+                      key={deliverable.descriptor_id}
+                      deliverable={deliverable}
+                      isSelected={isSelected}
+                      scopeKind={normalizedScope.scopeKind}
+                      onToggle={() =>
+                        setSelectedDeliverableId((current) =>
+                          current === deliverable.descriptor_id ? null : deliverable.descriptor_id,
+                        )
+                      }
+                    />
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {packet.next_cursor ? (
@@ -68,39 +105,79 @@ export function WorkflowDeliverables(props: {
   );
 }
 
-function DeliverableRow(props: {
+function DeliverableTableEntry(props: {
   deliverable: DashboardWorkflowDeliverableRecord;
-  showScopeBadge: boolean;
+  isSelected: boolean;
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'];
+  onToggle(): void;
 }): JSX.Element {
   const stageLabel = props.deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
   const createdLabel = formatEntryTimestamp(props.deliverable.created_at);
+  const scopeLabel =
+    props.scopeKind === 'workflow'
+      ? props.deliverable.work_item_id
+        ? 'Work item'
+        : 'Workflow'
+      : 'Work item';
 
   return (
-    <article className="grid gap-4 rounded-2xl border border-border/70 bg-muted/10 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <strong className="text-foreground">{props.deliverable.title}</strong>
-            <Badge variant="secondary">{stageLabel}</Badge>
-            <Badge variant="outline">{humanizeToken(props.deliverable.descriptor_kind)}</Badge>
-            {props.showScopeBadge ? (
-              <Badge variant="outline">
-                {props.deliverable.work_item_id ? 'Work item' : 'Workflow'}
-              </Badge>
+    <>
+      <tr className={`border-t border-border/60 ${props.isSelected ? 'bg-accent/5' : ''}`}>
+        <td className="px-3 py-3 align-top">
+          <div className="grid gap-1">
+            <p className="font-medium text-foreground">{props.deliverable.title}</p>
+            {props.deliverable.summary_brief ? (
+              <p className="line-clamp-2 text-xs text-muted-foreground">
+                {props.deliverable.summary_brief}
+              </p>
             ) : null}
           </div>
-          {createdLabel ? (
-            <p className="text-xs text-muted-foreground">Created {createdLabel}</p>
-          ) : null}
-        </div>
-      </div>
+        </td>
+        <td className="px-3 py-3 align-top">
+          <Badge variant="secondary">{stageLabel}</Badge>
+        </td>
+        <td className="px-3 py-3 align-top text-muted-foreground">
+          {humanizeToken(props.deliverable.descriptor_kind)}
+        </td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{scopeLabel}</td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel ?? '—'}</td>
+        <td className="px-3 py-3 align-top">
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant={props.isSelected ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-expanded={props.isSelected}
+              onClick={props.onToggle}
+            >
+              {props.isSelected ? 'Hide' : 'Open'}
+            </Button>
+          </div>
+        </td>
+      </tr>
 
-      {props.deliverable.summary_brief ? (
-        <p className="text-sm text-muted-foreground">{props.deliverable.summary_brief}</p>
+      {props.isSelected ? (
+        <tr className="border-t border-border/40 bg-muted/10">
+          <td colSpan={6} className="px-4 py-4">
+            <div className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-4">
+              <div className="grid gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">{props.deliverable.title}</p>
+                  <Badge variant="secondary">{stageLabel}</Badge>
+                  <Badge variant="outline">
+                    {humanizeToken(props.deliverable.descriptor_kind)}
+                  </Badge>
+                </div>
+                {props.deliverable.summary_brief ? (
+                  <p className="text-sm text-muted-foreground">{props.deliverable.summary_brief}</p>
+                ) : null}
+              </div>
+              <WorkflowDeliverableBrowser deliverable={props.deliverable} />
+            </div>
+          </td>
+        </tr>
       ) : null}
-
-      <WorkflowDeliverableBrowser deliverable={props.deliverable} />
-    </article>
+    </>
   );
 }
 

@@ -72,10 +72,6 @@ describe('WorkflowBottomWorkbench deliverables', () => {
 
     expect(html).toContain('Deliverables');
     expect(html).toContain('Recovered deliverable');
-    expect(html).toContain(
-      'Deliverables tab should render instead of tripping the workspace fallback.',
-    );
-    expect(html).toContain('No interim deliverables are recorded for this workflow yet.');
   });
 
   it('keeps deliverables aligned with the normalized work-item scope when outer props are stale', () => {
@@ -237,7 +233,6 @@ describe('WorkflowBottomWorkbench deliverables', () => {
     });
 
     expect(html).toContain('Release summary packet');
-    expect(html).toContain('Embedded release summary without a target URL.');
     expect(html).toContain('Showing only deliverables recorded for Prepare release bundle.');
     expect(html).not.toContain('Open artifact in new tab');
   });

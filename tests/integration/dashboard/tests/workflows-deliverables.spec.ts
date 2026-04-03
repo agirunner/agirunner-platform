@@ -20,27 +20,26 @@ test('renders supported deliverable types and artifact actions at workflow scope
 
   await expect(workbench.getByText('Showing all deliverables recorded across this workflow')).toBeVisible();
   await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
-  await expect(workbench.getByText('Architecture bundle')).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Release repository output' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Stakeholder share link' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Inline decision summary' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Inline decision summary' })).toHaveCount(1);
-  await expect(workbench.getByText('Workflow document').first()).toBeVisible();
-  await expect(workbench.getByText('Repository').first()).toBeVisible();
-  await expect(workbench.getByText('External URL').first()).toBeVisible();
-  await expect(workbench.getByText('Host directory').first()).toBeVisible();
-  await expect(workbench.getByText('Inline summary').first()).toBeVisible();
+  const deliverablesTable = workbench.getByRole('table').first();
 
-  const architectureCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
-  const repositoryCard = workbench.locator('article').filter({ hasText: 'Release repository output' }).first();
-  const packetCard = workbench.locator('article').filter({ hasText: 'Signed workflow packet' }).first();
-  const shareCard = workbench.locator('article').filter({ hasText: 'Stakeholder share link' }).first();
-  const exportCard = workbench.locator('article').filter({ hasText: 'Export directory' }).first();
-  const inlineCard = workbench.locator('article').filter({ hasText: 'Inline decision summary' }).first();
+  const architectureDeliverableRow = deliverablesTable.getByRole('row', { name: /Architecture bundle/ }).first();
+  const repositoryDeliverableRow = deliverablesTable.getByRole('row', { name: /Release repository output/ }).first();
+  const packetDeliverableRow = deliverablesTable.getByRole('row', { name: /Signed workflow packet/ }).first();
+  const shareDeliverableRow = deliverablesTable.getByRole('row', { name: /Stakeholder share link/ }).first();
+  const exportDeliverableRow = deliverablesTable.getByRole('row', { name: /Export directory/ }).first();
+  const inlineDeliverableRow = deliverablesTable.getByRole('row', { name: /Inline decision summary/ }).first();
 
-  const architectureRow = architectureCard.locator('tr').filter({ hasText: 'architecture-brief.md' }).first();
+  await expect(architectureDeliverableRow).toBeVisible();
+  await expect(repositoryDeliverableRow).toBeVisible();
+  await expect(packetDeliverableRow).toBeVisible();
+  await expect(shareDeliverableRow).toBeVisible();
+  await expect(exportDeliverableRow).toBeVisible();
+  await expect(inlineDeliverableRow).toBeVisible();
+
+  await architectureDeliverableRow.scrollIntoViewIfNeeded();
+  await architectureDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  const browserTable = workbench.getByRole('table').nth(1);
+  const architectureRow = browserTable.getByRole('row', { name: /architecture-brief\.md/ }).first();
   await expect(architectureRow.getByRole('button', { name: 'Download' })).toBeVisible();
   await expect(workbench.getByText('Unknown time')).toHaveCount(0);
   await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
@@ -56,31 +55,41 @@ test('renders supported deliverable types and artifact actions at workflow scope
   await architectureRow.getByRole('button', { name: 'Hide' }).click();
   await expect(workbench.getByText('Architecture brief')).toHaveCount(0);
 
-  await repositoryCard.getByRole('button', { name: 'Release repository output' }).click();
-  await expect(repositoryCard.getByText('release/main')).toBeVisible();
-  await expect(repositoryCard.getByRole('link', { name: 'Open target' })).toHaveAttribute(
+  await repositoryDeliverableRow.scrollIntoViewIfNeeded();
+  await repositoryDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Release repository output' }).last().click();
+  await expect(workbench.getByText('release/main')).toBeVisible();
+  await expect(workbench.getByRole('link', { name: 'Open target' })).toHaveAttribute(
     'href',
     'https://github.com/example/release-audit/pull/42',
   );
 
-  await packetCard.getByRole('button', { name: 'Signed workflow packet' }).click();
-  await expect(packetCard.getByText('Path')).toBeVisible();
-  await expect(packetCard.getByText('release-packet', { exact: true })).toBeVisible();
+  await packetDeliverableRow.scrollIntoViewIfNeeded();
+  await packetDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Signed workflow packet' }).last().click();
+  await expect(workbench.getByText('Path')).toBeVisible();
+  await expect(workbench.getByText('release-packet', { exact: true })).toBeVisible();
 
-  await shareCard.getByRole('button', { name: 'Stakeholder share link' }).click();
-  await expect(shareCard.getByText('Canonical target')).toBeVisible();
-  await expect(shareCard.getByRole('link', { name: 'Open target' })).toHaveAttribute(
+  await shareDeliverableRow.scrollIntoViewIfNeeded();
+  await shareDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Stakeholder share link' }).last().click();
+  await expect(workbench.getByText('Canonical target')).toBeVisible();
+  await expect(workbench.getByRole('link', { name: 'Open target' })).toHaveAttribute(
     'href',
     'https://example.com/share/release-audit',
   );
 
-  await exportCard.getByRole('button', { name: 'Export directory' }).click();
-  await expect(exportCard.getByText('Path')).toBeVisible();
-  await expect(exportCard.getByText('/var/tmp/exports/release-audit')).toBeVisible();
+  await exportDeliverableRow.scrollIntoViewIfNeeded();
+  await exportDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Export directory' }).last().click();
+  await expect(workbench.getByText('Path')).toBeVisible();
+  await expect(workbench.getByText('/var/tmp/exports/release-audit')).toBeVisible();
 
-  await inlineCard.getByRole('button', { name: 'Inline decision summary' }).click();
-  await expect(inlineCard.getByText('Operator summary:')).toBeVisible();
-  await expect(inlineCard.getByText('rollback note added')).toBeVisible();
+  await inlineDeliverableRow.scrollIntoViewIfNeeded();
+  await inlineDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Inline decision summary' }).last().click();
+  await expect(workbench.getByText('Operator summary:')).toBeVisible();
+  await expect(workbench.getByText('rollback note added')).toBeVisible();
 });
 
 test('narrows deliverables to the selected work item and keeps workflow-only rows out of scope', async ({ page }) => {
@@ -95,13 +104,13 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
 
   await expect(workbench.getByText('Showing only deliverables recorded for Prepare blocked release brief.')).toBeVisible();
   await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
-  await expect(workbench.getByText('Architecture bundle')).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Signed workflow packet' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Export directory' }).first()).toBeVisible();
-  await expect(workbench.getByRole('button', { name: 'Inline decision summary' }).first()).toBeVisible();
-
-  await expect(workbench.getByRole('button', { name: 'Release repository output' })).toHaveCount(0);
-  await expect(workbench.getByRole('button', { name: 'Stakeholder share link' })).toHaveCount(0);
+  const deliverablesTable = workbench.getByRole('table').first();
+  await expect(deliverablesTable.getByRole('row', { name: /Architecture bundle/ })).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Signed workflow packet/ })).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Export directory/ })).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Inline decision summary/ })).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Release repository output/ })).toHaveCount(0);
+  await expect(deliverablesTable.getByRole('row', { name: /Stakeholder share link/ })).toHaveCount(0);
 });
 
 test('keeps large deliverable payloads usable across artifact catalogs and inline summaries', async ({ page }) => {
@@ -116,10 +125,13 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
-  const architectureCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
+  const deliverablesTable = workbench.getByRole('table').first();
+  const architectureDeliverableRow = deliverablesTable.getByRole('row', { name: /Architecture bundle/ }).first();
+  await architectureDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  const browserTable = workbench.getByRole('table').nth(1);
   await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
 
-  const oversizedRow = architectureCard.locator('tr').filter({ hasText: 'release-audit-100.txt' }).first();
+  const oversizedRow = browserTable.getByRole('row', { name: /release-audit-100\.txt/ }).first();
   await oversizedRow.scrollIntoViewIfNeeded();
   await oversizedRow.getByRole('button', { name: 'View' }).click();
 
@@ -134,13 +146,15 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('release-audit-100.txt');
 
-  const inlineCard = workbench.locator('article').filter({ hasText: 'Inline decision summary' }).first();
-  await inlineCard.getByRole('button', { name: 'View' }).click();
-  await expect(inlineCard.getByText('operator checkpoint 80')).toBeVisible();
-  await expect(inlineCard.getByText('Tail marker: INLINE-END')).toBeVisible();
+  const inlineDeliverableRow = deliverablesTable.getByRole('row', { name: /Inline decision summary/ }).first();
+  await inlineDeliverableRow.scrollIntoViewIfNeeded();
+  await inlineDeliverableRow.getByRole('button', { name: 'Open' }).click();
+  await workbench.getByRole('button', { name: 'Inline decision summary' }).last().click();
+  await expect(workbench.getByText('operator checkpoint 80')).toBeVisible();
+  await expect(workbench.getByText('Tail marker: INLINE-END')).toBeVisible();
 });
 
-test('keeps deliverable browser columns aligned across final and interim rows', async ({ page }) => {
+test('renders a single deliverables table before opening the selected row browser', async ({ page }) => {
   await seedWorkflowDeliverablesScenario();
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
   await loginToWorkflows(page);
@@ -149,33 +163,8 @@ test('keeps deliverable browser columns aligned across final and interim rows', 
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('tab', { name: 'Deliverables' }).click();
 
-  const finalCard = workbench.locator('article').filter({ hasText: 'Architecture bundle' }).first();
-  const interimCard = workbench.locator('article').filter({ hasText: 'Export directory' }).first();
-
-  const finalHeaderMetrics = await finalCard.locator('th').evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        left: Math.round(box.left),
-        right: Math.round(box.right),
-      };
-    }),
-  );
-  const interimHeaderMetrics = await interimCard.locator('th').evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        left: Math.round(box.left),
-        right: Math.round(box.right),
-      };
-    }),
-  );
-
-  expect(finalHeaderMetrics).toHaveLength(4);
-  expect(interimHeaderMetrics).toHaveLength(4);
-
-  for (let index = 0; index < finalHeaderMetrics.length; index += 1) {
-    expect(Math.abs(finalHeaderMetrics[index]!.left - interimHeaderMetrics[index]!.left)).toBeLessThanOrEqual(1);
-    expect(Math.abs(finalHeaderMetrics[index]!.right - interimHeaderMetrics[index]!.right)).toBeLessThanOrEqual(1);
-  }
+  await expect(workbench.getByRole('table')).toHaveCount(1);
+  const deliverablesTable = workbench.getByRole('table').first();
+  await deliverablesTable.getByRole('row', { name: /Architecture bundle/ }).getByRole('button', { name: 'Open' }).click();
+  await expect(workbench.getByRole('table')).toHaveCount(2);
 });
