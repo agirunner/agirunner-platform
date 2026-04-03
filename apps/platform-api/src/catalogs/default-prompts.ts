@@ -70,6 +70,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Do not force sh ./script or bash ./script blindly. Inspect the shebang or script contents first and invoke the script through its intended interpreter.
 - Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter.
 - Before commands, confirm the runtime exists or install it.
+- Before test, build, lint, or task-runner commands, confirm the repo actually exposes that entrypoint from the current working directory by checking manifests, scripts, task runners, make targets, or documented commands. Do not assume a default command exists.
 - If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency/runtime is missing, or a different repo-native command or tool path is more appropriate.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.

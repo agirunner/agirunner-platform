@@ -206,6 +206,8 @@ function repositoryFailureRecoveryGuidance(rule: string): string {
       return 'If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency or runtime is missing, or the repo expects a different entrypoint.';
     case 'prefer_repo_native_commands_before_ad_hoc_probes':
       return 'Prefer repo-native scripts, tests, build commands, or documented entrypoints before inventing ad hoc probes, source rewrites, or fragile one-off commands.';
+    case 'verify_repo_entrypoints_before_project_commands':
+      return 'Before test, build, lint, or task-runner commands, confirm the repo actually exposes that entrypoint from the current working directory by checking manifests, scripts, task runners, make targets, or documented commands.';
     case 'check_runtime_or_dependency_availability':
       return 'If a command appears unavailable, verify whether the needed interpreter, package manager, dependency, or CLI is missing and install or invoke the correct tool before escalating.';
     default:

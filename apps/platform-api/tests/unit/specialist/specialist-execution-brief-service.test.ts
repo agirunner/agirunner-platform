@@ -202,6 +202,7 @@ describe('buildSpecialistExecutionBrief', () => {
       failure_recovery_contracts: [
         'investigate_failed_commands_before_retry',
         'prefer_repo_native_commands_before_ad_hoc_probes',
+        'verify_repo_entrypoints_before_project_commands',
         'check_runtime_or_dependency_availability',
       ],
       avoid_patterns: ['ad_hoc_source_rewrite_eval'],
