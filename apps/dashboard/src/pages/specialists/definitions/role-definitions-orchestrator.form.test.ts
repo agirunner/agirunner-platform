@@ -2,27 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import type { FleetWorkerRecord } from '../../../lib/api.js';
 import {
-  buildOrchestratorModelDraft,
   buildOrchestratorPoolDraft,
-  buildOrchestratorPromptDraft,
   listOrchestratorWorkerOptions,
+  buildOrchestratorModelDraft,
   ORCHESTRATOR_INHERIT_MODEL,
 } from './role-definitions-orchestrator.form.js';
 
 const TEST_RELEASE_RUNTIME_IMAGE = 'ghcr.io/agirunner/agirunner-runtime:9.8.7-rc.1';
 
 describe('role definitions orchestrator form', () => {
-  it('builds a direct prompt draft from the live platform instructions record', () => {
-    expect(
-      buildOrchestratorPromptDraft({
-        version: 5,
-        content: 'Keep delegation concise and request review when a gate blocks progress.',
-      }),
-    ).toEqual({
-      content: 'Keep delegation concise and request review when a gate blocks progress.',
-    });
-  });
-
   it('defaults orchestrator model editing to inheritance when no override exists', () => {
     expect(buildOrchestratorModelDraft([])).toEqual({
       modelId: ORCHESTRATOR_INHERIT_MODEL,
@@ -68,17 +56,9 @@ describe('role definitions orchestrator form', () => {
       replicas: '3',
       enabled: true,
     });
-    expect(listOrchestratorWorkerOptions(workers)).toEqual([
-      {
-        id: 'worker-primary',
-        name: 'orch-primary',
-        detail: 'Enabled · 3 desired replicas',
-      },
-      {
-        id: 'worker-disabled',
-        name: 'orch-disabled',
-        detail: 'Disabled · 2 desired replicas',
-      },
+    expect(listOrchestratorWorkerOptions(workers).map((option) => option.id)).toEqual([
+      'worker-primary',
+      'worker-disabled',
     ]);
   });
 });

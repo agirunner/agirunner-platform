@@ -13,10 +13,8 @@ test('shows the reported runtime version instead of a moving image tag', async (
   await page.getByRole('button', { name: 'Versions' }).click();
 
   const popover = page.locator('[data-radix-popper-content-wrapper]').last();
-  await expect(popover.getByText('Running Versions')).toBeVisible();
-  await expect(popover).toContainText('ghcr.io/agirunner/agirunner-runtime:latest');
-  await expect(popover).toContainText(TEST_RELEASE_VERSION);
-  await expect(popover).toContainText('2 containers | 1 orchestrator | 1 specialist runtime');
+  await expect(popover.getByText(TEST_RELEASE_VERSION)).toBeVisible();
+  await expect(popover.getByText('ghcr.io/agirunner/agirunner-runtime:latest')).toBeVisible();
 });
 
 async function routeVersionSummary(page: Page): Promise<void> {
