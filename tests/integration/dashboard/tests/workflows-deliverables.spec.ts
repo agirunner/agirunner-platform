@@ -9,7 +9,7 @@ import { seedWorkflowDeliverablesScenario } from '../lib/workflows-deliverables-
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 
-test('renders a flat deliverables table with direct row actions and correct stage labels', async ({ page }) => {
+test('renders a flat deliverables table with direct row actions and inline target metadata', async ({ page }) => {
   await seedWorkflowDeliverablesScenario();
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
   await loginToWorkflows(page);
@@ -58,6 +58,10 @@ test('renders a flat deliverables table with direct row actions and correct stag
   await expect(shareDeliverableRow).toContainText('Interim');
   await expect(exportDeliverableRow).toContainText('Interim');
   await expect(inlineDeliverableRow).toContainText('Interim');
+  await expect(repositoryDeliverableRow).toContainText('release/main');
+  await expect(repositoryDeliverableRow).toContainText('https://github.com/example/release-audit/pull/42');
+  await expect(shareDeliverableRow).toContainText('https://example.com/share/release-audit');
+  await expect(exportDeliverableRow).toContainText('/var/tmp/exports/release-audit');
 
   await architectureFileRow.scrollIntoViewIfNeeded();
   await expect(architectureFileRow.getByRole('button', { name: 'Download' })).toBeVisible();
@@ -78,25 +82,29 @@ test('renders a flat deliverables table with direct row actions and correct stag
   await expect(workbench.getByText('Architecture brief')).toHaveCount(0);
 
   await repositoryDeliverableRow.scrollIntoViewIfNeeded();
-  await repositoryDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(workbench.getByText('release/main')).toBeVisible();
-  await expect(workbench.getByText('https://github.com/example/release-audit/pull/42')).toBeVisible();
+  await expect(repositoryDeliverableRow.getByRole('button', { name: 'View' })).toHaveCount(0);
+  await expect(repositoryDeliverableRow.getByRole('link', { name: 'Open' })).toHaveAttribute(
+    'href',
+    'https://github.com/example/release-audit/pull/42',
+  );
 
   await packetDeliverableRow.scrollIntoViewIfNeeded();
-  await packetDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(packetDeliverableRow.getByRole('button', { name: 'Hide' })).toBeVisible();
+  await expect(packetDeliverableRow.getByRole('button', { name: 'View' })).toHaveCount(0);
+  await expect(packetDeliverableRow.getByRole('link', { name: 'Open' })).toHaveAttribute(
+    'href',
+    'https://docs.example.com/workflows/release-packet',
+  );
 
   await shareDeliverableRow.scrollIntoViewIfNeeded();
-  await shareDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(workbench.getByRole('link', { name: 'Open target' })).toHaveAttribute(
+  await expect(shareDeliverableRow.getByRole('button', { name: 'View' })).toHaveCount(0);
+  await expect(shareDeliverableRow.getByRole('link', { name: 'Open' })).toHaveAttribute(
     'href',
     'https://example.com/share/release-audit',
   );
 
   await exportDeliverableRow.scrollIntoViewIfNeeded();
-  await exportDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(workbench.getByText('Path')).toBeVisible();
-  await expect(workbench.getByText('/var/tmp/exports/release-audit')).toBeVisible();
+  await expect(exportDeliverableRow.getByRole('button', { name: 'View' })).toHaveCount(0);
+  await expect(exportDeliverableRow.getByRole('link', { name: 'Open' })).toHaveCount(0);
 
   await inlineDeliverableRow.scrollIntoViewIfNeeded();
   await inlineDeliverableRow.getByRole('button', { name: 'View' }).click();

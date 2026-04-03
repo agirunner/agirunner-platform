@@ -49,6 +49,7 @@ export function buildBrowserRows(
 ): DeliverableBrowserRow[] {
   const rows: DeliverableBrowserRow[] = [];
   const seenKeys = new Set<string>();
+  const hasExplicitInlineSummary = readHasExplicitInlineSummaryTarget(deliverable);
 
   for (const target of readResolvedTargets(deliverable)) {
     const href = resolveDeliverableTargetHref(target);
@@ -88,8 +89,7 @@ export function buildBrowserRows(
   }
 
   const inlineContent = readInlineContent(deliverable);
-  const trimmedSummary = deliverable.summary_brief?.trim() ?? null;
-  if (inlineContent && (rows.length === 0 || inlineContent !== trimmedSummary)) {
+  if (inlineContent && (rows.length === 0 || hasExplicitInlineSummary)) {
     rows.push({
       rowKind: 'inline',
       key: `inline:${deliverable.descriptor_id}`,
@@ -118,6 +118,14 @@ function readResolvedTargets(
 
 function shouldSuppressInlineSummaryTarget(target: DashboardWorkflowDeliverableTarget): boolean {
   return target.target_kind === 'inline_summary';
+}
+
+function readHasExplicitInlineSummaryTarget(
+  deliverable: DashboardWorkflowDeliverableRecord,
+): boolean {
+  return [deliverable.primary_target, ...deliverable.secondary_targets]
+    .map((target) => sanitizeDeliverableTarget(target))
+    .some((target) => target.target_kind === 'inline_summary');
 }
 
 function readInlineContent(deliverable: DashboardWorkflowDeliverableRecord): string | null {

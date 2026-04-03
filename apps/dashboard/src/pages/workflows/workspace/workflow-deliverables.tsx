@@ -14,6 +14,13 @@ import {
   type DeliverableBrowserRow,
 } from './workflow-deliverable-browser-support.js';
 import {
+  readDeliverableRowLabel,
+  readDeliverableRowMetadata,
+  readDeliverableRowOpenHref,
+  type DeliverableMetadataEntry,
+  type DeliverableTableRowRecord,
+} from './workflow-deliverable-row-display.js';
+import {
   normalizeDeliverablesPacket,
   sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
@@ -22,10 +29,8 @@ import {
   WorkflowDeliverablePreview,
 } from './workflow-deliverable-preview.js';
 
-interface DeliverableTableRow {
+interface DeliverableTableRow extends DeliverableTableRowRecord {
   key: string;
-  deliverable: DashboardWorkflowDeliverableRecord;
-  browserRow: DeliverableBrowserRow;
 }
 
 export function WorkflowDeliverables(props: {
@@ -67,14 +72,15 @@ export function WorkflowDeliverables(props: {
           data-workflows-deliverables-scroll-region="true"
           className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/70 bg-background/70"
         >
-          <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[1120px] border-collapse text-sm">
             <colgroup>
-              <col className="w-[42%]" />
+              <col className="w-[26%]" />
               <col className="w-[10%]" />
-              <col className="w-[14%]" />
               <col className="w-[10%]" />
-              <col className="w-[14%]" />
+              <col className="w-[8%]" />
+              <col className="w-[28%]" />
               <col className="w-[10%]" />
+              <col className="w-[8%]" />
             </colgroup>
             <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -82,6 +88,7 @@ export function WorkflowDeliverables(props: {
                 <th className="px-3 py-2 text-left font-medium">Stage</th>
                 <th className="px-3 py-2 text-left font-medium">Kind</th>
                 <th className="px-3 py-2 text-left font-medium">Scope</th>
+                <th className="px-3 py-2 text-left font-medium">Target</th>
                 <th className="px-3 py-2 text-left font-medium">Recorded</th>
                 <th className="px-3 py-2 text-right font-medium">Action</th>
               </tr>
@@ -136,8 +143,10 @@ function DeliverableTableEntry(props: {
         ? 'Work item'
         : 'Workflow'
       : 'Work item';
-  const rowLabel = readRowLabel(props.row);
-  const hasActions = browserRow.canView || browserRow.rowKind === 'artifact';
+  const rowLabel = readDeliverableRowLabel(props.row);
+  const metadata = readDeliverableRowMetadata(props.row);
+  const openHref = readDeliverableRowOpenHref(props.row);
+  const canPreview = browserRow.rowKind !== 'reference' && browserRow.canView;
 
   return (
     <>
@@ -158,49 +167,45 @@ function DeliverableTableEntry(props: {
         </td>
         <td className="px-3 py-3 align-top text-muted-foreground">{browserRow.typeLabel}</td>
         <td className="px-3 py-3 align-top text-muted-foreground">{scopeLabel}</td>
+        <td className="px-3 py-3 align-top">
+          <DeliverableMetadataList entries={metadata} />
+        </td>
         <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel}</td>
         <td className="px-3 py-3 align-top">
-          {hasActions ? (
-            <div className="flex justify-end gap-2">
-              {browserRow.rowKind === 'artifact' ? (
-                <WorkflowDeliverableDownloadButton
-                  row={browserRow}
-                  deliverableTitle={deliverable.title}
-                />
-              ) : null}
-              {browserRow.canView ? (
-                <Button
-                  type="button"
-                  variant={props.isSelected ? 'secondary' : 'ghost'}
-                  size="sm"
-                  aria-expanded={props.isSelected}
-                  onClick={props.onToggle}
-                >
-                  {props.isSelected ? 'Hide' : 'View'}
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <div className="flex justify-end text-muted-foreground">—</div>
-          )}
+          <div className="flex justify-end gap-2">
+            {browserRow.rowKind === 'artifact' ? (
+              <WorkflowDeliverableDownloadButton
+                row={browserRow}
+                deliverableTitle={deliverable.title}
+              />
+            ) : null}
+            {canPreview ? (
+              <Button
+                type="button"
+                variant={props.isSelected ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-expanded={props.isSelected}
+                onClick={props.onToggle}
+              >
+                {props.isSelected ? 'Hide' : 'View'}
+              </Button>
+            ) : null}
+            {openHref ? (
+              <Button variant="outline" size="sm" asChild>
+                <a href={openHref}>Open</a>
+              </Button>
+            ) : null}
+            {browserRow.rowKind !== 'artifact' && !canPreview && !openHref ? (
+              <span className="text-muted-foreground">—</span>
+            ) : null}
+          </div>
         </td>
       </tr>
 
-      {props.isSelected ? (
+      {props.isSelected && canPreview ? (
         <tr className="border-t border-border/40 bg-muted/10">
-          <td colSpan={6} className="px-4 py-4">
-            <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
-              <div className="grid gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-foreground">{deliverable.title}</p>
-                  <Badge variant="secondary">{stageLabel}</Badge>
-                  <Badge variant="outline">{browserRow.typeLabel}</Badge>
-                </div>
-                {rowLabel ? <p className="text-sm text-foreground">{rowLabel}</p> : null}
-                {deliverable.summary_brief ? (
-                  <p className="text-sm text-muted-foreground">{deliverable.summary_brief}</p>
-                ) : null}
-              </div>
+          <td colSpan={7} className="px-4 py-4">
+            <div className="rounded-xl border border-border/70 bg-background/80 p-4">
               <WorkflowDeliverablePreview row={browserRow} />
             </div>
           </td>
@@ -291,12 +296,25 @@ function buildFallbackTarget(
   };
 }
 
-function readRowLabel(row: DeliverableTableRow): string | null {
-  const trimmed = readText(row.browserRow.label);
-  if (!trimmed) {
-    return null;
+function DeliverableMetadataList(props: {
+  entries: DeliverableMetadataEntry[];
+}): JSX.Element {
+  if (props.entries.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
   }
-  return trimmed === row.deliverable.title ? null : trimmed;
+
+  return (
+    <dl className="grid gap-2">
+      {props.entries.map((entry) => (
+        <div key={`${entry.label}:${entry.value}`} className="grid gap-1">
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {entry.label}
+          </dt>
+          <dd className="break-all text-xs text-foreground/80">{entry.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function dedupeDeliverablesByIdentity(

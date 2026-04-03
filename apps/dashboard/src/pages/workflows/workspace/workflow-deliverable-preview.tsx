@@ -18,7 +18,6 @@ import type {
   DeliverableBrowserRow,
 } from './workflow-deliverable-browser-support.js';
 import { formatArtifactSize } from './workflow-deliverable-browser-support.js';
-import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
 
 interface TaskArtifactIdentity {
   taskId: string;
@@ -38,7 +37,12 @@ export function WorkflowDeliverablePreview(props: {
       </pre>
     );
   }
-  return <WorkflowDeliverableTargetLink target={props.row.target} />;
+  return (
+    <PreviewNotice
+      body="Target details are already visible in the row metadata."
+      meta={props.row.target.path ?? props.row.target.repo_ref ?? props.row.target.url}
+    />
+  );
 }
 
 export function WorkflowDeliverableDownloadButton(props: {
