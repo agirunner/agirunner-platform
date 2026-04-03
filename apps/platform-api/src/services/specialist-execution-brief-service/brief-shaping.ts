@@ -32,6 +32,13 @@ interface OperatorVisibilityContract {
   milestone_briefs_required: boolean;
 }
 
+interface RepositoryRuntimeGuidance {
+  language_family: 'javascript_typescript';
+  preferred_verification_methods: string[];
+  avoid_patterns: string[];
+  runtime_recheck_required: boolean;
+}
+
 export interface SpecialistExecutionBrief {
   refresh_key: string;
   workflow_brief: {
@@ -64,6 +71,7 @@ export interface SpecialistExecutionBrief {
   };
   assessment_output_expectations: string[];
   repo_status_summary: string;
+  repository_runtime_guidance: RepositoryRuntimeGuidance | null;
   likely_relevant_files: string[];
   verification_commands: string[];
   relevant_memory_refs: Array<{ key: string; summary: string | null; reason: string }>;
@@ -163,6 +171,7 @@ export function buildSpecialistExecutionBrief(
     readString(predecessorHandoff.summary),
     readString(predecessorHandoff.successor_context),
   ]);
+  const executionEnvironmentContract = executionEnvironmentContractFrom(executionEnvironmentSnapshot);
 
   const brief: SpecialistExecutionBrief = {
     refresh_key: '',
@@ -191,12 +200,17 @@ export function buildSpecialistExecutionBrief(
     repo_status_summary: repoBacked
       ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. Repo checkout and git are already present. Optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; verify or install them before use.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
+    repository_runtime_guidance: buildRepositoryRuntimeGuidance(
+      repoBacked,
+      likelyRelevantFiles,
+      executionEnvironmentContract?.verified_baseline_commands ?? [],
+    ),
     likely_relevant_files: likelyRelevantFiles,
     verification_commands: normalizeStrings(taskInput.verification_commands),
     relevant_memory_refs: relevantMemoryRefs,
     relevant_artifact_refs: relevantArtifactRefs,
     remote_mcp_servers: summarizeRemoteMcpServers(specialistCapabilities),
-    execution_environment_contract: executionEnvironmentContractFrom(executionEnvironmentSnapshot),
+    execution_environment_contract: executionEnvironmentContract,
     operator_visibility: operatorVisibility,
     rendered_markdown: '',
   };
@@ -252,6 +266,31 @@ function executionEnvironmentContractFrom(snapshot: Record<string, unknown>) {
   };
 }
 
+function buildRepositoryRuntimeGuidance(
+  repoBacked: boolean,
+  likelyRelevantFiles: string[],
+  verifiedBaselineCommands: string[],
+): RepositoryRuntimeGuidance | null {
+  if (!repoBacked) {
+    return null;
+  }
+  const hasJavaScriptOrTypeScriptSurface = likelyRelevantFiles.some((path) => /\.[cm]?[jt]sx?$/.test(path));
+  const hasNodeRuntime = verifiedBaselineCommands.some((command) =>
+    ['node', 'npm', 'pnpm', 'yarn', 'bun'].includes(command),
+  );
+  if (!hasJavaScriptOrTypeScriptSurface) {
+    return null;
+  }
+  return {
+    language_family: 'javascript_typescript',
+    preferred_verification_methods: hasNodeRuntime
+      ? ['repo_native_commands', 'direct_module_execution']
+      : ['repo_native_commands'],
+    avoid_patterns: ['ad_hoc_source_rewrite_eval'],
+    runtime_recheck_required: true,
+  };
+}
+
 function continuitySummaryFrom(workItem: Record<string, unknown>) {
   return {
     latest_handoff_completion: readString(workItem.latest_handoff_completion),
@@ -288,6 +327,7 @@ function refreshInputsFrom(
     },
     work_item_continuity_summary: brief.work_item_continuity_summary,
     assessment_output_expectations: brief.assessment_output_expectations,
+    repository_runtime_guidance: brief.repository_runtime_guidance,
     likely_relevant_files: brief.likely_relevant_files,
     verification_commands: brief.verification_commands,
     relevant_memory_refs: brief.relevant_memory_refs.map((entry) => entry.key),

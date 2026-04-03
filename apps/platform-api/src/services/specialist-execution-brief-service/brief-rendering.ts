@@ -136,6 +136,19 @@ export function renderBrief(
       'Use the declared shell and interpreter contract when invoking scripts. Do not force sh ./script on a bash-oriented script; inspect the shebang or script contents first and install the required interpreter when it is missing.',
     );
   }
+  if (brief.repository_runtime_guidance) {
+    lines.push('', '## Repository Runtime Guidance');
+    lines.push(`Language family: ${brief.repository_runtime_guidance.language_family}`);
+    lines.push(
+      `Preferred verification methods: ${brief.repository_runtime_guidance.preferred_verification_methods.join(', ')}`,
+    );
+    lines.push(`Avoid: ${brief.repository_runtime_guidance.avoid_patterns.join(', ')}`);
+    if (brief.repository_runtime_guidance.runtime_recheck_required) {
+      lines.push(
+        'Before inventing fallback probes, re-check the repo-native command surface and direct module/runtime path that the execution environment already supports.',
+      );
+    }
+  }
   if (brief.remote_mcp_servers.length > 0) {
     lines.push('', '## Remote MCP Servers');
     lines.push(

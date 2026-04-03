@@ -104,22 +104,22 @@ describe('buildSpecialistExecutionBrief', () => {
       },
       executionEnvironmentSnapshot: {
         id: 'env-1',
-        name: 'Alpine Base',
-        image: 'alpine:3.23',
+        name: 'Node LTS Base',
+        image: 'node:22-bookworm-slim',
         agent_hint: [
-          'Execution environment: Alpine Base',
-          'Image: alpine:3.23',
-          'Package manager: apk',
+          'Execution environment: Node LTS Base',
+          'Image: node:22-bookworm-slim',
+          'Package manager: apt-get',
           'Shell: /bin/sh',
-          'Verified baseline commands: sh, cat, grep',
+          'Verified baseline commands: sh, cat, grep, node, npm',
         ].join('\n'),
         verified_metadata: {
-          package_manager: 'apk',
+          package_manager: 'apt-get',
           shell: '/bin/sh',
-          detected_runtimes: [],
+          detected_runtimes: ['node', 'npm'],
         },
         tool_capabilities: {
-          verified_baseline_commands: ['sh', 'cat', 'grep'],
+          verified_baseline_commands: ['sh', 'cat', 'grep', 'node', 'npm'],
         },
       },
       roleConfig: {
@@ -197,6 +197,12 @@ describe('buildSpecialistExecutionBrief', () => {
         logical_path: 'docs/release-notes.md',
       }),
     ]);
+    expect(brief?.repository_runtime_guidance).toEqual({
+      language_family: 'javascript_typescript',
+      preferred_verification_methods: ['repo_native_commands', 'direct_module_execution'],
+      avoid_patterns: ['ad_hoc_source_rewrite_eval'],
+      runtime_recheck_required: true,
+    });
     expect(rendered).toContain('## Workflow Brief');
     expect(rendered).toContain('## Completion Expectations');
     expect(rendered).toContain('## Operator Visibility');
@@ -213,10 +219,10 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(rendered).toContain(taskWorkspaceRoot);
     expect(rendered).toContain('/workspace/context/...');
     expect(rendered).toContain('Repository-backed task.');
-    expect(rendered).toContain('Execution environment: Alpine Base');
-    expect(rendered).toContain('Package manager: apk');
+    expect(rendered).toContain('Execution environment: Node LTS Base');
+    expect(rendered).toContain('Package manager: apt-get');
     expect(rendered).toContain('Shell: /bin/sh');
-    expect(rendered).toContain('Verified baseline commands: sh, cat, grep');
+    expect(rendered).toContain('Verified baseline commands: sh, cat, grep, node, npm');
     expect(rendered).toContain('Tavily Search');
     expect(rendered).toContain('Verified capabilities: 2 tools, 1 resource, 0 prompts.');
     expect(rendered).not.toContain('git_token_secret_ref');
@@ -301,6 +307,7 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.assessment_output_expectations).toContain(
       'Required artifacts must be uploaded before completion or escalation.',
     );
+    expect(brief?.repository_runtime_guidance).toBeNull();
     expect(brief?.rendered_markdown).not.toContain('Use task sandbox tools');
   });
 });
