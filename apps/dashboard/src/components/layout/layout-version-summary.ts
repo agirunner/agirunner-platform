@@ -2,6 +2,10 @@ import type {
   DashboardRuntimeVersionRecord,
 } from '../../lib/api.js';
 
+export function describeRuntimeVersionLabel(group: DashboardRuntimeVersionRecord): string {
+  return group.version.trim() || 'unlabeled';
+}
+
 export function shortenRevision(revision: string | null | undefined): string {
   const normalized = revision?.trim();
   if (!normalized) {

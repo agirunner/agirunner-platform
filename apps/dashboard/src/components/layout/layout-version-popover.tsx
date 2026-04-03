@@ -10,7 +10,11 @@ import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover.js';
 import { FOCUS_RING_CLASSES } from './layout-nav.js';
-import { describeRuntimeVersionGroup, shortenRevision } from './layout-version-summary.js';
+import {
+  describeRuntimeVersionGroup,
+  describeRuntimeVersionLabel,
+  shortenRevision,
+} from './layout-version-summary.js';
 
 export function LayoutVersionPopover(props: {
   isSidebarCollapsed: boolean;
@@ -132,7 +136,9 @@ function RuntimeVersionCard(props: {
   return (
     <div className="rounded-xl border border-border/70 bg-surface/75 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-foreground">{props.group.version}</span>
+        <span className="text-sm font-medium text-foreground">
+          {describeRuntimeVersionLabel(props.group)}
+        </span>
         <span className="text-xs text-muted-foreground">
           {shortenRevision(props.group.revision)}
         </span>
