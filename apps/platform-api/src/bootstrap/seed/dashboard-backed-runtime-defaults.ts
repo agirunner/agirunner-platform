@@ -306,7 +306,7 @@ export const DASHBOARD_BACKED_RUNTIME_DEFAULTS = [
     configKey: 'agent.orchestrator_context_strategy',
     configValue: 'activation_checkpoint',
     configType: 'string',
-    description: 'Continuity strategy for orchestrator activations',
+    description: 'Default continuity strategy for orchestrator activations and their persisted context',
   },
   {
     configKey: 'agent.orchestrator_finish_checkpoint_enabled',

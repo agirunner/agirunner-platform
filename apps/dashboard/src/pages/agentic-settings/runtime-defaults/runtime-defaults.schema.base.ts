@@ -222,7 +222,7 @@ export const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.orchestrator_context_strategy',
     label: 'Orchestrator context strategy',
     description:
-      'Default orchestrator continuity strategy. Activation checkpoint is recommended because orchestrators run short activations and resume from persisted state.',
+      'Default orchestrator continuity strategy. Activation checkpoint preserves persisted orchestration context between activations, while the other modes reduce or disable that continuity.',
     configType: 'string',
     placeholder: 'activation_checkpoint',
     section: 'orchestrator_context',
