@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TENANT_ID } from '../../../src/db/seed.js';
 import {
   DEFAULT_RUNTIME_IMAGE,
+  deriveManagedRuntimeImage,
+  isManagedRuntimeImageAlias,
   resolveSeedRuntimeImage,
 } from '../../../src/bootstrap/seed/runtime-image-default.js';
 import {
@@ -11,9 +13,38 @@ import {
 } from '../../../src/bootstrap/seed/runtime-defaults.js';
 
 describe('runtime image bootstrap defaults', () => {
-  it('falls back to the local runtime tag when no override is configured', () => {
-    expect(resolveSeedRuntimeImage()).toBe(DEFAULT_RUNTIME_IMAGE);
-    expect(resolveSeedRuntimeImage('   ')).toBe(DEFAULT_RUNTIME_IMAGE);
+  it('falls back to the local runtime tag when the platform version is local or unlabeled', () => {
+    expect(resolveSeedRuntimeImage(undefined, undefined)).toBe(DEFAULT_RUNTIME_IMAGE);
+    expect(resolveSeedRuntimeImage('   ', '')).toBe(DEFAULT_RUNTIME_IMAGE);
+    expect(resolveSeedRuntimeImage(undefined, 'local')).toBe(DEFAULT_RUNTIME_IMAGE);
+    expect(resolveSeedRuntimeImage(undefined, 'unlabeled')).toBe(DEFAULT_RUNTIME_IMAGE);
+  });
+
+  it('derives the matching published runtime image from a released platform version', () => {
+    expect(resolveSeedRuntimeImage(undefined, '0.1.0-alpha.1')).toBe(
+      'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
+    );
+    expect(deriveManagedRuntimeImage('0.1.0')).toBe(
+      'ghcr.io/agirunner/agirunner-runtime:0.1.0',
+    );
+  });
+
+  it('preserves an explicit runtime image override when one is configured', () => {
+    expect(
+      resolveSeedRuntimeImage(
+        'ghcr.io/custom/runtime:9.9.9',
+        '0.1.0-alpha.1',
+      ),
+    ).toBe('ghcr.io/custom/runtime:9.9.9');
+  });
+
+  it('classifies only moving defaults as managed runtime aliases', () => {
+    expect(isManagedRuntimeImageAlias('ghcr.io/agirunner/agirunner-runtime:latest')).toBe(true);
+    expect(isManagedRuntimeImageAlias('agirunner-runtime:local')).toBe(true);
+    expect(isManagedRuntimeImageAlias('ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1')).toBe(
+      false,
+    );
+    expect(isManagedRuntimeImageAlias('ghcr.io/custom/runtime@sha256:deadbeef')).toBe(false);
   });
 
   it('uses the configured runtime image for seeded specialist defaults', () => {
