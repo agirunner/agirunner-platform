@@ -92,6 +92,7 @@ export function useWorkflowWorkspaceRealtime(
   input: {
     workflowId: string | null;
     workItemId: string | null;
+    selectedWorkItemId: string | null;
     tabScope: 'workflow' | 'selected_work_item';
     boardMode: string;
   },
@@ -114,13 +115,65 @@ export function useWorkflowWorkspaceRealtime(
           },
           (previous) => applyWorkspaceStreamBatch(previous as never, batch),
         );
+        invalidateSelectedWorkItemRealtimeQueries(queryClient, {
+          workflowId: input.workflowId,
+          selectedWorkItemId: input.selectedWorkItemId,
+          batch,
+        });
       },
-      onReconnect: () =>
-        queryClient.invalidateQueries({
+      onReconnect: () => {
+        void queryClient.invalidateQueries({
           queryKey: ['workflows', 'workspace', input.workflowId],
-        }),
+        });
+        invalidateSelectedWorkItemQueries(queryClient, input.workflowId, input.selectedWorkItemId);
+      },
     });
-  }, [input.boardMode, input.tabScope, input.workflowId, input.workItemId, queryClient]);
+  }, [
+    input.boardMode,
+    input.selectedWorkItemId,
+    input.tabScope,
+    input.workflowId,
+    input.workItemId,
+    queryClient,
+  ]);
+}
+
+export function invalidateSelectedWorkItemRealtimeQueries(
+  queryClient: Pick<QueryClient, 'invalidateQueries'>,
+  input: {
+    workflowId: string | null;
+    selectedWorkItemId: string | null;
+    batch: DashboardWorkflowOperationsStreamBatch;
+  },
+): void {
+  if (!hasWorkspaceBoardRefresh(input.batch)) {
+    return;
+  }
+  invalidateSelectedWorkItemQueries(
+    queryClient,
+    input.workflowId,
+    input.selectedWorkItemId,
+  );
+}
+
+function invalidateSelectedWorkItemQueries(
+  queryClient: Pick<QueryClient, 'invalidateQueries'>,
+  workflowId: string | null,
+  selectedWorkItemId: string | null,
+): void {
+  if (!workflowId || !selectedWorkItemId) {
+    return;
+  }
+  void queryClient.invalidateQueries({
+    queryKey: ['workflows', 'work-item-detail', workflowId, selectedWorkItemId],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: ['workflows', 'work-item-tasks', workflowId, selectedWorkItemId],
+  });
+}
+
+function hasWorkspaceBoardRefresh(batch: DashboardWorkflowOperationsStreamBatch): boolean {
+  return batch.events.some((event) => event.event_type === 'workspace_board_update');
 }
 
 function subscribeToWorkflowOperationsStream(options: StreamOptions): () => void {
