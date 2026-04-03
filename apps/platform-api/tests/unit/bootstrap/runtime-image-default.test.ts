@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_TENANT_ID } from '../../../src/db/seed.js';
 import { seedOrchestratorWorker } from '../../../src/bootstrap/seed/bootstrap-content.js';
+import type { DatabaseQueryable } from '../../../src/db/database.js';
 import {
   DEFAULT_RUNTIME_IMAGE,
   deriveManagedRuntimeImage,
@@ -262,25 +263,41 @@ function createSeedServiceMock(options?: { existingDefaults?: Map<string, string
 
 function createSeedDbMock(options?: {
   workerDesiredState?: { id: string; runtime_image: string } | null;
-}) {
+}): DatabaseQueryable & { calls: Array<{ sql: string; params?: unknown[] }> } {
   const calls: Array<{ sql: string; params?: unknown[] }> = [];
   const workerDesiredState = options?.workerDesiredState ?? null;
+  const query = (async (queryTextOrConfig: unknown, values?: unknown[]) => {
+    const sql = extractSql(queryTextOrConfig);
+    const params = Array.isArray(values) ? values : undefined;
 
-  return {
-    calls,
-    async query(sql: string, params?: unknown[]) {
-      calls.push({ sql, params });
-      if (sql.includes('FROM worker_desired_state')) {
-        return {
-          rowCount: workerDesiredState ? 1 : 0,
-          rows: workerDesiredState ? [workerDesiredState] : [],
-        };
-      }
-
+    calls.push({ sql, params });
+    if (sql.includes('FROM worker_desired_state')) {
       return {
-        rowCount: 1,
-        rows: [],
+        rowCount: workerDesiredState ? 1 : 0,
+        rows: workerDesiredState ? [workerDesiredState] : [],
       };
-    },
-  };
+    }
+
+    return {
+      rowCount: 1,
+      rows: [],
+    };
+  }) as DatabaseQueryable['query'];
+
+  return { calls, query };
+}
+
+function extractSql(queryTextOrConfig: unknown): string {
+  if (typeof queryTextOrConfig === 'string') {
+    return queryTextOrConfig;
+  }
+  if (
+    queryTextOrConfig &&
+    typeof queryTextOrConfig === 'object' &&
+    'text' in queryTextOrConfig &&
+    typeof (queryTextOrConfig as { text?: unknown }).text === 'string'
+  ) {
+    return (queryTextOrConfig as { text: string }).text;
+  }
+  return '';
 }
