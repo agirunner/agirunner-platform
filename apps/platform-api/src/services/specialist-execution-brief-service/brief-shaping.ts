@@ -32,9 +32,14 @@ interface OperatorVisibilityContract {
   milestone_briefs_required: boolean;
 }
 
+type RepositoryModuleResolutionContract =
+  | 'repo_local_or_absolute_imports'
+  | 'explicit_extensions_for_direct_ts_imports';
+
 interface RepositoryRuntimeGuidance {
   language_family: 'javascript_typescript';
   preferred_verification_methods: string[];
+  module_resolution_contracts: RepositoryModuleResolutionContract[];
   avoid_patterns: string[];
   runtime_recheck_required: boolean;
 }
@@ -286,6 +291,10 @@ function buildRepositoryRuntimeGuidance(
     preferred_verification_methods: hasNodeRuntime
       ? ['repo_native_commands', 'direct_module_execution']
       : ['repo_native_commands'],
+    module_resolution_contracts: [
+      'repo_local_or_absolute_imports',
+      'explicit_extensions_for_direct_ts_imports',
+    ],
     avoid_patterns: ['ad_hoc_source_rewrite_eval'],
     runtime_recheck_required: true,
   };

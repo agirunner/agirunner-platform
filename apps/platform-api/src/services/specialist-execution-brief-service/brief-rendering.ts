@@ -142,6 +142,9 @@ export function renderBrief(
     lines.push(
       `Preferred verification methods: ${brief.repository_runtime_guidance.preferred_verification_methods.join(', ')}`,
     );
+    for (const rule of brief.repository_runtime_guidance.module_resolution_contracts) {
+      lines.push(repositoryModuleResolutionGuidance(rule));
+    }
     lines.push(`Avoid: ${brief.repository_runtime_guidance.avoid_patterns.join(', ')}`);
     if (brief.repository_runtime_guidance.runtime_recheck_required) {
       lines.push(
@@ -186,4 +189,15 @@ export function formatCapabilityCounts(value: {
 
 function pluralizeCapability(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? '' : 's'}`;
+}
+
+function repositoryModuleResolutionGuidance(rule: string): string {
+  switch (rule) {
+    case 'repo_local_or_absolute_imports':
+      return 'If an ad hoc script needs repository imports, keep the script inside the repo or use absolute/file-URL imports.';
+    case 'explicit_extensions_for_direct_ts_imports':
+      return 'When direct TypeScript imports run through ts-node or another ESM loader, use explicit .ts extensions wherever the repo loader requires them; do not rely on extensionless CommonJS-style resolution.';
+    default:
+      return `Module-resolution rule: ${rule}`;
+  }
 }

@@ -200,6 +200,10 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.repository_runtime_guidance).toEqual({
       language_family: 'javascript_typescript',
       preferred_verification_methods: ['repo_native_commands', 'direct_module_execution'],
+      module_resolution_contracts: [
+        'repo_local_or_absolute_imports',
+        'explicit_extensions_for_direct_ts_imports',
+      ],
       avoid_patterns: ['ad_hoc_source_rewrite_eval'],
       runtime_recheck_required: true,
     });
