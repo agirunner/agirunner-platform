@@ -72,7 +72,12 @@ export async function createWorkItem(
       throw new ValidationError('stage_name is required for playbooks without a default stage');
     }
     if (!hasStage(definition, stageName)) {
-      throw new ValidationError(`Unknown stage '${stageName}' for this playbook`);
+      throw new ValidationError(`Unknown stage '${stageName}' for this playbook`, {
+        recovery_hint: 'orchestrator_guided_recovery',
+        reason_code: 'unknown_stage_name',
+        requested_stage_name: stageName,
+        authored_stage_names: definition.stages.map((stage) => stage.name),
+      });
     }
 
     const columnId = input.column_id ?? defaultColumnId(definition);
