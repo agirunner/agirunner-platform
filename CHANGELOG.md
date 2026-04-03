@@ -9,6 +9,12 @@ open `0.1.0` target.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-04-03
+
+### Fixed
+
+- Fresh-stack orchestrator startup now pulls the derived runtime image before container creation, so released runtimes boot correctly on machines that do not already have the image cached locally.
+
 ## [0.1.0-alpha.2] - 2026-04-03
 
 ### Added

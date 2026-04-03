@@ -142,6 +142,22 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 		}
 	}
 
+	if currentCount < targetCount {
+		if err := m.pullDesiredStateImage(ctx, ds); err != nil {
+			m.logger.Error("failed to pull desired-state image", "worker", ds.WorkerName, "image", ds.RuntimeImage, "error", err)
+			m.emitLogError("container", "container.image_pull", map[string]any{
+				"action":           "image_pull",
+				"worker":           ds.WorkerName,
+				"image":            ds.RuntimeImage,
+				"desired_state_id": ds.ID,
+				"version":          ds.Version,
+				"role":             ds.Role,
+				"policy":           PullPolicyIfNotPresent,
+			}, err.Error())
+			return
+		}
+	}
+
 	for i := currentCount; i < targetCount; i++ {
 		spec, identity, err := m.prepareDesiredStateContainerSpec(ctx, ds, i)
 		if err != nil {
@@ -219,6 +235,10 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			})
 		}
 	}
+}
+
+func (m *Manager) pullDesiredStateImage(ctx context.Context, ds DesiredState) error {
+	return m.docker.PullImage(ctx, ds.RuntimeImage, PullPolicyIfNotPresent)
 }
 
 func (m *Manager) handleDraining(ctx context.Context, ds DesiredState, existing []ContainerInfo) {

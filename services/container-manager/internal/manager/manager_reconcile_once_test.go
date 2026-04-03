@@ -243,6 +243,59 @@ func TestReconcileOnceKeepsOrchestratorContainerWhenContractMatches(t *testing.T
 	}
 }
 
+func TestReconcileOncePullsDesiredStateImageBeforeCreate(t *testing.T) {
+	docker := newMockDockerClient()
+	ds := makeDesiredState("ds-1", "orchestrator-primary", "ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.2", 1, 1)
+	ds.Role = "orchestrator"
+	ds.PoolKind = "orchestrator"
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	manager := newTestManager(docker, platform)
+
+	err := manager.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.pulledImages) != 1 {
+		t.Fatalf("expected one image pull before create, got %d", len(docker.pulledImages))
+	}
+	if docker.pulledImages[0].Image != ds.RuntimeImage {
+		t.Fatalf("expected pulled image %q, got %q", ds.RuntimeImage, docker.pulledImages[0].Image)
+	}
+	if docker.pulledImages[0].Policy != PullPolicyIfNotPresent {
+		t.Fatalf("expected pull policy %q, got %q", PullPolicyIfNotPresent, docker.pulledImages[0].Policy)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected one created container after pull, got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestReconcileOnceSkipsCreateWhenDesiredStateImagePullFails(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.pullErr = context.DeadlineExceeded
+	ds := makeDesiredState("ds-1", "orchestrator-primary", "ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.2", 1, 1)
+	ds.Role = "orchestrator"
+	ds.PoolKind = "orchestrator"
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	manager := newTestManager(docker, platform)
+
+	err := manager.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no top-level error, got %v", err)
+	}
+	if len(docker.pulledImages) != 1 {
+		t.Fatalf("expected one image pull attempt, got %d", len(docker.pulledImages))
+	}
+	if len(docker.createdSpecs) != 0 {
+		t.Fatalf("expected no created containers after pull failure, got %d", len(docker.createdSpecs))
+	}
+}
+
 func TestReconcileOnceReplacesExitedContainers(t *testing.T) {
 	docker := newMockDockerClient()
 	exited := makeContainerInfo("c-1", "worker-a", "myimage:v1", "ds-1", 1)
