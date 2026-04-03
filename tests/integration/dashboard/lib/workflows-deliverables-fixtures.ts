@@ -209,9 +209,36 @@ export async function seedWorkflowDeliverablesScenario(): Promise<SeededWorkflow
     },
     secondaryTargets: [],
     contentPreview: {
-      text: 'Operator summary:\n- rollback note added\n- release checklist verified\n- ready for final approval',
+      text: 'Final analysis:\nThe release can proceed because the rollback note is captured, the checklist is verified, and the approval package is aligned.',
     },
     createdAtOffsetHours: -5,
+  });
+
+  insertWorkflowOutputDescriptor({
+    id: randomUUID(),
+    workflowId,
+    workItemId,
+    descriptorKind: 'handoff_packet',
+    deliveryStage: 'final',
+    title: 'Policy handoff note',
+    state: 'final',
+    summaryBrief:
+      'Completed the reproduce-stage investigation and posted a handoff note without attaching any deliverable content.',
+    previewCapabilities: {
+      can_inline_preview: false,
+      can_download: false,
+    },
+    primaryTarget: {
+      target_kind: '',
+      label: '',
+      url: '',
+    },
+    secondaryTargets: [],
+    contentPreview: {
+      summary:
+        'Completed the reproduce-stage investigation and posted a handoff note without attaching any deliverable content.',
+    },
+    createdAtOffsetHours: -6,
   });
 
   return scenario;

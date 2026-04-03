@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { dashboardApi } from '../../../lib/api.js';
@@ -26,15 +26,18 @@ interface TaskArtifactIdentity {
 
 export function WorkflowDeliverablePreview(props: {
   row: DeliverableBrowserRow;
+  previewLabel?: string | null;
 }): JSX.Element {
   if (props.row.rowKind === 'artifact') {
     return <ArtifactPreviewPanel row={props.row} />;
   }
   if (props.row.rowKind === 'inline') {
     return (
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
-        {props.row.content}
-      </pre>
+      <PreviewCard meta={props.previewLabel}>
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-muted/20 px-3 py-3 text-xs text-foreground">
+          {props.row.content}
+        </pre>
+      </PreviewCard>
     );
   }
   return (
@@ -159,12 +162,11 @@ function ArtifactPreviewClient(props: {
     );
 
   return (
-    <div className="grid gap-2">
-      <p className="text-xs text-muted-foreground">{previewSource.meta}</p>
-      <div className="rounded-xl border border-border/70 bg-background shadow-sm">
+    <PreviewCard meta={previewSource.meta}>
+      <div className="rounded-lg border border-border/70 bg-background shadow-sm">
         {previewBody}
       </div>
-    </div>
+    </PreviewCard>
   );
 }
 
@@ -282,11 +284,24 @@ function buildGenericPreviewSource(
 
 function PreviewNotice(props: { body: string; meta?: string }): JSX.Element {
   return (
-    <div className="grid gap-2">
-      {props.meta ? <p className="text-xs text-muted-foreground">{props.meta}</p> : null}
-      <p className="rounded-xl border border-dashed border-border/70 bg-background px-3 py-5 text-sm text-muted-foreground">
+    <PreviewCard meta={props.meta}>
+      <p className="rounded-lg border border-dashed border-border/70 bg-background px-3 py-5 text-sm text-muted-foreground">
         {props.body}
       </p>
+    </PreviewCard>
+  );
+}
+
+function PreviewCard(props: { children: ReactNode; meta?: string | null }): JSX.Element {
+  return (
+    <div
+      data-workflow-deliverable-preview-card="true"
+      className="rounded-xl border border-border/70 bg-background/80 p-4"
+    >
+      <div className="grid gap-3">
+        {props.meta ? <p className="text-xs text-muted-foreground">{props.meta}</p> : null}
+        {props.children}
+      </div>
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type {
   DashboardWorkflowDeliverableRecord,
-  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
@@ -22,7 +21,6 @@ import {
 } from './workflow-deliverable-row-display.js';
 import {
   normalizeDeliverablesPacket,
-  sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
 import {
   WorkflowDeliverableDownloadButton,
@@ -147,6 +145,8 @@ function DeliverableTableEntry(props: {
   const metadata = readDeliverableRowMetadata(props.row);
   const openHref = readDeliverableRowOpenHref(props.row);
   const canPreview = browserRow.rowKind !== 'reference' && browserRow.canView;
+  const previewLabel = browserRow.rowKind === 'inline' ? rowLabel : null;
+  const visibleRowLabel = previewLabel ? null : rowLabel;
 
   return (
     <>
@@ -154,12 +154,7 @@ function DeliverableTableEntry(props: {
         <td className="px-3 py-3 align-top">
           <div className="grid gap-1">
             <p className="font-medium text-foreground">{deliverable.title}</p>
-            {rowLabel ? <p className="text-xs text-foreground/80">{rowLabel}</p> : null}
-            {deliverable.summary_brief ? (
-              <p className="line-clamp-2 text-xs text-muted-foreground">
-                {deliverable.summary_brief}
-              </p>
-            ) : null}
+            {visibleRowLabel ? <p className="text-xs text-foreground/80">{visibleRowLabel}</p> : null}
           </div>
         </td>
         <td className="px-3 py-3 align-top">
@@ -205,9 +200,7 @@ function DeliverableTableEntry(props: {
       {props.isSelected && canPreview ? (
         <tr className="border-t border-border/40 bg-muted/10">
           <td colSpan={7} className="px-4 py-4">
-            <div className="rounded-xl border border-border/70 bg-background/80 p-4">
-              <WorkflowDeliverablePreview row={browserRow} />
-            </div>
+            <WorkflowDeliverablePreview row={browserRow} previewLabel={previewLabel} />
           </td>
         </tr>
       ) : null}
@@ -249,11 +242,6 @@ function buildDeliverableTableRows(
   for (const deliverable of deliverables) {
     const browserRows = buildBrowserRows(deliverable);
     if (browserRows.length === 0) {
-      rows.push({
-        key: `${deliverable.descriptor_id}:record`,
-        deliverable,
-        browserRow: buildFallbackBrowserRow(deliverable),
-      });
       continue;
     }
     for (const browserRow of browserRows) {
@@ -266,34 +254,6 @@ function buildDeliverableTableRows(
   }
 
   return rows;
-}
-
-function buildFallbackBrowserRow(
-  deliverable: DashboardWorkflowDeliverableRecord,
-): DeliverableBrowserRow {
-  return {
-    rowKind: 'reference',
-    key: `record:${deliverable.descriptor_id}`,
-    label: deliverable.title,
-    typeLabel: humanizeToken(deliverable.descriptor_kind || 'deliverable_record'),
-    createdAt: deliverable.created_at,
-    sizeBytes: null,
-    canView: false,
-    target: buildFallbackTarget(deliverable),
-  };
-}
-
-function buildFallbackTarget(
-  deliverable: DashboardWorkflowDeliverableRecord,
-): DashboardWorkflowDeliverableTarget {
-  const target = sanitizeDeliverableTarget(deliverable.primary_target);
-  if (target.label.length > 0) {
-    return target;
-  }
-  return {
-    ...target,
-    label: deliverable.title,
-  };
 }
 
 function DeliverableMetadataList(props: {

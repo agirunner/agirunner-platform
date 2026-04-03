@@ -107,7 +107,7 @@ describe('WorkflowDeliverablesService', () => {
     );
   });
 
-  it('attributes a workflow-scoped orchestrator completion brief to the targeted work item', async () => {
+  it('keeps a workflow-scoped orchestrator completion brief in working handoffs without synthesizing a deliverable', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -164,27 +164,16 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-2',
     });
 
-    expect(result.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'brief:brief-orchestrator-linked-2',
-        work_item_id: 'work-item-2',
-        delivery_stage: 'final',
-        content_preview: expect.objectContaining({
-          summary: expect.stringContaining('Promoted from workflow brief'),
-        }),
-      }),
-    ]);
+    expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([]);
-    expect(result.final_deliverables).not.toEqual([
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        content_preview: expect.objectContaining({
-          summary: expect.stringContaining('Produced by: Orchestrator'),
-        }),
+        id: 'brief-orchestrator-linked-2',
       }),
     ]);
   });
 
-  it('labels synthesized work-item completion packets as promoted work-item deliverables instead of claiming the orchestrator produced them', async () => {
+  it('keeps a work-item completion brief in working handoffs without synthesizing a deliverable', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -235,20 +224,10 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        descriptor_id: 'brief:brief-orchestrator-work-item-1',
-        work_item_id: 'work-item-1',
-        content_preview: expect.objectContaining({
-          summary: expect.stringContaining('Promoted from work item brief'),
-        }),
-      }),
-    ]);
-    expect(result.final_deliverables).not.toEqual([
-      expect.objectContaining({
-        content_preview: expect.objectContaining({
-          summary: expect.stringContaining('Produced by: Orchestrator'),
-        }),
+        id: 'brief-orchestrator-work-item-1',
       }),
     ]);
   });
@@ -437,4 +416,3 @@ describe('WorkflowDeliverablesService', () => {
   });
 
 });
-

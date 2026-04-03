@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('synthesizes a final brief-backed deliverable when a finalized deliverable brief has no descriptor row', async () => {
+  it('keeps a finalized deliverable brief in working handoffs without synthesizing a deliverable row', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -52,25 +52,14 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'brief:brief-1',
-        descriptor_kind: 'brief_packet',
-        work_item_id: 'work-item-1',
-        delivery_stage: 'final',
-        state: 'final',
-        primary_target: expect.objectContaining({
-          target_kind: 'inline_summary',
-        }),
-      }),
-    ]);
+    expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([]);
     expect(result.working_handoffs).toEqual([
       expect.objectContaining({ id: 'brief-1' }),
     ]);
   });
 
-  it('keeps a finalized brief-backed deliverable when the same work item already has an in-progress packet', async () => {
+  it('does not synthesize a final brief-backed deliverable when the same work item already has an in-progress packet', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -140,13 +129,7 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'brief:brief-1',
-        work_item_id: 'work-item-1',
-        delivery_stage: 'final',
-      }),
-    ]);
+    expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'handoff-packet-1',
@@ -156,7 +139,7 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
-  it('keeps a synthesized final handoff packet when the same work item already has an in-progress deliverable', async () => {
+  it('does not synthesize a final handoff packet when the same work item already has an in-progress deliverable', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -213,13 +196,7 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'handoff:handoff-1',
-        work_item_id: 'work-item-1',
-        delivery_stage: 'final',
-      }),
-    ]);
+    expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'handoff-packet-1',
@@ -324,7 +301,7 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
-  it('prefers the specialist handoff packet over an orchestrator brief for completed work-item deliverables', async () => {
+  it('keeps the orchestrator brief in working handoffs without synthesizing deliverables from completed handoffs', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -394,18 +371,12 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        descriptor_id: 'handoff:handoff-specialist-1',
-        work_item_id: 'work-item-1',
-        content_preview: expect.objectContaining({
-          summary: expect.stringContaining('Produced by: Policy Assessor'),
-        }),
+        id: 'brief-orchestrator-2',
       }),
     ]);
-    expect(result.final_deliverables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'brief:brief-orchestrator-2' })]),
-    );
   });
 
   it('does not synthesize a work-item completion packet from an orchestrator handoff', async () => {
@@ -453,4 +424,3 @@ describe('WorkflowDeliverablesService', () => {
   });
 
 });
-

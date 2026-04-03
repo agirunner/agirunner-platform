@@ -51,6 +51,7 @@ test('renders a flat deliverables table with direct row actions and inline targe
   await expect(shareDeliverableRow).toBeVisible();
   await expect(exportDeliverableRow).toBeVisible();
   await expect(inlineDeliverableRow).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Policy handoff note/ })).toHaveCount(0);
 
   await expect(architectureFileRow).toContainText('Interim');
   await expect(repositoryDeliverableRow).toContainText('Final');
@@ -68,6 +69,10 @@ test('renders a flat deliverables table with direct row actions and inline targe
   await expect(architectureFileRow.getByRole('button', { name: 'View' })).toBeVisible();
   await expect(workbench.getByText('Unknown time')).toHaveCount(0);
   await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
+  await expect(workbench.getByText('Structured host directory output for downstream export tools.')).toHaveCount(0);
+  await expect(
+    workbench.getByText('Completed the reproduce-stage investigation and posted a handoff note'),
+  ).toHaveCount(0);
 
   const downloadPromise = page.waitForEvent('download');
   await architectureFileRow.getByRole('button', { name: 'Download' }).click();
@@ -108,8 +113,13 @@ test('renders a flat deliverables table with direct row actions and inline targe
 
   await inlineDeliverableRow.scrollIntoViewIfNeeded();
   await inlineDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(workbench.getByText('Operator summary:')).toBeVisible();
-  await expect(workbench.getByText('rollback note added')).toBeVisible();
+  const inlinePreviewCard = workbench
+    .locator('[data-workflow-deliverable-preview-card="true"]')
+    .filter({ hasText: 'Final analysis:' })
+    .first();
+  await expect(inlinePreviewCard).toContainText('Final analysis:');
+  await expect(inlinePreviewCard).toContainText('rollback note is captured');
+  await expect(inlinePreviewCard).not.toContainText('Produced by:');
 });
 
 test('narrows deliverables to the selected work item and keeps workflow-only rows out of scope', async ({ page }) => {
@@ -181,7 +191,7 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   const inlineDeliverableRow = deliverablesTable.getByRole('row', { name: /Inline decision summary/ }).first();
   await inlineDeliverableRow.scrollIntoViewIfNeeded();
   await inlineDeliverableRow.getByRole('button', { name: 'View' }).click();
-  await expect(workbench.getByText('operator checkpoint 80')).toBeVisible();
+  await expect(workbench.getByText('Paragraph 80: keep the release packet, supporting evidence, and approval package aligned before final publication.')).toBeVisible();
   await expect(workbench.getByText('Tail marker: INLINE-END')).toBeVisible();
 });
 

@@ -11,8 +11,6 @@ import {
   suppressMirroredWorkflowRollupDuplicates,
 } from './workflow-deliverables-service/document-deliverables.js';
 import {
-  appendSynthesizedBriefDeliverables,
-  appendSynthesizedHandoffDeliverables,
   suppressShadowedOrchestratorBriefPackets,
 } from './workflow-deliverables-service/synthesis.js';
 import {
@@ -177,11 +175,7 @@ export class WorkflowDeliverablesService {
       finalizedDescriptorIds,
     );
     const hydratedDeliverables = suppressShadowedOrchestratorBriefPackets(
-      appendSynthesizedBriefDeliverables(
-        appendSynthesizedHandoffDeliverables(deliverableScopeRecords, scopedHandoffs),
-        deliverableScopeBriefs,
-        linkedWorkItemIdSet,
-      ),
+      deliverableScopeRecords,
       deliverableScopeBriefs,
     );
     const normalizedDeliverables = suppressMirroredWorkflowRollupDuplicates(

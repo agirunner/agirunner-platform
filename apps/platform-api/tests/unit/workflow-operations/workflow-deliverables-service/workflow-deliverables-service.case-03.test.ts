@@ -292,7 +292,7 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.in_progress_deliverables).toEqual([]);
   });
 
-  it('synthesizes a final handoff packet deliverable for completed work items without materialized descriptors', async () => {
+  it('keeps completed work-item handoffs in working_handoffs without synthesizing deliverables', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -363,27 +363,12 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          descriptor_id: 'handoff:handoff-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'handoff_packet',
-          delivery_stage: 'final',
-          state: 'final',
-          primary_target: expect.objectContaining({
-            target_kind: 'inline_summary',
-            label: 'Review completion packet',
-          }),
-        }),
-      ]),
-    );
-    expect(result.final_deliverables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'handoff:handoff-2' })]),
-    );
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([]);
   });
 
-  it('keeps synthesized handoff packets scoped to the selected work item', async () => {
+  it('requests handoffs for the selected work item without materializing a deliverable row', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -426,13 +411,9 @@ describe('WorkflowDeliverablesService', () => {
       'workflow-1',
       { workItemId: 'work-item-1' },
     );
-    expect(result.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'handoff:handoff-1',
-        work_item_id: 'work-item-1',
-      }),
-    ]);
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.all_deliverables).toEqual([]);
   });
 
 });
-

@@ -133,9 +133,7 @@ function readInlineContent(deliverable: DashboardWorkflowDeliverableRecord): str
   return (
     readText(preview.markdown) ??
     readText(preview.text) ??
-    readText(preview.summary) ??
-    readText(preview.snippet) ??
-    readText(deliverable.summary_brief)
+    readText(preview.snippet)
   );
 }
 

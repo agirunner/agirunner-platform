@@ -68,7 +68,7 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
-  it('attributes a workflow-scoped orchestrator completion brief to the selected work item even when the linked targets also include the task', async () => {
+  it('keeps a workflow-scoped orchestrator completion brief in working handoffs for the selected work item even when the linked targets also include the task', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -125,17 +125,16 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-31',
     });
 
-    expect(result.final_deliverables).toEqual([
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        descriptor_id: 'brief:brief-orchestrator-linked-task-1',
-        work_item_id: 'work-item-31',
-        delivery_stage: 'final',
+        id: 'brief-orchestrator-linked-task-1',
       }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([]);
   });
 
-  it('rolls up a work-item deliverable synthesized from a workflow-scoped orchestrator brief when the linked targets also include the task', async () => {
+  it('does not roll up a workflow-scoped orchestrator brief into a workflow deliverable when the linked targets also include the task', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -190,14 +189,13 @@ describe('WorkflowDeliverablesService', () => {
 
     const result = await service.getDeliverables('tenant-1', 'workflow-1');
 
-    expect(result.final_deliverables).toEqual([
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        descriptor_id: 'brief:brief-orchestrator-linked-task-2',
-        work_item_id: 'work-item-32',
-        delivery_stage: 'final',
+        id: 'brief-orchestrator-linked-task-2',
       }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([]);
   });
 
   it('rolls up in-progress child deliverable briefs into workflow-scope working handoffs', async () => {
@@ -363,4 +361,3 @@ describe('WorkflowDeliverablesService', () => {
   });
 
 });
-

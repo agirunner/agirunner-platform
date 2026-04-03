@@ -320,10 +320,10 @@ function buildInlineSummaryDeliverable(
   repeatCount = 3,
 ): Record<string, unknown> {
   const inlineText = repeatCount <= 3
-    ? 'Operator summary:\n- rollback note added\n- release checklist verified\n- ready for final approval'
-    : `Operator summary:\n${Array.from(
+    ? 'Final analysis:\nThe release can proceed because the rollback note is captured, the checklist is verified, and the approval package is aligned.'
+    : `Final analysis:\n${Array.from(
       { length: repeatCount },
-      (_, index) => `- operator checkpoint ${index + 1}: keep release packet and approval notes aligned.`,
+      (_, index) => `Paragraph ${index + 1}: keep the release packet, supporting evidence, and approval package aligned before final publication.`,
     ).join('\n')}\nTail marker: INLINE-END`;
   return {
     descriptor_id: 'seeded-inline-summary',

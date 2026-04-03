@@ -158,7 +158,7 @@ describe('WorkflowBottomWorkbench deliverables', () => {
     expect(html).not.toContain('Showing all deliverables recorded across this workflow');
   });
 
-  it('renders embedded text-only deliverables inline when task-scoped packets normalize to work-item deliverables', () => {
+  it('renders inline-content deliverables when task-scoped packets normalize to work-item deliverables', () => {
     const packet = createPacket();
     const html = renderWorkbench({
       board: {
@@ -198,16 +198,20 @@ describe('WorkflowBottomWorkbench deliverables', () => {
               descriptor_id: 'deliverable-embedded-text',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-7',
-              descriptor_kind: 'handoff_packet',
+              descriptor_kind: 'inline_summary',
               delivery_stage: 'final',
-              title: 'Release summary packet',
+              title: 'Release analysis',
               state: 'final',
               summary_brief: null,
               preview_capabilities: {},
-              primary_target: {} as never,
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Release analysis',
+                url: '',
+              },
               secondary_targets: [],
               content_preview: {
-                summary: 'Embedded release summary without a target URL.',
+                text: 'Embedded release analysis without a target URL.',
               },
               source_brief_id: null,
               created_at: '2026-03-28T03:00:00.000Z',
@@ -232,7 +236,7 @@ describe('WorkflowBottomWorkbench deliverables', () => {
       ],
     });
 
-    expect(html).toContain('Release summary packet');
+    expect(html).toContain('Release analysis');
     expect(html).toContain('Showing only deliverables recorded for Prepare release bundle.');
     expect(html).not.toContain('Open artifact in new tab');
   });

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('does not surface a synthesized final brief packet for a reopened active work item', async () => {
+  it('keeps a finalized brief in working_handoffs without surfacing a deliverable for a reopened active work item', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
@@ -61,10 +61,10 @@ describe('WorkflowDeliverablesService', () => {
 
     expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([]);
-    expect(result.all_deliverables).toEqual([
+    expect(result.all_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
       expect.objectContaining({
-        descriptor_id: 'brief:brief-revision-1',
-        work_item_id: 'work-item-1',
+        id: 'brief-revision-1',
       }),
     ]);
   });
@@ -251,4 +251,3 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 });
-
