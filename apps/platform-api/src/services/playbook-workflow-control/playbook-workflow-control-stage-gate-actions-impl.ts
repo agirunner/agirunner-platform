@@ -16,6 +16,7 @@ import type {
   WorkflowStageRow,
 } from './playbook-workflow-control-types.js';
 import {
+  buildStageGateWaitContinuationContract,
   isFollowOnGateDecisionAllowed,
   isIdempotentGateDecision,
   isIdempotentGateRequest,
@@ -38,6 +39,7 @@ export async function requestStageGateApprovalInTransactionImpl(this: any,
   if (workflow.lifecycle !== 'planned') {
     throw new ConflictError('Stage gate approvals are only supported for planned playbook workflows');
   }
+  const definition = parsePlaybookDefinition(workflow.definition);
 
   const stage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
   const subjectRevision = await loadLatestStageSubjectRevision(
@@ -74,7 +76,14 @@ export async function requestStageGateApprovalInTransactionImpl(this: any,
 
   const existingGate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
   if (existingGate) {
-    return toStageResponse(stage);
+    return {
+      ...toStageResponse(stage),
+      continuation_contract: buildStageGateWaitContinuationContract(
+        definition,
+        stage.name,
+        existingGate.status,
+      ),
+    };
   }
 
   latestGate ??= await this.loadLatestGateForStage(identity.tenantId, workflowId, stage.id, db);
@@ -184,7 +193,14 @@ export async function requestStageGateApprovalInTransactionImpl(this: any,
     actorType: identity.scope,
     actorId: identity.keyPrefix,
   });
-  return toStageResponse(result.rows[0]);
+  return {
+    ...toStageResponse(result.rows[0]),
+    continuation_contract: buildStageGateWaitContinuationContract(
+      definition,
+      stage.name,
+      gate.status,
+    ),
+  };
 }
 
 export async function actOnStageGateInTransactionImpl(this: any,

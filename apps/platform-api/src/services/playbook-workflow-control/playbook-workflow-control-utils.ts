@@ -25,6 +25,31 @@ export function nextStageNameFor(definition: PlaybookDefinition, currentStageNam
   return definition.stages[index + 1]?.name ?? null;
 }
 
+export function buildStageGateWaitContinuationContract(
+  definition: PlaybookDefinition,
+  stageName: string,
+  gateStatus: string,
+) {
+  const successorStageName = nextStageNameFor(definition, stageName);
+  const successorStageExactRoles = Array.from(
+    new Set(
+      (definition.stages.find((stage) => stage.name === successorStageName)?.involves ?? [])
+        .map((role) => role.trim())
+        .filter((role) => role.length > 0),
+    ),
+  );
+  return {
+    kind: 'stage_gate_wait',
+    requested_stage_name: stageName,
+    gate_status: gateStatus,
+    successor_stage_name: successorStageName,
+    successor_stage_exact_roles: successorStageExactRoles,
+    wait_for_gate_before_successor_routing: true,
+    wait_state_recheck_required: true,
+    wait_state_recheck_tool: 'read_stage_status',
+  };
+}
+
 export function nullableText(value?: string | null): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;

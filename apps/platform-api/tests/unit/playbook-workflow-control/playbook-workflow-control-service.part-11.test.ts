@@ -126,6 +126,16 @@ describe('PlaybookWorkflowControlService', () => {
     );
 
     expect(stage.gate_status).toBe('awaiting_approval');
+    expect(stage).toHaveProperty('continuation_contract', {
+      kind: 'stage_gate_wait',
+      requested_stage_name: 'requirements',
+      gate_status: 'awaiting_approval',
+      successor_stage_name: 'implementation',
+      successor_stage_exact_roles: [],
+      wait_for_gate_before_successor_routing: true,
+      wait_state_recheck_required: true,
+      wait_state_recheck_tool: 'read_stage_status',
+    });
   });
 
 
