@@ -148,12 +148,11 @@ export function renderBrief(
   }
   if (brief.repository_runtime_guidance) {
     lines.push('', '## Repository Runtime Guidance');
-    lines.push(`Language family: ${brief.repository_runtime_guidance.language_family}`);
     lines.push(
       `Preferred verification methods: ${brief.repository_runtime_guidance.preferred_verification_methods.join(', ')}`,
     );
-    for (const rule of brief.repository_runtime_guidance.module_resolution_contracts) {
-      lines.push(repositoryModuleResolutionGuidance(rule));
+    for (const rule of brief.repository_runtime_guidance.failure_recovery_contracts) {
+      lines.push(repositoryFailureRecoveryGuidance(rule));
     }
     lines.push(`Avoid: ${brief.repository_runtime_guidance.avoid_patterns.join(', ')}`);
     if (brief.repository_runtime_guidance.runtime_recheck_required) {
@@ -201,15 +200,15 @@ function pluralizeCapability(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }
 
-function repositoryModuleResolutionGuidance(rule: string): string {
+function repositoryFailureRecoveryGuidance(rule: string): string {
   switch (rule) {
-    case 'repo_local_or_absolute_imports':
-      return 'If an ad hoc script needs repository imports, keep the script inside the repo or use absolute/file-URL imports.';
-    case 'explicit_extensions_for_direct_ts_imports':
-      return 'When direct TypeScript imports run through ts-node or another ESM loader, use explicit .ts extensions wherever the repo loader requires them; do not rely on extensionless CommonJS-style resolution.';
-    case 'matching_loader_for_typescript_imports':
-      return 'If the repo file you need to import is TypeScript, do not write a plain .js Node probe that requires it directly. Use the repo-native TypeScript loader or command surface instead, or validate behavior without importing the module.';
+    case 'investigate_failed_commands_before_retry':
+      return 'If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency or runtime is missing, or the repo expects a different entrypoint.';
+    case 'prefer_repo_native_commands_before_ad_hoc_probes':
+      return 'Prefer repo-native scripts, tests, build commands, or documented entrypoints before inventing ad hoc probes, source rewrites, or fragile one-off commands.';
+    case 'check_runtime_or_dependency_availability':
+      return 'If a command appears unavailable, verify whether the needed interpreter, package manager, dependency, or CLI is missing and install or invoke the correct tool before escalating.';
     default:
-      return `Module-resolution rule: ${rule}`;
+      return `Failure-recovery rule: ${rule}`;
   }
 }

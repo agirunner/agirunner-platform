@@ -32,15 +32,14 @@ interface OperatorVisibilityContract {
   milestone_briefs_required: boolean;
 }
 
-type RepositoryModuleResolutionContract =
-  | 'repo_local_or_absolute_imports'
-  | 'explicit_extensions_for_direct_ts_imports'
-  | 'matching_loader_for_typescript_imports';
+type RepositoryFailureRecoveryContract =
+  | 'investigate_failed_commands_before_retry'
+  | 'prefer_repo_native_commands_before_ad_hoc_probes'
+  | 'check_runtime_or_dependency_availability';
 
 interface RepositoryRuntimeGuidance {
-  language_family: 'javascript_typescript';
   preferred_verification_methods: string[];
-  module_resolution_contracts: RepositoryModuleResolutionContract[];
+  failure_recovery_contracts: RepositoryFailureRecoveryContract[];
   avoid_patterns: string[];
   runtime_recheck_required: boolean;
 }
@@ -204,11 +203,10 @@ export function buildSpecialistExecutionBrief(
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: repoBacked
-      ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. Repo checkout and git are already present. Optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; verify or install them before use.'
+      ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. Repo checkout and git are already present. Optional runtimes, interpreters, package managers, or other CLIs beyond the verified baseline may be absent; verify or install what you need before use.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
     repository_runtime_guidance: buildRepositoryRuntimeGuidance(
       repoBacked,
-      likelyRelevantFiles,
       executionEnvironmentContract?.verified_baseline_commands ?? [],
     ),
     likely_relevant_files: likelyRelevantFiles,
@@ -274,28 +272,21 @@ function executionEnvironmentContractFrom(snapshot: Record<string, unknown>) {
 
 function buildRepositoryRuntimeGuidance(
   repoBacked: boolean,
-  likelyRelevantFiles: string[],
   verifiedBaselineCommands: string[],
 ): RepositoryRuntimeGuidance | null {
   if (!repoBacked) {
     return null;
   }
-  const hasJavaScriptOrTypeScriptSurface = likelyRelevantFiles.some((path) => /\.[cm]?[jt]sx?$/.test(path));
-  const hasNodeRuntime = verifiedBaselineCommands.some((command) =>
-    ['node', 'npm', 'pnpm', 'yarn', 'bun'].includes(command),
-  );
-  if (!hasJavaScriptOrTypeScriptSurface) {
-    return null;
+  const preferredVerificationMethods = ['repo_native_commands'];
+  if (verifiedBaselineCommands.length > 0) {
+    preferredVerificationMethods.push('declared_runtime_commands');
   }
   return {
-    language_family: 'javascript_typescript',
-    preferred_verification_methods: hasNodeRuntime
-      ? ['repo_native_commands', 'direct_module_execution']
-      : ['repo_native_commands'],
-    module_resolution_contracts: [
-      'repo_local_or_absolute_imports',
-      'explicit_extensions_for_direct_ts_imports',
-      'matching_loader_for_typescript_imports',
+    preferred_verification_methods: preferredVerificationMethods,
+    failure_recovery_contracts: [
+      'investigate_failed_commands_before_retry',
+      'prefer_repo_native_commands_before_ad_hoc_probes',
+      'check_runtime_or_dependency_availability',
     ],
     avoid_patterns: ['ad_hoc_source_rewrite_eval'],
     runtime_recheck_required: true,

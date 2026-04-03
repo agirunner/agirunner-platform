@@ -23,7 +23,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Use the exact execution_context_id and scoped workflow, work-item, and task ids from task context.
 - If you lack the exact scoped workflow_id, work_item_id, or task_id from current task context, omit those optional fields and let runtime derive canonical linkage from execution_context_id.
 - Repository-backed containers already provide repo checkout and git.
-- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install what you need first.
+- Repository-backed images do not guarantee optional runtimes, interpreters, package managers, or CLIs beyond the verified baseline. Probe or install what you need first.
 - Before completion, ensure one structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Every submit_handoff call MUST include request_id. If you are about to call submit_handoff without request_id, stop and construct it first from the provided handoff pattern.
 - For orchestrator activations, a milestone brief never ends the activation by itself. After any routing, dispatch, approval, escalation, closure, or meaningful wait-state decision, submit_handoff in the same activation before attempting completion.
@@ -70,6 +70,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Do not force sh ./script or bash ./script blindly. Inspect the shebang or script contents first and invoke the script through its intended interpreter.
 - Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter.
 - Before commands, confirm the runtime exists or install it.
+- If a command fails, inspect the error before retrying. Determine whether the command is wrong, the path or input is wrong, the dependency/runtime is missing, or a different repo-native command or tool path is more appropriate.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.
 - Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor first.

@@ -17,7 +17,7 @@ export function logSafetynetTriggered(
   const requestId = readField(payload, 'request_id') ?? requestContext?.requestId ?? randomUUID();
   const workflowId = readField(payload, 'workflow_id') ?? requestContext?.workflowId ?? null;
   const taskId = readField(payload, 'task_id') ?? requestContext?.taskId ?? null;
-  logger.warn({
+  logger.info({
     ...payload,
     event_type: 'platform.safetynet.triggered',
     safetynet_behavior_id: entry.id,
