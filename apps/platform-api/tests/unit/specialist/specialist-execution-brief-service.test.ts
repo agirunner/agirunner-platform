@@ -203,6 +203,7 @@ describe('buildSpecialistExecutionBrief', () => {
       module_resolution_contracts: [
         'repo_local_or_absolute_imports',
         'explicit_extensions_for_direct_ts_imports',
+        'matching_loader_for_typescript_imports',
       ],
       avoid_patterns: ['ad_hoc_source_rewrite_eval'],
       runtime_recheck_required: true,

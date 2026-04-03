@@ -197,6 +197,8 @@ function repositoryModuleResolutionGuidance(rule: string): string {
       return 'If an ad hoc script needs repository imports, keep the script inside the repo or use absolute/file-URL imports.';
     case 'explicit_extensions_for_direct_ts_imports':
       return 'When direct TypeScript imports run through ts-node or another ESM loader, use explicit .ts extensions wherever the repo loader requires them; do not rely on extensionless CommonJS-style resolution.';
+    case 'matching_loader_for_typescript_imports':
+      return 'If the repo file you need to import is TypeScript, do not write a plain .js Node probe that requires it directly. Use the repo-native TypeScript loader or command surface instead, or validate behavior without importing the module.';
     default:
       return `Module-resolution rule: ${rule}`;
   }
