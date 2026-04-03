@@ -134,6 +134,13 @@ describe('playbook workflow integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    const implementationTask = await harness.taskService.createTask(identity, {
+      title: 'Build password reset flow',
+      role: 'developer',
+      work_item_id: String(workItem.id),
+      request_id: 'specialist-contract-1',
+      input: { description: 'Implement password reset UI and API' },
+    });
     await handoffService.submitTaskHandoff(identity.tenantId, String(firstClaim?.id), {
       request_id: 'orchestrator-handoff-1',
       summary: 'Reviewed workflow queue and scheduled implementation',
@@ -153,14 +160,6 @@ describe('playbook workflow integration', () => {
       output: {
         summary: 'Reviewed workflow queue and scheduled implementation',
       },
-    });
-
-    const implementationTask = await harness.taskService.createTask(identity, {
-      title: 'Build password reset flow',
-      role: 'developer',
-      work_item_id: String(workItem.id),
-      request_id: 'specialist-contract-1',
-      input: { description: 'Implement password reset UI and API' },
     });
 
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
@@ -215,6 +214,15 @@ describe('playbook workflow integration', () => {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
     });
+    const playbookControlService = (harness.workflowService as any).playbookControlService;
+    await playbookControlService.completeWorkItem(
+      identity,
+      String(workflow.id),
+      String(workItem.id),
+      {
+        acting_task_id: String(secondClaim?.id),
+      },
+    );
     await handoffService.submitTaskHandoff(identity.tenantId, String(secondClaim?.id), {
       request_id: 'orchestrator-handoff-2',
       summary: 'Observed queued specialist completion.',
@@ -247,41 +255,23 @@ describe('playbook workflow integration', () => {
       routing_tags: ['coding', 'orchestrator'],
       playbook_id: String(playbook.id),
     });
-    expect(thirdClaim).toBeTruthy();
-    expect(thirdClaim?.is_orchestrator_task).toBe(true);
-    await handoffService.submitTaskHandoff(identity.tenantId, String(thirdClaim?.id), {
-      request_id: 'orchestrator-handoff-3',
-      summary: 'Observed queued specialist completion.',
-      completion: 'full',
-      remaining_items: [],
-    });
-    await recordOrchestratorBrief(
-      String(thirdClaim?.id),
-      String(thirdClaim?.activation_id),
-      'Observed queued specialist completion.',
-      'orchestrator',
-      'Orchestrator',
-    );
-    await harness.taskService.startTask(agentIdentity(String(orchestratorAgent?.id)), String(thirdClaim?.id), {
-      agent_id: String(orchestratorAgent?.id),
-      worker_id: registration.worker_id,
-    });
-    await harness.taskService.completeTask(agentIdentity(String(orchestratorAgent?.id)), String(thirdClaim?.id), {
-      agent_id: String(orchestratorAgent?.id),
-      worker_id: registration.worker_id,
-      output: {
-        summary: 'Observed queued specialist completion',
-      },
-    });
+    expect(thirdClaim).toBeNull();
 
     const activations = await harness.workflowActivationService.listWorkflowActivations(
       identity.tenantId,
       String(workflow.id),
     );
     expect(activations).toHaveLength(3);
-    expect(activations.map((activation) => activation.event_count)).toEqual([1, 1, 0]);
-    expect(activations[0]?.state).toBe('completed');
-    expect(activations[1]?.state).toBe('completed');
-    expect(activations[2]?.state).toBe('completed');
+    expect(activations.map((activation) => activation.event_type)).toEqual([
+      'workflow.created',
+      'work_item.created',
+      'work_item.updated',
+    ]);
+    expect(activations.map((activation) => activation.event_count)).toEqual([1, 1, 1]);
+    expect(activations.map((activation) => activation.state)).toEqual([
+      'completed',
+      'completed',
+      'queued',
+    ]);
   }, 120_000);
 });

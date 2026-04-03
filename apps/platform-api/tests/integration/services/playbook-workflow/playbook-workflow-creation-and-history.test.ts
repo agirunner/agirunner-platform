@@ -109,8 +109,19 @@ describe('playbook workflow integration', () => {
       ? (hydratedWorkflow.tasks as Array<Record<string, unknown>>)
       : [];
     expect(hydratedTasks).toHaveLength(2);
-    expect(hydratedTasks.filter((task) => task.is_orchestrator_task === true)).toHaveLength(1);
-    expect(hydratedTasks.filter((task) => task.is_orchestrator_task !== true)).toHaveLength(1);
+    expect(hydratedTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'orchestrator',
+          activation_id: expect.any(String),
+          work_item_id: null,
+        }),
+        expect.objectContaining({
+          role: 'developer',
+          work_item_id: String(workItem.id),
+        }),
+      ]),
+    );
     expect(hydratedWorkflow.work_items).toHaveLength(1);
     const hydratedActivations = Array.isArray(hydratedWorkflow.activations)
       ? (hydratedWorkflow.activations as Array<Record<string, unknown>>)

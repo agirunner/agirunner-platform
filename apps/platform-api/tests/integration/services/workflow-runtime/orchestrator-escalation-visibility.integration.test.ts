@@ -74,6 +74,8 @@ describe('orchestrator escalation visibility integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'orchestrator-escalation-visibility-model',
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
       supportsToolUse: true,
       supportsVision: false,
       isEnabled: true,

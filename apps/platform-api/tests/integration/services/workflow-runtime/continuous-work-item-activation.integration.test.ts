@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runWorkflowActivationDispatchTick } from '../../../../src/jobs/lifecycle-monitor.js';
+import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
+import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator/workflow-operator-brief-service.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
@@ -70,6 +72,8 @@ describe('continuous workflow work-item activation integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'continuous-work-item-model',
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
       supportsToolUse: true,
       supportsVision: false,
       isEnabled: true,
@@ -144,6 +148,8 @@ describe('continuous workflow work-item activation integration', () => {
       playbook_id: String(playbook.id),
       name: 'Serial Activation Run',
     });
+    const handoffService = new HandoffService(db.pool);
+    const workflowOperatorBriefService = new WorkflowOperatorBriefService(db.pool);
 
     await runWorkflowActivationDispatchTick(
       harness.logger as never,
@@ -170,6 +176,13 @@ describe('continuous workflow work-item activation integration', () => {
       goal: 'Triage the new checkout issue',
     });
     expect(workItem.stage_name).toBe('triage');
+    await harness.taskService.createTask(identity, {
+      title: 'Triage failed checkout',
+      role: 'developer',
+      work_item_id: String(workItem.id),
+      request_id: 'continuous-specialist-1',
+      input: { description: 'Inspect the checkout issue and record the findings' },
+    });
 
     const activationsWhileBusy = await harness.workflowActivationService.listWorkflowActivations(
       identity.tenantId,
@@ -193,11 +206,34 @@ describe('continuous workflow work-item activation integration', () => {
     });
     expect(duplicateClaim).toBeNull();
 
+    await handoffService.submitTaskHandoff(identity.tenantId, String(firstClaim?.id), {
+      request_id: 'continuous-orchestrator-handoff-1',
+      summary: 'Queued specialist triage for the new checkout issue.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await workflowOperatorBriefService.recordBrief(identity, String(workflow.id), {
+      requestId: `operator-brief:${String(firstClaim?.activation_id)}:${String(firstClaim?.id)}`,
+      executionContextId: String(firstClaim?.activation_id),
+      sourceKind: 'orchestrator',
+      sourceRoleName: 'Orchestrator',
+      briefKind: 'milestone',
+      payload: {
+        shortBrief: {
+          headline: 'Queued specialist triage for the new checkout issue.',
+        },
+        detailedBriefJson: {
+          headline: 'Queued specialist triage for the new checkout issue.',
+          status_kind: 'completed',
+          summary: 'Queued specialist triage for the new checkout issue.',
+        },
+      },
+    });
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgentA?.id)), String(firstClaim?.id), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
       output: {
-        summary: 'Reviewed current workflow state',
+        summary: 'Queued specialist triage for the new checkout issue.',
       },
     });
 
@@ -282,6 +318,8 @@ describe('continuous workflow work-item activation integration', () => {
       playbook_id: String(playbook.id),
       name: 'Replay Guard Run',
     });
+    const handoffService = new HandoffService(db.pool);
+    const workflowOperatorBriefService = new WorkflowOperatorBriefService(db.pool);
 
     await runWorkflowActivationDispatchTick(
       harness.logger as never,
@@ -302,17 +340,47 @@ describe('continuous workflow work-item activation integration', () => {
       worker_id: registration.worker_id,
     });
 
-    await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
+    const workItem = await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
       request_id: 'wi-replay-1',
       title: 'Investigate replay issue',
       goal: 'Triage the new replay issue',
     });
+    await harness.taskService.createTask(identity, {
+      title: 'Triage replay issue',
+      role: 'developer',
+      work_item_id: String(workItem.id),
+      request_id: 'continuous-specialist-2',
+      input: { description: 'Inspect the replay issue and record the findings' },
+    });
 
+    await handoffService.submitTaskHandoff(identity.tenantId, String(firstClaim?.id), {
+      request_id: 'continuous-orchestrator-handoff-2',
+      summary: 'Queued specialist triage for the replay issue.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await workflowOperatorBriefService.recordBrief(identity, String(workflow.id), {
+      requestId: `operator-brief:${String(firstClaim?.activation_id)}:${String(firstClaim?.id)}`,
+      executionContextId: String(firstClaim?.activation_id),
+      sourceKind: 'orchestrator',
+      sourceRoleName: 'Orchestrator',
+      briefKind: 'milestone',
+      payload: {
+        shortBrief: {
+          headline: 'Queued specialist triage for the replay issue.',
+        },
+        detailedBriefJson: {
+          headline: 'Queued specialist triage for the replay issue.',
+          status_kind: 'completed',
+          summary: 'Queued specialist triage for the replay issue.',
+        },
+      },
+    });
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgentA?.id)), String(firstClaim?.id), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
       output: {
-        summary: 'Reviewed current workflow state',
+        summary: 'Queued specialist triage for the replay issue.',
       },
     });
 

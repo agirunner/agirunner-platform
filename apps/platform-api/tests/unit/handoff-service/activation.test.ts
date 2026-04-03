@@ -140,6 +140,25 @@ describe('HandoffService activation side effects', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'ongoing',
+              board: {
+                columns: [
+                  { id: 'implementation', label: 'Implementation' },
+                  { id: 'done', label: 'Done', is_terminal: true },
+                ],
+              },
+              stages: [{ name: 'implementation', goal: 'Deliver the requested change' }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [{
             ...makeHandoffRow({
@@ -207,6 +226,25 @@ describe('HandoffService activation side effects', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              lifecycle: 'ongoing',
+              board: {
+                columns: [
+                  { id: 'operator-approval', label: 'Operator Approval' },
+                  { id: 'done', label: 'Done', is_terminal: true },
+                ],
+              },
+              stages: [{ name: 'operator-approval', goal: 'Await or record operator approval' }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [{
             ...makeHandoffRow({

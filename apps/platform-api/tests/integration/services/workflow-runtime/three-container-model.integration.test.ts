@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { FleetService } from '../../../../src/services/fleet-service/fleet-service.js';
+import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
 import { ModelCatalogService } from '../../../../src/services/model-catalog/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults/runtime-defaults-service.js';
+import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator/workflow-operator-brief-service.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
@@ -107,6 +109,8 @@ describe('three-container model integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'three-container-model',
+      contextWindow: 128000,
+      maxOutputTokens: 4096,
       supportsToolUse: true,
       supportsVision: false,
       isEnabled: true,
@@ -252,6 +256,27 @@ describe('three-container model integration', () => {
       playbook_id: String(playbook.id),
       name: 'Three Container Flow',
     });
+    const handoffService = new HandoffService(db.pool);
+    const workflowOperatorBriefService = new WorkflowOperatorBriefService(db.pool);
+    const recordSpecialistBrief = async (taskId: string, headline: string) => {
+      await workflowOperatorBriefService.recordBrief(identity, String(workflow.id), {
+        requestId: `operator-brief:${taskId}:${taskId}`,
+        executionContextId: taskId,
+        sourceKind: 'specialist',
+        sourceRoleName: 'Specialist',
+        briefKind: 'milestone',
+        payload: {
+          shortBrief: {
+            headline,
+          },
+          detailedBriefJson: {
+            headline,
+            status_kind: 'completed',
+            summary: headline,
+          },
+        },
+      });
+    };
     const workItem = await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
       request_id: 'wi-three-container-1',
       title: 'Validate specialist execution contract',
@@ -361,6 +386,13 @@ describe('three-container model integration', () => {
         worker_id: registration.worker_id,
       },
     );
+    await handoffService.submitTaskHandoff(identity.tenantId, String(defaultTask.id), {
+      request_id: 'three-container-handoff-1',
+      summary: 'Verified the default execution environment.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordSpecialistBrief(String(defaultTask.id), 'Verified the default execution environment.');
     await harness.taskService.completeTask(
       agentIdentity(String(firstAgent?.id)),
       String(defaultTask.id),
@@ -405,6 +437,13 @@ describe('three-container model integration', () => {
         worker_id: registration.worker_id,
       },
     );
+    await handoffService.submitTaskHandoff(identity.tenantId, String(overrideTask.id), {
+      request_id: 'three-container-handoff-2',
+      summary: 'Verified the role-specific execution environment.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await recordSpecialistBrief(String(overrideTask.id), 'Verified the role-specific execution environment.');
     await harness.taskService.completeTask(
       agentIdentity(String(secondAgent?.id)),
       String(overrideTask.id),
