@@ -43,6 +43,7 @@ interface EscalationRow {
 
 interface WorkflowDefinitionRow {
   state: string | null;
+  current_stage: string | null;
   definition: unknown;
 }
 
@@ -105,6 +106,7 @@ export async function assertOrchestratorProgressBeforeHandoff(
   const workItems = workItemsRes.rows;
   const specialistTasks = tasksRes.rows.filter((row) => row.is_orchestrator_task !== true);
   const workflowState = workflowRes.rows[0]?.state ?? null;
+  const workflowCurrentStage = workflowRes.rows[0]?.current_stage ?? null;
   if (isTerminalWorkflowState(workflowState)) {
     return;
   }
@@ -112,15 +114,17 @@ export async function assertOrchestratorProgressBeforeHandoff(
     ? parsePlaybookDefinition(workflowRes.rows[0].definition)
     : null;
   const workflowIsPlanned = workflowDefinition?.lifecycle === 'planned';
-  const focusWorkItem = selectProgressFocusWorkItem({
+  const focus = resolveProgressFocus({
     workItems,
     specialistTasks,
     taskWorkItemId: task.work_item_id,
     taskStageName: task.stage_name,
+    workflowCurrentStage,
     workflowDefinition,
   });
+  const focusWorkItem = focus.workItem;
   const focusWorkItemId = focusWorkItem?.id ?? null;
-  const focusStageName = focusWorkItem?.stage_name ?? task.stage_name ?? null;
+  const focusStageName = focus.stageName;
   const nextStageName = focusStageName && workflowDefinition
     ? nextStageNameFor(workflowDefinition, focusStageName)
     : null;
@@ -404,6 +408,56 @@ function selectProgressFocusWorkItem(input: {
   }
 
   return successorFocus;
+}
+
+function resolveProgressFocus(input: {
+  workItems: WorkItemRow[];
+  specialistTasks: TaskRow[];
+  taskWorkItemId: string | null;
+  taskStageName: string | null;
+  workflowCurrentStage: string | null;
+  workflowDefinition: ReturnType<typeof parsePlaybookDefinition> | null;
+}): {
+  workItem: WorkItemRow | null;
+  stageName: string | null;
+} {
+  const focusWorkItem = selectProgressFocusWorkItem({
+    workItems: input.workItems,
+    specialistTasks: input.specialistTasks,
+    taskWorkItemId: input.taskWorkItemId,
+    taskStageName: input.taskStageName,
+    workflowDefinition: input.workflowDefinition,
+  });
+  const workflowCurrentStage = input.workflowCurrentStage?.trim() || null;
+  const focusStageName = focusWorkItem?.stage_name ?? input.taskStageName ?? workflowCurrentStage;
+  if (
+    focusWorkItem
+    && focusWorkItem.completed_at != null
+    && workflowCurrentStage
+    && focusWorkItem.stage_name
+    && focusWorkItem.stage_name !== workflowCurrentStage
+  ) {
+    const openCurrentStageWorkItems = input.workItems.filter(
+      (row) => row.stage_name === workflowCurrentStage && row.completed_at == null,
+    );
+    if (openCurrentStageWorkItems.length === 1) {
+      return {
+        workItem: openCurrentStageWorkItems[0],
+        stageName: workflowCurrentStage,
+      };
+    }
+    if (openCurrentStageWorkItems.length === 0) {
+      return {
+        workItem: null,
+        stageName: workflowCurrentStage,
+      };
+    }
+  }
+
+  return {
+    workItem: focusWorkItem,
+    stageName: focusStageName,
+  };
 }
 
 function isOpenSpecialistTask(state: string | null): boolean {

@@ -746,4 +746,135 @@ describe('HandoffService orchestrator progress guidance', () => {
       }),
     );
   });
+
+  it('rejects a stale focused handoff when workflow current_stage already advanced to close', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [makeTaskRow({
+            id: 'task-orchestrator',
+            role: 'orchestrator',
+            stage_name: 'implement',
+            work_item_id: 'work-item-implement-1',
+            is_orchestrator_task: true,
+            metadata: { task_kind: 'orchestrator' },
+          })],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'work-item-verify-1',
+              stage_name: 'verify',
+              completed_at: new Date('2026-04-02T11:31:12Z'),
+              created_at: new Date('2026-04-02T11:27:53Z'),
+            },
+            {
+              id: 'work-item-review-1',
+              stage_name: 'review',
+              completed_at: new Date('2026-04-02T11:27:33Z'),
+              created_at: new Date('2026-04-02T11:21:15Z'),
+            },
+            {
+              id: 'work-item-implement-1',
+              stage_name: 'implement',
+              completed_at: new Date('2026-04-02T11:20:33Z'),
+              created_at: new Date('2026-04-02T11:16:35Z'),
+            },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'task-dev-1',
+              role: 'Software Developer',
+              state: 'completed',
+              work_item_id: 'work-item-implement-1',
+              is_orchestrator_task: false,
+            },
+            {
+              id: 'task-review-1',
+              role: 'Code Reviewer',
+              state: 'completed',
+              work_item_id: 'work-item-review-1',
+              is_orchestrator_task: false,
+            },
+            {
+              id: 'task-qa-1',
+              role: 'QA Reviewer',
+              state: 'completed',
+              work_item_id: 'work-item-verify-1',
+              is_orchestrator_task: false,
+            },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            state: 'active',
+            current_stage: 'close',
+            definition: {
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [
+                { name: 'implement', goal: 'Implement the fix' },
+                { name: 'review', goal: 'Review the fix' },
+                { name: 'verify', goal: 'Verify the fix' },
+                { name: 'release-approval', goal: 'Record the release decision' },
+                { name: 'close', goal: 'Record the final outcome' },
+              ],
+            },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.submitTaskHandoff('tenant-1', 'task-orchestrator', {
+        request_id: 'handoff:task-orchestrator:r0:complete-workflow',
+        summary: 'All stages are complete and the workflow is ready to close.',
+        completion: 'full',
+      }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Workflow can close now. Perform the explicit workflow-closing mutation before submit_handoff.',
+      details: {
+        reason_code: 'orchestrator_progress_mutation_required',
+        recoverable: true,
+        recovery_hint: 'complete_workflow_before_handoff',
+        safetynet_behavior_id: ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET.id,
+        recovery: {
+          status: 'action_required',
+          reason: 'orchestrator_progress_mutation_required',
+          action: 'complete_workflow_before_handoff',
+          target_type: 'workflow',
+          target_id: 'workflow-1',
+        },
+        closure_context: expect.objectContaining({
+          workflow_can_close_now: true,
+          next_stage_name: null,
+          stage_name: 'close',
+          work_item_id: null,
+        }),
+      },
+    });
+
+    expect(logSafetynetTriggered).toHaveBeenCalledWith(
+      ORCHESTRATOR_PROGRESS_GUIDANCE_SAFETYNET,
+      'orchestrator handoff rejected because workflow progress could still be applied in the same activation',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: null,
+        task_id: 'task-orchestrator',
+        stage_name: 'close',
+        workflow_can_close_now: true,
+      }),
+    );
+  });
 });
