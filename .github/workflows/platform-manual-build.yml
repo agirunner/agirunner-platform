@@ -73,12 +73,16 @@ jobs:
 
       - name: Build ${{ matrix.display_name }} image
         run: |
+          version="$(bash .github/scripts/release-tags.sh validate-image-tag "${{ inputs.image_tag }}")"
           tag_args=()
           mapfile -t publish_tags < <(bash .github/scripts/release-tags.sh publish-tags-from-image-tag "${{ inputs.image_tag }}")
           for tag in "${publish_tags[@]}"; do
             tag_args+=(-t "${{ matrix.image_name }}:${tag}")
           done
-          args=()
+          args=(
+            --build-arg "AGIRUNNER_IMAGE_VERSION=${version}"
+            --build-arg "AGIRUNNER_IMAGE_REVISION=${GITHUB_SHA}"
+          )
           if [ -n "${{ matrix.build_args }}" ]; then
             args+=(${{ matrix.build_args }})
           fi

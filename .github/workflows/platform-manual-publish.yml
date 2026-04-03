@@ -102,7 +102,10 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.image.outputs.image_refs }}
-          build-args: ${{ matrix.build_args }}
+          build-args: |
+            AGIRUNNER_IMAGE_VERSION=${{ steps.image.outputs.version }}
+            AGIRUNNER_IMAGE_REVISION=${{ github.sha }}
+            ${{ matrix.build_args }}
           provenance: false
           sbom: false
           labels: |
