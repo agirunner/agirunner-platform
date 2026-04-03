@@ -98,10 +98,14 @@ to start with `ab_admin_def`. The contributor stack also needs
 agent credentials for runtime containers are then issued by the
 platform as part of the normal container lifecycle.
 
-The same bootstrap model applies to `RUNTIME_IMAGE`: it provides the
-initial runtime image for a fresh local stack, but later runtime-image
-changes belong in the dashboard or API instead of being forced back
-from `.env` on every restart.
+The same bootstrap model applies to `RUNTIME_IMAGE`: leave it unset if
+you want released platform images to derive the matching published
+runtime tag automatically, or add `RUNTIME_IMAGE=agirunner-runtime:local`
+to your untracked local `.env` when you are pairing platform work with a
+local runtime checkout. In both cases it only seeds the first runtime
+image for a fresh stack; later runtime-image changes belong in the
+dashboard or API instead of being forced back from `.env` on every
+restart.
 
 The platform API applies migrations and seed/bootstrap work during
 startup, so there is no separate root-level migration command to run.

@@ -152,31 +152,36 @@ execution containers as workflows start moving.
 
 ## Runtime Image Bootstrap
 
-This repo's local Compose path reads one runtime-image setting from
-`.env`:
+This repo's local Compose path can take one optional runtime-image
+override from `.env`:
 
 ```env
 RUNTIME_IMAGE=agirunner-runtime:local
 ```
 
-The container manager uses that value as its bootstrap default, and the
-platform uses the same value when it seeds the initial runtime-image
-records for a fresh tenant. After that, runtime image choices belong to
-the product: operators can override, rotate, or revoke them from the
-dashboard or API without editing `.env` again.
+If `RUNTIME_IMAGE` is set, the platform uses it as the bootstrap runtime
+image for a fresh tenant. If it is unset, released platform images
+derive the matching published runtime tag from their own version, while
+local or unlabeled platform builds fall back to `agirunner-runtime:local`.
+After that, runtime image choices belong to the product: operators can
+override, rotate, or revoke them from the dashboard or API without
+editing `.env` again.
 
-The contributor stack still defaults to `agirunner-runtime:local` on
-purpose so platform work can pair cleanly with a local runtime checkout.
-If you want this repo to point at the published runtime line instead,
-switch it with a one-line `.env` change:
+For a local runtime checkout, add an untracked override:
 
 ```env
-RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
+RUNTIME_IMAGE=agirunner-runtime:local
 ```
 
-If you remove `RUNTIME_IMAGE` entirely, bootstrap falls back to
-`agirunner-runtime:local`. The `.env` value is there to choose the
-initial image family, not to lock the product forever.
+If you want this repo to point at a published runtime release instead,
+set an exact published tag:
+
+```env
+RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1
+```
+
+The `.env` value is there to choose the initial image family, not to
+lock the product forever.
 
 ## Architecture Boundary
 
