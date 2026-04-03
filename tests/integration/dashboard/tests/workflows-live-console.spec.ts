@@ -125,3 +125,69 @@ test('pauses live follow when the operator scrolls upward in the console viewpor
 
   await expect(page.locator('[data-live-console-follow-status="paused"]')).toBeVisible();
 });
+
+test('uses the available row width for long live console lines without colliding with the timestamp rail', async ({ page }) => {
+  const scenario = await seedWorkflowsScenario();
+  const longHeadline =
+    'Long console line width check: release coordinator confirms the operator-visible message should expand across the row while preserving a stable timestamp rail for glanceable timing context.';
+
+  await loginToWorkflows(page);
+  await workflowRailButton(page, 'E2E Ongoing Intake').click();
+  await page.getByRole('tab', { name: 'Live Console' }).click();
+
+  await appendWorkflowExecutionTurn({
+    workflowId: scenario.ongoingWorkflow.id,
+    workflowName: scenario.ongoingWorkflow.name ?? 'E2E Ongoing Intake',
+    workspaceId: scenario.workspace.id,
+    workspaceName: scenario.workspace.name ?? 'Workflows Workspace',
+    workItemId: scenario.ongoingWorkItem.id,
+    taskTitle: 'Triage intake queue',
+    stageName: 'intake',
+    role: 'intake-analyst',
+    actorName: 'Intake Analyst',
+    headline: longHeadline,
+  });
+
+  await appendWorkflowEvent(scenario.ongoingWorkflow.id, 'workflow.live_console', {
+    headline: longHeadline,
+    summary:
+      'This line is intentionally long so the browser test can validate width allocation inside the console row.',
+  });
+
+  const entry = page
+    .locator('[data-terminal-entry]')
+    .filter({ hasText: 'Long console line width check:' })
+    .first();
+  await expect(entry).toBeVisible();
+
+  const metrics = await entry.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) {
+      return null;
+    }
+    const content = element.querySelector(':scope > div');
+    const directSpans = element.querySelectorAll(':scope > span');
+    const timestamp = directSpans.item(directSpans.length - 1);
+    if (!(content instanceof HTMLElement) || !(timestamp instanceof HTMLElement)) {
+      return null;
+    }
+
+    const rowRect = element.getBoundingClientRect();
+    const contentRect = content.getBoundingClientRect();
+    const timestampRect = timestamp.getBoundingClientRect();
+    return {
+      rowWidth: rowRect.width,
+      contentWidth: contentRect.width,
+      contentRight: contentRect.right,
+      timestampLeft: timestampRect.left,
+      timestampWidth: timestampRect.width,
+      timestampRight: timestampRect.right,
+      freeGap: timestampRect.left - contentRect.right,
+      rightInset: rowRect.right - timestampRect.right,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+  expect(metrics?.contentWidth ?? 0).toBeGreaterThan((metrics?.rowWidth ?? 0) * 0.45);
+  expect(metrics?.freeGap ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(48);
+  expect(metrics?.rightInset ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(24);
+});
