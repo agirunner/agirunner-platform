@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../../../auth/api-key.js';
 import type { OrchestratorControlRouteContext } from './route-context.js';
 import {
   buildRecoverableApproveTaskNoop,
+  buildRecoverableRequestReworkNoop,
   isRecoverableNotAppliedResult,
   loadManagedSpecialistTask,
   loadManagedSpecialistTaskOrRecoverableNoop,
@@ -193,6 +194,10 @@ export function registerOrchestratorManagedTaskControlRoutes(
           );
           if (isRecoverableNotAppliedResult(managedTask)) {
             return managedTask;
+          }
+          const noop = buildRecoverableRequestReworkNoop(taskScope, managedTask);
+          if (noop) {
+            return noop;
           }
           return app.taskService.requestTaskChanges(request.auth!, managedTaskId, body, client);
         },

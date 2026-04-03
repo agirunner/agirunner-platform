@@ -165,6 +165,70 @@ export function buildRecoverableApproveTaskNoop(
   });
 }
 
+export function buildRecoverableRequestReworkNoop(
+  taskScope: ActiveOrchestratorTaskScope,
+  managedTask: Record<string, unknown>,
+) {
+  const taskState = readString(managedTask.state);
+  if (
+    !taskState
+    || taskState === 'awaiting_approval'
+    || taskState === 'output_pending_assessment'
+    || taskState === 'completed'
+    || taskState === 'failed'
+    || taskState === 'cancelled'
+  ) {
+    return null;
+  }
+
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable request_rework noop returned because the managed specialist task is not ready for rework',
+    {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+      stage_name: readString(managedTask.stage_name) ?? taskScope.stage_name ?? null,
+      reason_code: 'task_not_ready_for_rework',
+      task_state: taskState,
+    },
+  );
+
+  return buildRecoverableGuidedNoop({
+    reasonCode: 'task_not_ready_for_rework',
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+      current_stage: readString(managedTask.stage_name) ?? taskScope.stage_name ?? null,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: [
+      {
+        action_code: 'inspect_task_state',
+        target_type: 'task',
+        target_id: readString(managedTask.id) ?? taskScope.id,
+        why: 'The target task is still active or already reopened, so request_rework would be stale.',
+        requires_orchestrator_judgment: false,
+      },
+      {
+        action_code: 'continue_current_cycle',
+        target_type: readString(managedTask.work_item_id) ? 'work_item' : 'workflow',
+        target_id: readString(managedTask.work_item_id) ?? taskScope.workflow_id,
+        why: 'Route from the current canonical workflow state instead of replaying rework early.',
+        requires_orchestrator_judgment: true,
+      },
+    ],
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+    },
+  });
+}
+
 export function buildRecoverableMissingManagedTaskNoop(
   taskScope: ActiveOrchestratorTaskScope,
   managedTaskId: string,
