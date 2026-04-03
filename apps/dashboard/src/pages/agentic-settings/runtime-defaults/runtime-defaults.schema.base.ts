@@ -28,6 +28,7 @@ export const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       `Image used for short-lived specialist agents. ${RUNTIME_IMAGE_BOOTSTRAP_COPY}`,
     configType: 'string',
+    defaultValue: '',
     placeholder: DEFAULT_RUNTIME_IMAGE_EXAMPLE,
     section: 'runtime_containers',
   },

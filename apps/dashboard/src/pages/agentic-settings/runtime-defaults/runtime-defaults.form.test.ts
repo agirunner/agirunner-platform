@@ -11,13 +11,13 @@ describe('runtime defaults form', () => {
   it('hydrates real values for every field even when no row exists yet', () => {
     const values = buildFormValues([]);
 
-    expect(values['specialist_runtime_default_image']).toBe('agirunner-runtime:local');
+    expect(values['specialist_runtime_default_image']).toBe('');
     expect(values['agent.specialist_context_preserve_memory_ops']).toBe('3');
     expect(values['agent.specialist_context_preserve_artifact_ops']).toBe('3');
     expect(values['lifecycle.destroy_stop_timeout_seconds']).toBe('1');
   });
 
-  it('preserves stored values instead of clearing seeded defaults back to blanks', () => {
+  it('preserves the stored runtime image version instead of collapsing back to a placeholder', () => {
     const values = buildFormValues([
       {
         id: 'seed-1',
@@ -29,16 +29,14 @@ describe('runtime defaults form', () => {
       {
         id: 'seed-2',
         config_key: 'specialist_runtime_default_image',
-        config_value: 'ghcr.io/agirunner/custom-runtime:stable',
+        config_value: 'ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1',
         config_type: 'string',
         description: null,
       },
     ]);
 
     expect(values['agent.specialist_context_preserve_memory_ops']).toBe('9');
-    expect(values['specialist_runtime_default_image']).toBe(
-      'ghcr.io/agirunner/custom-runtime:stable',
-    );
+    expect(values['specialist_runtime_default_image']).toBe('ghcr.io/agirunner/agirunner-runtime:0.1.0-alpha.1');
   });
 
   it('upserts canonical defaults when a displayed field has no stored row yet', () => {
