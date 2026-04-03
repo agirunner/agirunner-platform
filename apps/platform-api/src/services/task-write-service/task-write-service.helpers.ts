@@ -214,7 +214,7 @@ export function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
   if (workItem.workflow_lifecycle !== 'planned') {
     return false;
   }
-  return workItem.stage_status === 'completed' || workItem.stage_gate_status === 'approved';
+  return workItem.stage_status === 'completed';
 }
 
 export function findNextStageForRole(

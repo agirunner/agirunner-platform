@@ -241,7 +241,15 @@ export class TaskWriteCreateGuards {
     }
     if (isClosedPlannedStage(linkedWorkItem)) {
       throw new ConflictError(
-        `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
+        `Cannot create new tasks for completed planned workflow stage '${linkedWorkItem.stage_name}'`,
+        buildRecoverableCreateTaskDetails({
+          reasonCode: 'planned_stage_already_completed',
+          workflowId: linkedWorkItem.workflow_id,
+          workItemId: input.work_item_id ?? null,
+          requestedRole: input.role?.trim() ?? null,
+          linkedWorkItemStageName: linkedWorkItem.stage_name,
+          requestedStageName: input.stage_name ?? linkedWorkItem.stage_name,
+        }),
       );
     }
   }
@@ -405,6 +413,7 @@ function buildRecoverableCreateTaskDetails(input: {
   reasonCode:
     | 'task_stage_mismatch'
     | 'next_expected_actor_mismatch'
+    | 'planned_stage_already_completed'
     | 'role_not_defined_in_playbook'
     | 'role_routes_to_successor_stage'
     | 'role_not_allowed_on_stage';

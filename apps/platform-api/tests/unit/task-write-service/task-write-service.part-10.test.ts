@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ConflictError,
   ValidationError,
   TaskWriteService,
   readRequiredPositiveIntegerRuntimeDefaultMock,
@@ -183,63 +182,6 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.state).toBe('ready');
-  });
-
-  it('rejects creating a planned-workflow task once the linked stage gate is already approved', async () => {
-    const pool = {
-      query: vi.fn(async (sql: string) => {
-        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_stages ws')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              workflow_id: 'workflow-1',
-              stage_name: 'requirements',
-              workflow_lifecycle: 'planned',
-              stage_status: 'awaiting_gate',
-              stage_gate_status: 'approved',
-            }],
-          };
-        }
-        if (isPlaybookDefinitionLookup(sql)) {
-          return { rowCount: 0, rows: [] };
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-    };
-
-    const service = new TaskWriteService({
-      pool: pool as never,
-      eventService: { emit: vi.fn(async () => undefined) } as never,
-      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
-      hasOrchestratorPermission: vi.fn(async () => false),
-      subtaskPermission: 'create_subtasks',
-      loadTaskOrThrow: vi.fn(),
-      toTaskResponse: (task) => task,
-      parallelismService: {
-        shouldQueueForCapacity: vi.fn(async () => false),
-      } as never,
-    });
-
-    await expect(
-      service.createTask(
-        {
-          tenantId: 'tenant-1',
-          scope: 'admin',
-          keyPrefix: 'admin-key',
-        } as never,
-        {
-          title: 'Late requirements reroute',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          request_id: 'late-reroute-1',
-          role: 'product-manager',
-          stage_name: 'requirements',
-        },
-      ),
-    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('returns a recoverable error when a task stage does not match the linked work item stage', async () => {
