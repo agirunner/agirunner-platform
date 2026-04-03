@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '../../../components/ui/select.js';
 import { ConfigField } from '../config-form-controls.js';
+import { formatRuntimeOptionLabel } from '../../runtime-config-shared/runtime-option-labels.js';
 import type {
   FieldDefinition,
   FormValues,
@@ -137,12 +138,12 @@ function renderSelectField(
         aria-describedby={describedBy}
         data-testid={`field-${field.key}`}
       >
-        <SelectValue placeholder={field.placeholder} />
+        <SelectValue placeholder={formatRuntimeOptionLabel(field.placeholder)} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
-            {option}
+            {formatRuntimeOptionLabel(option)}
           </SelectItem>
         ))}
       </SelectContent>

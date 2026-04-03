@@ -1,3 +1,5 @@
+import { formatRuntimeOptionLabel } from '../runtime-config-shared/runtime-option-labels.js';
+
 export interface TaskContextFact {
   label: string;
   value: string;
@@ -140,7 +142,10 @@ export function buildContinuityHighlightFacts({
     }
     facts.push({
       label,
-      value: summarizeValue(metrics[key]),
+      value:
+        key === 'effective_context_strategy' && typeof metrics[key] === 'string'
+          ? formatRuntimeOptionLabel(metrics[key])
+          : summarizeValue(metrics[key]),
     });
     if (facts.length >= limit) {
       return facts;

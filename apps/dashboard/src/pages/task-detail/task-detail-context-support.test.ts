@@ -102,7 +102,7 @@ describe('task detail context support', () => {
         },
       }),
     ).toEqual([
-      { label: 'Context strategy', value: 'activation_checkpoint' },
+      { label: 'Context strategy', value: 'Activation checkpoint' },
       { label: 'Activation checkpoints', value: '1' },
       { label: 'Activation memory writes', value: '2' },
       { label: 'Checkpoint trigger', value: 'task.completed' },
