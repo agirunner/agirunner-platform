@@ -46,6 +46,7 @@ export async function heartbeat(
   }
 
   const previousStatus = workerRes.rows[0].status as WorkerState;
+  const previousHeartbeatAt = toNullableDate(workerRes.rows[0].last_heartbeat_at);
   const status = (payload.status ?? 'online') as WorkerState;
   assertValidHeartbeatTransition(workerId, previousStatus, status);
   const currentTaskId = payload.current_task_id ?? payload.current_tasks?.[0] ?? null;
@@ -59,7 +60,13 @@ export async function heartbeat(
     [identity.tenantId, workerId, status, currentTaskId, payload.metrics ?? {}],
   );
 
-  await reconcileStaleClaimedTasks(context, identity.tenantId, workerId, currentTaskId);
+  await reconcileStaleClaimedTasks(
+    context,
+    identity.tenantId,
+    workerId,
+    currentTaskId,
+    previousHeartbeatAt,
+  );
 
   const pendingSignals = await context.pool.query(
     `SELECT id, signal_type, task_id, data, created_at
@@ -86,8 +93,9 @@ async function reconcileStaleClaimedTasks(
   tenantId: string,
   workerId: string,
   currentTaskId: string | null,
+  previousHeartbeatAt: Date | null,
 ) {
-  if (currentTaskId) {
+  if (currentTaskId || !previousHeartbeatAt) {
     return;
   }
 
@@ -97,8 +105,10 @@ async function reconcileStaleClaimedTasks(
       WHERE tenant_id = $1
         AND assigned_worker_id = $2
         AND state = 'claimed'
-        AND started_at IS NULL`,
-    [tenantId, workerId],
+        AND started_at IS NULL
+        AND claimed_at IS NOT NULL
+        AND claimed_at <= $3::timestamptz`,
+    [tenantId, workerId, previousHeartbeatAt.toISOString()],
   );
   if (!staleClaims.rowCount) {
     return;
@@ -143,6 +153,17 @@ async function reconcileStaleClaimedTasks(
       },
     });
   }
+}
+
+function toNullableDate(value: unknown): Date | null {
+  if (!(value instanceof Date) && typeof value !== 'string') {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
 }
 
 export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, now = new Date()): Promise<number> {

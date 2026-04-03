@@ -19,6 +19,7 @@ describe('worker heartbeat timeout enforcement', () => {
                 id: 'worker-1',
                 tenant_id: 'tenant-1',
                 status: 'busy',
+                last_heartbeat_at: '2026-04-03T03:49:00.000Z',
               },
             ],
           };
@@ -65,12 +66,12 @@ describe('worker heartbeat timeout enforcement', () => {
 
     expect(result).toEqual({ ack: true, pending_signals: [] });
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining("SET state = 'ready'"),
-      ['tenant-1', ['task-stale']],
+      expect.stringContaining('AND claimed_at <= $3::timestamptz'),
+      ['tenant-1', 'worker-1', '2026-04-03T03:49:00.000Z'],
     );
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE agents'),
-      ['tenant-1', 'worker-1', ['task-stale']],
+      expect.stringContaining("SET state = 'ready'"),
+      ['tenant-1', ['task-stale']],
     );
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -84,6 +85,72 @@ describe('worker heartbeat timeout enforcement', () => {
         }),
       }),
     );
+  });
+
+  it('does not release a freshly claimed task on the first empty heartbeat after claim', async () => {
+    const identity = {
+      tenantId: 'tenant-1',
+      scope: 'worker' as const,
+      ownerId: 'worker-1',
+    };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT * FROM workers')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'worker-1',
+                tenant_id: 'tenant-1',
+                status: 'busy',
+                last_heartbeat_at: '2026-04-03T03:49:00.000Z',
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('UPDATE workers')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("state = 'claimed'")) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        if (sql.includes('UPDATE agents')) {
+          throw new Error('fresh claims must not clear agent ownership');
+        }
+        if (sql.includes("SET state = 'ready'")) {
+          throw new Error('fresh claims must not be released');
+        }
+        if (sql.includes('FROM worker_signals')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const context = {
+      pool,
+      eventService,
+      config: {
+        WORKER_OFFLINE_THRESHOLD_MULTIPLIER: 3,
+        WORKER_DEGRADED_THRESHOLD_MULTIPLIER: 2,
+        WORKER_OFFLINE_GRACE_PERIOD_MS: 5_000,
+      },
+    };
+
+    const result = await heartbeat(context as never, identity as never, 'worker-1', {
+      status: 'online',
+      current_task_id: null,
+    });
+
+    expect(result).toEqual({ ack: true, pending_signals: [] });
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('AND claimed_at <= $3::timestamptz'),
+      ['tenant-1', 'worker-1', '2026-04-03T03:49:00.000Z'],
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
   });
 
   it('fails in-progress/claimed tasks after offline grace window elapses', async () => {
