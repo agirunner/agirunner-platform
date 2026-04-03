@@ -119,5 +119,40 @@ describe('RuntimeDefaultsService', () => {
 
       expect(result.config_value).toBe('redacted://runtime-default-secret');
     });
+
+    it('accepts supported orchestrator loop mode values', async () => {
+      const current = {
+        ...sampleDefault,
+        config_key: 'agent.orchestrator_loop_mode',
+        config_value: 'tpaov',
+        config_type: 'string',
+      };
+      const updated = { ...current, config_value: 'reactive' };
+      ctx.pool.query
+        .mockResolvedValueOnce({ rows: [current], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [updated], rowCount: 1 });
+
+      const result = await ctx.service.updateDefault(TENANT_ID, DEFAULT_ID, {
+        configValue: 'reactive',
+      });
+
+      expect(result.config_value).toBe('reactive');
+    });
+
+    it('rejects unsupported orchestrator loop mode values', async () => {
+      ctx.pool.query.mockResolvedValueOnce({
+        rows: [{
+          ...sampleDefault,
+          config_key: 'agent.orchestrator_loop_mode',
+          config_value: 'reactive',
+          config_type: 'string',
+        }],
+        rowCount: 1,
+      });
+
+      await expect(
+        ctx.service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: 'invalid-mode' }),
+      ).rejects.toThrow('agent.orchestrator_loop_mode must be one of: reactive, tpaov');
+    });
   });
 });

@@ -14,6 +14,7 @@ export const ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS = [
   'emergency_only',
   'off',
 ] as const;
+export const ORCHESTRATOR_LOOP_MODE_OPTIONS = ['reactive', 'tpaov'] as const;
 export const BOOLEAN_OPTIONS = ['true', 'false'] as const;
 
 export const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  warn: vi.fn(),
+  info: vi.fn(),
   inc: vi.fn(),
 }));
 
 vi.mock('../../../src/observability/logger.js', () => ({
   createLogger: () => ({
-    warn: mocks.warn,
+    info: mocks.info,
   }),
 }));
 
@@ -30,7 +30,7 @@ import { mustGetSafetynetEntry, PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_I
 
 describe('platform safetynet logging', () => {
   beforeEach(() => {
-    mocks.warn.mockReset();
+    mocks.info.mockReset();
     mocks.inc.mockReset();
   });
 
@@ -46,7 +46,7 @@ describe('platform safetynet logging', () => {
     });
 
     expect(mocks.inc).toHaveBeenCalledWith({ behavior: PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID });
-    expect(mocks.warn).toHaveBeenCalledWith(
+    expect(mocks.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event_type: 'platform.safetynet.triggered',
         safetynet_behavior_id: PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,

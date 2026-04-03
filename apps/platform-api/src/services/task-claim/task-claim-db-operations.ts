@@ -5,6 +5,7 @@ import { matchesWorkerToTaskRouting } from '../task/task-routing-contract.js';
 import { assertValidTransition } from '../../orchestration/task-state-machine.js';
 import { readAgentSupervisionTimingDefaults } from '../platform-config/platform-timing-defaults.js';
 import {
+  readOrchestratorLoopModeRuntimeDefault,
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,
 } from '../runtime-defaults/runtime-default-values.js';
@@ -216,8 +217,12 @@ export async function resolveTaskLoopContract(
     'agent.llm_max_retries',
     db,
   );
+  const loopMode =
+    task.is_orchestrator_task === true
+      ? await readOrchestratorLoopModeRuntimeDefault(db, tenantId)
+      : 'reactive';
   return {
-    loopMode: task.is_orchestrator_task === true ? 'tpaov' : 'reactive',
+    loopMode,
     maxIterations,
     llmMaxRetries,
   };

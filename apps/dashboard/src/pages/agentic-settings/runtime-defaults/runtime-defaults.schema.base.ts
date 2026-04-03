@@ -7,6 +7,7 @@ import {
   BASE_SECTION_DEFINITIONS,
   BOOLEAN_OPTIONS,
   ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS,
+  ORCHESTRATOR_LOOP_MODE_OPTIONS,
   PULL_POLICY_OPTIONS,
   SPECIALIST_CONTEXT_STRATEGY_OPTIONS,
 } from './runtime-defaults.schema.shared.js';
@@ -15,6 +16,7 @@ export {
   BASE_SECTION_DEFINITIONS,
   BOOLEAN_OPTIONS,
   ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS,
+  ORCHESTRATOR_LOOP_MODE_OPTIONS,
   PULL_POLICY_OPTIONS,
   SPECIALIST_CONTEXT_STRATEGY_OPTIONS,
 };
@@ -181,6 +183,16 @@ export const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     placeholder: 'true',
     section: 'agent_context',
     options: BOOLEAN_OPTIONS,
+  },
+  {
+    key: 'agent.orchestrator_loop_mode',
+    label: 'Orchestrator loop mode',
+    description:
+      'Default loop mode for orchestrator activations. Reactive is preferred for frontier models; TPAOV can fit less capable models when a stricter step-by-step loop works better.',
+    configType: 'string',
+    placeholder: 'reactive',
+    section: 'orchestrator_context',
+    options: ORCHESTRATOR_LOOP_MODE_OPTIONS,
   },
   {
     key: 'agent.orchestrator_history_preserve_recent',

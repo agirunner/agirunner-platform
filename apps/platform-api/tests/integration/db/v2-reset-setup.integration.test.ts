@@ -145,6 +145,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
             'agent.max_burst_elapsed_ms',
             'agent.max_parallel_tool_calls_per_burst',
             'agent.max_iterations',
+            'agent.orchestrator_loop_mode',
             'agent.specialist_context_tail_messages'
           )
         ORDER BY config_key ASC`,
@@ -183,25 +184,31 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_key: 'agent.max_mutating_steps_per_burst',
         config_value: '5',
         description:
-          'Maximum mutating tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
+          'Maximum mutating tool steps an agent executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.max_parallel_tool_calls_per_burst',
         config_value: '8',
         description:
-          'Maximum read-only tool calls the Specialist Agent executes in parallel inside one reactive burst',
+          'Maximum read-only tool calls an agent executes in parallel inside one reactive burst',
       },
       {
         config_key: 'agent.max_tool_steps_per_burst',
         config_value: '12',
         description:
-          'Maximum tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
+          'Maximum tool steps an agent executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.no_file_change_threshold',
         config_value: '50',
         description:
           'Intervene only after this many turns with no meaningful progress toward task completion',
+      },
+      {
+        config_key: 'agent.orchestrator_loop_mode',
+        config_value: 'reactive',
+        description:
+          'Tenant-wide default loop mode for orchestrator activations. Specialists always run reactively.',
       },
       {
         config_key: 'agent.response_repeat_threshold',

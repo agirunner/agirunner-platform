@@ -1,3 +1,5 @@
+import { ORCHESTRATOR_LOOP_MODE_RUNTIME_KEY } from '../../services/runtime-defaults/runtime-default-values.js';
+
 export const DASHBOARD_BACKED_RUNTIME_DEFAULTS = [
   {
     configKey: 'server.shutdown_timeout_seconds',
@@ -240,6 +242,13 @@ export const DASHBOARD_BACKED_RUNTIME_DEFAULTS = [
     description: 'Fallback character-per-token estimate used when model-side token accounting is unavailable',
   },
   {
+    configKey: ORCHESTRATOR_LOOP_MODE_RUNTIME_KEY,
+    configValue: 'reactive',
+    configType: 'string',
+    description:
+      'Tenant-wide default loop mode for orchestrator activations. Specialists always run reactively.',
+  },
+  {
     configKey: 'agent.specialist_context_strategy',
     configValue: 'auto',
     configType: 'string',
@@ -351,13 +360,14 @@ export const DASHBOARD_BACKED_RUNTIME_DEFAULTS = [
     configKey: 'agent.max_tool_steps_per_burst',
     configValue: '12',
     configType: 'number',
-    description: 'Maximum tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
+    description: 'Maximum tool steps an agent executes inside one reactive burst before re-evaluating',
   },
   {
     configKey: 'agent.max_mutating_steps_per_burst',
     configValue: '5',
     configType: 'number',
-    description: 'Maximum mutating tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
+    description:
+      'Maximum mutating tool steps an agent executes inside one reactive burst before re-evaluating',
   },
   {
     configKey: 'agent.max_burst_elapsed_ms',
@@ -369,12 +379,12 @@ export const DASHBOARD_BACKED_RUNTIME_DEFAULTS = [
     configKey: 'agent.max_parallel_tool_calls_per_burst',
     configValue: '8',
     configType: 'number',
-    description: 'Maximum read-only tool calls the Specialist Agent executes in parallel inside one reactive burst',
+    description: 'Maximum read-only tool calls an agent executes in parallel inside one reactive burst',
   },
   {
     configKey: 'agent.max_stuck_interventions',
     configValue: '2',
     configType: 'number',
-    description: 'How many automatic recovery interventions the Specialist Agent attempts before failing the task',
+    description: 'How many automatic recovery interventions an agent attempts before failing the task',
   },
 ] as const;

@@ -43,3 +43,4 @@ import './task-claim-service.case-42.test.js';
 import './task-claim-service.case-43.test.js';
 import './task-claim-service.case-44.test.js';
 import './task-claim-service.case-45.test.js';
+import './task-claim-service.case-46.test.js';

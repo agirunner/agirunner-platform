@@ -185,6 +185,15 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     };
 
     const instructionLayers = overrides.instructionLayers ?? {};
+    const runtimeDefaultValues = new Map<string, string>([
+      ['agent.max_iterations', '100'],
+      ['agent.llm_max_retries', '5'],
+      ['agent.orchestrator_loop_mode', 'reactive'],
+      ['platform.agent_default_heartbeat_interval_seconds', '30'],
+      ['platform.agent_heartbeat_grace_period_ms', '30000'],
+      ['platform.agent_heartbeat_threshold_multiplier', '3'],
+      ['platform.agent_key_expiry_ms', '3600000'],
+    ]);
 
     const queryMock = vi.fn(async (sql: string, params?: unknown[]) => {
       if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -206,14 +215,12 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
         return { rowCount: 1, rows: [taskRow] };
       }
       if (sql.includes('FROM runtime_defaults')) {
-        const key = params?.[1];
-        if (key === 'agent.max_iterations') {
-          return { rowCount: 1, rows: [{ config_value: '100' }] };
+        const key = typeof params?.[1] === 'string' ? params[1] : null;
+        const configValue = key ? runtimeDefaultValues.get(key) : undefined;
+        if (configValue !== undefined) {
+          return { rowCount: 1, rows: [{ config_value: configValue }] };
         }
-        if (key === 'agent.llm_max_retries') {
-          return { rowCount: 1, rows: [{ config_value: '5' }] };
-        }
-        return { rowCount: 1, rows: [{ config_value: '1000' }] };
+        return { rowCount: 0, rows: [] };
       }
       if (sql.includes('SELECT execution_environment_id')) {
         return { rowCount: 1, rows: [{ execution_environment_id: null }] };

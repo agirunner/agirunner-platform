@@ -81,6 +81,17 @@ describe('runtime defaults page support', () => {
       'specialist_runtime_bootstrap_claim_timeout_seconds',
       'platform.claim_poll_seconds',
     ]);
+    expect(fieldsForSection('orchestrator_context').map((field) => field.key)).toEqual([
+      'agent.orchestrator_loop_mode',
+      'agent.orchestrator_history_preserve_recent',
+      'agent.orchestrator_context_compaction_threshold',
+      'agent.orchestrator_context_strategy',
+      'agent.orchestrator_finish_checkpoint_enabled',
+      'agent.orchestrator_finish_refresh_context_bundle',
+      'agent.orchestrator_emergency_compaction_threshold',
+      'agent.orchestrator_preserve_memory_ops',
+      'agent.orchestrator_preserve_artifact_ops',
+    ]);
     expect(fieldsForSection('workspace_timeouts').map((field) => field.key)).toEqual([
       'workspace.create_layout_timeout_seconds',
       'workspace.configure_git_timeout_seconds',
@@ -138,6 +149,7 @@ describe('runtime defaults page support', () => {
       'agent.specialist_context_tail_messages': '21',
       'agent.context_compaction_threshold': '1.5',
       'agent.specialist_context_strategy': 'invalid',
+      'agent.orchestrator_loop_mode': 'invalid',
       'agent.orchestrator_history_preserve_recent': '21',
       'agent.loop_detection_repeat': '0',
       'capture.push_retries': '-1',
@@ -149,6 +161,7 @@ describe('runtime defaults page support', () => {
     expect(errors['agent.specialist_context_tail_messages']).toContain('overall history budget');
     expect(errors['agent.context_compaction_threshold']).toContain('at most 1');
     expect(errors['agent.specialist_context_strategy']).toContain('must be one of');
+    expect(errors['agent.orchestrator_loop_mode']).toContain('must be one of');
     expect(errors['agent.orchestrator_history_preserve_recent']).toContain(
       'overall history budget',
     );
@@ -250,11 +263,18 @@ describe('runtime defaults page support', () => {
     const bootstrapClaimField = FIELD_DEFINITIONS.find(
       (field) => field.key === 'specialist_runtime_bootstrap_claim_timeout_seconds',
     );
+    const orchestratorLoopModeField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.orchestrator_loop_mode',
+    );
 
     expect(historyBudgetField).toMatchObject({ placeholder: '150' });
     expect(preservedRecentField).toMatchObject({ placeholder: '30' });
     expect(specialistTailField).toMatchObject({ placeholder: '30' });
     expect(maxIterationsField).toMatchObject({ placeholder: '800' });
+    expect(orchestratorLoopModeField).toMatchObject({
+      placeholder: 'reactive',
+      options: ['reactive', 'tpaov'],
+    });
 
     expect(loopRepeatField).toMatchObject({
       placeholder: '3',

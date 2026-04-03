@@ -32,10 +32,6 @@ import type {
   ToolOwnerMap,
 } from './task-claim-types.js';
 
-export function buildTaskLoopMode(task: Record<string, unknown>) {
-  return task.is_orchestrator_task === true ? 'tpaov' : 'reactive';
-}
-
 export function buildRuntimeTaskCapabilities(
   task: Record<string, unknown>,
   _instructionContext: Record<string, unknown>,

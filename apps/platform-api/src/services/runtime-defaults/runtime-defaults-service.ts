@@ -145,6 +145,7 @@ const DECIMAL_DEFAULT_RULES = new Map([
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['specialist_runtime_default_pull_policy', ['always', 'if-not-present', 'never']],
   ['log.level', ['debug', 'info', 'warn', 'error']],
+  ['agent.orchestrator_loop_mode', ['reactive', 'tpaov']],
   ['agent.specialist_context_strategy', ['auto', 'semantic_local', 'deterministic', 'provider_native', 'off']],
   ['agent.orchestrator_context_strategy', ['activation_checkpoint', 'emergency_only', 'off']],
 ]);
@@ -178,6 +179,7 @@ const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
   'tasks.default_timeout_minutes',
   'agent.max_iterations',
   'agent.llm_max_retries',
+  'agent.orchestrator_loop_mode',
   'specialist_runtime_default_image',
   'specialist_runtime_default_cpu',
   'specialist_runtime_default_memory',

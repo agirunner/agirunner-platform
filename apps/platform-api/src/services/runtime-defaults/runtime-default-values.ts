@@ -6,6 +6,9 @@ export const TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY = 'tasks.default_timeout_m
 export const TASK_MAX_ITERATIONS_RUNTIME_KEY = 'agent.max_iterations';
 export const TASK_LLM_MAX_RETRIES_RUNTIME_KEY = 'agent.llm_max_retries';
 export const GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY = 'global_max_specialists';
+export const ORCHESTRATOR_LOOP_MODE_RUNTIME_KEY = 'agent.orchestrator_loop_mode';
+
+export type OrchestratorLoopMode = 'reactive' | 'tpaov';
 
 export const SPECIALIST_RUNTIME_DEFAULT_KEYS = {
   image: 'specialist_runtime_default_image',
@@ -69,6 +72,25 @@ export async function readRequiredStringRuntimeDefault(
     throw new ValidationError(`Missing runtime default "${key}"`);
   }
   return rawValue.trim();
+}
+
+export async function readOrchestratorLoopModeRuntimeDefault(
+  db: DatabaseQueryable,
+  tenantId: string,
+): Promise<OrchestratorLoopMode> {
+  const rawValue = await readRuntimeDefaultValue(db, tenantId, ORCHESTRATOR_LOOP_MODE_RUNTIME_KEY);
+  if (rawValue === null) {
+    return 'reactive';
+  }
+
+  const value = rawValue.trim();
+  if (value === 'reactive' || value === 'tpaov') {
+    return value;
+  }
+
+  throw new ValidationError(
+    `Runtime default "${ORCHESTRATOR_LOOP_MODE_RUNTIME_KEY}" must be one of: reactive, tpaov`,
+  );
 }
 
 export async function readSpecialistRuntimeDefaults(
