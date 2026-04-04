@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "web-data-extraction",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "source_pages": "Use the uploaded web page snapshots for research and evidence products and extract a structured comparison packet.",
+        "target_fields_or_schema": "product name, target users, core workflow claim, source transparency signal, operator-control signal, pricing or packaging note",
+        "extraction_constraints": "Prefer directly stated page claims, keep source references, and mark anything inferred rather than explicit."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/web-page-snapshots-export-market.md"
+      ],
+      "expected_outcome": {
+        "kind": "web_data_packet"
+      }
+    }
+  }
+}

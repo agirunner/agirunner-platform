@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "contract-term-extraction",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "contract_source": "Extract the customer-obligation terms from the uploaded audit export assistance agreement excerpt, especially SLA windows, evidence retention, support obligations, exclusions, and approval requirements.",
+        "target_terms": "response deadlines, audit-support obligations, evidence retention, customer escalation triggers, service exclusions, approval gates",
+        "normalization_rules": "Return short normalized field names with clause evidence and ambiguity notes when the contract language is conditional or split across multiple sections."
+      },
+      "uploads": [
+        "fixtures/uploads/contracts/export-assistance-agreement.md"
+      ],
+      "expected_outcome": {
+        "kind": "contract_terms_packet"
+      }
+    }
+  }
+}

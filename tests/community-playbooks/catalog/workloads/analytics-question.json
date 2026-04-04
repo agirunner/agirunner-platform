@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "analytics-question",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "stakeholder_question": "Why do enterprise audit export timeouts spike around quarter close, and what operator-facing metric should leadership watch each week?",
+        "data_scope": "Use the uploaded export metrics packet covering queue depth, median export duration, timeout banners, and escalation counts from the last three closes.",
+        "decision_context": "Operations leadership wants a bounded answer packet that explains the strongest likely drivers, the caveats in the data basis, and whether the trend justifies immediate capacity or product changes."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/analytics-export-metrics.md"
+      ],
+      "expected_outcome": {
+        "kind": "analytics_answer"
+      }
+    }
+  }
+}

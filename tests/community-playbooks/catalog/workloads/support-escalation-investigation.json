@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "support-escalation-investigation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "request_summary": "Support needs an escalation packet for a recurring audit export failure that likely spans product, infrastructure, and customer-communication concerns.",
+        "customer_context": "The same customer has escalated twice this week and leadership wants a sharper route, owner, and open-questions list.",
+        "known_artifacts": "Use the uploaded customer thread as the seed evidence and build a deeper escalation packet rather than a customer-ready reply."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/customer-thread-refund.txt"
+      ],
+      "expected_outcome": {
+        "kind": "support_escalation_packet"
+      }
+    }
+  }
+}

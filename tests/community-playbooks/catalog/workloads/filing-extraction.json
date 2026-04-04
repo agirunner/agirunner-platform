@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "filing-extraction",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "filing_source": "Extract the material compliance-control fields from the uploaded quarterly filing excerpt about audit exports, retries, and evidence retention.",
+        "target_fields_or_schema": "reporting period, customer segment, export control statements, disclosed incidents, mitigation commitments, evidence retention notes",
+        "normalization_rules": "Keep normalized field names, note section references, and preserve ambiguity when the filing language is forward-looking or conditional."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/quarterly-filing-controls.md"
+      ],
+      "expected_outcome": {
+        "kind": "filing_extraction_packet"
+      }
+    }
+  }
+}

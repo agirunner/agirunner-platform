@@ -1,0 +1,19 @@
+{
+  "playbook_slug": "release-readiness",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "release_scope": "Assess whether the current audit export stabilization candidate is ready for a controlled release to enterprise tenants.",
+        "candidate_evidence": "Use the seeded product workspace plus the uploaded bug report and review packet as the main evidence set.",
+        "rollout_context": "Leadership needs a single readiness packet covering blockers, residual risk, rollback posture, and whether support can safely message the change."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/bug-report-export-timeout.md",
+        "fixtures/uploads/engineering/review-evidence-api-diff.md"
+      ],
+      "expected_outcome": {
+        "kind": "release_readiness_packet"
+      }
+    }
+  }
+}

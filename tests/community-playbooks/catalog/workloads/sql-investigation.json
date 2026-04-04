@@ -1,0 +1,19 @@
+{
+  "playbook_slug": "sql-investigation",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "investigation_question": "What changed in the audit export timeout pattern over the last three closes, and which query-backed explanation is strongest given the available evidence?",
+        "data_scope": "Use the uploaded SQL packet and metrics summary as the approved data basis; do not invent unstated tables or metrics.",
+        "query_constraints": "Explain the likely logic in plain language, note where the data basis is thin, and prefer honest caveats over speculative precision."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/sql-query-packet.md",
+        "fixtures/uploads/operations/analytics-export-metrics.md"
+      ],
+      "expected_outcome": {
+        "kind": "sql_investigation_packet"
+      }
+    }
+  }
+}

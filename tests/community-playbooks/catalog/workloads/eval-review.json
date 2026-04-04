@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "eval-review",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "evaluation_subject": "Review the benchmark packet for Agirunner's audit export assistant workflow and determine whether the current prompt and tooling revision is safe to adopt.",
+        "benchmark_packet": "Use the uploaded benchmark summary to judge answer quality, source grounding, operator readability, failure modes, and the credibility of the comparison set.",
+        "comparison_goal": "Recommend adopt, revise, or reject, with the most important quality deltas and remaining evaluation gaps called out explicitly."
+      },
+      "uploads": [
+        "fixtures/uploads/engineering/eval-benchmark-export-assistant.md"
+      ],
+      "expected_outcome": {
+        "kind": "eval_review_packet"
+      }
+    }
+  }
+}

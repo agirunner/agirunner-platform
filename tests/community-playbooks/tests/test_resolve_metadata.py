@@ -17,7 +17,23 @@ from resolve_metadata import METADATA_FILE, load_metadata, resolve_run_specs, va
 
 
 class ResolveMetadataTests(unittest.TestCase):
-    def test_current_metadata_has_expected_smoke_coverage_for_supported_first_party_playbooks(self) -> None:
+    def test_all_metadata_runs_target_current_catalog_playbooks(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+
+        validate_metadata(metadata)
+
+        all_run_playbooks = {
+            str(run["playbook_slug"])
+            for run in metadata["runs"]
+            if isinstance(run, dict) and str(run.get("playbook_slug") or "").strip()
+        }
+        current_catalog_playbooks = {
+            path.parent.name
+            for path in (SUITE_ROOT.parents[2] / "agirunner-playbooks" / "playbooks").glob("*/*/playbook.yaml")
+        }
+        self.assertTrue(all_run_playbooks.issubset(current_catalog_playbooks))
+
+    def test_current_metadata_has_smoke_coverage_for_current_catalog_playbooks(self) -> None:
         metadata = load_metadata(str(METADATA_FILE))
 
         validate_metadata(metadata)
@@ -27,31 +43,12 @@ class ResolveMetadataTests(unittest.TestCase):
             for run in metadata["runs"]
             if isinstance(run, dict) and str(run.get("batch") or "") == "smoke"
         }
+        current_catalog_playbooks = {
+            path.parent.name
+            for path in (SUITE_ROOT.parents[2] / "agirunner-playbooks" / "playbooks").glob("*/*/playbook.yaml")
+        }
         self.assertEqual(
-            {
-                "account-discovery",
-                "api-documentation",
-                "bug-fix",
-                "business-case",
-                "code-review",
-                "content-pipeline",
-                "contract-review",
-                "customer-support-triage",
-                "deep-research-pipeline",
-                "hotfix",
-                "market-map",
-                "policy-review",
-                "pr-guardian",
-                "prospect-search",
-                "regression-monitor",
-                "research-analysis",
-                "research-brief-to-report",
-                "runbook-creation",
-                "search-discovery",
-                "sop-creation",
-                "technical-documentation",
-                "vendor-evaluation",
-            },
+            current_catalog_playbooks,
             smoke_playbooks,
         )
 
@@ -66,6 +63,39 @@ class ResolveMetadataTests(unittest.TestCase):
             "prospect-search": {"ideal_profile", "market_scope", "ranking_rules"},
             "research-brief-to-report": {"research_brief", "target_audience", "source_constraints"},
             "search-discovery": {"discovery_brief", "target_scope", "search_constraints"},
+        }
+
+        for playbook_slug, input_names in expected_inputs.items():
+            with self.subTest(playbook_slug=playbook_slug):
+                resolved = resolve_run_specs(
+                    metadata,
+                    selected_batches=["smoke"],
+                    playbook_slug=playbook_slug,
+                    variant="smoke",
+                )
+
+                self.assertEqual(1, len(resolved))
+                run = resolved[0]
+                self.assertEqual(playbook_slug, run["playbook_slug"])
+                self.assertEqual(input_names, set(run["launch_inputs"].keys()))
+
+    def test_resolve_run_specs_supports_current_non_research_smoke_variants(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+        validate_metadata(metadata)
+
+        expected_inputs = {
+            "analytics-question": {"stakeholder_question", "data_scope", "decision_context"},
+            "contract-term-extraction": {"contract_source", "target_terms", "normalization_rules"},
+            "document-extraction": {"source_document", "target_fields_or_schema", "normalization_rules"},
+            "eval-review": {"evaluation_subject", "benchmark_packet", "comparison_goal"},
+            "filing-extraction": {"filing_source", "target_fields_or_schema", "normalization_rules"},
+            "query-review-and-report": {"query_packet", "stakeholder_context", "review_goal"},
+            "release-readiness": {"release_scope", "candidate_evidence", "rollout_context"},
+            "sql-investigation": {"investigation_question", "data_scope", "query_constraints"},
+            "support-case-resolution": {"request_summary", "customer_context", "known_artifacts"},
+            "support-escalation-investigation": {"request_summary", "customer_context", "known_artifacts"},
+            "test-plan-execution": {"test_plan", "test_scope", "environment_notes"},
+            "web-data-extraction": {"source_pages", "target_fields_or_schema", "extraction_constraints"},
         }
 
         for playbook_slug, input_names in expected_inputs.items():

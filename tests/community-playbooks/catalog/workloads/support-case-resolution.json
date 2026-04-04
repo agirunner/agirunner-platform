@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "support-case-resolution",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "request_summary": "A strategic enterprise customer needs a concrete resolution packet for repeated audit export failures before quarter close.",
+        "customer_context": "The account has renewal pressure, finance reviewers are blocked, and support already promised a same-day follow-up.",
+        "known_artifacts": "Use the uploaded customer thread and any operator-safe mitigation path you can honestly justify from the evidence."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/customer-thread-refund.txt"
+      ],
+      "expected_outcome": {
+        "kind": "support_resolution_packet"
+      }
+    }
+  }
+}

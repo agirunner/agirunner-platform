@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "test-plan-execution",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "test_plan": "Execute the uploaded audit export readiness test plan and produce a verification packet that states what ran, what failed, what was skipped, and what remains unverified.",
+        "test_scope": "Stay within the provided plan and evidence; do not claim coverage for scenarios the packet does not actually support.",
+        "environment_notes": "Treat the run as a release-candidate environment with enterprise-size exports and operator-visible retry behavior in scope."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/test-plan-export-readiness.md"
+      ],
+      "expected_outcome": {
+        "kind": "verification_packet"
+      }
+    }
+  }
+}

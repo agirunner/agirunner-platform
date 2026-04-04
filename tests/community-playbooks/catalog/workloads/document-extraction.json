@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "document-extraction",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "source_document": "Use the uploaded export API source material to extract a structured packet of endpoints, operator-visible statuses, retry semantics, documented gaps, and unresolved ambiguities.",
+        "target_fields_or_schema": "endpoints, job states, retry behavior, operator-facing status copy, known documentation gaps",
+        "normalization_rules": "Prefer concise normalized values and keep short evidence notes for any field that remains unclear or under-documented."
+      },
+      "uploads": [
+        "fixtures/uploads/docs/source-material-export-api.md"
+      ],
+      "expected_outcome": {
+        "kind": "document_extraction_packet"
+      }
+    }
+  }
+}

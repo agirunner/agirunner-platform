@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "query-review-and-report",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "query_packet": "Review the uploaded SQL packet that powers the audit export timeout dashboard and determine whether another operator can rely on it for weekly decision-making.",
+        "stakeholder_context": "Finance ops and platform leadership want a short report that states what the query proves, what it misses, and whether the logic is safe for recurring reporting.",
+        "review_goal": "Focus on scope correctness, join and filter assumptions, result caveats, and the minimum changes needed before the packet is trustworthy."
+      },
+      "uploads": [
+        "fixtures/uploads/operations/sql-query-packet.md"
+      ],
+      "expected_outcome": {
+        "kind": "query_review_report"
+      }
+    }
+  }
+}
