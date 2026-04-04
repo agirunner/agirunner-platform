@@ -2,6 +2,7 @@ import type { WorkflowDeliverableRecord } from '../../workflow-deliverables/work
 
 import { isFinalDeliverable } from './classification.js';
 import {
+  isWrapperLikeDeliverableTitle,
   isPacketLikeDeliverable,
   isInternalReferenceTargetPath,
   readDeliverableContentIdentityKey,
@@ -20,6 +21,7 @@ export function deduplicateScopedDeliverables(
   deliverables: WorkflowDeliverableRecord[],
   input: DeduplicateDeliverablesInput,
 ): WorkflowDeliverableRecord[] {
+  const groupsByKey = new Map<string, WorkflowDeliverableRecord[]>();
   const preferredByKey = new Map<string, WorkflowDeliverableRecord>();
 
   for (const deliverable of deliverables) {
@@ -27,14 +29,23 @@ export function deduplicateScopedDeliverables(
     if (!duplicateKey) {
       continue;
     }
-    const current = preferredByKey.get(duplicateKey);
-    if (!current) {
-      preferredByKey.set(duplicateKey, deliverable);
+    const group = groupsByKey.get(duplicateKey);
+    if (group) {
+      group.push(deliverable);
+    } else {
+      groupsByKey.set(duplicateKey, [deliverable]);
+    }
+  }
+
+  for (const [duplicateKey, candidates] of groupsByKey.entries()) {
+    if (candidates.length === 0) {
       continue;
     }
+    const preferred = candidates.reduce((current, candidate) =>
+      choosePreferredDeliverable(current, candidate, input));
     preferredByKey.set(
       duplicateKey,
-      choosePreferredDeliverable(current, deliverable, input),
+      harmonizePreferredDeliverable(preferred, candidates, input),
     );
   }
 
@@ -42,12 +53,21 @@ export function deduplicateScopedDeliverables(
     return deliverables;
   }
 
-  return deliverables.filter((deliverable) => {
+  const emittedKeys = new Set<string>();
+  return deliverables.flatMap((deliverable) => {
     const duplicateKey = buildDuplicateKey(deliverable, input.readOwnerWorkItemId);
     if (!duplicateKey) {
-      return true;
+      return [deliverable];
     }
-    return preferredByKey.get(duplicateKey)?.descriptor_id === deliverable.descriptor_id;
+    if (emittedKeys.has(duplicateKey)) {
+      return [];
+    }
+    const current = preferredByKey.get(duplicateKey);
+    if (!current || current.descriptor_id !== deliverable.descriptor_id) {
+      return [];
+    }
+    emittedKeys.add(duplicateKey);
+    return [current];
   });
 }
 
@@ -107,12 +127,47 @@ function choosePreferredDeliverable(
   candidate: WorkflowDeliverableRecord,
   input: DeduplicateDeliverablesInput,
 ): WorkflowDeliverableRecord {
-  const currentScore = scoreDeliverable(current, input);
-  const candidateScore = scoreDeliverable(candidate, input);
-  if (candidateScore > currentScore) {
+  const scopeDifference = scopePreference(candidate, input.selectedWorkItemId)
+    - scopePreference(current, input.selectedWorkItemId);
+  if (scopeDifference > 0) {
     return candidate;
   }
-  if (candidateScore < currentScore) {
+  if (scopeDifference < 0) {
+    return current;
+  }
+
+  const representationDifference = contentRepresentationPreference(candidate)
+    - contentRepresentationPreference(current);
+  if (representationDifference > 0) {
+    return candidate;
+  }
+  if (representationDifference < 0) {
+    return current;
+  }
+
+  const currentIsFinal = isFinalDeliverable(
+    current,
+    new Set(input.finalizedBriefIds),
+    new Set(input.finalizedDescriptorIds),
+  );
+  const candidateIsFinal = isFinalDeliverable(
+    candidate,
+    new Set(input.finalizedBriefIds),
+    new Set(input.finalizedDescriptorIds),
+  );
+  if (candidateIsFinal && !currentIsFinal) {
+    return candidate;
+  }
+  if (currentIsFinal && !candidateIsFinal) {
+    return current;
+  }
+
+  const currentSourceBriefBonus = readOptionalString(current.source_brief_id) === null ? 0 : 1;
+  const candidateSourceBriefBonus = readOptionalString(candidate.source_brief_id) === null ? 0 : 1;
+  if (candidateSourceBriefBonus > currentSourceBriefBonus) {
+    return candidate;
+  }
+  if (candidateSourceBriefBonus < currentSourceBriefBonus) {
     return current;
   }
 
@@ -128,19 +183,106 @@ function choosePreferredDeliverable(
   return candidate.descriptor_id > current.descriptor_id ? candidate : current;
 }
 
-function scoreDeliverable(
-  deliverable: WorkflowDeliverableRecord,
+function harmonizePreferredDeliverable(
+  preferred: WorkflowDeliverableRecord,
+  candidates: WorkflowDeliverableRecord[],
   input: DeduplicateDeliverablesInput,
+): WorkflowDeliverableRecord {
+  const representative = selectRepresentativeDeliverable(candidates, input.selectedWorkItemId);
+  const finalizedLifecycle = selectFinalizedLifecycleCandidate(candidates, input);
+
+  let merged = preferred;
+  if (representative && contentRepresentationPreference(representative) > contentRepresentationPreference(preferred)) {
+    merged = {
+      ...merged,
+      title: representative.title,
+      summary_brief: representative.summary_brief ?? merged.summary_brief,
+    };
+  }
+  if (finalizedLifecycle && !isFinalDeliverable(merged, new Set(input.finalizedBriefIds), new Set(input.finalizedDescriptorIds))) {
+    merged = {
+      ...merged,
+      delivery_stage: finalizedLifecycle.delivery_stage,
+      state: finalizedLifecycle.state,
+      updated_at: finalizedLifecycle.updated_at ?? finalizedLifecycle.created_at,
+    };
+  }
+  return merged;
+}
+
+function selectRepresentativeDeliverable(
+  candidates: WorkflowDeliverableRecord[],
+  selectedWorkItemId?: string,
+): WorkflowDeliverableRecord | null {
+  const substantiveCandidates = candidates.filter(hasSubstantiveTarget);
+  if (substantiveCandidates.length === 0) {
+    return null;
+  }
+  return substantiveCandidates.reduce((current, candidate) => {
+    const representationDifference = contentRepresentationPreference(candidate)
+      - contentRepresentationPreference(current);
+    if (representationDifference > 0) {
+      return candidate;
+    }
+    if (representationDifference < 0) {
+      return current;
+    }
+    const scopeDifference = scopePreference(candidate, selectedWorkItemId)
+      - scopePreference(current, selectedWorkItemId);
+    if (scopeDifference > 0) {
+      return candidate;
+    }
+    if (scopeDifference < 0) {
+      return current;
+    }
+    const currentTimestamp = current.updated_at ?? current.created_at;
+    const candidateTimestamp = candidate.updated_at ?? candidate.created_at;
+    if (candidateTimestamp > currentTimestamp) {
+      return candidate;
+    }
+    if (candidateTimestamp < currentTimestamp) {
+      return current;
+    }
+    return candidate.descriptor_id > current.descriptor_id ? candidate : current;
+  });
+}
+
+function selectFinalizedLifecycleCandidate(
+  candidates: WorkflowDeliverableRecord[],
+  input: DeduplicateDeliverablesInput,
+): WorkflowDeliverableRecord | null {
+  const finalizedCandidates = candidates.filter((candidate) =>
+    isFinalDeliverable(candidate, new Set(input.finalizedBriefIds), new Set(input.finalizedDescriptorIds)));
+  if (finalizedCandidates.length === 0) {
+    return null;
+  }
+  return finalizedCandidates.reduce((current, candidate) => {
+    const currentTimestamp = current.updated_at ?? current.created_at;
+    const candidateTimestamp = candidate.updated_at ?? candidate.created_at;
+    if (candidateTimestamp > currentTimestamp) {
+      return candidate;
+    }
+    if (candidateTimestamp < currentTimestamp) {
+      return current;
+    }
+    return candidate.descriptor_id > current.descriptor_id ? candidate : current;
+  });
+}
+
+function contentRepresentationPreference(
+  deliverable: WorkflowDeliverableRecord,
 ): number {
-  return (
-    scopePreference(deliverable, input.selectedWorkItemId)
-    + (isFinalDeliverable(
-      deliverable,
-      new Set(input.finalizedBriefIds),
-      new Set(input.finalizedDescriptorIds),
-    ) ? 100 : 0)
-    + (readOptionalString(deliverable.source_brief_id) === null ? 10 : 0)
-  );
+  if (!hasSubstantiveTarget(deliverable)) {
+    return 0;
+  }
+  let score = 1;
+  if (!isWrapperLikeDeliverableTitle(readOptionalString(deliverable.title))) {
+    score += 2;
+  }
+  if (readOptionalString(deliverable.source_brief_id) !== null) {
+    score += 1;
+  }
+  return score;
 }
 
 function scopePreference(

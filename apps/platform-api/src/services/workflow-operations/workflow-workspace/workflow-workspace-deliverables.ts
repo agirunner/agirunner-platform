@@ -347,7 +347,8 @@ function normalizeWorkflowScopeRollupDeliverables(
   final_deliverables: WorkflowDeliverableRecord[];
   in_progress_deliverables: WorkflowDeliverableRecord[];
 } {
-  if (selectedScope.scope_kind !== 'workflow' || readIncompleteWorkItemIds(board).size === 0) {
+  const incompleteWorkItemIds = readIncompleteWorkItemIds(board);
+  if (selectedScope.scope_kind !== 'workflow' || incompleteWorkItemIds.size === 0) {
     return {
       final_deliverables: finalDeliverables,
       in_progress_deliverables: inProgressDeliverables,
@@ -355,10 +356,12 @@ function normalizeWorkflowScopeRollupDeliverables(
   }
 
   const stableFinalDeliverables = finalDeliverables.filter(
-    (deliverable) => !isWorkflowRollupDeliverable(deliverable),
+    (deliverable) => !shouldDowngradeWorkflowRollupDeliverable(deliverable, incompleteWorkItemIds),
   );
   const reclassifiedDeliverables = finalDeliverables
-    .filter(isWorkflowRollupDeliverable)
+    .filter((deliverable) =>
+      shouldDowngradeWorkflowRollupDeliverable(deliverable, incompleteWorkItemIds),
+    )
     .map(downgradeFinalDeliverableForActiveWorkflow);
 
   return {
@@ -380,8 +383,14 @@ function downgradeFinalDeliverableForActiveWorkflow(
   };
 }
 
-function isWorkflowRollupDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
-  return Boolean(readOptionalString(asRecord(deliverable.content_preview).rollup_source_work_item_id));
+function shouldDowngradeWorkflowRollupDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+): boolean {
+  const sourceWorkItemId = readOptionalString(
+    asRecord(deliverable.content_preview).rollup_source_work_item_id,
+  );
+  return sourceWorkItemId !== null && incompleteWorkItemIds.has(sourceWorkItemId);
 }
 
 function mergeVisibleDeliverablesWithFallbacks(

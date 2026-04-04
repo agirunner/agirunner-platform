@@ -387,8 +387,11 @@ describe('WorkflowDeliverablesService', () => {
     });
     expect(workItemScope.final_deliverables).toEqual([
       expect.objectContaining({
-        descriptor_id: 'question-framing-final',
+        descriptor_id: 'question-framing-brief-b',
         work_item_id: 'work-item-question-framing',
+        title: 'Question framing deliverable',
+        delivery_stage: 'final',
+        state: 'final',
       }),
     ]);
     expect(workItemScope.in_progress_deliverables).toEqual([]);

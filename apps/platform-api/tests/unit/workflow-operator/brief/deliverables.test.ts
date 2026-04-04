@@ -390,4 +390,121 @@ describe('WorkflowOperatorBriefService deliverables', () => {
     expect(result.record.related_output_descriptor_ids).toEqual([]);
     expect(deliverableService.upsertDeliverable).not.toHaveBeenCalled();
   });
+
+  it('does not materialize explicit linked deliverables that only reference internal task or work-item targets', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_activations')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'activation-13',
+            workflow_id: 'workflow-1',
+            activation_id: 'activation-13',
+            state: 'running',
+            consumed_at: null,
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 13 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_briefs')) {
+        return {
+          rowCount: 1,
+          rows: [createWorkflowOperatorBriefRow({
+            id: 'brief-13',
+            work_item_id: null,
+            task_id: null,
+            request_id: params?.[5] as string,
+            execution_context_id: 'activation-13',
+            source_kind: 'orchestrator',
+            source_role_name: 'Orchestrator',
+            brief_scope: 'deliverable_context',
+            status_kind: 'in_progress',
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: [],
+            sequence_number: 13,
+            created_at: new Date('2026-03-28T13:00:00.000Z'),
+            updated_at: new Date('2026-03-28T13:00:00.000Z'),
+          })],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-13',
+      executionContextId: 'activation-13',
+      sourceKind: 'orchestrator',
+      payload: {
+        shortBrief: {
+          headline: 'Seeded the first work item and starter task.',
+        },
+        detailedBriefJson: {
+          headline: 'Seeded the first work item and starter task.',
+          status_kind: 'in_progress',
+        },
+        linkedDeliverables: [
+          {
+            descriptorKind: 'deliverable_packet',
+            deliveryStage: 'in_progress',
+            title: 'Research Analyst starter task',
+            state: 'draft',
+            previewCapabilities: {
+              can_inline_preview: true,
+              can_download: false,
+              can_open_external: false,
+              can_copy_path: true,
+              preview_kind: 'structured_summary',
+            },
+            primaryTarget: {
+              target_kind: 'inline_summary',
+              label: 'Research Analyst starter task',
+              path: 'task:00000000-0000-0000-0000-000000000301',
+            },
+            secondaryTargets: [],
+            contentPreview: {
+              summary: 'Task placeholder only.',
+            },
+          },
+          {
+            descriptorKind: 'deliverable_packet',
+            deliveryStage: 'in_progress',
+            title: 'Question-framing work item',
+            state: 'draft',
+            previewCapabilities: {
+              can_inline_preview: true,
+              can_download: false,
+              can_open_external: false,
+              can_copy_path: true,
+              preview_kind: 'structured_summary',
+            },
+            primaryTarget: {
+              target_kind: 'inline_summary',
+              label: 'Question-framing work item',
+              path: 'work_item:00000000-0000-0000-0000-000000000201',
+            },
+            secondaryTargets: [],
+            contentPreview: {
+              summary: 'Work item placeholder only.',
+            },
+          },
+        ],
+      },
+    } as never);
+
+    expect(result.record.work_item_id).toBeNull();
+    expect(result.record.related_output_descriptor_ids).toEqual([]);
+    expect(deliverableService.upsertDeliverable).not.toHaveBeenCalled();
+  });
 });

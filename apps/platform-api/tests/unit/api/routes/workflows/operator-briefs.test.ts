@@ -437,6 +437,83 @@ describe('workflow routes operator briefs', () => {
     );
   });
 
+  it('normalizes shorthand internal linked deliverable paths before brief persistence', async () => {
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-4c',
+      sequence_number: 9,
+      deduped: false,
+      record: {
+        id: 'brief-4c',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Seeded the first work item and starter task.' },
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-4c',
+        execution_context_id: 'execution-4c',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'orchestrator',
+        payload: {
+          short_brief: {
+            headline: 'Seeded the first work item and starter task.',
+          },
+          detailed_brief_json: {
+            headline: 'Seeded the first work item and starter task.',
+            status_kind: 'in_progress',
+          },
+          linked_deliverables: [
+            {
+              label: 'Research Analyst starter task',
+              path: 'task 00000000-0000-0000-0000-000000000301',
+            },
+            {
+              label: 'Question-framing work item',
+              path: 'work item 00000000-0000-0000-0000-000000000201',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordBriefWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-4c',
+        payload: expect.objectContaining({
+          linkedDeliverables: [
+            expect.objectContaining({
+              primaryTarget: expect.objectContaining({
+                path: 'task:00000000-0000-0000-0000-000000000301',
+              }),
+            }),
+            expect.objectContaining({
+              primaryTarget: expect.objectContaining({
+                path: 'work_item:00000000-0000-0000-0000-000000000201',
+              }),
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it('returns recoverable guidance when shorthand linked deliverables omit label or path', async () => {
     const recordBriefWrite = vi.fn();
 

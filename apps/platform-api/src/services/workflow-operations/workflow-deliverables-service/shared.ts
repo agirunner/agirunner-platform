@@ -176,7 +176,7 @@ function humanizeDeliverablePathTitle(value: string | null): string | null {
   return humanizeToken(withoutExtension);
 }
 
-function isWrapperLikeDeliverableTitle(title: string | null): boolean {
+export function isWrapperLikeDeliverableTitle(title: string | null): boolean {
   const normalized = title?.toLowerCase();
   return Boolean(
     normalized

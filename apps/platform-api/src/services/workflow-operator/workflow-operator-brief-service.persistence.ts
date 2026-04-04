@@ -17,6 +17,10 @@ import {
   shouldMaterializeDeliverablePacket,
   toWorkflowOperatorBriefRecord,
 } from './workflow-operator-brief-service.domain.js';
+import {
+  isInternalReferenceLinkedDeliverable,
+  normalizeLinkedDeliverablePrimaryTarget,
+} from './workflow-operator-linked-deliverables.js';
 import type {
   ArtifactRow,
   ExistingDescriptorRow,
@@ -35,6 +39,7 @@ export async function syncLinkedDeliverables(
   briefRow: WorkflowOperatorBriefRow,
   payload: WorkflowOperatorBriefPayloadInput,
 ): Promise<WorkflowOperatorBriefRecord> {
+  const existingIds = sanitizeLinkedIdList(briefRow.related_output_descriptor_ids);
   const linkedDescriptorIds = await materializeLinkedDeliverables(
     pool,
     deliverableService,
@@ -43,7 +48,7 @@ export async function syncLinkedDeliverables(
     briefRow,
     payload,
   );
-  if (linkedDescriptorIds.length === 0) {
+  if (sameLinkedDescriptorIds(existingIds, linkedDescriptorIds)) {
     return toWorkflowOperatorBriefRecord(briefRow);
   }
   const result = await pool.query<WorkflowOperatorBriefRow>(
@@ -78,11 +83,18 @@ async function materializeLinkedDeliverables(
     return [];
   }
   const existingIds = sanitizeLinkedIdList(briefRow.related_output_descriptor_ids);
-  const explicitDeliverables =
+  const rawExplicitDeliverables =
     Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0
       ? payload.linkedDeliverables
       : [];
+  const explicitDeliverables = rawExplicitDeliverables
+    .map((deliverable) => normalizeLinkedDeliverablePrimaryTarget(deliverable))
+    .filter((deliverable) => !isInternalReferenceLinkedDeliverable(deliverable));
+  const hasExplicitLinkedDeliverables = rawExplicitDeliverables.length > 0;
   const shouldSynthesizePacket = shouldMaterializeDeliverablePacket(briefRow);
+  if (hasExplicitLinkedDeliverables && explicitDeliverables.length === 0) {
+    return [];
+  }
   if (explicitDeliverables.length === 0 && !shouldSynthesizePacket) {
     return existingIds;
   }
@@ -119,6 +131,13 @@ async function materializeLinkedDeliverables(
     descriptorIds.push(record.descriptor_id);
   }
   return descriptorIds;
+}
+
+function sameLinkedDescriptorIds(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
 }
 
 async function buildSynthesizedDeliverable(

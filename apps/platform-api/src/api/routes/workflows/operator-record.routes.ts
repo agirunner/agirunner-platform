@@ -8,6 +8,7 @@ import {
   deriveDeliverableLifecycleFromBriefStatus,
   resolveEffectiveStatusKind,
 } from '../../../services/workflow-operator/workflow-operator-brief-service.domain.js';
+import { normalizeInternalReferenceTargetPath } from '../../../services/workflow-operator/workflow-operator-linked-deliverables.js';
 import { parseWorkflowOperatorBriefBodyOrThrow } from './operator-brief-schema-guidance.js';
 
 const workflowOperatorFileUploadSchema = z.object({
@@ -139,7 +140,7 @@ function mapLinkedDeliverableInput(
   }
 
   const label = String(entry.label);
-  const path = String(entry.path);
+  const path = normalizeInternalReferenceTargetPath(String(entry.path)) ?? String(entry.path);
   const summary = typeof entry.summary_brief === 'string' && entry.summary_brief.trim().length > 0
     ? entry.summary_brief
     : undefined;
