@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,19 +14,20 @@ import {
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(CURRENT_DIR, '../../../..');
 const ENV_PATH = resolveEnvPath();
-const envEntries = ENV_PATH ? parseDotEnv(readFileSync(ENV_PATH, 'utf8')) : {};
+const envEntries = ENV_PATH ? parseEnvSource(readFileSync(ENV_PATH, 'utf8')) : {};
 const IS_LOCAL_PLAYWRIGHT_STACK = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '0';
 const LOCAL_PLAYWRIGHT_PLATFORM_API_TARGET =
   'agirunner-platform-community-catalog-e2e-platform-api';
 
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-export const DASHBOARD_BASE_URL = `http://localhost:${readPlatformEnv('DASHBOARD_PORT', String(COMMUNITY_CATALOG_DASHBOARD_PORT))}`;
-export const PLATFORM_API_URL = `http://localhost:${readPlatformEnv('PLATFORM_API_PORT', String(COMMUNITY_CATALOG_PLATFORM_PORT))}`;
 export const PLATFORM_API_CONTAINER_NAME = readPlatformTargetName(
   'PLATFORM_API_CONTAINER_NAME',
   'agirunner-platform-platform-api-1',
   LOCAL_PLAYWRIGHT_PLATFORM_API_TARGET,
 );
+const platformContainerEnvEntries = loadPlatformContainerEnvEntries(PLATFORM_API_CONTAINER_NAME);
+export const DASHBOARD_BASE_URL = `http://localhost:${readPlatformEnv('DASHBOARD_PORT', String(COMMUNITY_CATALOG_DASHBOARD_PORT))}`;
+export const PLATFORM_API_URL = `http://localhost:${readPlatformEnv('PLATFORM_API_PORT', String(COMMUNITY_CATALOG_PLATFORM_PORT))}`;
 export const PLATFORM_ARTIFACT_LOCAL_ROOT = readPlatformEnv(
   'ARTIFACT_LOCAL_ROOT',
   resolve(REPO_ROOT, 'tmp/integration-artifacts'),
@@ -47,6 +49,10 @@ export function readPlatformEnv(name: string, fallback?: string): string {
   const stackFallback = fallbackForLocalPlaywrightStack(name);
   if (stackFallback !== undefined) {
     return stackFallback;
+  }
+  const containerValue = platformContainerEnvEntries[name];
+  if (containerValue && containerValue.length > 0) {
+    return containerValue;
   }
   const envValue = envEntries[name];
   if (envValue && envValue.length > 0) {
@@ -73,7 +79,7 @@ function readPlatformTargetName(
   return defaultValue;
 }
 
-function parseDotEnv(source: string): Record<string, string> {
+function parseEnvSource(source: string): Record<string, string> {
   const entries: Record<string, string> = {};
   for (const rawLine of source.split('\n')) {
     const line = rawLine.trim();
@@ -89,6 +95,23 @@ function parseDotEnv(source: string): Record<string, string> {
     entries[key] = value;
   }
   return entries;
+}
+
+function loadPlatformContainerEnvEntries(containerName: string): Record<string, string> {
+  if (IS_LOCAL_PLAYWRIGHT_STACK || containerName.length === 0) {
+    return {};
+  }
+
+  try {
+    const source = execFileSync(
+      'docker',
+      ['inspect', '-f', '{{range .Config.Env}}{{println .}}{{end}}', containerName],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    return parseEnvSource(source);
+  } catch {
+    return {};
+  }
 }
 
 function resolveEnvPath(): string | null {
