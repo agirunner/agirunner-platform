@@ -4,13 +4,15 @@ import type {
 } from '../../../lib/api.js';
 import type { DeliverableBrowserRow } from './workflow-deliverable-browser-support.js';
 import {
+  readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
 
 export interface DeliverableTableRowRecord {
   deliverable: DashboardWorkflowDeliverableRecord;
-  browserRow: DeliverableBrowserRow;
+  primaryRow: DeliverableBrowserRow;
+  relatedRows: DeliverableBrowserRow[];
 }
 
 export interface DeliverableMetadataEntry {
@@ -32,7 +34,7 @@ export function readDeliverableRowSpecialist(row: DeliverableTableRowRecord): st
 }
 
 export function readDeliverableRowLabel(row: DeliverableTableRowRecord): string | null {
-  const trimmed = readText(row.browserRow.label);
+  const trimmed = readText(row.primaryRow.label);
   if (!trimmed) {
     return null;
   }
@@ -42,26 +44,62 @@ export function readDeliverableRowLabel(row: DeliverableTableRowRecord): string 
 export function readDeliverableRowMetadata(
   row: DeliverableTableRowRecord,
 ): DeliverableMetadataEntry[] {
-  if (row.browserRow.rowKind === 'inline') {
-    return [];
-  }
-
-  const target = sanitizeDeliverableTarget(row.browserRow.target);
   const entries: DeliverableMetadataEntry[] = [];
-  pushMetadata(entries, 'Path', target.path);
-  pushMetadata(entries, 'Repository', target.repo_ref);
-  pushMetadata(entries, 'URL', resolveDeliverableTargetUrl(target));
+  appendTargetMetadata(entries, row.primaryRow);
+  for (const relatedRow of row.relatedRows) {
+    appendRelatedTargetMetadata(entries, relatedRow);
+  }
   return entries;
 }
 
 export function readDeliverableRowOpenHref(row: DeliverableTableRowRecord): string | null {
-  if (row.browserRow.rowKind !== 'reference') {
+  if (row.primaryRow.rowKind !== 'reference') {
     return null;
   }
-  const action = resolveDeliverableTargetAction(sanitizeDeliverableTarget(row.browserRow.target));
+  const action = resolveDeliverableTargetAction(sanitizeDeliverableTarget(row.primaryRow.target));
   return action.action_kind === 'external_link' && typeof action.href === 'string'
     ? action.href
     : null;
+}
+
+function appendTargetMetadata(
+  entries: DeliverableMetadataEntry[],
+  row: DeliverableBrowserRow,
+): void {
+  if (row.rowKind === 'inline') {
+    return;
+  }
+
+  const target = sanitizeDeliverableTarget(row.target);
+  pushMetadata(entries, 'Path', target.path);
+  pushMetadata(entries, 'Repository', target.repo_ref);
+  pushMetadata(entries, 'URL', resolveDeliverableTargetUrl(target));
+}
+
+function appendRelatedTargetMetadata(
+  entries: DeliverableMetadataEntry[],
+  row: DeliverableBrowserRow,
+): void {
+  if (row.rowKind === 'inline') {
+    return;
+  }
+
+  const target = sanitizeDeliverableTarget(row.target);
+  if (row.rowKind === 'artifact') {
+    pushMetadata(
+      entries,
+      'Related File',
+      readDeliverableTargetDisplayLabel(target, row.label),
+    );
+    return;
+  }
+
+  pushMetadata(
+    entries,
+    'Related Target',
+    resolveDeliverableTargetUrl(target)
+      ?? readDeliverableTargetDisplayLabel(target, row.label),
+  );
 }
 
 function resolveDeliverableTargetUrl(target: DashboardWorkflowDeliverableTarget): string | null {

@@ -9,7 +9,7 @@ import { seedWorkflowDeliverablesScenario } from '../lib/workflows-deliverables-
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 
-test('renders a flat deliverables table with direct row actions and inline target metadata', async ({ page }) => {
+test('renders a flat deliverables table with one row per deliverable and direct row actions', async ({ page }) => {
   await seedWorkflowDeliverablesScenario();
   await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery');
   await loginToWorkflows(page);
@@ -22,11 +22,8 @@ test('renders a flat deliverables table with direct row actions and inline targe
   await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
   const deliverablesTable = workbench.getByRole('table').first();
 
-  const architectureFileRow = deliverablesTable
-    .getByRole('row', { name: /Architecture bundle.*architecture-brief\.md/ })
-    .first();
-  const checklistFileRow = deliverablesTable
-    .getByRole('row', { name: /Architecture bundle.*release-checklist\.json/ })
+  const architectureDeliverableRow = deliverablesTable
+    .getByRole('row', { name: /Architecture bundle/ })
     .first();
   const repositoryDeliverableRow = deliverablesTable
     .getByRole('row', { name: /Release repository output.*Repository/ })
@@ -44,16 +41,18 @@ test('renders a flat deliverables table with direct row actions and inline targe
     .getByRole('row', { name: /Inline decision summary/ })
     .first();
 
-  await expect(architectureFileRow).toBeVisible();
-  await expect(checklistFileRow).toBeVisible();
+  await expect(architectureDeliverableRow).toBeVisible();
   await expect(repositoryDeliverableRow).toBeVisible();
   await expect(packetDeliverableRow).toBeVisible();
   await expect(shareDeliverableRow).toBeVisible();
   await expect(exportDeliverableRow).toBeVisible();
   await expect(inlineDeliverableRow).toBeVisible();
   await expect(deliverablesTable.getByRole('row', { name: /Policy handoff note/ })).toHaveCount(0);
+  await expect(deliverablesTable.getByRole('row', { name: /Architecture bundle/ })).toHaveCount(1);
+  await expect(architectureDeliverableRow).toContainText('architecture-brief.md');
+  await expect(architectureDeliverableRow).toContainText('release-checklist.json');
 
-  await expect(architectureFileRow).toContainText('Interim');
+  await expect(architectureDeliverableRow).toContainText('Interim');
   await expect(repositoryDeliverableRow).toContainText('Final');
   await expect(packetDeliverableRow).toContainText('Interim');
   await expect(shareDeliverableRow).toContainText('Interim');
@@ -64,9 +63,9 @@ test('renders a flat deliverables table with direct row actions and inline targe
   await expect(shareDeliverableRow).toContainText('https://example.com/share/release-audit');
   await expect(exportDeliverableRow).toContainText('/var/tmp/exports/release-audit');
 
-  await architectureFileRow.scrollIntoViewIfNeeded();
-  await expect(architectureFileRow.getByRole('button', { name: 'Download' })).toBeVisible();
-  await expect(architectureFileRow.getByRole('button', { name: 'View' })).toBeVisible();
+  await architectureDeliverableRow.scrollIntoViewIfNeeded();
+  await expect(architectureDeliverableRow.getByRole('button', { name: 'Download' })).toBeVisible();
+  await expect(architectureDeliverableRow.getByRole('button', { name: 'View' })).toBeVisible();
   await expect(workbench.getByText('Unknown time')).toHaveCount(0);
   await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
   await expect(workbench.getByText('Structured host directory output for downstream export tools.')).toHaveCount(0);
@@ -75,15 +74,15 @@ test('renders a flat deliverables table with direct row actions and inline targe
   ).toHaveCount(0);
 
   const downloadPromise = page.waitForEvent('download');
-  await architectureFileRow.getByRole('button', { name: 'Download' }).click();
+  await architectureDeliverableRow.getByRole('button', { name: 'Download' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('architecture-brief.md');
 
-  await architectureFileRow.getByRole('button', { name: 'View' }).click();
+  await architectureDeliverableRow.getByRole('button', { name: 'View' }).click();
   await expect(workbench.getByRole('table')).toHaveCount(1);
   await expect(workbench.getByText('Architecture brief')).toBeVisible();
   await expect(workbench.getByText('This packet captures the release architecture.')).toBeVisible();
-  await architectureFileRow.getByRole('button', { name: 'Hide' }).click();
+  await architectureDeliverableRow.getByRole('button', { name: 'Hide' }).click();
   await expect(workbench.getByText('Architecture brief')).toHaveCount(0);
 
   await repositoryDeliverableRow.scrollIntoViewIfNeeded();
@@ -136,11 +135,9 @@ test('narrows deliverables to the selected work item and keeps workflow-only row
   await expect(workbench.getByText('Working handoffs')).toHaveCount(0);
   const deliverablesTable = workbench.getByRole('table').first();
   await expect(
-    deliverablesTable.getByRole('row', { name: /Architecture bundle.*architecture-brief\.md/ }).first(),
+    deliverablesTable.getByRole('row', { name: /Architecture bundle/ }).first(),
   ).toBeVisible();
-  await expect(
-    deliverablesTable.getByRole('row', { name: /Architecture bundle.*release-checklist\.json/ }).first(),
-  ).toBeVisible();
+  await expect(deliverablesTable.getByRole('row', { name: /Architecture bundle/ })).toHaveCount(1);
   await expect(deliverablesTable.getByRole('row', { name: /Signed workflow packet/ }).first()).toBeVisible();
   await expect(deliverablesTable.getByRole('row', { name: /Export directory/ }).first()).toBeVisible();
   await expect(deliverablesTable.getByRole('row', { name: /Inline decision summary/ })).toBeVisible();
@@ -162,8 +159,8 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   const deliverablesPanel = page.locator('[data-workflows-deliverables-scroll-region="true"]').first();
 
   const deliverablesTable = workbench.getByRole('table').first();
-  const oversizedRow = deliverablesTable
-    .getByRole('row', { name: /Architecture bundle.*release-audit-100\.txt/ })
+  const architectureDeliverableRow = deliverablesTable
+    .getByRole('row', { name: /Architecture bundle/ })
     .first();
   await expect(workbench.getByText('This packet captures the release architecture.')).toHaveCount(0);
   expect(
@@ -174,19 +171,10 @@ test('keeps large deliverable payloads usable across artifact catalogs and inlin
   });
   expect(await deliverablesPanel.evaluate((element) => element.scrollTop > 0)).toBe(true);
 
-  await oversizedRow.scrollIntoViewIfNeeded();
-  await oversizedRow.getByRole('button', { name: 'View' }).click();
-
-  const previewLimitNotice = workbench.getByText(
-    /Inline preview is limited to .*Download this file to inspect the full payload\./,
-  );
-  await previewLimitNotice.scrollIntoViewIfNeeded();
-  await expect(previewLimitNotice).toBeVisible();
-
-  const downloadPromise = page.waitForEvent('download');
-  await oversizedRow.getByRole('button', { name: 'Download' }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('release-audit-100.txt');
+  await architectureDeliverableRow.scrollIntoViewIfNeeded();
+  await expect(architectureDeliverableRow).toContainText('release-audit-100.txt');
+  await architectureDeliverableRow.getByRole('button', { name: 'View' }).click();
+  await expect(workbench.getByText('Architecture brief')).toBeVisible();
 
   const inlineDeliverableRow = deliverablesTable.getByRole('row', { name: /Inline decision summary/ }).first();
   await inlineDeliverableRow.scrollIntoViewIfNeeded();
@@ -207,7 +195,7 @@ test('keeps a single table visible while inline previews open below the selected
   await expect(workbench.getByRole('table')).toHaveCount(1);
   const deliverablesTable = workbench.getByRole('table').first();
   const architectureDeliverableRow = deliverablesTable
-    .getByRole('row', { name: /Architecture bundle.*architecture-brief\.md/ })
+    .getByRole('row', { name: /Architecture bundle/ })
     .first();
 
   await architectureDeliverableRow.getByRole('button', { name: 'View' }).click();

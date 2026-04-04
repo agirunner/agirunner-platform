@@ -130,15 +130,15 @@ function DeliverableTableEntry(props: {
   isSelected: boolean;
   onToggle(): void;
 }): JSX.Element {
-  const { deliverable, browserRow } = props.row;
+  const { deliverable, primaryRow } = props.row;
   const stageLabel = deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
-  const createdLabel = formatEntryTimestamp(browserRow.createdAt) ?? '—';
+  const createdLabel = formatEntryTimestamp(primaryRow.createdAt) ?? '—';
   const rowLabel = readDeliverableRowLabel(props.row);
   const metadata = readDeliverableRowMetadata(props.row);
   const specialistLabel = readDeliverableRowSpecialist(props.row) ?? '—';
   const openHref = readDeliverableRowOpenHref(props.row);
-  const canPreview = browserRow.rowKind !== 'reference' && browserRow.canView;
-  const previewLabel = browserRow.rowKind === 'inline' ? rowLabel : null;
+  const canPreview = primaryRow.rowKind !== 'reference' && primaryRow.canView;
+  const previewLabel = primaryRow.rowKind === 'inline' ? rowLabel : null;
   const visibleRowLabel = previewLabel ? null : rowLabel;
 
   return (
@@ -155,13 +155,13 @@ function DeliverableTableEntry(props: {
         <td className="px-3 py-3 align-top">
           <Badge variant="secondary">{stageLabel}</Badge>
         </td>
-        <td className="px-3 py-3 align-top text-muted-foreground">{browserRow.typeLabel}</td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{primaryRow.typeLabel}</td>
         <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel}</td>
         <td className="px-3 py-3 align-top">
           <div className="flex justify-end gap-2">
-            {browserRow.rowKind === 'artifact' ? (
+            {primaryRow.rowKind === 'artifact' ? (
               <WorkflowDeliverableDownloadButton
-                row={browserRow}
+                row={primaryRow}
                 deliverableTitle={deliverable.title}
               />
             ) : null}
@@ -181,7 +181,7 @@ function DeliverableTableEntry(props: {
                 <a href={openHref}>Open</a>
               </Button>
             ) : null}
-            {browserRow.rowKind !== 'artifact' && !canPreview && !openHref ? (
+            {primaryRow.rowKind !== 'artifact' && !canPreview && !openHref ? (
               <span className="text-muted-foreground">—</span>
             ) : null}
           </div>
@@ -191,7 +191,7 @@ function DeliverableTableEntry(props: {
       {props.isSelected && canPreview ? (
         <tr className="border-t border-border/40 bg-muted/10">
           <td colSpan={6} className="px-4 py-4">
-            <WorkflowDeliverablePreview row={browserRow} previewLabel={previewLabel} />
+            <WorkflowDeliverablePreview row={primaryRow} previewLabel={previewLabel} />
           </td>
         </tr>
       ) : null}
@@ -235,13 +235,13 @@ function buildDeliverableTableRows(
     if (browserRows.length === 0) {
       continue;
     }
-    for (const browserRow of browserRows) {
-      rows.push({
-        key: `${deliverable.descriptor_id}:${browserRow.key}`,
-        deliverable,
-        browserRow,
-      });
-    }
+    const [primaryRow, ...relatedRows] = browserRows;
+    rows.push({
+      key: deliverable.descriptor_id,
+      deliverable,
+      primaryRow,
+      relatedRows,
+    });
   }
 
   return rows;
