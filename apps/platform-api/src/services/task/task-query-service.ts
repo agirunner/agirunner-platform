@@ -1,3 +1,4 @@
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
@@ -12,7 +13,7 @@ import { buildTaskContext, summarizeTaskContextAttachments } from '../task-conte
 import type { ListTaskQuery } from './task-service.types.js';
 import type { RelevantHandoffResolution } from '../handoff-service/predecessor-handoff-resolver.js';
 
-const SECRET_REDACTION = 'redacted://task-secret';
+const SECRET_REDACTION = 'redacted://task-secret'; // pragma: allowlist secret
 
 export type TaskResponseRecord = Record<string, unknown> & {
   id: string | null;
@@ -38,6 +39,7 @@ export class TaskQueryService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly logService?: LogService,
+    private readonly artifactStorage: ArtifactStorageAdapter | null = null,
   ) {}
 
   async loadTaskOrThrow(tenantId: string, taskId: string, client?: DatabaseClient) {
@@ -161,7 +163,13 @@ export class TaskQueryService {
 
   async getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     const task = await this.loadTaskOrThrow(tenantId, taskId);
-    const context = await buildTaskContext(this.pool, tenantId, task, agentId);
+    const context = await buildTaskContext(
+      this.pool,
+      tenantId,
+      task,
+      agentId,
+      this.artifactStorage,
+    );
     const contextTask = readTaskContextRecord(context.task);
     const resolution = readRelevantHandoffResolution(context.task);
     if (resolution) {

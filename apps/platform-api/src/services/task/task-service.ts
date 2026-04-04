@@ -110,7 +110,8 @@ export class TaskService {
       return signal.id;
     };
 
-    this.queryService = new TaskQueryService(pool, logService);
+    const artifactStorage = createArtifactStorage(buildArtifactStorageConfig(config));
+    this.queryService = new TaskQueryService(pool, logService, artifactStorage);
     const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
     const parallelismService = new PlaybookTaskParallelismService(pool);
     const roleDefService = new RoleDefinitionService(pool);
@@ -127,12 +128,12 @@ export class TaskService {
 
     const artifactRetentionService = new ArtifactRetentionService(
       pool,
-      createArtifactStorage(buildArtifactStorageConfig(config)),
+      artifactStorage,
     );
     const workspaceTimelineService = new WorkspaceTimelineService(pool);
     const artifactService = new ArtifactService(
       pool,
-      createArtifactStorage(buildArtifactStorageConfig(config)),
+      artifactStorage,
       config.ARTIFACT_ACCESS_URL_TTL_SECONDS ?? 900,
     );
     const workflowStateService = new WorkflowStateService(

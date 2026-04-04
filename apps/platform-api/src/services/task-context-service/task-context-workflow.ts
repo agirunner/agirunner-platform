@@ -1,3 +1,6 @@
+import path from 'node:path';
+
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
 import type { DatabaseQueryable } from '../../db/database.js';
 import { sanitizeSecretLikeRecord } from '../secret-redaction.js';
 import { TASK_CONTEXT_SECRET_REDACTION } from './task-context-constants.js';
@@ -191,6 +194,7 @@ export async function loadParentWorkflowContext(
 
 export async function loadWorkflowInputPackets(
   db: DatabaseQueryable,
+  artifactStorage: ArtifactStorageAdapter | null,
   tenantId: string,
   workflowId: string,
 ): Promise<Record<string, unknown>[]> {
@@ -207,7 +211,7 @@ export async function loadWorkflowInputPackets(
   }
 
   const fileResult = await db.query(
-    `SELECT id, packet_id, file_name, description, content_type, size_bytes, created_at
+    `SELECT id, packet_id, file_name, description, storage_key, content_type, size_bytes, created_at
        FROM workflow_input_packet_files
       WHERE tenant_id = $1
         AND workflow_id = $2
@@ -216,21 +220,32 @@ export async function loadWorkflowInputPackets(
   );
 
   const filesByPacket = new Map<string, Record<string, unknown>[]>();
-  for (const row of fileResult.rows as Record<string, unknown>[]) {
+  const taskContextFiles = await Promise.all(
+    (fileResult.rows as Record<string, unknown>[]).map(async (row) =>
+      buildWorkflowInputPacketTaskContextFile(row, artifactStorage),
+    ),
+  );
+  for (const row of taskContextFiles) {
     const packetId = asOptionalString(row.packet_id);
     if (!packetId) {
       continue;
     }
     const files = filesByPacket.get(packetId) ?? [];
-    files.push({
+    const contextFile = asRecord(row.context_file);
+    const fileRecord: Record<string, unknown> = {
       id: row.id,
       file_name: row.file_name,
       description: asOptionalString(row.description),
       content_type: asOptionalString(row.content_type),
       size_bytes: asOptionalNumber(row.size_bytes),
       created_at: formatDateValue(row.created_at),
-      download_url: `/api/v1/workflows/${workflowId}/input-packets/${packetId}/files/${String(row.id)}/content`,
-    });
+    };
+    if (Object.keys(contextFile).length > 0) {
+      fileRecord.context_file = contextFile;
+    } else {
+      fileRecord.download_url = `/api/v1/workflows/${workflowId}/input-packets/${packetId}/files/${String(row.id)}/content`;
+    }
+    files.push(fileRecord);
     filesByPacket.set(packetId, files);
   }
 
@@ -245,6 +260,49 @@ export async function loadWorkflowInputPackets(
     created_at: formatDateValue(row.created_at),
     files: filesByPacket.get(String(row.id)) ?? [],
   }));
+}
+
+async function buildWorkflowInputPacketTaskContextFile(
+  row: Record<string, unknown>,
+  artifactStorage: ArtifactStorageAdapter | null,
+): Promise<Record<string, unknown>> {
+  const file = {
+    ...row,
+    context_file: null as Record<string, unknown> | null,
+  };
+  if (!artifactStorage) {
+    return file;
+  }
+
+  const storageKey = asOptionalString(row.storage_key);
+  const packetId = asOptionalString(row.packet_id);
+  const fileId = asOptionalString(row.id);
+  const fileName = asOptionalString(row.file_name);
+  if (!storageKey || !packetId || !fileId || !fileName) {
+    return file;
+  }
+
+  const payload = await artifactStorage.getObject(storageKey);
+  file.context_file = {
+    path: buildWorkflowInputPacketContextPath(packetId, fileId, fileName),
+    content_base64: payload.data.toString('base64'),
+  };
+  return file;
+}
+
+function buildWorkflowInputPacketContextPath(
+  packetId: string,
+  fileId: string,
+  fileName: string,
+): string {
+  return path.posix.join(
+    '/workspace/context',
+    'input-packets',
+    packetId,
+    'files',
+    fileId,
+    path.posix.basename(fileName),
+  );
 }
 
 async function readTenantLiveVisibilityMode(

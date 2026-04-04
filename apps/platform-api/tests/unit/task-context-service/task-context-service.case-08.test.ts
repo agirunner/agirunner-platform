@@ -15,6 +15,12 @@ import {
 
 describe('buildTaskContext active stage semantics', () => {
   it('includes workflow input packets in the workflow context', async () => {
+    const storage = {
+      getObject: vi.fn(async () => ({
+        contentType: 'text/plain',
+        data: Buffer.from('deploy checklist'),
+      })),
+    };
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows p')) {
@@ -70,6 +76,7 @@ describe('buildTaskContext active stage semantics', () => {
                 packet_id: 'packet-1',
                 file_name: 'checklist.txt',
                 description: 'Deployment checklist',
+                storage_key: 'tenants/tenant-1/workflows/workflow-packets/input-packets/packet-1/files/packet-file-1/checklist.txt',
                 content_type: 'text/plain',
                 size_bytes: 42,
                 created_at: new Date('2026-03-27T10:00:00.000Z'),
@@ -81,11 +88,17 @@ describe('buildTaskContext active stage semantics', () => {
       }),
     };
 
-    const context = await buildTaskContext(db as never, 'tenant-1', {
-      id: 'task-packets',
-      workflow_id: 'workflow-packets',
-      depends_on: [],
-    });
+    const context = await buildTaskContext(
+      db as never,
+      'tenant-1',
+      {
+        id: 'task-packets',
+        workflow_id: 'workflow-packets',
+        depends_on: [],
+      },
+      undefined,
+      storage as never,
+    );
 
     const workflow = context.workflow as Record<string, unknown>;
     expect(workflow).toHaveProperty('input_packets');
@@ -97,10 +110,22 @@ describe('buildTaskContext active stage semantics', () => {
           expect.objectContaining({
             id: 'packet-file-1',
             file_name: 'checklist.txt',
+            context_file: {
+              path: '/workspace/context/input-packets/packet-1/files/packet-file-1/checklist.txt',
+              content_base64: Buffer.from('deploy checklist').toString('base64'),
+            },
           }),
         ],
       }),
     ]);
+    expect(workflow.input_packets).not.toEqual([
+      expect.objectContaining({
+        files: [expect.objectContaining({ download_url: expect.any(String) })],
+      }),
+    ]);
+    expect(storage.getObject).toHaveBeenCalledWith(
+      'tenants/tenant-1/workflows/workflow-packets/input-packets/packet-1/files/packet-file-1/checklist.txt',
+    );
   });
 
 });

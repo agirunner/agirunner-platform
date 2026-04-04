@@ -1,3 +1,4 @@
+import type { ArtifactStorageAdapter } from '../../content/artifact-storage.js';
 import type { DatabaseQueryable } from '../../db/database.js';
 import { listTaskDocuments } from '../document-reference/document-reference-service.js';
 import { buildOrchestratorTaskContext } from '../orchestrator-task-context/orchestrator-task-context.js';
@@ -60,6 +61,7 @@ export async function buildTaskContext(
   tenantId: string,
   task: Record<string, unknown>,
   agentId?: string,
+  artifactStorage: ArtifactStorageAdapter | null = null,
 ) {
   const contextAnchor = resolveTaskContextAnchor(task);
   const contextTask = applyTaskContextAnchor(task, contextAnchor);
@@ -166,7 +168,7 @@ export async function buildTaskContext(
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowInputPackets = workflowRow
-    ? await loadWorkflowInputPackets(db, tenantId, String(workflowRow.id))
+    ? await loadWorkflowInputPackets(db, artifactStorage, tenantId, String(workflowRow.id))
     : [];
   const workflowLiveVisibility = workflowRow
     ? await loadWorkflowLiveVisibilityContext(db, tenantId, contextTask, workflowRow)
