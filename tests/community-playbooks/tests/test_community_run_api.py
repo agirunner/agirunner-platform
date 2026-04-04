@@ -113,6 +113,59 @@ class CommunityRunApiTests(unittest.TestCase):
         self.assertEqual(["10"], params["briefs_limit"])
         self.assertEqual(["5"], params["history_limit"])
 
+    def test_list_logs_omits_status_filter_when_none(self) -> None:
+        client = FakeApiClient(responses=[{"data": []}])
+
+        logs = CommunityRunApi(client).list_logs(workflow_id="workflow-1", status=None, per_page=50)
+
+        self.assertEqual([], logs)
+        request_path = str(client.requests[0]["path"])
+        parsed = urlparse(request_path)
+        params = parse_qs(parsed.query)
+        self.assertEqual("/api/v1/logs", parsed.path)
+        self.assertEqual(["workflow-1"], params["workflow_id"])
+        self.assertEqual(["desc"], params["order"])
+        self.assertEqual(["50"], params["per_page"])
+        self.assertEqual(["full"], params["detail"])
+        self.assertNotIn("status", params)
+
+    def test_list_logs_follows_cursor_pagination_until_exhausted(self) -> None:
+        client = FakeApiClient(
+            responses=[
+                {
+                    "data": [{"id": "log-2"}],
+                    "pagination": {"has_more": True, "next_cursor": "cursor-2"},
+                },
+                {
+                    "data": [{"id": "log-1"}],
+                    "pagination": {"has_more": False, "next_cursor": None},
+                },
+            ]
+        )
+
+        logs = CommunityRunApi(client).list_logs(workflow_id="workflow-1", status=None, per_page=50)
+
+        self.assertEqual([{"id": "log-2"}, {"id": "log-1"}], logs)
+        first_request_path = str(client.requests[0]["path"])
+        second_request_path = str(client.requests[1]["path"])
+        first_params = parse_qs(urlparse(first_request_path).query)
+        second_params = parse_qs(urlparse(second_request_path).query)
+        self.assertNotIn("cursor", first_params)
+        self.assertEqual(["cursor-2"], second_params["cursor"])
+        self.assertEqual(["full"], second_params["detail"])
+
+    def test_read_api_path_fetches_arbitrary_preview_routes(self) -> None:
+        client = FakeApiClient(responses=["# Preview"])
+
+        preview = CommunityRunApi(client).read_api_path("/api/v1/tasks/task-1/artifacts/art-1/preview")
+
+        self.assertEqual("# Preview", preview)
+        self.assertEqual(
+            "/api/v1/tasks/task-1/artifacts/art-1/preview",
+            client.requests[0]["path"],
+        )
+        self.assertEqual((200,), client.requests[0]["expected"])
+
 
 if __name__ == "__main__":
     unittest.main()

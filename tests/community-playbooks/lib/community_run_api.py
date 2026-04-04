@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from typing import Any
 from urllib.parse import urlencode
+from typing import Any
 
 from community_catalog_api import CommunityCatalogApi, extract_data
 
@@ -37,18 +37,54 @@ class CommunityRunApi(CommunityCatalogApi):
         self,
         *,
         workflow_id: str,
-        status: str = "failed",
+        status: str | None = "failed",
         per_page: int = 20,
     ) -> list[dict[str, Any]]:
-        response = self.client.request(
-            "GET",
-            f"/api/v1/logs?workflow_id={workflow_id}&status={status}&order=desc&per_page={per_page}",
-            expected=(200,),
-            label=f"logs.list:{workflow_id}",
-        )
-        if isinstance(response, dict):
-            return list(response.get("data") or [])
-        return []
+        normalized_status = str(status or "").strip()
+        collected: list[dict[str, Any]] = []
+        cursor: str | None = None
+
+        while True:
+            query: dict[str, str] = {
+                "workflow_id": workflow_id,
+                "order": "desc",
+                "per_page": str(per_page),
+                "detail": "full",
+            }
+            if normalized_status != "":
+                query["status"] = normalized_status
+            if cursor:
+                query["cursor"] = cursor
+
+            response = self.client.request(
+                "GET",
+                f"/api/v1/logs?{urlencode(query)}",
+                expected=(200,),
+                label=f"logs.list:{workflow_id}",
+            )
+            if not isinstance(response, dict):
+                return collected
+
+            page = response.get("data")
+            if isinstance(page, list):
+                collected.extend(item for item in page if isinstance(item, dict))
+
+            pagination = response.get("pagination")
+            if not isinstance(pagination, dict) or not pagination.get("has_more"):
+                return collected
+
+            next_cursor = str(pagination.get("next_cursor") or "").strip()
+            if next_cursor == "":
+                return collected
+            cursor = next_cursor
+
+    def read_api_path(self, path: str) -> Any:
+        normalized = path.strip()
+        if normalized == "":
+            raise RuntimeError("API path is required")
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        return self.client.request("GET", normalized, expected=(200,), label=f"api-path:{normalized}")
 
     def get_local_playbook_by_slug(self, slug: str) -> dict[str, Any]:
         normalized_slug = slug.strip()

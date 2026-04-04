@@ -45,10 +45,12 @@
       "launch_inputs": {
         "research_question": "What is a quantum computer?",
         "decision_context": "Produce a short accurate explainer for a non-specialist operator audience that needs the basics, main limitations, and why the topic matters now.",
-        "source_scope": "First enumerate the research-capable tools or integrations available to the task. Prefer the quoted native web search tool when it is available. If it is unavailable or not enabled, use the best remaining research path and say which limits remained."
+        "source_scope": "First enumerate the research-capable tools or integrations available to the task. Prefer the quoted native web search tool when it is available. If it is unavailable or not enabled, use the best remaining research path and say which limits remained. The final synthesis must visibly expose its source basis and source quality notes instead of leaving that grounding only in prior artifacts or handoff prose."
       },
       "expected_outcome": {
-        "kind": "research_brief"
+        "kind": "research_brief",
+        "require_native_web_search": true,
+        "require_source_basis": true
       }
     },
     "steering": {

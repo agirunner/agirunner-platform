@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
@@ -149,10 +150,113 @@ def _has_observable_output(packet_summary: dict[str, Any], briefs: list[dict[str
     )
 
 
+def _final_deliverables(packet: dict[str, Any]) -> list[dict[str, Any]]:
+    deliverables = packet.get("deliverables")
+    if not isinstance(deliverables, dict):
+        return []
+    final_deliverables = deliverables.get("final_deliverables")
+    if not isinstance(final_deliverables, list):
+        return []
+    return [item for item in final_deliverables if isinstance(item, dict)]
+
+
+def _is_packet_like_deliverable(item: dict[str, Any]) -> bool:
+    descriptor_kind = str(item.get("descriptor_kind") or "").strip().lower()
+    return descriptor_kind in {"deliverable_packet", "brief_packet", "handoff_packet"}
+
+
+def _content_final_deliverables(packet: dict[str, Any]) -> list[dict[str, Any]]:
+    return [item for item in _final_deliverables(packet) if not _is_packet_like_deliverable(item)]
+
+
+def _read_deliverable_preview(api: Any, item: dict[str, Any]) -> str:
+    read_api_path = getattr(api, "read_api_path", None)
+    if not callable(read_api_path):
+        return ""
+    primary_target = item.get("primary_target")
+    if not isinstance(primary_target, dict):
+        return ""
+    target_url = str(primary_target.get("url") or "").strip()
+    if target_url == "":
+        return ""
+    preview = read_api_path(target_url)
+    if isinstance(preview, str):
+        return preview
+    return json.dumps(preview, sort_keys=True)
+
+
+def _contains_provider_web_search(logs: list[dict[str, Any]]) -> bool:
+    for item in logs:
+        if not isinstance(item, dict):
+            continue
+        payload = item.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        provider_tool_calls = payload.get("provider_tool_calls")
+        if not isinstance(provider_tool_calls, list):
+            continue
+        for call in provider_tool_calls:
+            if not isinstance(call, dict):
+                continue
+            if str(call.get("name") or "").strip() == "web_search":
+                return True
+    return False
+
+
+def _has_research_structure(text: str) -> bool:
+    normalized = text.lower()
+    has_question = "research question" in normalized or normalized.startswith("# final research synthesis")
+    has_findings = "findings" in normalized
+    has_confidence = "confidence" in normalized
+    has_recommendation = "recommendation" in normalized or "next step" in normalized
+    return has_question and has_findings and has_confidence and has_recommendation
+
+
+def _has_visible_source_basis(text: str) -> bool:
+    normalized = text.lower()
+    has_source_basis = "sources consulted" in normalized or "source basis" in normalized or "evidence basis" in normalized
+    has_quality_notes = "source quality" in normalized or "quality notes" in normalized
+    return has_source_basis and has_quality_notes
+
+
+def _evaluate_research_brief_outcome(
+    *,
+    api: Any,
+    workflow_id: str,
+    workspace_packet: dict[str, Any],
+    expected_outcome: dict[str, Any],
+) -> list[str]:
+    failures: list[str] = []
+    content_final_deliverables = _content_final_deliverables(workspace_packet)
+    if len(content_final_deliverables) == 0:
+        failures.append("final research deliverables only exposed packet rows instead of a real content row")
+    final_previews = [_read_deliverable_preview(api, item) for item in content_final_deliverables]
+    non_empty_previews = [preview for preview in final_previews if preview.strip() != ""]
+    has_structured_final = any(_has_research_structure(preview) for preview in non_empty_previews)
+    if not has_structured_final:
+        failures.append("no final research deliverable preview satisfied the structured research contract")
+
+    if bool(expected_outcome.get("require_source_basis")) and not any(
+        _has_visible_source_basis(preview) for preview in non_empty_previews
+    ):
+        failures.append("final research deliverable does not expose a visible source basis")
+
+    if bool(expected_outcome.get("require_native_web_search")):
+        logs = list(api.list_logs(workflow_id=workflow_id, status=None, per_page=500))
+        if not _contains_provider_web_search(logs):
+            failures.append(
+                "run required actual provider-managed native web search usage but no web_search evidence was recorded"
+            )
+
+    return failures
+
+
 def _evaluate_result(
     *,
+    api: Any,
     run_spec: dict[str, Any],
     workflow: dict[str, Any],
+    workspace_packet: dict[str, Any],
     packet_summary: dict[str, Any],
     briefs: list[dict[str, Any]],
     approval_actions: list[dict[str, Any]],
@@ -187,6 +291,16 @@ def _evaluate_result(
         failures.append("workflow requested operator approval coverage but no approval was submitted")
     if expected_steering > 0 and len(steering_actions) < expected_steering:
         failures.append("workflow requested steering coverage but steering was not fully submitted")
+    expected_outcome = dict(run_spec.get("expected_outcome") or {})
+    if str(expected_outcome.get("kind") or "").strip() == "research_brief":
+        failures.extend(
+            _evaluate_research_brief_outcome(
+                api=api,
+                workflow_id=str(workflow.get("id") or "").strip(),
+                workspace_packet=workspace_packet,
+                expected_outcome=expected_outcome,
+            )
+        )
     return failures
 
 
@@ -289,8 +403,10 @@ def execute_run(
     workspace_packet = api.get_workspace_packet(str(workflow["id"]))
     packet_summary = summarize_workspace_packet(workspace_packet)
     failures = _evaluate_result(
+        api=api,
         run_spec=run_spec,
         workflow=latest_workflow,
+        workspace_packet=workspace_packet,
         packet_summary=packet_summary,
         briefs=latest_briefs,
         approval_actions=approval_actions,
