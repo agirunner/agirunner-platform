@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseQueryable } from '../../db/database.js';
@@ -337,7 +337,7 @@ export class WorkflowDeliverableService {
       return;
     }
     await this.upsertDeliverableForTenant(tenantId, workflowId, {
-      descriptorId: existingRollupDescriptorId ?? buildWorkflowRollupDescriptorId(record.descriptor_id),
+      descriptorId: existingRollupDescriptorId ?? randomUUID(),
       descriptorKind: record.descriptor_kind,
       deliveryStage: record.delivery_stage,
       title: record.title,
@@ -379,16 +379,14 @@ function shouldMaterializeWorkflowRollup(
   record: WorkflowDeliverableRecord,
   workItemSettlement: WorkflowWorkItemSettlementRow | null,
 ): boolean {
-  if (!record.work_item_id) {
-    return false;
-  }
-  if (record.state === 'superseded') {
-    return false;
-  }
-  if (!workItemSettlement?.completed_at) {
-    return false;
-  }
-  return record.delivery_stage === 'final' || record.state === 'final';
+  void record;
+  void workItemSettlement;
+
+  // Workflow workspace reads all work-item scopes directly. Persisting
+  // workflow-scope rollup copies only duplicates packet rows and does not back
+  // a supported surface, so new rollups stay disabled and legacy ones are
+  // cleaned up opportunistically through the existing supersede path.
+  return false;
 }
 
 function buildWorkflowRollupContentPreview(record: WorkflowDeliverableRecord): Record<string, unknown> {
@@ -397,18 +395,6 @@ function buildWorkflowRollupContentPreview(record: WorkflowDeliverableRecord): R
     [ROLLUP_SOURCE_DESCRIPTOR_ID_KEY]: record.descriptor_id,
     [ROLLUP_SOURCE_WORK_ITEM_ID_KEY]: record.work_item_id,
   };
-}
-
-function buildWorkflowRollupDescriptorId(sourceDescriptorId: string): string {
-  const hex = createHash('sha256').update(`workflow-rollup:${sourceDescriptorId}`).digest('hex').slice(0, 32);
-  const clockSeq = (Number.parseInt(hex.slice(16, 18), 16) & 0x3f) | 0x80;
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    `4${hex.slice(13, 16)}`,
-    `${clockSeq.toString(16).padStart(2, '0')}${hex.slice(18, 20)}`,
-    hex.slice(20, 32),
-  ].join('-');
 }
 
 function buildDeliverableScopeQuery(input: ListWorkflowDeliverablesInput): {
