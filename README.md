@@ -5,7 +5,7 @@
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-97CA00)](./LICENSE)
 
-API-first agent orchestration plane and operator surface for Agirunner.
+Control plane, public API, and operator surface for Agirunner.
 
 > Looking for the full Agirunner product, quick start, and deployment
 > path? Start with
@@ -13,18 +13,29 @@ API-first agent orchestration plane and operator surface for Agirunner.
 > [docs.agirunner.dev](https://docs.agirunner.dev). This repository is
 > the public implementation repo for the platform itself.
 
-The Agirunner Platform is the part of Agirunner that defines work,
-launches it, routes it, presents it to operators, and keeps the system
-coherent over time. It owns playbooks, workflows, work items,
-activations, approvals, operator-visible state, the dashboard, the
-public API, and the fleet-management surfaces that tell runtimes what
-contracts apply next.
+The Agirunner Platform is the control plane behind Agirunner's durable
+backend for agent-powered systems. It owns playbooks, workflows, work
+items, activations, approvals, operator-visible state, the dashboard,
+the public API, and the fleet-management surfaces that tell runtimes
+what contracts apply next.
 
-If `agirunner-runtime` is the execution plane, `agirunner-platform` is
-the place where that work gets meaning. This is the repository that
-matters when you want to change how Agirunner launches work, how it
-appears in the dashboard, how it exposes control surfaces over the API,
-or how it coordinates runtimes and workers across a live stack.
+Developers build on this layer today through the platform API.
+Operators supervise the same layer through the dashboard. If
+`agirunner-runtime` is the execution plane, `agirunner-platform` is the
+place where workflow meaning, workflow records, and control surfaces
+live.
+
+Available today:
+
+- workflow, work-item, approval, artifact, and operator-state records
+- the dashboard and public platform API as twin surfaces of the same control plane
+- playbook, workspace, model, tool, MCP, and environment policy surfaces
+
+Coming next:
+
+- stronger public developer support through SDKs and better build surfaces
+- broader triggers, webhooks, connectors, and protocol maturity
+- a stronger workflow-package story on top of the existing catalog foundations
 
 Builders are welcome here.
 
@@ -59,8 +70,8 @@ itself provide a real workflow product.
 The platform exists to provide that product layer:
 
 - It turns authored playbooks and live workflow state into explicit execution contracts.
+- It gives developers a durable system of record to build against through the API.
 - It gives operators a real dashboard instead of a thin log viewer.
-- It exposes a public API for launching, steering, and supervising work programmatically.
 - It records approvals, rework, evidence, artifacts, and history as durable product surfaces.
 - It keeps workflow meaning in the platform and execution mechanics in the runtime, so the boundary stays understandable.
 
