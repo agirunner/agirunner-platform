@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  activeColumnId,
+  blockedColumnId,
   defaultStageName,
+  defaultColumnId,
   parsePlaybookDefinition,
   readPlaybookRuntimePools,
 } from '../../../src/orchestration/playbook-model.js';
@@ -241,5 +244,26 @@ describe('playbook model runtime pools', () => {
     });
 
     expect(definition.process_instructions).toContain('1. implementation: Working code exists.');
+  });
+
+  it('applies the canonical default board when board config is omitted', () => {
+    const definition = parsePlaybookDefinition({
+      process_instructions: 'Move work forward and close it responsibly.',
+      roles: ['developer'],
+      stages: [{ name: 'delivery', goal: 'Working output exists.' }],
+    });
+
+    expect(definition.board).toEqual({
+      entry_column_id: 'inbox',
+      columns: [
+        { id: 'inbox', label: 'Inbox', description: '' },
+        { id: 'active', label: 'Active', description: '' },
+        { id: 'blocked', label: 'Blocked', description: '', is_blocked: true },
+        { id: 'done', label: 'Done', description: '', is_terminal: true },
+      ],
+    });
+    expect(defaultColumnId(definition)).toBe('inbox');
+    expect(activeColumnId(definition)).toBe('active');
+    expect(blockedColumnId(definition)).toBe('blocked');
   });
 });

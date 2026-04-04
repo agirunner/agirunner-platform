@@ -18,7 +18,12 @@ describe('playbook authoring support', () => {
 
     expect(draft.roles).toEqual([]);
     expect(draft.stages).toEqual([]);
-    expect(draft.columns).toHaveLength(5);
+    expect(draft.columns).toEqual([
+      expect.objectContaining({ id: 'inbox', is_blocked: false, is_terminal: false }),
+      expect.objectContaining({ id: 'active', is_blocked: false, is_terminal: false }),
+      expect.objectContaining({ id: 'blocked', is_blocked: true, is_terminal: false }),
+      expect.objectContaining({ id: 'done', is_blocked: false, is_terminal: true }),
+    ]);
     expect(draft.process_instructions).toContain('mandatory');
     expect(draft.process_instructions).toContain('preferred');
     expect(draft.process_instructions).toContain('residual risks');
@@ -195,7 +200,7 @@ describe('playbook authoring support', () => {
         hasProcessInstructions: true,
         roleCount: 1,
         stageCount: 1,
-        columnCount: 5,
+        columnCount: 4,
       }),
     );
   });

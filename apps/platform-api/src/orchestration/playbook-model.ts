@@ -1,3 +1,4 @@
+import { createDefaultPlaybookBoard } from '../../../../packages/sdk/src/playbooks/default-board.js';
 import { z } from 'zod';
 
 import { SchemaValidationFailedError } from '../errors/domain-errors.js';
@@ -8,6 +9,11 @@ const boardColumnSchema = z.object({
   description: z.string().max(4000).optional(),
   is_blocked: z.boolean().optional(),
   is_terminal: z.boolean().optional(),
+});
+
+const boardSchema = z.object({
+  entry_column_id: z.string().min(1).max(120).optional(),
+  columns: z.array(boardColumnSchema).min(1),
 });
 
 const stageSchema = z.object({
@@ -50,10 +56,7 @@ const playbookDefinitionSchema = z.object({
   outcome: z.string().max(4000).optional(),
   process_instructions: z.string().min(1).max(12000).optional(),
   roles: z.array(z.string().min(1).max(120)).default([]),
-  board: z.object({
-    entry_column_id: z.string().min(1).max(120).optional(),
-    columns: z.array(boardColumnSchema).min(1),
-  }),
+  board: boardSchema.optional(),
   stages: z.array(stageSchema).default([]),
   lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
   orchestrator: z
@@ -75,7 +78,12 @@ const playbookDefinitionSchema = z.object({
   parameters: z.array(parameterSchema).optional(),
 }).strict();
 
-export type PlaybookDefinition = z.infer<typeof playbookDefinitionSchema>;
+type PlaybookDefinitionInput = z.infer<typeof playbookDefinitionSchema>;
+type PlaybookBoard = z.infer<typeof boardSchema>;
+
+export interface PlaybookDefinition extends Omit<PlaybookDefinitionInput, 'board'> {
+  board: PlaybookBoard;
+}
 export type PlaybookRuntimeConfig = z.infer<typeof runtimeSchema>;
 export type PlaybookRuntimePoolConfig = z.infer<typeof runtimePoolSchema>;
 export type PlaybookRuntimePoolKind = 'orchestrator' | 'specialist';
@@ -224,16 +232,28 @@ function assertSingularBoardLaneSemantics(definition: PlaybookDefinition): void 
   }
 }
 
-function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDefinition {
+function normalizePlaybookDefinition(definition: PlaybookDefinitionInput): PlaybookDefinition {
   const stages = definition.stages;
 
   return {
     ...definition,
+    board: normalizeBoard(definition.board),
     process_instructions:
       definition.process_instructions?.trim() ||
       definition.orchestrator?.instructions?.trim() ||
       buildLegacyProcessInstructions(stages),
     stages,
+  };
+}
+
+function normalizeBoard(board: PlaybookDefinitionInput['board']): PlaybookBoard {
+  if (!board) {
+    return createDefaultPlaybookBoard();
+  }
+
+  return {
+    entry_column_id: board.entry_column_id,
+    columns: board.columns.map((column) => ({ ...column })),
   };
 }
 
