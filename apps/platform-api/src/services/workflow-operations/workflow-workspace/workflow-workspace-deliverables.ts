@@ -188,14 +188,17 @@ function readIncompleteWorkItemIds(board: Record<string, unknown>): Set<string> 
     if (!workItemId) {
       continue;
     }
-    const completedAt = readOptionalString(record.completed_at);
     const columnId = readOptionalString(record.column_id);
     const isTerminalColumn = columnId ? columnTerminality.get(columnId) === true : false;
-    if (!isTerminalColumn || completedAt === null) {
+    if (!isTerminalColumn || !hasCompletedWorkItemMarker(record)) {
       incompleteIds.add(workItemId);
     }
   }
   return incompleteIds;
+}
+
+function hasCompletedWorkItemMarker(record: Record<string, unknown>): boolean {
+  return record.completed_at != null;
 }
 
 function composeFallbackDeliverableFromOutputDescriptor(
