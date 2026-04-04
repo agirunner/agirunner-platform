@@ -56,6 +56,25 @@ class ResolveMetadataTests(unittest.TestCase):
         for upload_path in run["uploads"]:
             self.assertTrue(Path(upload_path).is_file(), upload_path)
 
+    def test_resolve_run_specs_supports_research_native_search_variant_without_uploads(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+        validate_metadata(metadata)
+
+        resolved = resolve_run_specs(
+            metadata,
+            selected_batches=["matrix"],
+            playbook_slug="research-analysis",
+            variant="native-search",
+        )
+
+        self.assertEqual(1, len(resolved))
+        run = resolved[0]
+        self.assertEqual("research-analysis", run["playbook_slug"])
+        self.assertEqual("native-search", run["variant"])
+        self.assertEqual([], run["uploads"])
+        self.assertIn("research_question", run["launch_inputs"])
+        self.assertIn("source_scope", run["launch_inputs"])
+
     def test_validate_metadata_rejects_missing_workload_file(self) -> None:
         metadata = load_metadata(str(METADATA_FILE))
         broken = copy.deepcopy(metadata)

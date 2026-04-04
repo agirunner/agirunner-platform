@@ -41,6 +41,16 @@
         "kind": "research_brief"
       }
     },
+    "native-search": {
+      "launch_inputs": {
+        "research_question": "What is a quantum computer?",
+        "decision_context": "Produce a short accurate explainer for a non-specialist operator audience that needs the basics, main limitations, and why the topic matters now.",
+        "source_scope": "First enumerate the research-capable tools or integrations available to the task. Prefer the quoted native web search tool when it is available. If it is unavailable or not enabled, use the best remaining research path and say which limits remained."
+      },
+      "expected_outcome": {
+        "kind": "research_brief"
+      }
+    },
     "steering": {
       "launch_inputs": {
         "research_question": "What roadmap recommendation should leadership make for enterprise audit exports over the next two quarters?",
