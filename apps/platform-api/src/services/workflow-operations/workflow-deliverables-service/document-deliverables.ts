@@ -2,6 +2,7 @@ import type { WorkflowDeliverableRecord } from '../../workflow-deliverables/work
 import type { ResolvedDocumentReference } from '../../document-reference/document-reference-service.js';
 
 import {
+  isPacketLikeDeliverable,
   readDeliverableTargetIdentityKey,
   readRollupSourceDescriptorId,
   readRollupSourceWorkItemId,
@@ -19,8 +20,11 @@ export function appendSynthesizedWorkflowDocumentDeliverables(
 
   const records = [...deliverables];
   const existingIds = new Set(records.map((deliverable) => deliverable.descriptor_id));
-  const existingTargetKeys = new Set(
-    records.map(readDeliverableTargetIdentityKey).filter((key): key is string => key !== null),
+  const existingNonPacketTargetKeys = new Set(
+    records
+      .filter((deliverable) => !isPacketLikeDeliverable(deliverable))
+      .map(readDeliverableTargetIdentityKey)
+      .filter((key): key is string => key !== null),
   );
 
   for (const document of documents) {
@@ -32,13 +36,13 @@ export function appendSynthesizedWorkflowDocumentDeliverables(
       continue;
     }
     const identityKey = readDeliverableTargetIdentityKey(syntheticDeliverable);
-    if (identityKey && existingTargetKeys.has(identityKey)) {
+    if (identityKey && existingNonPacketTargetKeys.has(identityKey)) {
       continue;
     }
     records.push(syntheticDeliverable);
     existingIds.add(syntheticDeliverable.descriptor_id);
     if (identityKey) {
-      existingTargetKeys.add(identityKey);
+      existingNonPacketTargetKeys.add(identityKey);
     }
   }
 

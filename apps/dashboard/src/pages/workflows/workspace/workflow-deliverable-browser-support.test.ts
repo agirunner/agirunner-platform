@@ -48,6 +48,48 @@ describe('workflow deliverable browser support', () => {
 
     expect(rows.map((row) => row.rowKind)).toEqual(['inline', 'reference']);
   });
+
+  it('includes secondary artifact targets as separate browser rows', () => {
+    const rows = buildBrowserRows(
+      createDeliverable({
+        title: 'Final Research Synthesis Audit Export Workflow',
+        primary_target: {
+          target_kind: 'artifact',
+          label: 'Open artifact',
+          url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+          path: 'artifact:workflow-1/final-research-synthesis-audit-export-workflow.md',
+          artifact_id: 'artifact-1',
+        },
+        secondary_targets: [
+          {
+            target_kind: 'artifact',
+            label: 'Artifact',
+            url: '/api/v1/tasks/task-2/artifacts/artifact-2/preview',
+            path: 'artifact:workflow-1/research-framing-brief.md',
+            artifact_id: 'artifact-2',
+          },
+        ],
+      }),
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        rowKind: 'artifact',
+        label: 'final-research-synthesis-audit-export-workflow.md',
+        target: expect.objectContaining({
+          artifact_id: 'artifact-1',
+        }),
+      }),
+      expect.objectContaining({
+        rowKind: 'artifact',
+        label: 'research-framing-brief.md',
+        target: expect.objectContaining({
+          artifact_id: 'artifact-2',
+        }),
+      }),
+    ]);
+  });
 });
 
 function createDeliverable(

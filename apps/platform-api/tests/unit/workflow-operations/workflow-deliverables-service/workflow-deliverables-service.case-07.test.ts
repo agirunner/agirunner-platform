@@ -280,12 +280,7 @@ describe('WorkflowDeliverablesService', () => {
 
     expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([]);
-    expect(result.all_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'deliverable-revision-1',
-        state: 'superseded',
-      }),
-    ]);
+    expect(result.all_deliverables).toEqual([]);
   });
 
   it('reclassifies a stored final work-item packet into in-progress deliverables when the selected work item is still incomplete', async () => {

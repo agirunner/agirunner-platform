@@ -10,7 +10,6 @@ import {
   readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetHref,
   sanitizeDeliverableTarget,
-  sanitizeDeliverableTargets,
 } from './workflow-deliverables.support.js';
 
 export type DeliverableBrowserRow =
@@ -48,49 +47,24 @@ export function buildBrowserRows(
   deliverable: DashboardWorkflowDeliverableRecord,
 ): DeliverableBrowserRow[] {
   const rows: DeliverableBrowserRow[] = [];
-  const seenKeys = new Set<string>();
   const hasExplicitInlineSummary = readHasExplicitInlineSummaryTarget(deliverable);
+  const seenKeys = new Set<string>();
 
-  for (const target of readResolvedTargets(deliverable)) {
-    const href = resolveDeliverableTargetHref(target);
-    const key = readTargetKey(target, href);
-    if (seenKeys.has(key)) {
+  const targets = [deliverable.primary_target, ...deliverable.secondary_targets]
+    .map((target) => sanitizeDeliverableTarget(target));
+
+  for (const target of targets) {
+    const row = buildTargetBrowserRow(target, deliverable);
+    if (!row || seenKeys.has(row.key)) {
       continue;
     }
-    seenKeys.add(key);
-    if (isBrowserDeliverableTarget(target) && href) {
-      rows.push({
-        rowKind: 'artifact',
-        key,
-        label: readDeliverableTargetDisplayLabel(target, 'Deliverable file'),
-        typeLabel: formatDeliverableTargetKind(target.target_kind || 'artifact'),
-        createdAt: deliverable.created_at,
-        sizeBytes:
-          typeof target.size_bytes === 'number' && Number.isFinite(target.size_bytes)
-            ? target.size_bytes
-            : null,
-        canView: canViewArtifactTarget(target, deliverable),
-        target,
-        previewHref: href,
-        downloadHref: resolveBrowserDownloadHref(href),
-      });
-      continue;
-    }
-    rows.push({
-      rowKind: 'reference',
-      key,
-      label: readDeliverableTargetDisplayLabel(target, 'Deliverable reference'),
-      typeLabel: formatDeliverableTargetKind(target.target_kind || 'reference'),
-      createdAt: deliverable.created_at,
-      sizeBytes: null,
-      canView: true,
-      target,
-    });
+    rows.push(row);
+    seenKeys.add(row.key);
   }
 
   const inlineContent = readInlineContent(deliverable);
   if (inlineContent && (rows.length === 0 || hasExplicitInlineSummary)) {
-    rows.push({
+    const inlineRow: DeliverableBrowserRow = {
       rowKind: 'inline',
       key: `inline:${deliverable.descriptor_id}`,
       label: readInlineLabel(deliverable),
@@ -99,21 +73,53 @@ export function buildBrowserRows(
       sizeBytes: null,
       canView: true,
       content: inlineContent,
-    });
+    };
+    if (!seenKeys.has(inlineRow.key)) {
+      rows.push(inlineRow);
+    }
   }
 
   return rows.sort(compareBrowserRows);
 }
 
-function readResolvedTargets(
+function buildTargetBrowserRow(
+  target: DashboardWorkflowDeliverableTarget,
   deliverable: DashboardWorkflowDeliverableRecord,
-): DashboardWorkflowDeliverableTarget[] {
-  return [
-    sanitizeDeliverableTarget(deliverable.primary_target),
-    ...sanitizeDeliverableTargets(deliverable.secondary_targets),
-  ].filter(
-    (target) => hasMeaningfulDeliverableTarget(target) && !shouldSuppressInlineSummaryTarget(target),
-  );
+): DeliverableBrowserRow | null {
+  if (!hasMeaningfulDeliverableTarget(target) || shouldSuppressInlineSummaryTarget(target)) {
+    return null;
+  }
+
+  const href = resolveDeliverableTargetHref(target);
+  const key = readTargetKey(target, href);
+  if (isBrowserDeliverableTarget(target) && href) {
+    return {
+      rowKind: 'artifact',
+      key,
+      label: readDeliverableTargetDisplayLabel(target, 'Deliverable file'),
+      typeLabel: formatDeliverableTargetKind(target.target_kind || 'artifact'),
+      createdAt: deliverable.created_at,
+      sizeBytes:
+        typeof target.size_bytes === 'number' && Number.isFinite(target.size_bytes)
+          ? target.size_bytes
+          : null,
+      canView: canViewArtifactTarget(target, deliverable),
+      target,
+      previewHref: href,
+      downloadHref: resolveBrowserDownloadHref(href),
+    };
+  }
+
+  return {
+    rowKind: 'reference',
+    key,
+    label: readDeliverableTargetDisplayLabel(target, 'Deliverable reference'),
+    typeLabel: formatDeliverableTargetKind(target.target_kind || 'reference'),
+    createdAt: deliverable.created_at,
+    sizeBytes: null,
+    canView: true,
+    target,
+  };
 }
 
 function shouldSuppressInlineSummaryTarget(target: DashboardWorkflowDeliverableTarget): boolean {
@@ -133,7 +139,8 @@ function readInlineContent(deliverable: DashboardWorkflowDeliverableRecord): str
   return (
     readText(preview.markdown) ??
     readText(preview.text) ??
-    readText(preview.snippet)
+    readText(preview.snippet) ??
+    readText(preview.summary)
   );
 }
 

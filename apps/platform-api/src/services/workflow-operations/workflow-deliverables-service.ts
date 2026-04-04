@@ -11,6 +11,10 @@ import {
   suppressMirroredWorkflowRollupDuplicates,
 } from './workflow-deliverables-service/document-deliverables.js';
 import {
+  deduplicateScopedDeliverables,
+  suppressPacketWrappersWhenContentExists,
+} from './workflow-deliverables-service/content-deduplication.js';
+import {
   suppressShadowedOrchestratorBriefPackets,
 } from './workflow-deliverables-service/synthesis.js';
 import {
@@ -22,6 +26,7 @@ import {
   collectFinalizedBriefIds,
   collectFinalizedDescriptorIds,
   collectLinkedTargetCandidateIds,
+  resolveAttributedDeliverableWorkItemId,
   resolveDeliverableWorkItemId,
   selectDeliverableScopeDeliverables,
   selectDeliverableScopeRecords,
@@ -179,11 +184,24 @@ export class WorkflowDeliverablesService {
       deliverableScopeBriefs,
     );
     const normalizedDeliverables = suppressMirroredWorkflowRollupDuplicates(
-      appendSynthesizedWorkflowDocumentDeliverables(
-        hydratedDeliverables,
-        workflowDocuments,
-        workflowId,
-      ).map(normalizeDeliverableTargets),
+      deduplicateScopedDeliverables(
+        suppressPacketWrappersWhenContentExists(
+          appendSynthesizedWorkflowDocumentDeliverables(
+            hydratedDeliverables,
+            workflowDocuments,
+            workflowId,
+          ).map(normalizeDeliverableTargets),
+          (deliverable) =>
+            resolveAttributedDeliverableWorkItemId(deliverable, deliverableWorkItemAttribution),
+        ),
+        {
+          selectedWorkItemId: input.workItemId,
+          finalizedBriefIds,
+          finalizedDescriptorIds,
+          readOwnerWorkItemId: (deliverable) =>
+            resolveAttributedDeliverableWorkItemId(deliverable, deliverableWorkItemAttribution),
+        },
+      ),
       input.workItemId,
     );
 
@@ -202,7 +220,7 @@ export class WorkflowDeliverablesService {
       timestamp: deliverable.updated_at ?? deliverable.created_at,
       id: deliverable.descriptor_id,
     }));
-    const allDeliverables = orderedDeliverables.map((deliverable) =>
+    const allDeliverables = visibleDeliverables.map((deliverable) =>
       normalizeDeliverableForPresentation(deliverable, incompleteWorkItemIdSet),
     );
 

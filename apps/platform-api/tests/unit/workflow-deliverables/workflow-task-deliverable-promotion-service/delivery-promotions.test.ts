@@ -38,7 +38,7 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
     });
 
     const promotionInput = (deliverableService.upsertSystemDeliverable.mock.calls as unknown as Array<
-      [string, string, { primaryTarget?: Record<string, unknown> }]
+      [string, string, { primaryTarget?: Record<string, unknown>; contentPreview?: Record<string, unknown> }]
     >)[0]?.[2];
     expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
       'tenant-1',
@@ -54,6 +54,11 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
       }),
     );
     expect(promotionInput?.primaryTarget).not.toHaveProperty('url');
+    expect(promotionInput?.contentPreview).toEqual(
+      expect.objectContaining({
+        source_role_name: 'Intake Analyst',
+      }),
+    );
   });
 
   it('promotes an artifact-backed delivery handoff into a canonical packet that points at the artifact', async () => {
@@ -106,6 +111,9 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
         previewCapabilities: expect.objectContaining({
           can_inline_preview: true,
           can_download: true,
+        }),
+        contentPreview: expect.objectContaining({
+          source_role_name: 'Intake Analyst',
         }),
       }),
     );

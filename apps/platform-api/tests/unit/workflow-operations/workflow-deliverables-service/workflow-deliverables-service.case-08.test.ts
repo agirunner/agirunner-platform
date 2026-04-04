@@ -250,4 +250,288 @@ describe('WorkflowDeliverablesService', () => {
       expect.objectContaining({ descriptor_id: 'workflow-rollup', work_item_id: null }),
     ]);
   });
+
+  it('collapses duplicate packet records for the same logical content to a single deliverable per scope', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'question-framing-brief-a',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-question-framing',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'in_progress',
+          title: 'Question framing deliverable',
+          state: 'draft',
+          summary_brief: null,
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Question framing deliverable',
+            path: 'deliverables/question-framing.md',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Path: deliverables/question-framing.md',
+          },
+          source_brief_id: 'brief-question-framing-a',
+          created_at: '2026-04-03T22:20:00.000Z',
+          updated_at: '2026-04-03T22:20:00.000Z',
+        },
+        {
+          descriptor_id: 'question-framing-brief-b',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-question-framing',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'in_progress',
+          title: 'Question framing deliverable',
+          state: 'draft',
+          summary_brief: null,
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Question framing deliverable',
+            path: 'deliverables/question-framing.md',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Path: deliverables/question-framing.md',
+          },
+          source_brief_id: 'brief-question-framing-b',
+          created_at: '2026-04-03T22:21:00.000Z',
+          updated_at: '2026-04-03T22:21:00.000Z',
+        },
+        {
+          descriptor_id: 'question-framing-final',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-question-framing',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision context completion packet',
+          state: 'final',
+          summary_brief: 'Completed and verified the question framing deliverable.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: '/api/v1/tasks/task-question-framing/artifacts/artifact-question-framing/preview',
+            path: 'artifact:workflow-1/deliverables/question-framing.md',
+            artifact_id: 'artifact-question-framing',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Completed and verified the question framing deliverable.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T22:22:00.000Z',
+          updated_at: '2026-04-03T22:22:00.000Z',
+        },
+        {
+          descriptor_id: 'question-framing-rollup',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision context completion packet',
+          state: 'final',
+          summary_brief: 'Completed and verified the question framing deliverable.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: '/api/v1/tasks/task-question-framing/artifacts/artifact-question-framing/preview',
+            path: 'artifact:workflow-1/deliverables/question-framing.md',
+            artifact_id: 'artifact-question-framing',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Completed and verified the question framing deliverable.',
+            rollup_source_descriptor_id: 'question-framing-final',
+            rollup_source_work_item_id: 'work-item-question-framing',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T22:22:30.000Z',
+          updated_at: '2026-04-03T22:22:30.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => []),
+      listExistingWorkItemIds: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const workflowScope = await service.getDeliverables('tenant-1', 'workflow-1');
+    expect(workflowScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'question-framing-rollup',
+        work_item_id: null,
+      }),
+    ]);
+    expect(workflowScope.in_progress_deliverables).toEqual([]);
+
+    const workItemScope = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-question-framing',
+    });
+    expect(workItemScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'question-framing-final',
+        work_item_id: 'work-item-question-framing',
+      }),
+    ]);
+    expect(workItemScope.in_progress_deliverables).toEqual([]);
+  });
+
+  it('suppresses packet-only wrapper rows when substantive content exists for the same owner', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'research-framing-content',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-research-framing',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Research framing',
+          state: 'final',
+          summary_brief: 'Framed the research question and decision context.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: '/api/v1/tasks/task-research-framing/artifacts/artifact-research-framing/preview',
+            path: 'artifact:workflow-1/deliverables/research-framing.md',
+            artifact_id: 'artifact-research-framing',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Framed the research question and decision context.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:10:00.000Z',
+          updated_at: '2026-04-03T23:10:00.000Z',
+        },
+        {
+          descriptor_id: 'research-framing-wrapper',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-research-framing',
+          descriptor_kind: 'handoff_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision context completion packet',
+          state: 'final',
+          summary_brief: 'Completed the research framing step.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review completion packet',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Completed the research framing step.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:11:00.000Z',
+          updated_at: '2026-04-03T23:11:00.000Z',
+        },
+        {
+          descriptor_id: 'research-framing-rollup-content',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Research framing',
+          state: 'final',
+          summary_brief: 'Framed the research question and decision context.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: '/api/v1/tasks/task-research-framing/artifacts/artifact-research-framing/preview',
+            path: 'artifact:workflow-1/deliverables/research-framing.md',
+            artifact_id: 'artifact-research-framing',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Framed the research question and decision context.',
+            rollup_source_descriptor_id: 'research-framing-content',
+            rollup_source_work_item_id: 'work-item-research-framing',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:12:00.000Z',
+          updated_at: '2026-04-03T23:12:00.000Z',
+        },
+        {
+          descriptor_id: 'research-framing-rollup-wrapper',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision context completion packet',
+          state: 'final',
+          summary_brief: 'Completed the research framing step.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review completion packet',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Completed the research framing step.',
+            rollup_source_descriptor_id: 'research-framing-wrapper',
+            rollup_source_work_item_id: 'work-item-research-framing',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:13:00.000Z',
+          updated_at: '2026-04-03T23:13:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => []),
+      listExistingWorkItemIds: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const workflowScope = await service.getDeliverables('tenant-1', 'workflow-1');
+    expect(workflowScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'research-framing-rollup-content',
+        work_item_id: null,
+      }),
+    ]);
+
+    const workItemScope = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-research-framing',
+    });
+    expect(workItemScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'research-framing-content',
+        work_item_id: 'work-item-research-framing',
+      }),
+    ]);
+  });
 });

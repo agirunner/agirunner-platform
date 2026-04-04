@@ -9,6 +9,7 @@ import {
   isBlockedGateStatus,
   readOptionalString,
 } from './workflow-workspace-common.js';
+import { normalizeDeliverableTargetPath } from '../workflow-deliverables-service/shared.js';
 
 export function buildWorkspaceDeliverablesPacket(
   deliverables: WorkspaceDeliverablesPacket,
@@ -26,16 +27,28 @@ export function buildWorkspaceDeliverablesPacket(
     outputDescriptors,
     workflowId,
     selectedScope,
-    visibleDeliverables,
     board,
   );
+  const mergedVisibleDeliverables = mergeVisibleDeliverablesWithFallbacks(
+    visibleDeliverables,
+    fallbackDeliverables,
+  );
+  const consumedIdentityKeys = new Set(
+    mergedVisibleDeliverables
+      .map(readDeliverableIdentityKey)
+      .filter((key): key is string => key !== null),
+  );
+  const remainingFallbackDeliverables = fallbackDeliverables.filter((deliverable) => {
+    const identityKey = readDeliverableIdentityKey(deliverable);
+    return identityKey === null || !consumedIdentityKeys.has(identityKey);
+  });
   const mergedFinalDeliverables = [
-    ...scopedDeliverables.final_deliverables,
-    ...fallbackDeliverables.filter(isFinalWorkspaceDeliverable),
+    ...mergedVisibleDeliverables.filter(isFinalWorkspaceDeliverable),
+    ...remainingFallbackDeliverables.filter(isFinalWorkspaceDeliverable),
   ];
   const mergedInProgressDeliverables = [
-    ...scopedDeliverables.in_progress_deliverables,
-    ...fallbackDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
+    ...mergedVisibleDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
+    ...remainingFallbackDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
   ];
 
   return {
@@ -61,12 +74,8 @@ function buildFallbackOutputDescriptorDeliverables(
   outputDescriptors: MissionControlOutputDescriptor[],
   workflowId: string,
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
-  visibleDeliverables: WorkflowDeliverableRecord[],
   board: Record<string, unknown>,
 ): WorkflowDeliverableRecord[] {
-  const visibleIdentityKeys = new Set(
-    visibleDeliverables.map(readDeliverableIdentityKey).filter((key): key is string => key !== null),
-  );
   const blockedWorkItemIds = readBlockedWorkItemIds(board);
   const incompleteWorkItemIds = readIncompleteWorkItemIds(board);
   const fallbackDeliverables: WorkflowDeliverableRecord[] = [];
@@ -81,7 +90,7 @@ function buildFallbackOutputDescriptorDeliverables(
       incompleteWorkItemIds,
     );
     const identityKey = readDeliverableIdentityKey(fallbackDeliverable);
-    if (!identityKey || visibleIdentityKeys.has(identityKey) || emittedKeys.has(identityKey)) {
+    if (!identityKey || emittedKeys.has(identityKey)) {
       continue;
     }
     fallbackDeliverables.push(fallbackDeliverable);
@@ -184,6 +193,14 @@ function composeFallbackDeliverableFromOutputDescriptor(
   workflowId: string,
   descriptor: MissionControlOutputDescriptor,
 ): WorkflowDeliverableRecord {
+  const contentPreview: Record<string, unknown> = {};
+  if (descriptor.summary) {
+    contentPreview.summary = descriptor.summary;
+  }
+  if (descriptor.producedByRole) {
+    contentPreview.source_role_name = descriptor.producedByRole;
+  }
+
   return {
     descriptor_id: buildFallbackOutputDescriptorId(descriptor),
     workflow_id: workflowId,
@@ -196,7 +213,7 @@ function composeFallbackDeliverableFromOutputDescriptor(
     preview_capabilities: {},
     primary_target: composeFallbackPrimaryTarget(descriptor),
     secondary_targets: [],
-    content_preview: descriptor.summary ? { summary: descriptor.summary } : {},
+    content_preview: contentPreview,
     source_brief_id: null,
     created_at: '',
     updated_at: '',
@@ -309,8 +326,110 @@ function isFinalOutputDescriptorStatus(status: MissionControlOutputDescriptor['s
   return status === 'approved' || status === 'final';
 }
 
+function mergeVisibleDeliverablesWithFallbacks(
+  visibleDeliverables: WorkflowDeliverableRecord[],
+  fallbackDeliverables: WorkflowDeliverableRecord[],
+): WorkflowDeliverableRecord[] {
+  const fallbackByIdentity = new Map<string, WorkflowDeliverableRecord>();
+  for (const deliverable of fallbackDeliverables) {
+    const identityKey = readDeliverableIdentityKey(deliverable);
+    if (!identityKey || fallbackByIdentity.has(identityKey)) {
+      continue;
+    }
+    fallbackByIdentity.set(identityKey, deliverable);
+  }
+
+  return visibleDeliverables.map((deliverable) => {
+    const identityKey = readDeliverableIdentityKey(deliverable);
+    if (!identityKey) {
+      return deliverable;
+    }
+    const fallback = fallbackByIdentity.get(identityKey);
+    if (!fallback) {
+      return deliverable;
+    }
+    if (shouldOverlayVisibleDeliverable(deliverable, fallback)) {
+      return overlayVisibleDeliverableWithFallback(deliverable, fallback);
+    }
+    return mergeVisibleDeliverableMetadata(deliverable, fallback);
+  });
+}
+
+function shouldOverlayVisibleDeliverable(
+  visibleDeliverable: WorkflowDeliverableRecord,
+  fallbackDeliverable: WorkflowDeliverableRecord,
+): boolean {
+  return isInlineSummaryPlaceholderDeliverable(visibleDeliverable)
+    && hasConcreteContentTarget(fallbackDeliverable);
+}
+
+function overlayVisibleDeliverableWithFallback(
+  visibleDeliverable: WorkflowDeliverableRecord,
+  fallbackDeliverable: WorkflowDeliverableRecord,
+): WorkflowDeliverableRecord {
+  const visiblePreview = asRecord(visibleDeliverable.content_preview);
+  const fallbackPreview = asRecord(fallbackDeliverable.content_preview);
+  return {
+    ...visibleDeliverable,
+    descriptor_id: fallbackDeliverable.descriptor_id,
+    descriptor_kind: fallbackDeliverable.descriptor_kind,
+    preview_capabilities: fallbackDeliverable.preview_capabilities,
+    primary_target: fallbackDeliverable.primary_target,
+    secondary_targets: fallbackDeliverable.secondary_targets,
+    content_preview: {
+      ...fallbackPreview,
+      ...visiblePreview,
+      source_role_name:
+        readOptionalString(visiblePreview.source_role_name)
+        ?? readOptionalString(fallbackPreview.source_role_name)
+        ?? null,
+    },
+    created_at: fallbackDeliverable.created_at,
+    updated_at: fallbackDeliverable.updated_at,
+  };
+}
+
+function mergeVisibleDeliverableMetadata(
+  visibleDeliverable: WorkflowDeliverableRecord,
+  fallbackDeliverable: WorkflowDeliverableRecord,
+): WorkflowDeliverableRecord {
+  const visiblePreview = asRecord(visibleDeliverable.content_preview);
+  const fallbackPreview = asRecord(fallbackDeliverable.content_preview);
+  const sourceRoleName =
+    readOptionalString(visiblePreview.source_role_name)
+    ?? readOptionalString(fallbackPreview.source_role_name);
+  if (!sourceRoleName) {
+    return visibleDeliverable;
+  }
+  return {
+    ...visibleDeliverable,
+    content_preview: {
+      ...visiblePreview,
+      source_role_name: sourceRoleName,
+    },
+  };
+}
+
+function isInlineSummaryPlaceholderDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  const primaryTarget = asRecord(deliverable.primary_target);
+  return readOptionalString(primaryTarget.target_kind) === 'inline_summary'
+    && readOptionalString(primaryTarget.path) !== null;
+}
+
+function hasConcreteContentTarget(deliverable: WorkflowDeliverableRecord): boolean {
+  const primaryTarget = asRecord(deliverable.primary_target);
+  return readOptionalString(primaryTarget.target_kind) !== 'inline_summary'
+    || readOptionalString(primaryTarget.artifact_id) !== null
+    || readOptionalString(primaryTarget.url) !== null
+    || readOptionalString(primaryTarget.repo_ref) !== null;
+}
+
 function readDeliverableIdentityKey(deliverable: WorkflowDeliverableRecord): string | null {
   const primaryTarget = asRecord(deliverable.primary_target);
+  const targetPath = normalizeDeliverableTargetPath(readOptionalString(primaryTarget.path));
+  if (targetPath) {
+    return `path:${targetPath}`;
+  }
   const artifactId = readOptionalString(primaryTarget.artifact_id);
   if (artifactId) {
     return `artifact:${artifactId}`;
@@ -318,10 +437,6 @@ function readDeliverableIdentityKey(deliverable: WorkflowDeliverableRecord): str
   const targetUrl = readOptionalString(primaryTarget.url);
   if (targetUrl) {
     return `url:${targetUrl}`;
-  }
-  const targetPath = readOptionalString(primaryTarget.path);
-  if (targetPath) {
-    return `path:${targetPath}`;
   }
   return null;
 }

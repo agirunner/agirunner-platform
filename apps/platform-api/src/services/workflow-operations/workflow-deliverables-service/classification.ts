@@ -2,6 +2,8 @@ import type { WorkflowDeliverableRecord } from '../../workflow-deliverables/work
 import type { WorkflowOperatorBriefRecord } from '../../workflow-operator/workflow-operator-brief-service.js';
 
 import {
+  deriveContentBackedDeliverableTitle,
+  isInternalReferenceDeliverable,
   isPacketLikeDeliverable,
   SYNTHETIC_DERIVED_DELIVERABLE_PREFIXES,
 } from './shared.js';
@@ -91,7 +93,7 @@ export function shouldExposeCurrentDeliverable(
   finalizedBriefIds: Set<string>,
   finalizedDescriptorIds: Set<string>,
 ): boolean {
-  if (isSupersededDeliverable(deliverable)) {
+  if (isSupersededDeliverable(deliverable) || isInternalReferenceDeliverable(deliverable)) {
     return false;
   }
 
@@ -151,18 +153,23 @@ export function normalizeDeliverableForPresentation(
   deliverable: WorkflowDeliverableRecord,
   incompleteWorkItemIds: Set<string>,
 ): WorkflowDeliverableRecord {
-  if (isSyntheticDerivedDeliverable(deliverable) || !isStoredFinalDeliverable(deliverable)) {
-    return deliverable;
+  const contentBackedTitle = deriveContentBackedDeliverableTitle(deliverable);
+  const presentedDeliverable = contentBackedTitle
+    ? { ...deliverable, title: contentBackedTitle }
+    : deliverable;
+
+  if (isSyntheticDerivedDeliverable(presentedDeliverable) || !isStoredFinalDeliverable(presentedDeliverable)) {
+    return presentedDeliverable;
   }
 
-  const workItemId = readOptionalString(deliverable.work_item_id);
+  const workItemId = readOptionalString(presentedDeliverable.work_item_id);
   if (!workItemId || !incompleteWorkItemIds.has(workItemId)) {
-    return deliverable;
+    return presentedDeliverable;
   }
 
   return {
-    ...deliverable,
+    ...presentedDeliverable,
     delivery_stage: 'in_progress',
-    state: normalizeIncompleteDeliverableState(readOptionalString(deliverable.state)),
+    state: normalizeIncompleteDeliverableState(readOptionalString(presentedDeliverable.state)),
   };
 }

@@ -179,36 +179,22 @@ describe('WorkflowDeliverablesService', () => {
     );
 
     const workflowScope = await service.getDeliverables('tenant-1', 'workflow-1');
-    expect(workflowScope.final_deliverables).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          descriptor_id: 'deliverable-workflow-rollup-impl',
-          work_item_id: null,
-        }),
-        expect.objectContaining({
-          descriptor_id: 'deliverable-work-item-impl',
-          work_item_id: 'work-item-impl',
-        }),
-      ]),
-    );
-    expect(workflowScope.final_deliverables).toHaveLength(2);
+    expect(workflowScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-workflow-rollup-impl',
+        work_item_id: null,
+      }),
+    ]);
 
     const workItemScope = await service.getDeliverables('tenant-1', 'workflow-1', {
       workItemId: 'work-item-impl',
     });
-    expect(workItemScope.final_deliverables).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          descriptor_id: 'deliverable-work-item-impl',
-          work_item_id: 'work-item-impl',
-        }),
-        expect.objectContaining({
-          descriptor_id: 'deliverable-workflow-rollup-impl',
-          work_item_id: null,
-        }),
-      ]),
-    );
-    expect(workItemScope.final_deliverables).toHaveLength(2);
+    expect(workItemScope.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-work-item-impl',
+        work_item_id: 'work-item-impl',
+      }),
+    ]);
   });
 
   it('normalizes deprecated artifact preview targets on stored deliverables', async () => {
@@ -392,4 +378,3 @@ describe('WorkflowDeliverablesService', () => {
   });
 
 });
-

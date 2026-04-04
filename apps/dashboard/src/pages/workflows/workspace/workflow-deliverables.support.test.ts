@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   hasMeaningfulDeliverableTarget,
   isInPlaceArtifactPreviewTarget,
+  normalizeDeliverableRecord,
+  readDeliverableIdentityKey,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
@@ -132,5 +134,50 @@ describe('workflow deliverables support', () => {
     expect(resolveDeliverableTargetAction(normalized)).toEqual({
       action_kind: 'inline_reference',
     });
+  });
+
+  it('uses logical inline-summary identity keys for repeated summaries in the same scope', () => {
+    const first = normalizeDeliverableRecord({
+      descriptor_id: 'inline-summary-a',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      descriptor_kind: 'inline_summary',
+      delivery_stage: 'in_progress',
+      title: 'Inline decision summary',
+      state: 'approved',
+      primary_target: {
+        target_kind: 'inline_summary',
+        label: 'Inline decision summary',
+        url: '',
+      },
+      secondary_targets: [],
+      content_preview: {
+        text: 'Final analysis:\nKeep the approval package aligned.',
+      },
+      created_at: '2026-04-03T12:59:20.000Z',
+      updated_at: '2026-04-03T12:59:20.000Z',
+    }, 0);
+    const second = normalizeDeliverableRecord({
+      descriptor_id: 'inline-summary-b',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      descriptor_kind: 'inline_summary',
+      delivery_stage: 'in_progress',
+      title: 'Inline decision summary',
+      state: 'approved',
+      primary_target: {
+        target_kind: 'inline_summary',
+        label: 'Inline decision summary',
+        url: '',
+      },
+      secondary_targets: [],
+      content_preview: {
+        text: 'Previous analysis:\nInitial framing note before the final revision.',
+      },
+      created_at: '2026-03-31T00:05:26.000Z',
+      updated_at: '2026-03-31T00:05:26.000Z',
+    }, 1);
+
+    expect(readDeliverableIdentityKey(first)).toBe(readDeliverableIdentityKey(second));
   });
 });

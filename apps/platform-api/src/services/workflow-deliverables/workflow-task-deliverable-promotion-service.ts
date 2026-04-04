@@ -207,6 +207,9 @@ function buildPromotedDeliverableInput(
     secondaryTargets: artifactTargets.slice(1),
     contentPreview: {
       summary: previewSummary,
+      source_role_name: readOptionalString(handoff.role)
+        ? humanizeToken(handoff.role ?? '')
+        : null,
     },
   };
 }

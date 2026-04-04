@@ -241,6 +241,153 @@ describe('WorkflowBottomWorkbench deliverables', () => {
     expect(html).not.toContain('Open artifact in new tab');
   });
 
+  it('renders artifact rows for primary and secondary deliverable targets and shows the specialist source', () => {
+    const packet = createPacket();
+    const html = renderWorkbench({
+      packet: {
+        ...packet,
+        bottom_tabs: {
+          ...packet.bottom_tabs,
+          counts: {
+            ...packet.bottom_tabs.counts,
+            deliverables: 1,
+          },
+        },
+        deliverables: {
+          ...packet.deliverables,
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-synthesis',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'Final Research Synthesis Audit Export Workflow',
+              state: 'final',
+              summary_brief: 'Verified synthesis ready for operator review.',
+              preview_capabilities: {
+                can_inline_preview: true,
+                can_download: true,
+              },
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+                path: 'artifact:workflow-1/final-research-synthesis-audit-export-workflow.md',
+                artifact_id: 'artifact-1',
+              },
+              secondary_targets: [
+                {
+                  target_kind: 'artifact',
+                  label: 'Artifact',
+                  url: '/api/v1/tasks/task-2/artifacts/artifact-2/preview',
+                  path: 'artifact:workflow-1/research-framing-brief.md',
+                  artifact_id: 'artifact-2',
+                },
+              ],
+              content_preview: {
+                summary: 'Verified synthesis ready for operator review.',
+                source_role_name: 'Research Analyst',
+              },
+              source_brief_id: null,
+              created_at: '2026-04-03T23:36:09.131Z',
+              updated_at: '2026-04-03T23:36:09.131Z',
+            },
+          ],
+        },
+      },
+      activeTab: 'deliverables',
+    });
+
+    expect(html).toContain('Final Research Synthesis Audit Export Workflow');
+    expect(html).toContain('Research Analyst');
+    expect(html).toContain('final-research-synthesis-audit-export-workflow.md');
+    expect(html).toContain('research-framing-brief.md');
+  });
+
+  it('deduplicates workflow rollup rows that point back to the same work-item deliverable', () => {
+    const packet = createPacket();
+    const html = renderWorkbench({
+      packet: {
+        ...packet,
+        bottom_tabs: {
+          ...packet.bottom_tabs,
+          counts: {
+            ...packet.bottom_tabs.counts,
+            deliverables: 2,
+          },
+        },
+        deliverables: {
+          ...packet.deliverables,
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-source',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'artifact',
+              delivery_stage: 'final',
+              title: 'Research Framing Brief',
+              state: 'final',
+              summary_brief: 'Frame the research question.',
+              preview_capabilities: {
+                can_inline_preview: true,
+              },
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+                path: 'artifact:workflow-1/research-framing-brief.md',
+                artifact_id: 'artifact-1',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Frame the research question.',
+                source_role_name: 'Research Analyst',
+              },
+              source_brief_id: null,
+              created_at: '2026-04-03T23:36:09.131Z',
+              updated_at: '2026-04-03T23:36:09.131Z',
+            },
+            {
+              descriptor_id: 'deliverable-rollup',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'Final Research Synthesis Audit Export Workflow',
+              state: 'final',
+              summary_brief: 'Workflow rollup replay of the same artifact.',
+              preview_capabilities: {
+                can_inline_preview: true,
+              },
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+                path: 'artifact:workflow-1/research-framing-brief.md',
+                artifact_id: 'artifact-1',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Workflow rollup replay of the same artifact.',
+                source_role_name: 'Research Analyst',
+                rollup_source_work_item_id: 'work-item-1',
+              },
+              source_brief_id: null,
+              created_at: '2026-04-03T23:37:09.131Z',
+              updated_at: '2026-04-03T23:37:09.131Z',
+            },
+          ],
+        },
+      },
+      activeTab: 'deliverables',
+    });
+
+    expect((html.match(/Research Framing Brief/g) ?? []).length).toBe(1);
+    expect(html).not.toContain('Final Research Synthesis Audit Export Workflow');
+    expect((html.match(/>Download</g) ?? []).length).toBe(1);
+  });
+
   it('does not revive a standalone history tab even when briefs and history packets are both populated', () => {
     const packet = {
       ...createPacket(),

@@ -70,7 +70,12 @@ describe('WorkflowWorkspaceService', () => {
     };
     const deliverablesService = {
       getDeliverables: vi.fn(async () => ({
-        final_deliverables: [{ descriptor_id: 'deliverable-1', title: 'Release Notes' }],
+        final_deliverables: [{
+          descriptor_id: 'deliverable-1',
+          title: 'Release Notes',
+          delivery_stage: 'final',
+          state: 'final',
+        }],
         in_progress_deliverables: [],
         working_handoffs: [],
         inputs_and_provenance: {
@@ -80,7 +85,12 @@ describe('WorkflowWorkspaceService', () => {
           redrive_packet: null,
         },
         next_cursor: null,
-        all_deliverables: [{ descriptor_id: 'deliverable-1', title: 'Release Notes' }],
+        all_deliverables: [{
+          descriptor_id: 'deliverable-1',
+          title: 'Release Notes',
+          delivery_stage: 'final',
+          state: 'final',
+        }],
       })),
     };
     const briefsService = {

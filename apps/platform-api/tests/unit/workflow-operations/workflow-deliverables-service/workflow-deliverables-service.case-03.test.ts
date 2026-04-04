@@ -59,6 +59,248 @@ describe('WorkflowDeliverablesService', () => {
     );
   });
 
+  it('prefers a synthesized workflow document over a packet row with the same artifact path', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision scope completion packet',
+          state: 'final',
+          summary_brief: 'Framed the research question and decision scope.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/deliverables/research-framing.md',
+            artifact_id: 'artifact-1',
+            url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Framed the research question and decision scope.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:20:00.000Z',
+          updated_at: '2026-04-03T23:20:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const documentService = {
+      listWorkflowDocuments: vi.fn(async () => [
+        {
+          logical_name: 'research-framing',
+          scope: 'workflow',
+          source: 'artifact',
+          title: 'Research framing',
+          description: 'Framed the research question and decision scope.',
+          metadata: {},
+          created_at: '2026-04-03T23:20:30.000Z',
+          artifact: {
+            id: 'artifact-1',
+            task_id: 'task-1',
+            logical_path: 'deliverables/research-framing.md',
+            content_type: 'text/markdown',
+            download_url: '/api/v1/tasks/task-1/artifact-catalog/artifact-1',
+          },
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      undefined,
+      documentService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'workflow-document:research-framing',
+        title: 'Research framing',
+        descriptor_kind: 'workflow_document',
+      }),
+    ]);
+    expect(result.final_deliverables).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'deliverable-packet-1',
+        }),
+      ]),
+    );
+  });
+
+  it('derives a content title from an artifact-backed packet when no workflow document exists', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision scope completion packet',
+          state: 'final',
+          summary_brief: 'Framed the research question and decision scope.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/deliverables/question-framing-audit-export-workflow.md',
+            artifact_id: 'artifact-1',
+            url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Framed the research question and decision scope.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:21:00.000Z',
+          updated_at: '2026-04-03T23:21:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-packet-1',
+        title: 'Question Framing Audit Export Workflow',
+      }),
+    ]);
+  });
+
+  it('hides internal task and work-item reference placeholders from deliverables', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'work-item-placeholder',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'in_progress',
+          title: 'Question-framing work item',
+          state: 'draft',
+          summary_brief: null,
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Question-framing work item',
+            path: 'work_item:work-item-1',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Path: work_item:work-item-1',
+          },
+          source_brief_id: 'brief-1',
+          created_at: '2026-04-03T23:22:00.000Z',
+          updated_at: '2026-04-03T23:22:00.000Z',
+        },
+        {
+          descriptor_id: 'task-placeholder',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'in_progress',
+          title: 'Research Analyst starter task',
+          state: 'draft',
+          summary_brief: null,
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Research Analyst starter task',
+            path: 'task:task-1',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Path: task:task-1',
+          },
+          source_brief_id: 'brief-1',
+          created_at: '2026-04-03T23:22:01.000Z',
+          updated_at: '2026-04-03T23:22:01.000Z',
+        },
+        {
+          descriptor_id: 'artifact-deliverable',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Frame the research question and decision scope completion packet',
+          state: 'final',
+          summary_brief: 'Framed the research question and decision scope.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/deliverables/research-framing.md',
+            artifact_id: 'artifact-1',
+            url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Framed the research question and decision scope.',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-03T23:22:02.000Z',
+          updated_at: '2026-04-03T23:22:02.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'artifact-deliverable',
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.all_deliverables).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ descriptor_id: 'work-item-placeholder' }),
+        expect.objectContaining({ descriptor_id: 'task-placeholder' }),
+      ]),
+    );
+  });
+
   it('paginates deliverables and exposes the next cursor', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [

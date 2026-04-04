@@ -18,6 +18,19 @@ export interface DeliverableMetadataEntry {
   value: string;
 }
 
+export function readDeliverableRowSpecialist(row: DeliverableTableRowRecord): string | null {
+  const preview = asRecord(row.deliverable.content_preview);
+  return (
+    readText(preview.source_role_name) ??
+    readProducedByLine(
+      readText(preview.summary),
+      readText(preview.text),
+      readText(preview.snippet),
+      readText(preview.markdown),
+    )
+  );
+}
+
 export function readDeliverableRowLabel(row: DeliverableTableRowRecord): string | null {
   const trimmed = readText(row.browserRow.label);
   if (!trimmed) {
@@ -77,4 +90,24 @@ function readText(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readProducedByLine(...values: Array<string | null>): string | null {
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+    const matchedLine = value.match(/(?:^|\n)\s*Produced by:\s*(.+?)\s*(?:\n|$)/i);
+    if (matchedLine?.[1]) {
+      return readText(matchedLine[1]);
+    }
+  }
+  return null;
 }

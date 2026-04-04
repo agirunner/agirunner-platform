@@ -9,6 +9,10 @@ import type {
   DashboardWorkflowRailRow,
   DashboardWorkflowWorkspacePacket,
 } from '../../lib/api.js';
+import {
+  normalizeDeliverableRecord,
+  readDeliverableIdentityKey,
+} from './workspace/workflow-deliverables.support.js';
 
 export function applyRailStreamBatch(
   packet:
@@ -243,25 +247,59 @@ function upsertDeliverable(
   deliverables: DashboardWorkflowWorkspacePacket['deliverables'],
   payload: unknown,
 ): DashboardWorkflowWorkspacePacket['deliverables'] {
-  const record = readRecord(payload) as DashboardWorkflowDeliverableRecord | null;
-  if (!record?.descriptor_id) {
+  const rawRecord = readRecord(payload);
+  if (!rawRecord?.descriptor_id) {
     return deliverables;
   }
-
-  const finalDeliverables = removeDeliverableById(deliverables.final_deliverables, record.descriptor_id);
-  const inProgressDeliverables = removeDeliverableById(deliverables.in_progress_deliverables, record.descriptor_id);
-  if (record.delivery_stage === 'final' || record.state === 'final') {
-    return {
-      ...deliverables,
-      final_deliverables: sortDeliverables([record, ...finalDeliverables]),
-      in_progress_deliverables: inProgressDeliverables,
-    };
-  }
+  const record = normalizeDeliverableRecord(payload, 0);
+  const mergedRows = deduplicateDeliverables([
+    record,
+    ...removeDeliverableById(deliverables.final_deliverables, record.descriptor_id),
+    ...removeDeliverableById(deliverables.in_progress_deliverables, record.descriptor_id),
+  ]);
   return {
     ...deliverables,
-    final_deliverables: finalDeliverables,
-    in_progress_deliverables: sortDeliverables([record, ...inProgressDeliverables]),
+    final_deliverables: mergedRows.filter(isFinalDeliverableRecord),
+    in_progress_deliverables: mergedRows.filter((entry) => !isFinalDeliverableRecord(entry)),
   };
+}
+
+function deduplicateDeliverables(
+  rows: DashboardWorkflowDeliverableRecord[],
+): DashboardWorkflowDeliverableRecord[] {
+  const preferredByIdentity = new Map<string, DashboardWorkflowDeliverableRecord>();
+
+  for (const row of rows) {
+    const identityKey = readDeliverableIdentityKey(row);
+    const current = preferredByIdentity.get(identityKey);
+    if (!current || compareDeliverablePriority(row, current) < 0) {
+      preferredByIdentity.set(identityKey, row);
+    }
+  }
+
+  return sortDeliverables([...preferredByIdentity.values()]);
+}
+
+function compareDeliverablePriority(
+  left: DashboardWorkflowDeliverableRecord,
+  right: DashboardWorkflowDeliverableRecord,
+): number {
+  return (
+    readDeliverableScopeRank(right) - readDeliverableScopeRank(left) ||
+    compareTimestamps(
+      right.updated_at ?? right.created_at,
+      left.updated_at ?? left.created_at,
+    ) ||
+    right.descriptor_id.localeCompare(left.descriptor_id)
+  );
+}
+
+function readDeliverableScopeRank(record: DashboardWorkflowDeliverableRecord): number {
+  return record.work_item_id ? 1 : 0;
+}
+
+function isFinalDeliverableRecord(record: DashboardWorkflowDeliverableRecord): boolean {
+  return record.delivery_stage === 'final' || record.state === 'final';
 }
 
 function upsertRailRow(

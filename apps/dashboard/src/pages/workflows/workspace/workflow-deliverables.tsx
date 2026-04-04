@@ -16,11 +16,13 @@ import {
   readDeliverableRowLabel,
   readDeliverableRowMetadata,
   readDeliverableRowOpenHref,
+  readDeliverableRowSpecialist,
   type DeliverableMetadataEntry,
   type DeliverableTableRowRecord,
 } from './workflow-deliverable-row-display.js';
 import {
   normalizeDeliverablesPacket,
+  readDeliverableIdentityKey,
 } from './workflow-deliverables.support.js';
 import {
   WorkflowDeliverableDownloadButton,
@@ -70,23 +72,21 @@ export function WorkflowDeliverables(props: {
           data-workflows-deliverables-scroll-region="true"
           className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/70 bg-background/70"
         >
-          <table className="w-full min-w-[1120px] border-collapse text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
             <colgroup>
-              <col className="w-[26%]" />
+              <col className="w-[42%]" />
+              <col className="w-[14%]" />
               <col className="w-[10%]" />
               <col className="w-[10%]" />
-              <col className="w-[8%]" />
-              <col className="w-[28%]" />
+              <col className="w-[14%]" />
               <col className="w-[10%]" />
-              <col className="w-[8%]" />
             </colgroup>
             <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Deliverable</th>
+                <th className="px-3 py-2 text-left font-medium">Specialist</th>
                 <th className="px-3 py-2 text-left font-medium">Stage</th>
                 <th className="px-3 py-2 text-left font-medium">Kind</th>
-                <th className="px-3 py-2 text-left font-medium">Scope</th>
-                <th className="px-3 py-2 text-left font-medium">Target</th>
                 <th className="px-3 py-2 text-left font-medium">Recorded</th>
                 <th className="px-3 py-2 text-right font-medium">Action</th>
               </tr>
@@ -99,7 +99,6 @@ export function WorkflowDeliverables(props: {
                     key={row.key}
                     row={row}
                     isSelected={isSelected}
-                    scopeKind={props.scope.scopeKind}
                     onToggle={() =>
                       setSelectedRowKey((current) => (current === row.key ? null : row.key))
                     }
@@ -129,20 +128,14 @@ export function WorkflowDeliverables(props: {
 function DeliverableTableEntry(props: {
   row: DeliverableTableRow;
   isSelected: boolean;
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'];
   onToggle(): void;
 }): JSX.Element {
   const { deliverable, browserRow } = props.row;
   const stageLabel = deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
   const createdLabel = formatEntryTimestamp(browserRow.createdAt) ?? '—';
-  const scopeLabel =
-    props.scopeKind === 'workflow'
-      ? deliverable.work_item_id
-        ? 'Work item'
-        : 'Workflow'
-      : 'Work item';
   const rowLabel = readDeliverableRowLabel(props.row);
   const metadata = readDeliverableRowMetadata(props.row);
+  const specialistLabel = readDeliverableRowSpecialist(props.row) ?? '—';
   const openHref = readDeliverableRowOpenHref(props.row);
   const canPreview = browserRow.rowKind !== 'reference' && browserRow.canView;
   const previewLabel = browserRow.rowKind === 'inline' ? rowLabel : null;
@@ -155,16 +148,14 @@ function DeliverableTableEntry(props: {
           <div className="grid gap-1">
             <p className="font-medium text-foreground">{deliverable.title}</p>
             {visibleRowLabel ? <p className="text-xs text-foreground/80">{visibleRowLabel}</p> : null}
+            {metadata.length > 0 ? <DeliverableMetadataList entries={metadata} /> : null}
           </div>
         </td>
+        <td className="px-3 py-3 align-top text-muted-foreground">{specialistLabel}</td>
         <td className="px-3 py-3 align-top">
           <Badge variant="secondary">{stageLabel}</Badge>
         </td>
         <td className="px-3 py-3 align-top text-muted-foreground">{browserRow.typeLabel}</td>
-        <td className="px-3 py-3 align-top text-muted-foreground">{scopeLabel}</td>
-        <td className="px-3 py-3 align-top">
-          <DeliverableMetadataList entries={metadata} />
-        </td>
         <td className="px-3 py-3 align-top text-muted-foreground">{createdLabel}</td>
         <td className="px-3 py-3 align-top">
           <div className="flex justify-end gap-2">
@@ -199,7 +190,7 @@ function DeliverableTableEntry(props: {
 
       {props.isSelected && canPreview ? (
         <tr className="border-t border-border/40 bg-muted/10">
-          <td colSpan={7} className="px-4 py-4">
+          <td colSpan={6} className="px-4 py-4">
             <WorkflowDeliverablePreview row={browserRow} previewLabel={previewLabel} />
           </td>
         </tr>
@@ -309,9 +300,14 @@ function compareDeliverablePreference(
   right: DashboardWorkflowDeliverableRecord,
 ): number {
   return (
+    readDeliverableScopeRank(left) - readDeliverableScopeRank(right) ||
     readDeliverableRichnessRank(left) - readDeliverableRichnessRank(right) ||
     right.descriptor_id.localeCompare(left.descriptor_id)
   );
+}
+
+function readDeliverableScopeRank(deliverable: DashboardWorkflowDeliverableRecord): number {
+  return deliverable.work_item_id ? 0 : 1;
 }
 
 function readStageWeight(deliverable: DashboardWorkflowDeliverableRecord): number {
@@ -340,21 +336,6 @@ function readDeliverableRichnessRank(deliverable: DashboardWorkflowDeliverableRe
     score += 1;
   }
   return -score;
-}
-
-function readDeliverableIdentityKey(deliverable: DashboardWorkflowDeliverableRecord): string {
-  const scopeKey = deliverable.work_item_id ?? 'workflow';
-  const target = deliverable.primary_target;
-  if (target.artifact_id) {
-    return `${scopeKey}:artifact:${target.artifact_id}`;
-  }
-  if (target.url) {
-    return `${scopeKey}:url:${target.url}`;
-  }
-  if (target.path) {
-    return `${scopeKey}:path:${target.path}`;
-  }
-  return `${scopeKey}:descriptor:${deliverable.descriptor_id}`;
 }
 
 function readTimestamp(value: string): number {
@@ -396,8 +377,4 @@ function readText(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function humanizeToken(value: string): string {
-  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

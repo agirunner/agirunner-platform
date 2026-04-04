@@ -284,7 +284,7 @@ function normalizeDeliverableRecords(value: unknown): DashboardWorkflowDeliverab
   return value.map((entry, index) => normalizeDeliverableRecord(entry, index));
 }
 
-function normalizeDeliverableRecord(
+export function normalizeDeliverableRecord(
   value: unknown,
   index: number,
 ): DashboardWorkflowDeliverableRecord {
@@ -309,6 +309,36 @@ function normalizeDeliverableRecord(
   };
 }
 
+export function readDeliverableIdentityKey(record: DashboardWorkflowDeliverableRecord): string {
+  const scopeKey = readDeliverableScopeKey(record);
+  const target = record.primary_target;
+  if (target.artifact_id) {
+    return `${scopeKey}:artifact:${target.artifact_id}`;
+  }
+  if (target.url) {
+    return `${scopeKey}:url:${target.url}`;
+  }
+  const normalizedPath = normalizeDeliverableIdentityPath(target.path);
+  if (normalizedPath) {
+    return `${scopeKey}:path:${normalizedPath}`;
+  }
+  const inlineSummaryIdentity = readInlineSummaryIdentity(record);
+  if (inlineSummaryIdentity) {
+    return `${scopeKey}:inline:${inlineSummaryIdentity}`;
+  }
+  const inlineContentIdentity = readInlineContentIdentity(record);
+  if (inlineContentIdentity) {
+    return `${scopeKey}:content:${inlineContentIdentity}`;
+  }
+  return `${scopeKey}:descriptor:${record.descriptor_id}`;
+}
+
+export function readDeliverableScopeKey(record: DashboardWorkflowDeliverableRecord): string {
+  return record.work_item_id
+    ?? readDeliverableRollupSourceWorkItemId(record)
+    ?? 'workflow';
+}
+
 function normalizeDeliverableContentPreview(value: unknown): Record<string, unknown> {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -322,6 +352,58 @@ function normalizeBriefRecords(value: unknown): DashboardWorkflowOperatorBriefRe
     return [];
   }
   return value.map((entry, index) => normalizeBriefRecord(entry, index));
+}
+
+function readDeliverableRollupSourceWorkItemId(
+  record: DashboardWorkflowDeliverableRecord,
+): string | null {
+  return readOptionalTargetText(asRecord(record.content_preview).rollup_source_work_item_id);
+}
+
+function normalizeDeliverableIdentityPath(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return trimmed.replace(/^artifact:[^/]+\//, '');
+}
+
+function readInlineContentIdentity(record: DashboardWorkflowDeliverableRecord): string | null {
+  const content = readInlineContent(record);
+  if (!content) {
+    return null;
+  }
+  return [
+    record.title.trim().toLowerCase(),
+    content,
+  ].join('|');
+}
+
+function readInlineSummaryIdentity(record: DashboardWorkflowDeliverableRecord): string | null {
+  const target = sanitizeDeliverableTarget(record.primary_target);
+  if (target.target_kind !== 'inline_summary') {
+    return null;
+  }
+  if (!readInlineContent(record)) {
+    return null;
+  }
+  return [
+    record.title.trim().toLowerCase(),
+    target.label.trim().toLowerCase(),
+  ].join('|');
+}
+
+function readInlineContent(record: DashboardWorkflowDeliverableRecord): string | null {
+  const preview = asRecord(record.content_preview);
+  return (
+    readOptionalTargetText(preview.markdown)
+    ?? readOptionalTargetText(preview.text)
+    ?? readOptionalTargetText(preview.snippet)
+    ?? readOptionalTargetText(preview.summary)
+  );
 }
 
 function normalizeBriefRecord(value: unknown, index: number): DashboardWorkflowOperatorBriefRecord {
