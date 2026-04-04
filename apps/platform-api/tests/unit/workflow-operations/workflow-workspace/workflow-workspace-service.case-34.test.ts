@@ -192,7 +192,8 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.deliverables.final_deliverables).toHaveLength(1);
     expect(result.deliverables.final_deliverables[0]).toEqual(
       expect.objectContaining({
-        descriptor_id: 'descriptor-1',
+        descriptor_kind: 'artifact',
+        title: 'Package release completion packet',
         primary_target: expect.objectContaining({
           artifact_id: 'artifact-1',
         }),
