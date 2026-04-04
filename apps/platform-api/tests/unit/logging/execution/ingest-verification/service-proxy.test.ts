@@ -116,11 +116,10 @@ describe('Logging E2E Verification - service proxy', () => {
   });
 
   it('durationMsIsCapturedOnSuccess', async () => {
+    const performanceNow = vi.spyOn(performance, 'now');
+    performanceNow.mockReturnValueOnce(100).mockReturnValueOnce(112);
     const service = {
-      createWorkflow: vi.fn().mockImplementation(async () => {
-        await new Promise((r) => setTimeout(r, 10));
-        return { id: 'wf-1', name: 'Build Pipeline' };
-      }),
+      createWorkflow: vi.fn().mockResolvedValue({ id: 'wf-1', name: 'Build Pipeline' }),
     };
     const wrapped = createLoggedService(service, 'WorkflowService', logService);
 
@@ -128,7 +127,7 @@ describe('Logging E2E Verification - service proxy', () => {
     await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
     const logRow = pool.rows[0];
-    expect(logRow.duration_ms).toBeGreaterThanOrEqual(10);
+    expect(logRow.duration_ms).toBe(12);
   });
 
   it('ignoredMethodsDoNotProduceLogs', async () => {
