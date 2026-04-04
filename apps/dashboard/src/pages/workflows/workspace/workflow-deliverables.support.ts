@@ -311,26 +311,27 @@ export function normalizeDeliverableRecord(
 
 export function readDeliverableIdentityKey(record: DashboardWorkflowDeliverableRecord): string {
   const scopeKey = readDeliverableScopeKey(record);
+  const stageKey = readDeliverableStageKey(record);
   const target = record.primary_target;
   const normalizedPath = normalizeDeliverableIdentityPath(target.path);
   if (normalizedPath) {
-    return `${scopeKey}:path:${normalizedPath}`;
+    return `${scopeKey}:stage:${stageKey}:path:${normalizedPath}`;
   }
   if (target.artifact_id) {
-    return `${scopeKey}:artifact:${target.artifact_id}`;
+    return `${scopeKey}:stage:${stageKey}:artifact:${target.artifact_id}`;
   }
   if (target.url) {
-    return `${scopeKey}:url:${target.url}`;
+    return `${scopeKey}:stage:${stageKey}:url:${target.url}`;
   }
   const inlineSummaryIdentity = readInlineSummaryIdentity(record);
   if (inlineSummaryIdentity) {
-    return `${scopeKey}:inline:${inlineSummaryIdentity}`;
+    return `${scopeKey}:stage:${stageKey}:inline:${inlineSummaryIdentity}`;
   }
   const inlineContentIdentity = readInlineContentIdentity(record);
   if (inlineContentIdentity) {
-    return `${scopeKey}:content:${inlineContentIdentity}`;
+    return `${scopeKey}:stage:${stageKey}:content:${inlineContentIdentity}`;
   }
-  return `${scopeKey}:descriptor:${record.descriptor_id}`;
+  return `${scopeKey}:stage:${stageKey}:descriptor:${record.descriptor_id}`;
 }
 
 export function readDeliverableScopeKey(record: DashboardWorkflowDeliverableRecord): string {
@@ -369,6 +370,11 @@ function normalizeDeliverableIdentityPath(value: string | null | undefined): str
     return null;
   }
   return trimmed.replace(/^artifact:[^/]+\//, '');
+}
+
+function readDeliverableStageKey(record: DashboardWorkflowDeliverableRecord): string {
+  const stage = record.delivery_stage.trim().toLowerCase();
+  return stage.length > 0 ? stage : 'unknown';
 }
 
 function readInlineContentIdentity(record: DashboardWorkflowDeliverableRecord): string | null {

@@ -202,3 +202,34 @@ test('keeps a single table visible while inline previews open below the selected
   await expect(workbench.getByRole('table')).toHaveCount(1);
   await expect(workbench.getByText('Architecture brief')).toBeVisible();
 });
+
+test('keeps interim and final rows for the same logical file visible without leaking internal artifact plumbing', async ({ page }) => {
+  await seedWorkflowDeliverablesScenario();
+  await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery', {
+    includeStageRetainedScopeMap: true,
+  });
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
+
+  const deliverablesTable = workbench.getByRole('table').first();
+  const interimRow = deliverablesTable.getByRole('row', { name: /Initial scope map/ }).first();
+  const finalRow = deliverablesTable
+    .getByRole('row', {
+      name: /Map review scope for finance workspace access review and audit export handling completion packet/,
+    })
+    .first();
+
+  await expect(interimRow).toBeVisible();
+  await expect(finalRow).toBeVisible();
+  await expect(interimRow).toContainText('finance-workspace-scope-map.md');
+  await expect(finalRow).toContainText('finance-workspace-scope-map.md');
+  await expect(interimRow).toContainText('Policy Analyst');
+  await expect(finalRow).toContainText('Policy Analyst');
+  await expect(interimRow.locator('td').nth(4)).not.toHaveText('—');
+  await expect(finalRow.locator('td').nth(4)).not.toHaveText('—');
+  await expect(workbench.getByText('artifact:workflow-1/deliverables/finance-workspace-scope-map.md')).toHaveCount(0);
+  await expect(workbench.getByText('/api/v1/tasks/seeded-scope-map-task/artifacts/seeded-scope-map-artifact/preview')).toHaveCount(0);
+});

@@ -16,6 +16,7 @@ import {
   readDeliverableRowLabel,
   readDeliverableRowMetadata,
   readDeliverableRowOpenHref,
+  readDeliverableRowRecordedAt,
   readDeliverableRowSpecialist,
   type DeliverableMetadataEntry,
   type DeliverableTableRowRecord,
@@ -46,7 +47,7 @@ export function WorkflowDeliverables(props: {
     props.scope.scopeKind,
     props.selectedWorkItemId,
   );
-  const tableRows = buildDeliverableTableRows(scopedDeliverables);
+  const tableRows = buildDeliverableTableRows(scopedDeliverables, packet);
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
 
   return (
@@ -132,14 +133,14 @@ function DeliverableTableEntry(props: {
 }): JSX.Element {
   const { deliverable, primaryRow } = props.row;
   const stageLabel = deliverable.delivery_stage === 'final' ? 'Final' : 'Interim';
-  const createdLabel = formatEntryTimestamp(primaryRow.createdAt) ?? '—';
+  const createdLabel = formatEntryTimestamp(readDeliverableRowRecordedAt(props.row) ?? '') ?? '—';
   const rowLabel = readDeliverableRowLabel(props.row);
   const metadata = readDeliverableRowMetadata(props.row);
   const specialistLabel = readDeliverableRowSpecialist(props.row) ?? '—';
   const openHref = readDeliverableRowOpenHref(props.row);
   const canPreview = primaryRow.rowKind !== 'reference' && primaryRow.canView;
   const previewLabel = primaryRow.rowKind === 'inline' ? rowLabel : null;
-  const visibleRowLabel = previewLabel ? null : rowLabel;
+  const visibleRowLabel = rowLabel;
 
   return (
     <>
@@ -227,8 +228,12 @@ function buildScopedDeliverables(
 
 function buildDeliverableTableRows(
   deliverables: DashboardWorkflowDeliverableRecord[],
+  packet: DashboardWorkflowDeliverablesPacket,
 ): DeliverableTableRow[] {
   const rows: DeliverableTableRow[] = [];
+  const sourceBriefById = new Map(
+    packet.working_handoffs.map((brief) => [brief.id, brief] as const),
+  );
 
   for (const deliverable of deliverables) {
     const browserRows = buildBrowserRows(deliverable);
@@ -241,6 +246,9 @@ function buildDeliverableTableRows(
       deliverable,
       primaryRow,
       relatedRows,
+      sourceBrief: deliverable.source_brief_id
+        ? sourceBriefById.get(deliverable.source_brief_id) ?? null
+        : null,
     });
   }
 

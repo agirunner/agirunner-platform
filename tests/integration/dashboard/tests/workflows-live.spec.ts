@@ -33,7 +33,7 @@ test('redirects into Workflows and defaults the workbench by workflow posture', 
   await expect(
     page.getByText('Showing all deliverables recorded across this workflow'),
   ).toBeVisible();
-  await expect(page.locator('p').filter({ hasText: /^Final$/ }).first()).toBeVisible();
+  await expect(page.getByRole('table').first().getByText(/^Final$/).first()).toBeVisible();
 
 });
 

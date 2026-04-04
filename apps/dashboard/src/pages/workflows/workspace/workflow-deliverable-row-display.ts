@@ -1,9 +1,11 @@
 import type {
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverableTarget,
+  DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
 import type { DeliverableBrowserRow } from './workflow-deliverable-browser-support.js';
 import {
+  isInPlaceArtifactPreviewTarget,
   readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
@@ -13,6 +15,7 @@ export interface DeliverableTableRowRecord {
   deliverable: DashboardWorkflowDeliverableRecord;
   primaryRow: DeliverableBrowserRow;
   relatedRows: DeliverableBrowserRow[];
+  sourceBrief?: DashboardWorkflowOperatorBriefRecord | null;
 }
 
 export interface DeliverableMetadataEntry {
@@ -24,6 +27,7 @@ export function readDeliverableRowSpecialist(row: DeliverableTableRowRecord): st
   const preview = asRecord(row.deliverable.content_preview);
   return (
     readText(preview.source_role_name) ??
+    readText(row.sourceBrief?.source_role_name) ??
     readProducedByLine(
       readText(preview.summary),
       readText(preview.text),
@@ -39,6 +43,10 @@ export function readDeliverableRowLabel(row: DeliverableTableRowRecord): string 
     return null;
   }
   return trimmed === row.deliverable.title ? null : trimmed;
+}
+
+export function readDeliverableRowRecordedAt(row: DeliverableTableRowRecord): string | null {
+  return readText(row.primaryRow.createdAt) ?? readText(row.sourceBrief?.created_at);
 }
 
 export function readDeliverableRowMetadata(
@@ -71,9 +79,9 @@ function appendTargetMetadata(
   }
 
   const target = sanitizeDeliverableTarget(row.target);
-  pushMetadata(entries, 'Path', target.path);
+  pushMetadata(entries, 'Path', readVisibleDeliverablePath(target));
   pushMetadata(entries, 'Repository', target.repo_ref);
-  pushMetadata(entries, 'URL', resolveDeliverableTargetUrl(target));
+  pushMetadata(entries, 'URL', readVisibleDeliverableUrl(target));
 }
 
 function appendRelatedTargetMetadata(
@@ -97,9 +105,29 @@ function appendRelatedTargetMetadata(
   pushMetadata(
     entries,
     'Related Target',
-    resolveDeliverableTargetUrl(target)
+    readVisibleDeliverableUrl(target)
       ?? readDeliverableTargetDisplayLabel(target, row.label),
   );
+}
+
+function readVisibleDeliverablePath(
+  target: DashboardWorkflowDeliverableTarget,
+): string | null {
+  const path = readText(target.path);
+  if (!path || path.startsWith('artifact:')) {
+    return null;
+  }
+  return path;
+}
+
+function readVisibleDeliverableUrl(
+  target: DashboardWorkflowDeliverableTarget,
+): string | null {
+  const resolvedUrl = resolveDeliverableTargetUrl(target);
+  if (!resolvedUrl || isInPlaceArtifactPreviewTarget(resolvedUrl)) {
+    return null;
+  }
+  return resolvedUrl;
 }
 
 function resolveDeliverableTargetUrl(target: DashboardWorkflowDeliverableTarget): string | null {

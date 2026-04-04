@@ -2,20 +2,18 @@ import { Buffer } from 'node:buffer';
 
 import type { Page } from '@playwright/test';
 
+import {
+  buildStageRetainedScopeMapFixtures,
+  type DeliverableRouteArtifactRecord,
+} from './workflows-deliverables-stage-fixtures.js';
+
 export interface DeliverablesRouteOptions {
   artifactCount?: number;
   inlineSummaryRepeatCount?: number;
+  includeStageRetainedScopeMap?: boolean;
 }
 
-interface RoutedArtifactRecord {
-  id: string;
-  taskId: string;
-  fileName: string;
-  logicalPath: string;
-  contentType: string;
-  contentText: string;
-  sizeBytes: number;
-}
+interface RoutedArtifactRecord extends DeliverableRouteArtifactRecord {}
 
 export async function routeDeliverablesWorkspace(
   page: Page,
@@ -23,6 +21,17 @@ export async function routeDeliverablesWorkspace(
   options: DeliverablesRouteOptions = {},
 ): Promise<void> {
   const artifactCatalog = new Map<string, RoutedArtifactRecord[]>();
+
+  await page.route(
+    /\/api\/v1\/operations\/workflows\/[^/]+\/stream(?:\?.*)?$/,
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        body: ': seeded deterministic stream\n\n',
+      });
+    },
+  );
 
   await page.route(/\/api\/v1\/operations\/workflows\/[^/]+\/workspace(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
@@ -128,6 +137,39 @@ export function patchDeliverablesPayload(
       options.inlineSummaryRepeatCount,
     ),
   ];
+
+  if (options.includeStageRetainedScopeMap) {
+    const scopeMapPair = buildStageRetainedScopeMapFixtures(workflowId, workItemId);
+    for (const deliverable of scopeMapPair.deliverables) {
+      if (upsertDeliverable(finalDeliverables, deliverable)) {
+        upsertDeliverable(allDeliverables, deliverable);
+        continue;
+      }
+      if (upsertDeliverable(inProgressDeliverables, deliverable)) {
+        upsertDeliverable(allDeliverables, deliverable);
+        continue;
+      }
+      if (upsertDeliverable(allDeliverables, deliverable)) {
+        continue;
+      }
+      if (readOptionalString(deliverable.delivery_stage) === 'final') {
+        finalDeliverables.push(deliverable);
+      } else {
+        inProgressDeliverables.push(deliverable);
+      }
+      allDeliverables.push(deliverable);
+    }
+
+    const workingHandoffs = asArray(deliverables.working_handoffs);
+    for (const brief of scopeMapPair.workingHandoffs) {
+      upsertBrief(workingHandoffs, brief);
+    }
+    deliverables.working_handoffs = workingHandoffs;
+
+    if (scopeMapPair.artifacts.length > 0) {
+      artifactCatalog.set(scopeMapPair.artifacts[0]!.taskId, scopeMapPair.artifacts);
+    }
+  }
 
   for (const deliverable of missingInProgressDeliverables) {
     if (upsertDeliverable(finalDeliverables, deliverable)) {
@@ -396,6 +438,23 @@ function containsDeliverable(
   descriptorId: string,
 ): boolean {
   return deliverables.some((entry) => readOptionalString(entry.descriptor_id) === descriptorId);
+}
+
+function upsertBrief(
+  briefs: Array<Record<string, unknown>>,
+  brief: Record<string, unknown>,
+): void {
+  const briefId = readOptionalString(brief.id);
+  if (!briefId) {
+    briefs.push(brief);
+    return;
+  }
+  const index = briefs.findIndex((entry) => readOptionalString(entry.id) === briefId);
+  if (index === -1) {
+    briefs.push(brief);
+    return;
+  }
+  briefs.splice(index, 1, brief);
 }
 
 function upsertDeliverable(

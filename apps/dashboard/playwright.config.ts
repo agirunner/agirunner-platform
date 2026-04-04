@@ -15,6 +15,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
+  globalSetup: '../../tests/integration/dashboard/lib/global-setup.ts',
   expect: {
     timeout: 15_000,
   },

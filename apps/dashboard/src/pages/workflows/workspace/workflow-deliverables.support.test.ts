@@ -180,4 +180,54 @@ describe('workflow deliverables support', () => {
 
     expect(readDeliverableIdentityKey(first)).toBe(readDeliverableIdentityKey(second));
   });
+
+  it('keeps staged variants of the same logical file distinct', () => {
+    const interim = normalizeDeliverableRecord({
+      descriptor_id: 'scope-map-interim',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      descriptor_kind: 'inline_summary',
+      delivery_stage: 'in_progress',
+      title: 'Initial scope map',
+      state: 'approved',
+      primary_target: {
+        target_kind: 'inline_summary',
+        label: 'finance-workspace-scope-map.md',
+        path: 'deliverables/finance-workspace-scope-map.md',
+        url: '',
+      },
+      secondary_targets: [],
+      content_preview: {
+        summary: 'Path: deliverables/finance-workspace-scope-map.md',
+      },
+      source_brief_id: 'brief-1',
+      created_at: '2026-04-04T18:52:00.229Z',
+      updated_at: '2026-04-04T18:52:00.229Z',
+    }, 0);
+    const finalized = normalizeDeliverableRecord({
+      descriptor_id: 'scope-map-final',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      descriptor_kind: 'deliverable_packet',
+      delivery_stage: 'final',
+      title: 'Map review scope for finance workspace access review and audit export handling completion packet',
+      state: 'final',
+      primary_target: {
+        target_kind: 'artifact',
+        label: 'Open artifact',
+        url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
+        path: 'artifact:workflow-1/deliverables/finance-workspace-scope-map.md',
+        artifact_id: 'artifact-1',
+      },
+      secondary_targets: [],
+      content_preview: {
+        summary: 'Final scoped packet.',
+      },
+      source_brief_id: null,
+      created_at: '2026-04-04T18:58:00.229Z',
+      updated_at: '2026-04-04T18:58:00.229Z',
+    }, 1);
+
+    expect(readDeliverableIdentityKey(interim)).not.toBe(readDeliverableIdentityKey(finalized));
+  });
 });
