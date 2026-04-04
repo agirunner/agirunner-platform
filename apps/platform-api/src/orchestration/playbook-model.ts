@@ -1,4 +1,4 @@
-import { createDefaultPlaybookBoard } from '../../../../packages/sdk/src/playbooks/default-board.js';
+import { createDefaultPlaybookBoard } from '@agirunner/sdk';
 import { z } from 'zod';
 
 import { SchemaValidationFailedError } from '../errors/domain-errors.js';

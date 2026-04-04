@@ -11,15 +11,15 @@ export interface PlaybookBoardTemplate {
   columns: PlaybookBoardColumnTemplate[];
 }
 
-const defaultPlaybookBoardTemplate: Readonly<PlaybookBoardTemplate> = Object.freeze({
+const defaultPlaybookBoardTemplate: PlaybookBoardTemplate = {
   entry_column_id: 'inbox',
-  columns: Object.freeze([
-    Object.freeze({ id: 'inbox', label: 'Inbox', description: '' }),
-    Object.freeze({ id: 'active', label: 'Active', description: '' }),
-    Object.freeze({ id: 'blocked', label: 'Blocked', description: '', is_blocked: true }),
-    Object.freeze({ id: 'done', label: 'Done', description: '', is_terminal: true }),
-  ]),
-});
+  columns: [
+    { id: 'inbox', label: 'Inbox', description: '' },
+    { id: 'active', label: 'Active', description: '' },
+    { id: 'blocked', label: 'Blocked', description: '', is_blocked: true },
+    { id: 'done', label: 'Done', description: '', is_terminal: true },
+  ],
+};
 
 export function createDefaultPlaybookBoard(): PlaybookBoardTemplate {
   return {

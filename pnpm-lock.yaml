@@ -171,6 +171,9 @@ importers:
 
   apps/platform-api:
     dependencies:
+      '@agirunner/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@aws-sdk/client-s3':
         specifier: 3.888.0
         version: 3.888.0

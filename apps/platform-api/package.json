@@ -13,6 +13,7 @@
     "reset:playbook-redesign": "tsx devtools/reset/playbook-redesign-state.ts"
   },
   "dependencies": {
+    "@agirunner/sdk": "workspace:*",
     "@aws-sdk/client-s3": "3.888.0",
     "@aws-sdk/s3-request-presigner": "3.888.0",
     "@azure/storage-blob": "12.28.0",

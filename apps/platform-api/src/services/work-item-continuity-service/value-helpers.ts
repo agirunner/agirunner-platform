@@ -61,7 +61,7 @@ export function compactRecord<T extends Record<string, unknown>>(value: T): T {
 }
 
 export function gateApprovalTakesPrecedence(
-  definition: Record<string, unknown>,
+  definition: unknown,
   checkpointName: string | null,
   evaluation: PlaybookRuleEvaluationResult,
 ): PlaybookRuleEvaluationResult {
@@ -78,7 +78,7 @@ export function gateApprovalTakesPrecedence(
 }
 
 export function checkpointRequiresHumanApproval(
-  definition: Record<string, unknown>,
+  definition: unknown,
   checkpointName: string | null,
 ) {
   void definition;
