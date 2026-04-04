@@ -312,15 +312,15 @@ export function normalizeDeliverableRecord(
 export function readDeliverableIdentityKey(record: DashboardWorkflowDeliverableRecord): string {
   const scopeKey = readDeliverableScopeKey(record);
   const target = record.primary_target;
+  const normalizedPath = normalizeDeliverableIdentityPath(target.path);
+  if (normalizedPath) {
+    return `${scopeKey}:path:${normalizedPath}`;
+  }
   if (target.artifact_id) {
     return `${scopeKey}:artifact:${target.artifact_id}`;
   }
   if (target.url) {
     return `${scopeKey}:url:${target.url}`;
-  }
-  const normalizedPath = normalizeDeliverableIdentityPath(target.path);
-  if (normalizedPath) {
-    return `${scopeKey}:path:${normalizedPath}`;
   }
   const inlineSummaryIdentity = readInlineSummaryIdentity(record);
   if (inlineSummaryIdentity) {
