@@ -1,0 +1,15 @@
+{
+  "playbook_slug": "market-map",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "market_topic": "Agentic research and evidence-gathering tools for enterprise compliance, procurement, and operator workflows.",
+        "comparison_axes": "Source transparency, workflow fit, operator oversight, deployment model, and integration depth.",
+        "search_constraints": "Favor current product and company sources, recent independent analysis, and direct evidence that each entity belongs in the market slice."
+      },
+      "expected_outcome": {
+        "kind": "market_map"
+      }
+    }
+  }
+}

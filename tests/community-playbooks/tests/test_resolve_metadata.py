@@ -17,7 +17,7 @@ from resolve_metadata import METADATA_FILE, load_metadata, resolve_run_specs, va
 
 
 class ResolveMetadataTests(unittest.TestCase):
-    def test_current_metadata_has_full_smoke_coverage_for_all_community_playbooks(self) -> None:
+    def test_current_metadata_has_expected_smoke_coverage_for_supported_first_party_playbooks(self) -> None:
         metadata = load_metadata(str(METADATA_FILE))
 
         validate_metadata(metadata)
@@ -27,7 +27,60 @@ class ResolveMetadataTests(unittest.TestCase):
             for run in metadata["runs"]
             if isinstance(run, dict) and str(run.get("batch") or "") == "smoke"
         }
-        self.assertEqual(17, len(smoke_playbooks))
+        self.assertEqual(
+            {
+                "account-discovery",
+                "api-documentation",
+                "bug-fix",
+                "business-case",
+                "code-review",
+                "content-pipeline",
+                "contract-review",
+                "customer-support-triage",
+                "deep-research-pipeline",
+                "hotfix",
+                "market-map",
+                "policy-review",
+                "pr-guardian",
+                "prospect-search",
+                "regression-monitor",
+                "research-analysis",
+                "research-brief-to-report",
+                "runbook-creation",
+                "search-discovery",
+                "sop-creation",
+                "technical-documentation",
+                "vendor-evaluation",
+            },
+            smoke_playbooks,
+        )
+
+    def test_resolve_run_specs_supports_new_research_smoke_variants(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+        validate_metadata(metadata)
+
+        expected_inputs = {
+            "account-discovery": {"account_name", "qualification_goal", "search_constraints"},
+            "deep-research-pipeline": {"research_brief", "decision_goal", "source_constraints"},
+            "market-map": {"market_topic", "comparison_axes", "search_constraints"},
+            "prospect-search": {"ideal_profile", "market_scope", "ranking_rules"},
+            "research-brief-to-report": {"research_brief", "target_audience", "source_constraints"},
+            "search-discovery": {"discovery_brief", "target_scope", "search_constraints"},
+        }
+
+        for playbook_slug, input_names in expected_inputs.items():
+            with self.subTest(playbook_slug=playbook_slug):
+                resolved = resolve_run_specs(
+                    metadata,
+                    selected_batches=["smoke"],
+                    playbook_slug=playbook_slug,
+                    variant="smoke",
+                )
+
+                self.assertEqual(1, len(resolved))
+                run = resolved[0]
+                self.assertEqual(playbook_slug, run["playbook_slug"])
+                self.assertEqual(input_names, set(run["launch_inputs"].keys()))
 
     def test_resolve_run_specs_expands_workload_variant_and_upload_paths(self) -> None:
         metadata = load_metadata(str(METADATA_FILE))

@@ -1,0 +1,15 @@
+{
+  "playbook_slug": "account-discovery",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "account_name": "Ramp",
+        "qualification_goal": "Decide whether Ramp is a strong first-wave target for Agirunner's approval-aware research, audit, and operator workflow platform.",
+        "search_constraints": "Prioritize direct company, product, hiring, compliance, and operator-workflow signals from current public sources when external discovery tools are available."
+      },
+      "expected_outcome": {
+        "kind": "account_discovery_packet"
+      }
+    }
+  }
+}

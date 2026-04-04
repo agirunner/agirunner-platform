@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "deep-research-pipeline",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "research_brief": "Assess how Agirunner should package first-party research workflows that combine uploaded evidence, provider-native search, and operator-visible deliverables for enterprise teams.",
+        "decision_goal": "Recommend which first-party research experience Agirunner should harden next and what evidence expectations make that recommendation credible.",
+        "source_constraints": "Prefer primary product sources, current documentation, and recent third-party analysis; call out hype, stale evidence, and unsupported claims explicitly."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "deep_research_synthesis"
+      }
+    }
+  }
+}

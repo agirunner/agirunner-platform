@@ -1,0 +1,15 @@
+{
+  "playbook_slug": "search-discovery",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "discovery_brief": "Find credible external sources, product evidence, and operator signals that explain how enterprise teams evaluate agentic research and evidence-gathering tools today.",
+        "target_scope": "Prioritize sources that help Agirunner understand first-party workflow positioning, source trust, and operator-visible control expectations.",
+        "search_constraints": "Prefer current primary sources and direct evidence over summaries; if external search is available, use it before relying only on model memory or narrower paths."
+      },
+      "expected_outcome": {
+        "kind": "discovery_packet"
+      }
+    }
+  }
+}

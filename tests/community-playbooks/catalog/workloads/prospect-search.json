@@ -1,0 +1,15 @@
+{
+  "playbook_slug": "prospect-search",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "ideal_profile": "B2B software companies selling to enterprise operations, finance, security, or compliance teams and showing signs they need approval-aware research or audit workflows.",
+        "market_scope": "North America and Europe, growth-stage to public companies, with enough public evidence to compare fit and urgency honestly.",
+        "ranking_rules": "Rank candidates by workflow pain visibility, operator-governance fit, likely budget ownership, and evidence quality; downgrade weakly supported candidates."
+      },
+      "expected_outcome": {
+        "kind": "prospect_packet"
+      }
+    }
+  }
+}

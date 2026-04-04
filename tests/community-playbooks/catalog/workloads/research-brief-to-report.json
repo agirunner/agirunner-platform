@@ -1,0 +1,18 @@
+{
+  "playbook_slug": "research-brief-to-report",
+  "variants": {
+    "smoke": {
+      "launch_inputs": {
+        "research_brief": "Turn the current evidence about enterprise audit-export and operator-workflow research needs into a reviewed report that leadership can use for first-party portfolio prioritization.",
+        "target_audience": "Agirunner product and platform leadership evaluating which research workflows to position, harden, and demo next.",
+        "source_constraints": "Use the uploaded research notes as anchor material and add current external sources when they materially sharpen or challenge the report."
+      },
+      "uploads": [
+        "fixtures/uploads/research/vendor-candidate-notes.md"
+      ],
+      "expected_outcome": {
+        "kind": "research_report"
+      }
+    }
+  }
+}
