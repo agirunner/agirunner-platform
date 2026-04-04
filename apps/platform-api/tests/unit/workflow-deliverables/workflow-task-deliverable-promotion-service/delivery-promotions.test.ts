@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  createArtifactRow,
   createDeliverableService,
   createService,
   createWorkItemRow,
@@ -116,6 +117,59 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
           source_role_name: 'Intake Analyst',
         }),
       }),
+    );
+  });
+
+  it('marks artifact-backed canonical deliverables as durable after promotion', async () => {
+    const artifactId = '13e16b95-b515-4112-8f2e-46dae3e1e532';
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_output_descriptors')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return { rows: [createWorkItemRow('research-synthesis')], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_artifacts')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', [artifactId]]);
+          return {
+            rows: [
+              createArtifactRow({
+                id: artifactId,
+                task_id: 'task-2',
+                logical_path: 'artifact:workflow/output/research-synthesis.md',
+              }),
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_artifacts')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', [artifactId]]);
+          return { rows: [], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const deliverableService = createDeliverableService();
+    const service = createService(pool, deliverableService);
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-3',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-3',
+      task_id: 'task-2',
+      role: 'research-analyst',
+      summary: 'Published the final research synthesis artifact.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: { task_kind: 'delivery' },
+      artifact_ids: [artifactId],
+      created_at: '2026-03-28T20:30:00.000Z',
+    });
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_artifacts'),
+      ['tenant-1', 'workflow-1', [artifactId]],
     );
   });
 

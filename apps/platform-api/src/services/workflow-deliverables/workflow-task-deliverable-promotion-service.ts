@@ -65,7 +65,7 @@ export class WorkflowTaskDeliverablePromotionService {
       this.loadArtifacts(tenantId, handoff.workflow_id, handoff.artifact_ids ?? []),
     ]);
 
-    return this.deliverableService.upsertSystemDeliverable(
+    const deliverable = await this.deliverableService.upsertSystemDeliverable(
       tenantId,
       handoff.workflow_id,
       buildPromotedDeliverableInput(
@@ -76,6 +76,8 @@ export class WorkflowTaskDeliverablePromotionService {
         workItemId,
       ),
     );
+    await this.promoteArtifactRetention(tenantId, handoff.workflow_id, artifacts);
+    return deliverable;
   }
 
   private async resolveWorkItemId(
@@ -159,6 +161,26 @@ export class WorkflowTaskDeliverablePromotionService {
     return [...result.rows].sort(
       (left, right) =>
         (order.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+  }
+
+  private async promoteArtifactRetention(
+    tenantId: string,
+    workflowId: string,
+    artifacts: ArtifactRow[],
+  ): Promise<void> {
+    if (artifacts.length === 0) {
+      return;
+    }
+
+    await this.pool.query(
+      `UPDATE workflow_artifacts
+          SET retention_policy = jsonb_build_object('mode', 'forever'),
+              expires_at = NULL
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = ANY($3::uuid[])`,
+      [tenantId, workflowId, artifacts.map((artifact) => artifact.id)],
     );
   }
 }
