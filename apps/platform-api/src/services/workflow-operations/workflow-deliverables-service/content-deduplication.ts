@@ -25,7 +25,11 @@ export function deduplicateScopedDeliverables(
   const preferredByKey = new Map<string, WorkflowDeliverableRecord>();
 
   for (const deliverable of deliverables) {
-    const duplicateKey = buildDuplicateKey(deliverable, input.readOwnerWorkItemId);
+    const duplicateKey = buildDuplicateKey(
+      deliverable,
+      input.readOwnerWorkItemId,
+      input.selectedWorkItemId,
+    );
     if (!duplicateKey) {
       continue;
     }
@@ -55,7 +59,11 @@ export function deduplicateScopedDeliverables(
 
   const emittedKeys = new Set<string>();
   return deliverables.flatMap((deliverable) => {
-    const duplicateKey = buildDuplicateKey(deliverable, input.readOwnerWorkItemId);
+    const duplicateKey = buildDuplicateKey(
+      deliverable,
+      input.readOwnerWorkItemId,
+      input.selectedWorkItemId,
+    );
     if (!duplicateKey) {
       return [deliverable];
     }
@@ -113,10 +121,14 @@ export function suppressPacketWrappersWhenContentExists(
 function buildDuplicateKey(
   deliverable: WorkflowDeliverableRecord,
   readOwnerWorkItemId: (deliverable: WorkflowDeliverableRecord) => string | null,
+  selectedWorkItemId?: string,
 ): string | null {
   const identityKey = readDeliverableContentIdentityKey(deliverable);
   if (!identityKey) {
     return null;
+  }
+  if (!selectedWorkItemId) {
+    return identityKey;
   }
   const ownerScopeKey = buildOwnerScopeKey(deliverable, readOwnerWorkItemId) ?? '__workflow__';
   return `${ownerScopeKey}|${identityKey}`;
@@ -127,13 +139,34 @@ function choosePreferredDeliverable(
   candidate: WorkflowDeliverableRecord,
   input: DeduplicateDeliverablesInput,
 ): WorkflowDeliverableRecord {
-  const scopeDifference = scopePreference(candidate, input.selectedWorkItemId)
-    - scopePreference(current, input.selectedWorkItemId);
-  if (scopeDifference > 0) {
-    return candidate;
+  if (input.selectedWorkItemId) {
+    const scopeDifference = scopePreference(candidate, input.selectedWorkItemId)
+      - scopePreference(current, input.selectedWorkItemId);
+    if (scopeDifference > 0) {
+      return candidate;
+    }
+    if (scopeDifference < 0) {
+      return current;
+    }
   }
-  if (scopeDifference < 0) {
-    return current;
+  if (!input.selectedWorkItemId) {
+    const rollupAffinityDifference = workflowScopeRollupAffinity(candidate, current)
+      - workflowScopeRollupAffinity(current, candidate);
+    if (rollupAffinityDifference > 0) {
+      return candidate;
+    }
+    if (rollupAffinityDifference < 0) {
+      return current;
+    }
+
+    const concretenessDifference = workflowScopeContentPreference(candidate)
+      - workflowScopeContentPreference(current);
+    if (concretenessDifference > 0) {
+      return candidate;
+    }
+    if (concretenessDifference < 0) {
+      return current;
+    }
   }
 
   const representationDifference = contentRepresentationPreference(candidate)
@@ -334,4 +367,37 @@ function hasSubstantiveTarget(deliverable: WorkflowDeliverableRecord): boolean {
     || readOptionalString(target.repo_ref) !== null
     || readOptionalString(target.artifact_id) !== null
   );
+}
+
+function hasConcreteContentTarget(deliverable: WorkflowDeliverableRecord): boolean {
+  const primaryTarget = deliverable.primary_target;
+  if (!primaryTarget || typeof primaryTarget !== 'object' || Array.isArray(primaryTarget)) {
+    return false;
+  }
+  const target = primaryTarget as Record<string, unknown>;
+  return readOptionalString(target.target_kind) !== 'inline_summary'
+    || readOptionalString(target.artifact_id) !== null
+    || readOptionalString(target.url) !== null
+    || readOptionalString(target.repo_ref) !== null;
+}
+
+function workflowScopeContentPreference(deliverable: WorkflowDeliverableRecord): number {
+  if (!hasSubstantiveTarget(deliverable)) {
+    return 0;
+  }
+  return hasConcreteContentTarget(deliverable) ? 2 : 1;
+}
+
+function workflowScopeRollupAffinity(
+  deliverable: WorkflowDeliverableRecord,
+  other: WorkflowDeliverableRecord,
+): number {
+  const directWorkItemId = readOptionalString(deliverable.work_item_id);
+  const rollupSourceWorkItemId = readRollupSourceWorkItemId(deliverable);
+  const otherDirectWorkItemId = readOptionalString(other.work_item_id);
+
+  if (directWorkItemId !== null || rollupSourceWorkItemId === null) {
+    return 0;
+  }
+  return rollupSourceWorkItemId === otherDirectWorkItemId ? 1 : 0;
 }

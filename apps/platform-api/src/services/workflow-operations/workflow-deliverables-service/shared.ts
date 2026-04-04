@@ -53,6 +53,15 @@ export function readDeliverableTargetIdentityKey(
   if (!targetKind && !targetUrl && !targetPath && !targetRepoRef && !targetArtifactId) {
     return null;
   }
+  if (
+    targetKind === 'inline_summary'
+    && !targetUrl
+    && !targetPath
+    && !targetRepoRef
+    && !targetArtifactId
+  ) {
+    return null;
+  }
 
   return [
     targetKind ?? '',
@@ -72,7 +81,18 @@ export function readDeliverableContentIdentityKey(
     return `path|${normalizedPath}`;
   }
   const targetIdentityKey = readDeliverableTargetIdentityKey(deliverable);
-  return targetIdentityKey ? `target|${targetIdentityKey}` : null;
+  if (targetIdentityKey) {
+    return `target|${targetIdentityKey}`;
+  }
+  const rollupSourceDescriptorId = readRollupSourceDescriptorId(deliverable);
+  if (rollupSourceDescriptorId) {
+    return `descriptor|${rollupSourceDescriptorId}`;
+  }
+  const targetKind = readOptionalString(target.target_kind);
+  if (targetKind === 'inline_summary') {
+    return `descriptor|${deliverable.descriptor_id}`;
+  }
+  return null;
 }
 
 export function deriveContentBackedDeliverableTitle(
