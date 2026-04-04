@@ -322,11 +322,11 @@ describe('workflow live console support', () => {
       getWorkflowConsoleLineText(
         createItem({
           item_id: 'update-brief-terminology',
-          headline: 'Wait for the architecture lead handoff before routing implementation.',
-          summary: 'Wait for the architecture lead handoff before routing implementation.',
+          headline: 'Wait for the routing decision handoff before routing implementation.',
+          summary: 'Wait for the routing decision handoff before routing implementation.',
         }),
       ),
-    ).toBe('Wait for the architecture lead brief before routing implementation.');
+    ).toBe('Wait for the routing decision brief before routing implementation.');
   });
 
   it('keeps helper action rows with safe args while still suppressing empty fallbacks', () => {

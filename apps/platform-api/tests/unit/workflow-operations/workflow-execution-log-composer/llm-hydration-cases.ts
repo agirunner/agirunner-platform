@@ -63,7 +63,7 @@ describe('workflow-execution-log-composer llm hydration cases', () => {
         payload: {
           llm_turn_count: 6,
           response_text: JSON.stringify({
-            summary: 'Wait for the architecture lead handoff before routing implementation.',
+            summary: 'Wait for the routing decision handoff before routing implementation.',
           }),
         },
       }),
@@ -92,7 +92,7 @@ describe('workflow-execution-log-composer llm hydration cases', () => {
         payload: {
           llm_turn_count: 6.5,
           response_text: JSON.stringify({
-            summary: 'Observed the active architecture lead handoff and confirmed implementation should still wait.',
+            summary: 'Observed the active routing decision handoff and confirmed implementation should still wait.',
           }),
         },
       }),
@@ -121,7 +121,7 @@ describe('workflow-execution-log-composer llm hydration cases', () => {
         payload: {
           llm_turn_count: 7,
           response_text: JSON.stringify({
-            reason: 'The design work is still waiting on the active architecture task.',
+            reason: 'The design work is still waiting on the active routing task.',
           }),
         },
       }),
@@ -129,9 +129,9 @@ describe('workflow-execution-log-composer llm hydration cases', () => {
 
     expect(items.map((item) => item.headline)).toEqual([
       '[Think] Confirm whether the active design task already covers this work item.',
-      '[Plan] Wait for the architecture lead brief before routing implementation.',
-      '[Observe] Observed the active architecture lead brief and confirmed implementation should still wait.',
-      '[Verify] The design work is still waiting on the active architecture task.',
+      '[Plan] Wait for the routing decision brief before routing implementation.',
+      '[Observe] Observed the active routing decision brief and confirmed implementation should still wait.',
+      '[Verify] The design work is still waiting on the active routing task.',
     ]);
     expect(items.map((item) => item.item_id)).toEqual([
       'execution-log:46a',

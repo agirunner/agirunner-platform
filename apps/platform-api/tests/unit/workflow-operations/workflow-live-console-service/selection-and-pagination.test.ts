@@ -421,7 +421,7 @@ describe('WorkflowLiveConsoleService', () => {
         item_kind: 'execution_turn',
         item_id: 'execution-log:log-1',
         source_label: 'Policy Assessor',
-        headline: '[Plan] Drafting the policy assessment brief.',
+        headline: '[Plan] Drafting the policy assessment handoff.',
         work_item_id: 'work-item-1',
         task_id: 'task-1',
       }),

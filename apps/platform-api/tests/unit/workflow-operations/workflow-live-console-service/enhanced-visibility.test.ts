@@ -148,8 +148,8 @@ describe('WorkflowLiveConsoleService', () => {
       }),
     );
     expect(result.items.map((item) => item.headline)).toEqual([
-      '[Verify] The latest brief is still pending validation.',
-      '[Observe] The policy review is still waiting on the latest implementation brief.',
+      '[Verify] The latest handoff is still pending validation.',
+      '[Observe] The policy review is still waiting on the latest implementation handoff.',
       '[Plan] Review the current evidence before writing the brief.',
     ]);
   });

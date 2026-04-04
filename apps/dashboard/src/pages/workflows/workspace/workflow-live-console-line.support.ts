@@ -466,11 +466,14 @@ function describeLogicalContextPath(path: string): string | null {
 
 function normalizeWorkflowBriefTerminology(value: string): string {
   return value
-    .replace(/\bpolicy assessment handoff\b/gi, 'policy assessment brief')
-    .replace(/\blatest implementation handoff\b/gi, 'latest implementation brief')
-    .replace(/\blatest handoff\b/gi, 'latest brief')
-    .replace(/\bpredecessor handoff\b/gi, 'predecessor brief')
-    .replace(/\barchitecture lead handoff\b/gi, 'architecture lead brief')
+    .replace(
+      /\bWait for the ((?!structured\b)(?!orchestrator\b)[A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*){0,3}) handoff\b/g,
+      'Wait for the $1 brief',
+    )
+    .replace(
+      /\bObserved the active ((?!structured\b)(?!orchestrator\b)[A-Za-z][\w-]*(?:\s+[A-Za-z][\w-]*){0,3}) handoff\b/g,
+      'Observed the active $1 brief',
+    )
     .replace(/\bwriting the handoff\b/gi, 'writing the brief')
     .replace(/\bwrite the handoff\b/gi, 'write the brief')
     .replace(/\b[Tt]he handoff is blocked\b/g, (match) => (
