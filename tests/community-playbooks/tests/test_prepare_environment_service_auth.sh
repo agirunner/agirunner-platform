@@ -96,4 +96,32 @@ EOF
 
 run_script "${PRESENT_ENV_FILE}" "${TMP_DIR}/present.out" "${TMP_DIR}/present.err" "${TMP_DIR}/present.env.log"
 
-grep -Fq "PLATFORM_SERVICE_API_KEY=ar_service_test-service-key-123456" "${TMP_DIR}/present.env.log"
+grep -Fq "PLATFORM_SERVICE_API_KEY=ar_service_test-service-key-123456" "${TMP_DIR}/present.env.log" # pragma: allowlist secret
+
+PLAYBOOKS_REPO_PATH="${TMP_DIR}/playbooks"
+mkdir -p "${PLAYBOOKS_REPO_PATH}"
+
+LOCAL_OVERRIDE_ENV_FILE="${TMP_DIR}/local-override.env"
+cat >"${LOCAL_OVERRIDE_ENV_FILE}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=ab_admin_def_local_dev_123456789012345
+PLATFORM_SERVICE_API_KEY=ar_service_test-service-key-123456
+JWT_SECRET=test-jwt-secret
+WEBHOOK_ENCRYPTION_KEY=test-webhook-secret
+EOF
+
+DOCKER_ENV_LOG="${TMP_DIR}/local-override.env.log" \
+PATH="${BIN_DIR}:${PATH}" \
+LIVE_TEST_ENV_FILE="${LOCAL_OVERRIDE_ENV_FILE}" \
+COMMUNITY_PLAYBOOKS_RESULTS_DIR="${TMP_DIR}/results" \
+RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH}" \
+FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH}" \
+PLAYBOOKS_REPO_PATH="${PLAYBOOKS_REPO_PATH}" \
+COMMUNITY_CATALOG_REF="v0.1.0-alpha.3" \
+bash "${SCRIPT_PATH}" >"${TMP_DIR}/local-override.out" 2>"${TMP_DIR}/local-override.err"
+
+grep -Fq "COMMUNITY_CATALOG_LOCAL_HOST_ROOT=${PLAYBOOKS_REPO_PATH}" "${TMP_DIR}/local-override.env.log"
+grep -Fq "COMMUNITY_CATALOG_LOCAL_ROOT=/community-catalog-source" "${TMP_DIR}/local-override.env.log" # pragma: allowlist secret
+if grep -Fq "COMMUNITY_CATALOG_REF=v0.1.0-alpha.3" "${TMP_DIR}/local-override.env.log"; then
+  echo "expected local community catalog override to clear COMMUNITY_CATALOG_REF" >&2
+  exit 1
+fi

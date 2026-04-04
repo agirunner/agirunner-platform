@@ -50,6 +50,8 @@ Environment:
 - set `COMMUNITY_PLAYBOOKS_ENV_FILE` to point at a different suite override file
 - `--provider` may also use the provider-specific alias secrets listed in [`env/local.env.example`](./env/local.env.example)
 - the suite reuses the live runtime/container stack
+- shared bootstrap prefers a local `agirunner-playbooks` checkout when one is available and clears any inherited `COMMUNITY_CATALOG_REF` override for the stack
+- set `PLAYBOOKS_REPO_PATH` if your local `agirunner-playbooks` checkout is not at the default sibling path
 - the suite seeds a deterministic research MCP server for the `mcp` variants
 - the community suite uses its own result tree under
   `tests/community-playbooks/results`

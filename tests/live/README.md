@@ -78,6 +78,7 @@ python3 tests/live/tests/workflows_ui_evidence_test.py
 - The sibling repos expected by the harness must exist:
   - `../agirunner-runtime`
   - a local fixtures clone, defaulting to `../agirunner-test-fixtures` unless `FIXTURES_REPO_PATH` overrides it
+- If `../agirunner-playbooks` exists, shared bootstrap prefers that local catalog checkout and clears any inherited `COMMUNITY_CATALOG_REF` override for the live stack. Override the path with `PLAYBOOKS_REPO_PATH` if your checkout lives elsewhere.
 - The local stack ports used by the harness must be free:
   - platform API default `8080`
   - postgres default `5432`
@@ -133,6 +134,7 @@ Important notes:
 - Do not pull OAuth state from the DB.
 - OpenAI, Anthropic, and Gemini all use the same generic provider fields; only the values differ.
 - Shared bootstrap verifies that the running `platform-api` container has the same `DEFAULT_ADMIN_API_KEY`, `PLATFORM_SERVICE_API_KEY`, `JWT_SECRET`, and `WEBHOOK_ENCRYPTION_KEY` values as `tests/live/env/local.env`.
+- Shared bootstrap prefers a local `agirunner-playbooks` checkout when one is available and ignores any inherited `COMMUNITY_CATALOG_REF` override in that case.
 
 If you need to normalize the env-provided OAuth JSON shape:
 

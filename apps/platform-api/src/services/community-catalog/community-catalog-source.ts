@@ -23,7 +23,9 @@ interface ToolProfileManifest {
 export class CommunityCatalogSourceService {
   private readonly localRoot: string | null;
   private readonly repository: string;
-  private readonly ref: string;
+  private readonly configuredRef: string | null;
+  private readonly localRef: string;
+  private readonly resolveRef: () => Promise<string>;
   private readonly rawBaseUrl: string;
   private readonly fetcher: typeof fetch;
   private readonly cacheTtlMs: number;
@@ -33,20 +35,24 @@ export class CommunityCatalogSourceService {
     localRoot?: string;
     repository?: string;
     ref?: string;
+    resolveRef?: () => Promise<string> | string;
     rawBaseUrl?: string;
     fetcher?: typeof fetch;
     cacheTtlMs?: number;
   }) {
     this.localRoot = normalizeOptionalRoot(input?.localRoot);
     this.repository = input?.repository ?? 'agirunner/agirunner-playbooks';
-    this.ref = input?.ref ?? 'main';
+    this.configuredRef = readString(input?.ref) ?? null;
+    this.localRef = this.configuredRef ?? 'main';
+    this.resolveRef = buildRefResolver(input?.ref, input?.resolveRef);
     this.rawBaseUrl = (input?.rawBaseUrl ?? 'https://raw.githubusercontent.com').replace(/\/+$/, '');
     this.fetcher = input?.fetcher ?? fetch;
     this.cacheTtlMs = input?.cacheTtlMs ?? 60_000;
   }
 
   async listPlaybooks(): Promise<CommunityCatalogPlaybookManifestEntry[]> {
-    const manifest = await this.loadPlaybookManifest();
+    const { ref } = await this.resolveCatalogContext();
+    const manifest = await this.loadPlaybookManifest(ref);
     return manifest.playbooks;
   }
 
@@ -65,12 +71,13 @@ export class CommunityCatalogSourceService {
       throw new Error('At least one playbook id is required');
     }
 
+    const context = await this.resolveCatalogContext();
     const [playbookManifest, specialistManifest, skillManifest, toolProfileManifest] =
       await Promise.all([
-        this.loadPlaybookManifest(),
-        this.loadSpecialistManifest(),
-        this.loadSkillManifest(),
-        this.loadToolProfiles(),
+        this.loadPlaybookManifest(context.ref),
+        this.loadSpecialistManifest(context.ref),
+        this.loadSkillManifest(context.ref),
+        this.loadToolProfiles(context.ref),
       ]);
 
     const playbookEntries = uniqueIds.map((id) => {
@@ -84,13 +91,18 @@ export class CommunityCatalogSourceService {
     const packages: CommunityCatalogSelection['packages'] = [];
     for (const entry of playbookEntries) {
       packages.push(
-        await this.loadPlaybookPackage(entry, specialistManifest.specialists, skillManifest.skills),
+        await this.loadPlaybookPackage(
+          entry,
+          specialistManifest.specialists,
+          skillManifest.skills,
+          context.ref,
+        ),
       );
     }
 
     return {
-      repository: this.repository,
-      ref: this.ref,
+      repository: context.repository,
+      ref: context.ref,
       toolProfiles: Object.fromEntries(
         toolProfileManifest.tool_profiles?.flatMap((profile) =>
           profile.id ? [[profile.id, profile.tools ?? []]] : [],
@@ -104,10 +116,11 @@ export class CommunityCatalogSourceService {
     manifestEntry: CommunityCatalogPlaybookManifestEntry,
     specialists: CommunityCatalogSpecialistManifestEntry[],
     skills: CommunityCatalogSkillManifestEntry[],
+    ref: string,
   ) {
     const [playbookText, readmeText] = await Promise.all([
-      this.fetchText(manifestEntry.path),
-      this.fetchText(manifestEntry.path.replace(/playbook\.yaml$/, 'README.md')),
+      this.fetchText(manifestEntry.path, ref),
+      this.fetchText(manifestEntry.path.replace(/playbook\.yaml$/, 'README.md'), ref),
     ]);
     const parsedPlaybook = parseYamlDocument<Record<string, unknown>>(playbookText, manifestEntry.path);
     const playbook = this.normalizeLoadedPlaybook(manifestEntry, parsedPlaybook, readmeText);
@@ -124,7 +137,7 @@ export class CommunityCatalogSourceService {
 
     const loadedSpecialists = await Promise.all(
       specialistEntries.map(async (entry) => {
-        const text = await this.fetchText(entry.path);
+        const text = await this.fetchText(entry.path, ref);
         return this.normalizeLoadedSpecialist(entry, parseYamlDocument<Record<string, unknown>>(text, entry.path));
       }),
     );
@@ -142,7 +155,7 @@ export class CommunityCatalogSourceService {
 
     const loadedSkills = await Promise.all(
       skillEntries.map(async (entry) => {
-        const text = await this.fetchText(entry.path);
+        const text = await this.fetchText(entry.path, ref);
         return this.normalizeLoadedSkill(entry, text);
       }),
     );
@@ -211,65 +224,96 @@ export class CommunityCatalogSourceService {
     };
   }
 
-  private loadPlaybookManifest() {
-    return this.loadYamlManifest<{ playbooks: CommunityCatalogPlaybookManifestEntry[] }>('catalog/playbooks.yaml');
+  private async resolveCatalogContext(): Promise<{ repository: string; ref: string }> {
+    if (this.localRoot) {
+      return {
+        repository: this.repository,
+        ref: this.localRef,
+      };
+    }
+    const preferredRef = await this.resolveRef();
+    if (this.configuredRef || preferredRef === 'main') {
+      return {
+        repository: this.repository,
+        ref: preferredRef,
+      };
+    }
+
+    try {
+      await this.loadPlaybookManifest(preferredRef);
+      return {
+        repository: this.repository,
+        ref: preferredRef,
+      };
+    } catch (error) {
+      if (!isHttpStatusError(error, 404)) {
+        throw error;
+      }
+      return {
+        repository: this.repository,
+        ref: 'main',
+      };
+    }
   }
 
-  private loadSpecialistManifest() {
-    return this.loadYamlManifest<{ specialists: CommunityCatalogSpecialistManifestEntry[] }>('catalog/specialists.yaml');
+  private loadPlaybookManifest(ref: string) {
+    return this.loadYamlManifest<{ playbooks: CommunityCatalogPlaybookManifestEntry[] }>('catalog/playbooks.yaml', ref);
   }
 
-  private loadSkillManifest() {
-    return this.loadYamlManifest<{ skills: CommunityCatalogSkillManifestEntry[] }>('catalog/skills.yaml');
+  private loadSpecialistManifest(ref: string) {
+    return this.loadYamlManifest<{ specialists: CommunityCatalogSpecialistManifestEntry[] }>('catalog/specialists.yaml', ref);
   }
 
-  private loadToolProfiles() {
-    return this.loadYamlManifest<ToolProfileManifest>('catalog/tool-profiles.yaml');
+  private loadSkillManifest(ref: string) {
+    return this.loadYamlManifest<{ skills: CommunityCatalogSkillManifestEntry[] }>('catalog/skills.yaml', ref);
   }
 
-  private async loadYamlManifest<T>(path: string): Promise<T> {
-    const text = await this.fetchText(path);
+  private loadToolProfiles(ref: string) {
+    return this.loadYamlManifest<ToolProfileManifest>('catalog/tool-profiles.yaml', ref);
+  }
+
+  private async loadYamlManifest<T>(path: string, ref: string): Promise<T> {
+    const text = await this.fetchText(path, ref);
     return parseYamlDocument<T>(text, path);
   }
 
-  private async fetchText(path: string): Promise<string> {
+  private async fetchText(path: string, ref: string): Promise<string> {
     const now = Date.now();
-    const cached = this.textCache.get(path);
+    const cacheKey = buildCacheKey(ref, path);
+    const cached = this.textCache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
       return cached.promise;
     }
-    const promise = this.fetchTextUncached(path);
-    this.textCache.set(path, {
+    const promise = this.fetchTextUncached(path, ref);
+    this.textCache.set(cacheKey, {
       expiresAt: now + this.cacheTtlMs,
       promise,
     });
     try {
       return await promise;
     } catch (error) {
-      if (this.textCache.get(path)?.promise === promise) {
-        this.textCache.delete(path);
+      if (this.textCache.get(cacheKey)?.promise === promise) {
+        this.textCache.delete(cacheKey);
       }
       throw error;
     }
   }
 
-  private async fetchTextUncached(path: string): Promise<string> {
+  private async fetchTextUncached(path: string, ref: string): Promise<string> {
     if (this.localRoot) {
       return this.readLocalText(path);
     }
-    const response = await this.fetcher(this.buildRawUrl(path));
+    const response = await this.fetcher(this.buildRawUrl(path, ref));
     if (!response.ok) {
       const error = new Error(`Failed to fetch ${path}: HTTP ${response.status}`);
-      if (response.status === 429) {
-        Object.assign(error, { statusCode: 429 });
-      }
+      Object.assign(error, { statusCode: response.status });
       throw error;
     }
     return response.text();
   }
 
-  private buildRawUrl(path: string): string {
-    return `${this.rawBaseUrl}/${this.repository}/${this.ref}/${path}`;
+  private buildRawUrl(path: string, ref: string): string {
+    return `${this.rawBaseUrl}/${this.repository}/${ref}/${path}`;
   }
 
   private async readLocalText(path: string): Promise<string> {
@@ -289,6 +333,28 @@ function normalizeOptionalRoot(value: string | undefined): string | null {
   return typeof value === 'string' && value.trim().length > 0
     ? resolve(value.trim())
     : null;
+}
+
+function buildRefResolver(
+  ref: string | undefined,
+  resolveRef: (() => Promise<string> | string) | undefined,
+): () => Promise<string> {
+  if (resolveRef) {
+    return async () => readString(await resolveRef()) ?? 'main';
+  }
+  const normalizedRef = readString(ref) ?? 'main';
+  return async () => normalizedRef;
+}
+
+function buildCacheKey(ref: string, path: string): string {
+  return `${ref}::${path}`;
+}
+
+function isHttpStatusError(error: unknown, statusCode: number): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'statusCode' in error
+    && (error as { statusCode?: number }).statusCode === statusCode;
 }
 
 function isPathWithinRoot(root: string, candidate: string): boolean {

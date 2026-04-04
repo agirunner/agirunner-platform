@@ -89,6 +89,7 @@ export async function buildApp() {
   registerCommunityCatalogServices({
     app,
     config: appConfig,
+    containerManagerVersionReader: services.containerManagerVersionReader,
     logService: services.logService,
     playbookService: services.playbookService,
     pool,

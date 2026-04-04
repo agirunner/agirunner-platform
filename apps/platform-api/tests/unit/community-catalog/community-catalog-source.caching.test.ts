@@ -211,6 +211,54 @@ describe('CommunityCatalogSourceService caching', () => {
       statusCode: 429,
     });
   });
+
+  it('keeps cache entries isolated by resolved catalog ref', async () => {
+    const refs = ['main', 'v0.1.0-alpha.3'];
+    const fetcher = createCatalogFetcher(async (input) => {
+      const url = String(input);
+      if (url.includes('/main/catalog/playbooks.yaml')) {
+        return createTextResponse(`playbooks:
+  - id: main-only
+    name: Main Only
+    author: agirunner
+    category: engineering
+    stability: experimental
+    version: 1.0.0
+    summary: Main manifest.
+    specialist_ids:
+      - developer
+    path: playbooks/engineering/bug-fix/playbook.yaml
+`);
+      }
+      if (url.includes('/v0.1.0-alpha.3/catalog/playbooks.yaml')) {
+        return createTextResponse(`playbooks:
+  - id: release-only
+    name: Release Only
+    author: agirunner
+    category: engineering
+    stability: experimental
+    version: 1.0.0
+    summary: Release manifest.
+    specialist_ids:
+      - developer
+    path: playbooks/engineering/bug-fix/playbook.yaml
+`);
+      }
+      return new Response('not found', { status: 404 });
+    });
+    const service = new CommunityCatalogSourceService({
+      fetcher,
+      repository: 'agirunner/agirunner-playbooks',
+      rawBaseUrl: 'https://raw.example.test',
+      resolveRef: vi.fn().mockImplementation(async () => refs.shift() ?? 'main'),
+    });
+
+    const firstManifest = await service.listPlaybooks();
+    const secondManifest = await service.listPlaybooks();
+
+    expect(firstManifest.map((entry) => entry.id)).toEqual(['main-only']);
+    expect(secondManifest.map((entry) => entry.id)).toEqual(['release-only']);
+  });
 });
 
 function createTextResponse(value: string): Response {

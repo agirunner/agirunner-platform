@@ -116,15 +116,7 @@ verify_live_test_stack_secrets() {
 
 mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
 
-if [[ -d "${PLAYBOOKS_REPO_PATH}" ]]; then
-  export COMMUNITY_CATALOG_LOCAL_HOST_ROOT="${PLAYBOOKS_REPO_PATH}"
-  export COMMUNITY_CATALOG_LOCAL_ROOT="/community-catalog-source"
-  log_live_test "using local community catalog repo ${PLAYBOOKS_REPO_PATH}"
-else
-  unset COMMUNITY_CATALOG_LOCAL_HOST_ROOT
-  unset COMMUNITY_CATALOG_LOCAL_ROOT
-  log_live_test "local community catalog repo not found; falling back to ${COMMUNITY_CATALOG_RAW_BASE_URL:-https://raw.githubusercontent.com}"
-fi
+configure_live_test_community_catalog_source "${PLAYBOOKS_REPO_PATH}"
 
 log_live_test "building runtime image ${RUNTIME_IMAGE}"
 docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"

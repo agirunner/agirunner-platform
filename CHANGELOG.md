@@ -9,6 +9,11 @@ open `0.1.0` target.
 
 ## [Unreleased]
 
+### Changed
+
+- Community catalog imports now prefer the `agirunner-playbooks` tag matching the running platform version, fall back to the latest catalog ref when the version cannot be derived or the tag is missing, and still honor explicit `COMMUNITY_CATALOG_REF` overrides.
+- Live-test and community-playbooks bootstrap paths now force the local `agirunner-playbooks` checkout when it exists, so harness runs do not drift onto a tagged remote catalog ref.
+
 ## [0.1.0-alpha.3] - 2026-04-03
 
 ### Fixed

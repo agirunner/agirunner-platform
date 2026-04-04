@@ -138,6 +138,106 @@ describe('CommunityCatalogSourceService', () => {
     ]);
   });
 
+  it('uses the resolved catalog ref for remote fetches and selection metadata', async () => {
+    const resolveRef = vi.fn().mockResolvedValue('v0.1.0-alpha.3');
+    const fetcher = createCatalogFetcher(async (input) => {
+      const fixtures = new Map<string, string>([
+        ['catalog/playbooks.yaml', PLAYBOOKS_YAML],
+        ['catalog/specialists.yaml', SPECIALISTS_YAML],
+        ['catalog/skills.yaml', SKILLS_YAML],
+        ['catalog/tool-profiles.yaml', TOOL_PROFILES_YAML],
+        ['playbooks/engineering/bug-fix/playbook.yaml', PLAYBOOK_YAML],
+        ['playbooks/engineering/bug-fix/README.md', README_MD],
+        ['specialists/engineering/developer/specialist.yaml', SPECIALIST_YAML],
+        ['skills/engineering/bug-reproduction-discipline/SKILL.md', SKILL_MD],
+      ]);
+      const key = String(input).replace(
+        'https://raw.example.test/agirunner/agirunner-playbooks/v0.1.0-alpha.3/',
+        '',
+      );
+      const value = fixtures.get(key);
+      if (!value) {
+        return new Response('not found', { status: 404 });
+      }
+      return createTextResponse(value);
+    });
+    const service = new CommunityCatalogSourceService({
+      fetcher,
+      repository: 'agirunner/agirunner-playbooks',
+      rawBaseUrl: 'https://raw.example.test',
+      resolveRef,
+    });
+
+    const selection = await service.loadSelection(['bug-fix']);
+
+    expect(resolveRef).toHaveBeenCalledTimes(1);
+    expect(selection.ref).toBe('v0.1.0-alpha.3');
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://raw.example.test/agirunner/agirunner-playbooks/v0.1.0-alpha.3/catalog/playbooks.yaml',
+    );
+  });
+
+  it('falls back to main when the derived running-version tag is missing remotely', async () => {
+    const resolveRef = vi.fn().mockResolvedValue('v0.1.0-alpha.99');
+    const fetcher = createCatalogFetcher(async (input) => {
+      const url = String(input);
+      if (url.includes('/v0.1.0-alpha.99/catalog/playbooks.yaml')) {
+        return new Response('not found', { status: 404 });
+      }
+      const fixtures = new Map<string, string>([
+        ['catalog/playbooks.yaml', PLAYBOOKS_YAML],
+        ['catalog/specialists.yaml', SPECIALISTS_YAML],
+        ['catalog/skills.yaml', SKILLS_YAML],
+        ['catalog/tool-profiles.yaml', TOOL_PROFILES_YAML],
+        ['playbooks/engineering/bug-fix/playbook.yaml', PLAYBOOK_YAML],
+        ['playbooks/engineering/bug-fix/README.md', README_MD],
+        ['specialists/engineering/developer/specialist.yaml', SPECIALIST_YAML],
+        ['skills/engineering/bug-reproduction-discipline/SKILL.md', SKILL_MD],
+      ]);
+      const key = url.replace(
+        'https://raw.example.test/agirunner/agirunner-playbooks/main/',
+        '',
+      );
+      const value = fixtures.get(key);
+      if (!value) {
+        return new Response('not found', { status: 404 });
+      }
+      return createTextResponse(value);
+    });
+    const service = new CommunityCatalogSourceService({
+      fetcher,
+      repository: 'agirunner/agirunner-playbooks',
+      rawBaseUrl: 'https://raw.example.test',
+      resolveRef,
+    });
+
+    const selection = await service.loadSelection(['bug-fix']);
+
+    expect(selection.ref).toBe('main');
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://raw.example.test/agirunner/agirunner-playbooks/v0.1.0-alpha.99/catalog/playbooks.yaml',
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://raw.example.test/agirunner/agirunner-playbooks/main/catalog/playbooks.yaml',
+    );
+  });
+
+  it('does not fall back when an explicit community catalog ref override is missing', async () => {
+    const fetcher = createCatalogFetcher(async () => new Response('not found', { status: 404 }));
+    const service = new CommunityCatalogSourceService({
+      fetcher,
+      repository: 'agirunner/agirunner-playbooks',
+      ref: 'release-candidate',
+      rawBaseUrl: 'https://raw.example.test',
+    });
+
+    await expect(service.listPlaybooks()).rejects.toThrow('HTTP 404');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://raw.example.test/agirunner/agirunner-playbooks/release-candidate/catalog/playbooks.yaml',
+    );
+  });
+
   it('loads a playbook package with referenced specialists, skills, and README content', async () => {
     const fetcher = createCatalogFetcher(async (input) => {
       const fixtures = new Map<string, string>([
@@ -238,7 +338,7 @@ describe('CommunityCatalogSourceService', () => {
     expect(detail.skills).toHaveLength(1);
   });
 
-  it('reads catalog files from a local root without remote fetches when configured', async () => {
+  it('reads catalog files from a local root without remote fetches or dynamic ref resolution when configured', async () => {
     const root = mkdtempSync(join(tmpdir(), 'community-catalog-source-'));
     try {
       writeCatalogFile(root, 'catalog/playbooks.yaml', PLAYBOOKS_YAML);
@@ -250,11 +350,15 @@ describe('CommunityCatalogSourceService', () => {
       writeCatalogFile(root, 'specialists/engineering/developer/specialist.yaml', SPECIALIST_YAML);
       writeCatalogFile(root, 'skills/engineering/bug-reproduction-discipline/SKILL.md', SKILL_MD);
       const fetcher = createCatalogFetcher(async () => new Response('unexpected remote fetch', { status: 500 }));
+      const resolveRef = vi.fn(async () => {
+        throw new Error('unexpected ref resolution');
+      });
       const service = new CommunityCatalogSourceService({
         fetcher,
         localRoot: root,
         repository: 'agirunner/agirunner-playbooks',
         ref: 'main',
+        resolveRef,
         rawBaseUrl: 'https://raw.example.test',
       });
 
@@ -262,6 +366,7 @@ describe('CommunityCatalogSourceService', () => {
 
       expect(selection.packages).toHaveLength(1);
       expect(fetcher).not.toHaveBeenCalled();
+      expect(resolveRef).not.toHaveBeenCalled();
     } finally {
       rmSync(root, { force: true, recursive: true });
     }

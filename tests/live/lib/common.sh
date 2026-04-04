@@ -360,6 +360,22 @@ load_live_test_env() {
   done <"${env_file}"
 }
 
+configure_live_test_community_catalog_source() {
+  local playbooks_repo_path="$1"
+
+  if [[ -d "${playbooks_repo_path}" ]]; then
+    export COMMUNITY_CATALOG_LOCAL_HOST_ROOT="${playbooks_repo_path}"
+    export COMMUNITY_CATALOG_LOCAL_ROOT="/community-catalog-source"
+    unset COMMUNITY_CATALOG_REF
+    log_live_test "using local community catalog repo ${playbooks_repo_path}"
+    return 0
+  fi
+
+  unset COMMUNITY_CATALOG_LOCAL_HOST_ROOT
+  unset COMMUNITY_CATALOG_LOCAL_ROOT
+  log_live_test "local community catalog repo not found; falling back to ${COMMUNITY_CATALOG_RAW_BASE_URL:-https://raw.githubusercontent.com}"
+}
+
 derive_live_test_database_url() {
   echo "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}"
 }

@@ -5,6 +5,11 @@ const optionalUrl = z.preprocess(
   z.string().url().optional(),
 );
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim().length === 0 ? undefined : value),
+  z.string().optional(),
+);
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -59,9 +64,9 @@ export const envSchema = z
     WORKER_DEGRADED_THRESHOLD_MULTIPLIER: z.coerce.number().min(1).default(1),
     WORKER_OFFLINE_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
     COMMUNITY_CATALOG_REPOSITORY: z.string().min(1).default('agirunner/agirunner-playbooks'),
-    COMMUNITY_CATALOG_REF: z.string().min(1).default('main'),
+    COMMUNITY_CATALOG_REF: optionalNonEmptyString,
     COMMUNITY_CATALOG_RAW_BASE_URL: z.string().url().default('https://raw.githubusercontent.com'),
-    COMMUNITY_CATALOG_LOCAL_ROOT: z.string().optional(),
+    COMMUNITY_CATALOG_LOCAL_ROOT: optionalNonEmptyString,
     PLATFORM_PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
     REMOTE_MCP_HOSTED_CALLBACK_BASE_URL: optionalUrl,
     WORKSPACE_GIT_VERIFY_TIMEOUT_SECONDS: z.coerce.number().int().min(1).default(15),
