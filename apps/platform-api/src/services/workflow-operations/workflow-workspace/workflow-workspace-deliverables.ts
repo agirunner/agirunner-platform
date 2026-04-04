@@ -50,12 +50,21 @@ export function buildWorkspaceDeliverablesPacket(
     ...mergedVisibleDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
     ...remainingFallbackDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
   ];
+  const presentedDeliverables = normalizeWorkflowScopeRollupDeliverables(
+    mergedFinalDeliverables,
+    mergedInProgressDeliverables,
+    selectedScope,
+    board,
+  );
 
   return {
     ...scopedDeliverables,
-    final_deliverables: mergedFinalDeliverables,
-    in_progress_deliverables: mergedInProgressDeliverables,
-    all_deliverables: [...mergedFinalDeliverables, ...mergedInProgressDeliverables],
+    final_deliverables: presentedDeliverables.final_deliverables,
+    in_progress_deliverables: presentedDeliverables.in_progress_deliverables,
+    all_deliverables: [
+      ...presentedDeliverables.final_deliverables,
+      ...presentedDeliverables.in_progress_deliverables,
+    ],
   };
 }
 
@@ -324,6 +333,52 @@ function isFinalWorkspaceDeliverable(deliverable: WorkflowDeliverableRecord): bo
 
 function isFinalOutputDescriptorStatus(status: MissionControlOutputDescriptor['status']): boolean {
   return status === 'approved' || status === 'final';
+}
+
+function normalizeWorkflowScopeRollupDeliverables(
+  finalDeliverables: WorkflowDeliverableRecord[],
+  inProgressDeliverables: WorkflowDeliverableRecord[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  board: Record<string, unknown>,
+): {
+  final_deliverables: WorkflowDeliverableRecord[];
+  in_progress_deliverables: WorkflowDeliverableRecord[];
+} {
+  if (selectedScope.scope_kind !== 'workflow' || readIncompleteWorkItemIds(board).size === 0) {
+    return {
+      final_deliverables: finalDeliverables,
+      in_progress_deliverables: inProgressDeliverables,
+    };
+  }
+
+  const stableFinalDeliverables = finalDeliverables.filter(
+    (deliverable) => !isWorkflowRollupDeliverable(deliverable),
+  );
+  const reclassifiedDeliverables = finalDeliverables
+    .filter(isWorkflowRollupDeliverable)
+    .map(downgradeFinalDeliverableForActiveWorkflow);
+
+  return {
+    final_deliverables: stableFinalDeliverables,
+    in_progress_deliverables: [
+      ...reclassifiedDeliverables,
+      ...inProgressDeliverables,
+    ],
+  };
+}
+
+function downgradeFinalDeliverableForActiveWorkflow(
+  deliverable: WorkflowDeliverableRecord,
+): WorkflowDeliverableRecord {
+  return {
+    ...deliverable,
+    delivery_stage: 'in_progress',
+    state: deliverable.state === 'final' ? 'approved' : deliverable.state,
+  };
+}
+
+function isWorkflowRollupDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  return Boolean(readOptionalString(asRecord(deliverable.content_preview).rollup_source_work_item_id));
 }
 
 function mergeVisibleDeliverablesWithFallbacks(
