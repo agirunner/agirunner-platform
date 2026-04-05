@@ -9,10 +9,30 @@ open `0.1.0` target.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] - 2026-04-04
+
+### Added
+
+- Playbooks that omit `definition.board` now inherit the standard
+  authoring lanes by default.
+
 ### Changed
 
-- Community catalog imports now prefer the `agirunner-playbooks` tag matching the running platform version, fall back to the latest catalog ref when the version cannot be derived or the tag is missing, and still honor explicit `COMMUNITY_CATALOG_REF` overrides.
-- Live-test and community-playbooks bootstrap paths now force the local `agirunner-playbooks` checkout when it exists, so harness runs do not drift onto a tagged remote catalog ref.
+- Community catalog resolution now prefers the platform-matched
+  `agirunner-playbooks` tag, honors active revisions more reliably, and
+  keeps local harness runs on manifest-backed local catalog content when
+  available.
+- Workflow deliverables now flatten and deduplicate rollups, preserve
+  content-backed interim outputs, retain titles and metadata, and attach
+  workflow input packet files into workspace surfaces.
+
+### Fixed
+
+- Dashboard workflow views now keep staged and final deliverables
+  visible, collapse duplicate rows, refresh work items more reliably,
+  and stabilize workflow rail rendering during live runs.
+- Community-playbooks and live validation now recognize grounded
+  native-search evidence and paged research outputs more reliably.
 
 ## [0.1.0-alpha.3] - 2026-04-03
 
