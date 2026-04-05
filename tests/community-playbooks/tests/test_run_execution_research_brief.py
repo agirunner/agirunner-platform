@@ -209,6 +209,52 @@ class ResearchBriefRunExecutionTests(unittest.TestCase):
             result["observed"]["final_deliverable_preview_excerpt"],
         )
 
+    def test_execute_run_research_brief_accepts_native_search_tool_result_evidence(self) -> None:
+        api = FakeRunApi()
+        api.get_workflow = lambda _: {"id": "wf-1", "state": "completed"}  # type: ignore[method-assign]
+        api.list_approvals = lambda: {"stage_gates": []}  # type: ignore[method-assign]
+        api.get_workspace_packet = lambda _workflow_id, **_kwargs: {  # type: ignore[method-assign]
+            "live_console": {"total_count": 3},
+            "deliverables": {
+                "final_deliverables": [
+                    {
+                        "descriptor_kind": "artifact",
+                        "title": "Quantum Computer Final Synthesis",
+                        "filename": "quantum-computer-final-synthesis.md",
+                        "delivery_stage": "final",
+                        "state": "final",
+                        "specialist_label": "Research Analyst",
+                        "primary_target": {"url": "/preview/final"},
+                    }
+                ],
+                "in_progress_deliverables": [],
+            },
+        }
+        api.read_api_path = build_grounded_research_preview  # type: ignore[method-assign]
+        api.list_logs = lambda **_kwargs: [  # type: ignore[method-assign]
+            {
+                "payload": {
+                    "tool": "native_search",
+                    "output": (
+                        '{"provider_tool_calls":[{"name":"web_search","status":"completed","provider_managed":true}]}'
+                    ),
+                }
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = execute_run(
+                api,
+                build_research_playbook(),
+                build_research_run_spec(),
+                results_dir=Path(tmpdir),
+                timeout_seconds=2,
+                poll_interval_seconds=0,
+            )
+
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["observed"]["native_web_search_used"])
+
 
 if __name__ == "__main__":
     unittest.main()

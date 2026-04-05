@@ -192,15 +192,44 @@ def _contains_provider_web_search(logs: list[dict[str, Any]]) -> bool:
         payload = item.get("payload")
         if not isinstance(payload, dict):
             continue
-        provider_tool_calls = payload.get("provider_tool_calls")
-        if not isinstance(provider_tool_calls, list):
-            continue
-        for call in provider_tool_calls:
-            if not isinstance(call, dict):
-                continue
-            if str(call.get("name") or "").strip() == "web_search":
-                return True
+        for provider_tool_calls in _provider_tool_call_groups(payload):
+            for call in provider_tool_calls:
+                if not isinstance(call, dict):
+                    continue
+                if str(call.get("name") or "").strip() == "web_search":
+                    return True
     return False
+
+
+def _provider_tool_call_groups(payload: dict[str, Any]) -> list[list[dict[str, Any]]]:
+    groups: list[list[dict[str, Any]]] = []
+    direct_calls = payload.get("provider_tool_calls")
+    if isinstance(direct_calls, list):
+        groups.append([call for call in direct_calls if isinstance(call, dict)])
+
+    nested_output = payload.get("output")
+    nested_payload = _decode_json_object(nested_output)
+    if nested_payload is None:
+        return groups
+
+    nested_calls = nested_payload.get("provider_tool_calls")
+    if isinstance(nested_calls, list):
+        groups.append([call for call in nested_calls if isinstance(call, dict)])
+    return groups
+
+
+def _decode_json_object(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(decoded, dict):
+        return None
+    return decoded
 
 
 def _has_research_structure(text: str) -> bool:
