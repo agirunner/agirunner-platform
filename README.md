@@ -5,7 +5,7 @@
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-97CA00)](./LICENSE)
 
-Control plane, public API, and operator surface for Agirunner.
+Control plane, public API, and operator surface for governed agent workflows.
 
 > Looking for the full Agirunner product, quick start, and deployment
 > path? Start with
@@ -13,17 +13,19 @@ Control plane, public API, and operator surface for Agirunner.
 > [docs.agirunner.dev](https://docs.agirunner.dev). This repository is
 > the public implementation repo for the platform itself.
 
-The Agirunner Platform is the control plane behind Agirunner's durable
-backend for agent-powered systems. It owns playbooks, workflows, work
-items, activations, approvals, operator-visible state, the dashboard,
-the public API, and the fleet-management surfaces that tell runtimes
-what contracts apply next.
+The Agirunner Platform is the control plane behind Agirunner. It turns
+playbooks, workflow state, approvals, and operator actions into the
+contracts that runtimes execute next.
 
 Developers build on this layer today through the platform API.
 Operators supervise the same layer through the dashboard. If
 `agirunner-runtime` is the execution plane, `agirunner-platform` is the
-place where workflow meaning, workflow records, and control surfaces
+place where workflow intent, workflow records, and control surfaces
 live.
+
+This is the layer that matters when agent work needs to be repeatable,
+reviewable, and governed instead of buried in prompt history or ad hoc
+background jobs.
 
 Available today:
 
