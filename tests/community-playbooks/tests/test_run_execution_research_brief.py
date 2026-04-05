@@ -48,13 +48,13 @@ def build_grounded_research_preview(path: str) -> str:
     if path != "/preview/final":
         return ""
     return (
-        "# Final Research Synthesis\n\n"
-        "## Research Question\nWhat is a quantum computer?\n\n"
-        "## Sources Consulted\n- NIST\n- IBM\n\n"
-        "## Source Quality Notes\nNeutral public-interest sources carried more weight than vendor explainers.\n\n"
-        "## Findings\nA bounded answer.\n\n"
-        "## Confidence\nMedium-high.\n\n"
-        "## Recommendation / Next Step\nUse the source review for follow-up detail."
+        "# Final Synthesis: What is a quantum computer?\n\n"
+        "## question_answered\nWhat is a quantum computer?\n\n"
+        "## sources_consulted\n- NIST\n- IBM\n\n"
+        "## source_quality_notes\nNeutral public-interest sources carried more weight than vendor explainers.\n\n"
+        "## findings\nA bounded answer.\n\n"
+        "## confidence\nMedium-high.\n\n"
+        "## recommendation_or_next_step\nUse the source review for follow-up detail."
     )
 
 
@@ -161,7 +161,23 @@ class ResearchBriefRunExecutionTests(unittest.TestCase):
         api = FakeRunApi()
         api.get_workflow = lambda _: {"id": "wf-1", "state": "completed"}  # type: ignore[method-assign]
         api.list_approvals = lambda: {"stage_gates": []}  # type: ignore[method-assign]
-        api.get_workspace_packet = lambda _workflow_id, **_kwargs: build_final_artifact_packet()  # type: ignore[method-assign]
+        api.get_workspace_packet = lambda _workflow_id, **_kwargs: {  # type: ignore[method-assign]
+            "live_console": {"total_count": 3},
+            "deliverables": {
+                "final_deliverables": [
+                    {
+                        "descriptor_kind": "artifact",
+                        "title": "Quantum Computer Final Synthesis",
+                        "filename": "quantum-computer-final-synthesis.md",
+                        "delivery_stage": "final",
+                        "state": "final",
+                        "specialist_label": "Research Analyst",
+                        "primary_target": {"url": "/preview/final"},
+                    }
+                ],
+                "in_progress_deliverables": [],
+            },
+        }
         api.read_api_path = build_grounded_research_preview  # type: ignore[method-assign]
         api.list_logs = lambda **_kwargs: [  # type: ignore[method-assign]
             {"payload": {"provider_tool_calls": [{"name": "web_search", "status": "completed"}]}}
@@ -178,6 +194,20 @@ class ResearchBriefRunExecutionTests(unittest.TestCase):
             )
 
         self.assertTrue(result["passed"])
+        self.assertTrue(result["observed"]["final_deliverable_present"])
+        self.assertEqual("Quantum Computer Final Synthesis", result["observed"]["final_deliverable_title"])
+        self.assertEqual(
+            "quantum-computer-final-synthesis.md",
+            result["observed"]["final_deliverable_filename"],
+        )
+        self.assertTrue(result["observed"]["native_web_search_used"])
+        self.assertTrue(result["observed"]["structured_final_research_present"])
+        self.assertTrue(result["observed"]["source_basis_present"])
+        self.assertTrue(result["observed"]["source_quality_notes_present"])
+        self.assertIn(
+            "question_answered",
+            result["observed"]["final_deliverable_preview_excerpt"],
+        )
 
 
 if __name__ == "__main__":

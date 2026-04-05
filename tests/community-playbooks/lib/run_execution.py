@@ -205,48 +205,99 @@ def _contains_provider_web_search(logs: list[dict[str, Any]]) -> bool:
 
 def _has_research_structure(text: str) -> bool:
     normalized = text.lower()
-    has_question = "research question" in normalized or normalized.startswith("# final research synthesis")
+    has_question = (
+        "research question" in normalized
+        or "question_answered" in normalized
+        or "question answered" in normalized
+        or normalized.startswith("# final research synthesis")
+        or normalized.startswith("# final synthesis")
+    )
     has_findings = "findings" in normalized
     has_confidence = "confidence" in normalized
-    has_recommendation = "recommendation" in normalized or "next step" in normalized
+    has_recommendation = (
+        "recommendation" in normalized
+        or "recommendation_or_next_step" in normalized
+        or "next step" in normalized
+        or "recommended_next_step" in normalized
+    )
     return has_question and has_findings and has_confidence and has_recommendation
 
 
-def _has_visible_source_basis(text: str) -> bool:
+def _read_source_visibility(text: str) -> dict[str, bool]:
     normalized = text.lower()
-    has_source_basis = "sources consulted" in normalized or "source basis" in normalized or "evidence basis" in normalized
-    has_quality_notes = "source quality" in normalized or "quality notes" in normalized
-    return has_source_basis and has_quality_notes
+    has_source_basis = (
+        "sources consulted" in normalized
+        or "sources_consulted" in normalized
+        or "source basis" in normalized
+        or "evidence basis" in normalized
+    )
+    has_quality_notes = (
+        "source quality" in normalized
+        or "quality notes" in normalized
+        or "source_quality_notes" in normalized
+    )
+    return {
+        "source_basis_present": has_source_basis,
+        "source_quality_notes_present": has_quality_notes,
+    }
 
 
-def _evaluate_research_brief_outcome(
+def _collect_research_brief_observations(
     *,
     api: Any,
     workflow_id: str,
     workspace_packet: dict[str, Any],
-    expected_outcome: dict[str, Any],
-) -> list[str]:
-    failures: list[str] = []
+) -> dict[str, Any]:
     content_final_deliverables = _content_final_deliverables(workspace_packet)
-    if len(content_final_deliverables) == 0:
-        failures.append("final research deliverables only exposed packet rows instead of a real content row")
     final_previews = [_read_deliverable_preview(api, item) for item in content_final_deliverables]
     non_empty_previews = [preview for preview in final_previews if preview.strip() != ""]
-    has_structured_final = any(_has_research_structure(preview) for preview in non_empty_previews)
-    if not has_structured_final:
+    preview_to_report = non_empty_previews[0] if non_empty_previews else ""
+    source_visibility = [_read_source_visibility(preview) for preview in non_empty_previews]
+    logs = list(api.list_logs(workflow_id=workflow_id, status=None, per_page=500))
+    first_content_row = content_final_deliverables[0] if content_final_deliverables else {}
+    return {
+        "final_deliverable_present": len(content_final_deliverables) > 0,
+        "final_content_deliverable_count": len(content_final_deliverables),
+        "final_deliverable_title": str(first_content_row.get("title") or "").strip() or None,
+        "final_deliverable_filename": str(first_content_row.get("filename") or "").strip() or None,
+        "final_deliverable_preview_excerpt": preview_to_report[:500],
+        "structured_final_research_present": any(
+            _has_research_structure(preview) for preview in non_empty_previews
+        ),
+        "source_basis_present": any(item["source_basis_present"] for item in source_visibility),
+        "source_quality_notes_present": any(
+            item["source_quality_notes_present"] for item in source_visibility
+        ),
+        "native_web_search_used": _contains_provider_web_search(logs),
+    }
+
+
+def _evaluate_research_brief_outcome(
+    *,
+    expected_outcome: dict[str, Any],
+    research_observations: dict[str, Any],
+) -> list[str]:
+    failures: list[str] = []
+    if not bool(research_observations.get("final_deliverable_present")):
+        failures.append("final research deliverables only exposed packet rows instead of a real content row")
+    if not bool(research_observations.get("structured_final_research_present")):
         failures.append("no final research deliverable preview satisfied the structured research contract")
 
-    if bool(expected_outcome.get("require_source_basis")) and not any(
-        _has_visible_source_basis(preview) for preview in non_empty_previews
+    if bool(expected_outcome.get("require_source_basis")) and not bool(
+        research_observations.get("source_basis_present")
     ):
         failures.append("final research deliverable does not expose a visible source basis")
+    if bool(expected_outcome.get("require_source_basis")) and not bool(
+        research_observations.get("source_quality_notes_present")
+    ):
+        failures.append("final research deliverable does not expose visible source quality notes")
 
-    if bool(expected_outcome.get("require_native_web_search")):
-        logs = list(api.list_logs(workflow_id=workflow_id, status=None, per_page=500))
-        if not _contains_provider_web_search(logs):
-            failures.append(
-                "run required actual provider-managed native web search usage but no web_search evidence was recorded"
-            )
+    if bool(expected_outcome.get("require_native_web_search")) and not bool(
+        research_observations.get("native_web_search_used")
+    ):
+        failures.append(
+            "run required actual provider-managed native web search usage but no web_search evidence was recorded"
+        )
 
     return failures
 
@@ -265,6 +316,7 @@ def _evaluate_result(
     manual_operator_actions: bool,
     manual_action_snapshot: dict[str, Any],
     provider_blocker_message: str | None,
+    research_observations: dict[str, Any] | None = None,
 ) -> list[str]:
     failures: list[str] = []
     if provider_blocker_message:
@@ -295,10 +347,8 @@ def _evaluate_result(
     if str(expected_outcome.get("kind") or "").strip() == "research_brief":
         failures.extend(
             _evaluate_research_brief_outcome(
-                api=api,
-                workflow_id=str(workflow.get("id") or "").strip(),
-                workspace_packet=workspace_packet,
                 expected_outcome=expected_outcome,
+                research_observations=research_observations or {},
             )
         )
     return failures
@@ -402,6 +452,16 @@ def execute_run(
 
     workspace_packet = api.get_workspace_packet(str(workflow["id"]))
     packet_summary = summarize_workspace_packet(workspace_packet)
+    expected_outcome = dict(run_spec.get("expected_outcome") or {})
+    research_observations = (
+        _collect_research_brief_observations(
+            api=api,
+            workflow_id=str(workflow["id"]),
+            workspace_packet=workspace_packet,
+        )
+        if str(expected_outcome.get("kind") or "").strip() == "research_brief"
+        else {}
+    )
     failures = _evaluate_result(
         api=api,
         run_spec=run_spec,
@@ -415,6 +475,7 @@ def execute_run(
         manual_operator_actions=manual_operator_actions,
         manual_action_snapshot=manual_action_snapshot,
         provider_blocker_message=provider_blocker_message,
+        research_observations=research_observations,
     )
     result_path = _result_path(results_dir, run_spec)
     result = {
@@ -435,6 +496,7 @@ def execute_run(
             "work_item_count": len(latest_work_items),
             "brief_count": len(latest_briefs),
             "workspace_packet": packet_summary,
+            **research_observations,
         },
         "prepared_workspace": prepared_workspace,
         "selected_default_execution_environment": selected_default_execution_environment,
