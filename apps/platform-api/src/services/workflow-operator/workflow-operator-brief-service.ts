@@ -192,6 +192,24 @@ export class WorkflowOperatorBriefService {
     workflowId: string,
     input: RecordWorkflowOperatorBriefInput,
   ): Promise<WorkflowOperatorBriefWriteResult> {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await this.recordBriefWriteOnce(identity, workflowId, input);
+      } catch (error) {
+        if (!isRetryableDeadlockError(error) || attempt >= 1) {
+          throw error;
+        }
+        attempt += 1;
+      }
+    }
+  }
+
+  private async recordBriefWriteOnce(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    input: RecordWorkflowOperatorBriefInput,
+  ): Promise<WorkflowOperatorBriefWriteResult> {
     await this.assertWorkflow(identity.tenantId, workflowId);
     const executionContext = await this.resolveExecutionContext(identity, workflowId, input);
     const effectiveRequestId = sanitizeOptionalText(input.requestId) ?? randomUUID();
@@ -343,4 +361,11 @@ export class WorkflowOperatorBriefService {
       throw new ValidationError('Workflow operator brief work item must belong to the selected workflow');
     }
   }
+}
+
+function isRetryableDeadlockError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: unknown }).code === '40P01';
 }
