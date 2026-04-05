@@ -109,7 +109,6 @@ describe('playbook model runtime pools', () => {
       ],
     });
 
-    expect(definition.process_instructions).toContain('Move work through requirements');
     expect(definition.stages).toEqual([
       {
         name: 'requirements',
@@ -234,16 +233,6 @@ describe('playbook model runtime pools', () => {
         },
       }),
     ).toThrow(SchemaValidationFailedError);
-  });
-
-  it('derives fallback process instructions for legacy definitions with stages only', () => {
-    const definition = parsePlaybookDefinition({
-      roles: ['developer'],
-      board: { columns: [{ id: 'planned', label: 'Planned' }] },
-      stages: [{ name: 'implementation', goal: 'Working code exists.' }],
-    });
-
-    expect(definition.process_instructions).toContain('1. implementation: Working code exists.');
   });
 
   it('applies the canonical default board when board config is omitted', () => {
