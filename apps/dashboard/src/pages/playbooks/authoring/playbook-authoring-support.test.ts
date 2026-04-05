@@ -24,10 +24,6 @@ describe('playbook authoring support', () => {
       expect.objectContaining({ id: 'blocked', is_blocked: true, is_terminal: false }),
       expect.objectContaining({ id: 'done', is_blocked: false, is_terminal: true }),
     ]);
-    expect(draft.process_instructions).toContain('mandatory');
-    expect(draft.process_instructions).toContain('preferred');
-    expect(draft.process_instructions).toContain('residual risks');
-    expect(draft.process_instructions).toContain('close the workflow');
     expect(draft.orchestrator.max_rework_iterations).toBe('');
     expect(draft.orchestrator.max_active_tasks).toBe('');
     expect(draft.orchestrator.max_active_tasks_per_work_item).toBe('');
@@ -63,7 +59,6 @@ describe('playbook authoring support', () => {
         value: expect.objectContaining({
           lifecycle: 'planned',
           roles: ['architect', 'developer', 'reviewer'],
-          process_instructions: draft.process_instructions,
           parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
           stages: expect.arrayContaining([
             expect.objectContaining({
@@ -101,7 +96,6 @@ describe('playbook authoring support', () => {
       parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
     });
 
-    expect(draft.process_instructions).toContain('request human approval');
     expect(draft.stages).toEqual([
       { name: 'design', goal: 'Plan the solution.', guidance: 'Capture decisions.' },
     ]);
@@ -203,31 +197,6 @@ describe('playbook authoring support', () => {
         columnCount: 4,
       }),
     );
-  });
-
-  it('preserves must-versus-preferred prose when building the definition', () => {
-    const draft = createDefaultAuthoringDraft('planned');
-    draft.roles = [{ value: 'architect' }];
-    draft.process_instructions =
-      'Mandatory: produce a publishable release packet and close the workflow with residual risks recorded when needed. Preferred: get peer review and human approval before release, but if those are unavailable the orchestrator must still drive to a close-enough outcome and record callouts.';
-    draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
-
-    const built = buildPlaybookDefinition('planned', draft);
-
-    expect(built).toEqual(
-      expect.objectContaining({
-        ok: true,
-        value: expect.objectContaining({
-          process_instructions: expect.stringContaining(
-            'Mandatory: produce a publishable release packet',
-          ),
-        }),
-      }),
-    );
-    if (built.ok) {
-      expect(String(built.value.process_instructions)).toContain('Preferred: get peer review');
-      expect(String(built.value.process_instructions)).toContain('record callouts');
-    }
   });
 
   it('validates role membership and board entry columns', () => {
