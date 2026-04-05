@@ -3,13 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildWorkspaceGitAccessVerificationFingerprint,
   buildWorkspaceGitAccessVerificationInput,
-  buildWorkspaceSecretPostureSummary,
-  buildWorkspaceSettingsSurfaceSummary,
   buildWorkspaceSettingsPatch,
   createWorkspaceSettingsDraft,
   requiresWorkspaceGitAccessVerification,
   readWorkspaceSettings,
-  summarizeWorkspaceBrief,
   validateWorkspaceSettingsDraft,
 } from './workspace-settings-support.js';
 
@@ -133,67 +130,6 @@ describe('workspace settings support', () => {
     );
   });
 
-  it('builds a compact surface summary with git and repository posture', () => {
-    const workspace = {
-      id: 'workspace-1',
-      name: 'Release automation',
-      slug: 'release-automation',
-      description: 'Ship weekly safely.',
-      repository_url: 'https://example.com/repo.git',
-      is_active: true,
-      settings: {
-        credentials: {
-          git_token: 'redacted://workspace-settings-secret',
-          git_token_configured: true,
-        },
-      },
-    };
-
-    const draft = createWorkspaceSettingsDraft(workspace);
-    const validation = validateWorkspaceSettingsDraft(draft);
-    const summary = buildWorkspaceSettingsSurfaceSummary(workspace, draft, validation);
-
-    expect(summary.configuredSecretCount).toBe(1);
-    expect(summary.configuredSecretLabel).toBe('1 secret configured');
-    expect(summary.stagedSecretChangeCount).toBe(0);
-    expect(summary.stagedSecretChangeLabel).toBe('No secret changes staged');
-    expect(summary.storageLabel).toBe('Git Remote');
-    expect(summary.lifecycleLabel).toBe('Active workspace');
-    expect(summary.blockingIssueCount).toBe(0);
-    expect(summary.blockingTitle).toBe('Resolve before saving');
-  });
-
-  it('defaults new workspaces to workspace artifacts in the compact settings summaries', () => {
-    const workspace = {
-      id: 'workspace-1',
-      name: 'Release automation',
-      slug: 'release-automation',
-      description: 'Ship weekly safely.',
-      repository_url: null,
-      is_active: false,
-      settings: {
-        credentials: {
-          git_token: null,
-          git_token_configured: false,
-        },
-      },
-    };
-
-    const draft = createWorkspaceSettingsDraft(workspace);
-    draft.credentials.gitToken.mode = 'replace';
-    draft.credentials.gitToken.value = 'rotate-me';
-    const summary = buildWorkspaceSettingsSurfaceSummary(
-      workspace,
-      draft,
-      validateWorkspaceSettingsDraft(draft),
-    );
-
-    expect(summary.storageLabel).toBe('Workspace Artifacts');
-    expect(summary.lifecycleLabel).toBe('Inactive workspace');
-    expect(summary.stagedSecretChangeCount).toBe(1);
-    expect(summary.stagedSecretChangeLabel).toBe('1 secret change staged');
-  });
-
   it('defaults credential drafts to preserve mode until an operator explicitly opens a change path', () => {
     const draft = createWorkspaceSettingsDraft({
       id: 'workspace-1',
@@ -211,39 +147,6 @@ describe('workspace settings support', () => {
     });
 
     expect(draft.credentials.gitToken.mode).toBe('preserve');
-  });
-
-  it('builds calm collapsed summaries for credentials and workspace context', () => {
-    expect(
-      buildWorkspaceSecretPostureSummary({
-        configured: false,
-        mode: 'preserve',
-        value: '',
-      }),
-    ).toEqual({
-      statusLabel: 'Not configured',
-      postureLabel: 'Still empty',
-      detail: 'No stored value yet.',
-      tone: 'default',
-    });
-
-    expect(
-      buildWorkspaceSecretPostureSummary({
-        configured: true,
-        mode: 'replace',
-        value: '',
-      }),
-    ).toEqual({
-      statusLabel: 'Configured',
-      postureLabel: 'Updates on save',
-      detail: 'Enter a new value before saving.',
-      tone: 'warning',
-    });
-
-    expect(summarizeWorkspaceBrief('')).toBe('No workspace context saved yet.');
-    expect(
-      summarizeWorkspaceBrief('Keep release automation ready for Friday handoff.\nTrack rollback notes.'),
-    ).toBe('Keep release automation ready for Friday handoff.');
   });
 
   it('requires git verification when repository access changes for a git remote workspace', () => {

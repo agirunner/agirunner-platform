@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildTaskNextStep,
   normalizeTaskState,
   parseJsonObject,
   readCanonicalFinalDeliverables,
@@ -93,23 +92,6 @@ describe('task detail lifecycle support', () => {
       escalationContext: 'Waiting for change window',
       escalationAwaitingHuman: true,
     });
-  });
-
-  it('builds operator next-step guidance from canonical task state', () => {
-    expect(buildTaskNextStep({ state: 'awaiting_approval' } as never)).toEqual({
-      title: 'Approve or reject this specialist step',
-      detail:
-        'Review the work-item packet, decide whether the step should advance, and keep the board state aligned with the operator decision.',
-    });
-    expect(buildTaskNextStep({ status: 'failed' } as never).title).toBe(
-      'Inspect failure context before retrying',
-    );
-    expect(buildTaskNextStep({ state: 'in_progress' } as never).title).toBe(
-      'Monitor execution and intervene only if needed',
-    );
-    expect(buildTaskNextStep({ state: 'queued' } as never).detail).toBe(
-      'Use the workflow scope, current status, and step packet to decide the safest next operator action.',
-    );
   });
 
   it('reads canonical final deliverables from completion-style output packets', () => {

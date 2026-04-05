@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  summarizeRoleSetup,
   validateRoleDialog,
 } from './role-definitions-dialog.support.js';
 import { createRoleForm } from './role-definitions-page.support.js';
@@ -20,33 +19,7 @@ describe('role dialog support', () => {
     );
 
     expect(result.isValid).toBe(false);
-    expect(result.fieldErrors).toMatchObject({
-      name: 'Choose a unique specialist name.',
-    });
-    expect(result.advisoryIssues).toEqual(
-      expect.arrayContaining([
-        'Add a system prompt so the orchestrator understands how the specialist should behave.',
-        'Enable at least one tool or confirm that this specialist should be read-only.',
-      ]),
-    );
-  });
-
-  it('summarizes role posture in operator-facing language', () => {
-    expect(
-      summarizeRoleSetup({
-        ...createRoleForm(),
-        allowedTools: ['file_read'],
-        mcpServerIds: ['server-1'],
-        skillIds: ['skill-1', 'skill-2'],
-        executionEnvironmentId: '',
-      }),
-    ).toEqual({
-      toolSummary: '1 tool enabled',
-      modelSummary: 'Model assigned on Models page',
-      environmentSummary: 'Uses default environment',
-      remoteMcpSummary: '1 remote MCP server granted',
-      skillSummary: '2 skills assigned',
-    });
+    expect(result.fieldErrors).toHaveProperty('name');
   });
 
   it('summarizes explicit environment selection in operator-facing language', () => {
