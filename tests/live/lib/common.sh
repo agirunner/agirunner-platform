@@ -11,6 +11,39 @@ default_live_test_artifacts_dir() {
   printf '%s\n' "${LIVE_TEST_ROOT_DIR}/results"
 }
 
+normalize_live_test_path() {
+  local raw_path="$1"
+  local parent_dir
+  parent_dir="$(cd "$(dirname "${raw_path}")" && pwd)"
+  printf '%s/%s\n' "${parent_dir}" "$(basename "${raw_path}")"
+}
+
+default_live_test_playbooks_repo_path() {
+  local repo_root="$1"
+  local candidate
+  local sibling_candidate="${repo_root}/../agirunner-playbooks"
+  local legacy_nested_candidate="${repo_root}/../../agirunner/agirunner-playbooks"
+
+  for candidate in "${sibling_candidate}" "${legacy_nested_candidate}"; do
+    if [[ -f "${candidate}/catalog/playbooks.yaml" ]]; then
+      normalize_live_test_path "${candidate}"
+      return 0
+    fi
+  done
+
+  if [[ -d "${sibling_candidate}" ]]; then
+    normalize_live_test_path "${sibling_candidate}"
+    return 0
+  fi
+
+  if [[ -d "${legacy_nested_candidate}" ]]; then
+    normalize_live_test_path "${legacy_nested_candidate}"
+    return 0
+  fi
+
+  normalize_live_test_path "${sibling_candidate}"
+}
+
 live_test_compose_project_name() {
   printf '%s\n' "${LIVE_TEST_COMPOSE_PROJECT_NAME:-${COMPOSE_PROJECT_NAME:-agirunner-platform}}"
 }

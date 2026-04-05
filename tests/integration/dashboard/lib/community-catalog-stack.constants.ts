@@ -1,18 +1,11 @@
-import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveCommunityCatalogRepoRoot } from './community-catalog-repo-root.js';
+
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(CURRENT_DIR, '../../../..');
-
-const COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES = [
-  resolve(REPO_ROOT, '../../agirunner/agirunner-playbooks'),
-  resolve(REPO_ROOT, '../agirunner-playbooks'),
-];
-
-export const COMMUNITY_CATALOG_REPO_ROOT =
-  COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES.find((path) => existsSync(path))
-  ?? COMMUNITY_CATALOG_REPO_ROOT_CANDIDATES[0];
+export const COMMUNITY_CATALOG_REPO_ROOT = resolveCommunityCatalogRepoRoot(REPO_ROOT);
 export const COMMUNITY_CATALOG_FIXTURE_REPOSITORY = 'fixtures/agirunner-playbooks';
 export const COMMUNITY_CATALOG_FIXTURE_REF = 'main';
 export const COMMUNITY_CATALOG_FIXTURE_PORT = 8791;

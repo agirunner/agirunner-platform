@@ -7,10 +7,10 @@ LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${LIVE_TEST_ROOT}/lib/common.sh"
 
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches() {
-  DEFAULT_ADMIN_API_KEY="admin-secret"
-  PLATFORM_SERVICE_API_KEY="service-secret"
-  JWT_SECRET="jwt-secret"
-  WEBHOOK_ENCRYPTION_KEY="webhook-secret"
+  DEFAULT_ADMIN_API_KEY="admin-secret" # pragma: allowlist secret
+  PLATFORM_SERVICE_API_KEY="service-secret" # pragma: allowlist secret
+  JWT_SECRET="jwt-secret" # pragma: allowlist secret
+  WEBHOOK_ENCRYPTION_KEY="webhook-secret" # pragma: allowlist secret
 
   docker() {
     if [[ "$1" == "ps" ]]; then
@@ -34,10 +34,10 @@ EOF
 }
 
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts() {
-  DEFAULT_ADMIN_API_KEY="admin-secret"
-  PLATFORM_SERVICE_API_KEY="service-secret"
-  JWT_SECRET="jwt-secret"
-  WEBHOOK_ENCRYPTION_KEY="webhook-secret"
+  DEFAULT_ADMIN_API_KEY="admin-secret" # pragma: allowlist secret
+  PLATFORM_SERVICE_API_KEY="service-secret" # pragma: allowlist secret
+  JWT_SECRET="jwt-secret" # pragma: allowlist secret
+  WEBHOOK_ENCRYPTION_KEY="webhook-secret" # pragma: allowlist secret
 
   docker() {
     if [[ "$1" == "ps" ]]; then
@@ -154,8 +154,32 @@ test_ensure_live_test_external_network_creates_missing_network() {
   fi
 }
 
+test_default_live_test_playbooks_repo_path_prefers_manifest_backed_sibling_checkout() {
+  local workspace_root
+  local platform_repo_root
+  local expected_playbooks_root
+  local stale_nested_root
+
+  workspace_root="$(mktemp -d)"
+  platform_repo_root="${workspace_root}/agirunner-platform"
+  expected_playbooks_root="${workspace_root}/agirunner-playbooks"
+  stale_nested_root="${workspace_root}/agirunner/agirunner-playbooks"
+
+  mkdir -p "${platform_repo_root}" "${expected_playbooks_root}/catalog" "${stale_nested_root}"
+  cat >"${expected_playbooks_root}/catalog/playbooks.yaml" <<'EOF'
+catalog_version: 1
+playbooks: []
+EOF
+
+  if [[ "$(default_live_test_playbooks_repo_path "${platform_repo_root}")" != "${expected_playbooks_root}" ]]; then
+    echo "expected manifest-backed sibling playbooks checkout to win over stale nested path" >&2
+    exit 1
+  fi
+}
+
 test_live_test_platform_api_secrets_match_succeeds_when_container_env_matches
 test_live_test_platform_api_secrets_match_fails_when_container_env_drifts
 test_load_live_test_env_uses_env_file_as_authoritative_source
 test_load_live_test_env_preserves_existing_values_when_requested
 test_ensure_live_test_external_network_creates_missing_network
+test_default_live_test_playbooks_repo_path_prefers_manifest_backed_sibling_checkout

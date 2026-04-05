@@ -24,7 +24,7 @@ LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
 LIVE_TEST_FIXTURES_REMOTE_NAME="${LIVE_TEST_FIXTURES_REMOTE_NAME:-origin}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
-PLAYBOOKS_REPO_PATH="${PLAYBOOKS_REPO_PATH:-${REPO_ROOT}/../../agirunner/agirunner-playbooks}"
+PLAYBOOKS_REPO_PATH="${PLAYBOOKS_REPO_PATH:-$(default_live_test_playbooks_repo_path "${REPO_ROOT}")}"
 RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
 LIVE_TEST_REMOTE_MCP_FIXTURE_PORT="${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}"
 LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET="${LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET:-live-test-parameterized-secret}"
@@ -71,6 +71,7 @@ LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT:-${LIVE_TEST_PLATFORM_ROOT}/tests/l
 LIVE_TEST_SHARED_BOOTSTRAP_KEY="$(
   resolve_live_test_shared_bootstrap_key "${LIVE_TEST_ROOT}" "${REPO_ROOT}" "${RUNTIME_REPO_PATH}"
 )"
+LIVE_TEST_COMPOSE_REBUILD_MAX_ATTEMPTS="${LIVE_TEST_COMPOSE_REBUILD_MAX_ATTEMPTS:-2}"
 export LIVE_TEST_SHARED_BOOTSTRAP_KEY
 
 require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
@@ -84,6 +85,34 @@ require_live_test_value "PLATFORM_SERVICE_API_KEY" "${PLATFORM_SERVICE_API_KEY:-
 require_live_test_value "JWT_SECRET" "${JWT_SECRET:-}"
 require_live_test_value "WEBHOOK_ENCRYPTION_KEY" "${WEBHOOK_ENCRYPTION_KEY:-}"
 require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
+
+rebuild_live_test_compose_stack() {
+  local attempt=1
+  local max_attempts="${LIVE_TEST_COMPOSE_REBUILD_MAX_ATTEMPTS}"
+
+  while true; do
+    if docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
+      -f "${LIVE_TEST_COMPOSE_FILE}" \
+      -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
+      up -d --build; then
+      return 0
+    fi
+
+    local status=$?
+    if (( attempt >= max_attempts )); then
+      return "${status}"
+    fi
+
+    log_live_test "compose stack rebuild attempt ${attempt}/${max_attempts} failed; retrying after cleanup"
+    docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
+      -f "${LIVE_TEST_COMPOSE_FILE}" \
+      -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
+      down -v --remove-orphans || true
+    wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+    ensure_live_test_external_network "${LIVE_TEST_COMPOSE_PROJECT_NAME}_platform_net"
+    attempt=$((attempt + 1))
+  done
+}
 
 verify_live_test_stack_secrets() {
   local platform_env
@@ -140,10 +169,7 @@ log_live_test "rebuilding standard docker compose stack"
     down -v --remove-orphans
   wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   ensure_live_test_external_network "${LIVE_TEST_COMPOSE_PROJECT_NAME}_platform_net"
-  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
-    -f "${LIVE_TEST_COMPOSE_FILE}" \
-    -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
-    up -d --build
+  rebuild_live_test_compose_stack
 )
 
 export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
