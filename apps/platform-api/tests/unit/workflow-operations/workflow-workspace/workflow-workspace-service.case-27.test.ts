@@ -195,7 +195,7 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         descriptor_id: 'output:artifact:workflow-summary',
         work_item_id: null,
-        title: 'artifact:workflow/program-status.md',
+        title: 'Program Status',
       }),
     ]);
     expect(result.bottom_tabs.counts.deliverables).toBe(2);

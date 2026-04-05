@@ -178,7 +178,7 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         descriptor_id: 'output:artifact:matching',
         work_item_id: 'work-item-1',
-        title: 'artifact:workflow/release-packet.md',
+        title: 'Release Packet',
         state: 'draft',
         delivery_stage: 'in_progress',
         primary_target: expect.objectContaining({

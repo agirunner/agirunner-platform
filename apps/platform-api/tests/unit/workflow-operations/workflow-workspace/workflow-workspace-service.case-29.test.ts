@@ -232,7 +232,7 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         descriptor_id: 'output:artifact:release-design',
         work_item_id: 'work-item-1',
-        title: 'artifact:workflow/docs/release-audit-design.md',
+        title: 'Release Audit Design',
         delivery_stage: 'in_progress',
       }),
     ]);
