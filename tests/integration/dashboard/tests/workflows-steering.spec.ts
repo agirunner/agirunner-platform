@@ -6,6 +6,7 @@ import {
   loginToWorkflows,
   workflowRailButton,
 } from '../lib/workflows-auth.js';
+import { clickPacketFileAndWaitForResponse, expectPacketFileButton } from '../lib/workflows-downloads.js';
 import {
   listWorkflowInputPackets,
   seedWorkflowsScenario,
@@ -82,9 +83,9 @@ test('stores steering attachments as linked input packets and exposes them in th
     .toBe(true);
 
   await page.getByRole('tab', { name: 'Details' }).click();
-  await expect(
-    page.locator('[data-workflows-workbench-frame="true"]').getByRole('link', { name: 'rollback-appendix.md' }),
-  ).toBeVisible();
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  const rollbackButton = await expectPacketFileButton(workbench, 'rollback-appendix.md');
+  await clickPacketFileAndWaitForResponse(page, rollbackButton);
 });
 
 test('routes needs-action through local work-item controls while keeping workflow pause and resume global', async ({ page }) => {

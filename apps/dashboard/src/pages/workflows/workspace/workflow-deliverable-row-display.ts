@@ -1,11 +1,9 @@
 import type {
   DashboardWorkflowDeliverableRecord,
-  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
 import type { DeliverableBrowserRow } from './workflow-deliverable-browser-support.js';
 import {
-  isInPlaceArtifactPreviewTarget,
   readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
@@ -46,7 +44,12 @@ export function readDeliverableRowLabel(row: DeliverableTableRowRecord): string 
 }
 
 export function readDeliverableRowRecordedAt(row: DeliverableTableRowRecord): string | null {
-  return readText(row.primaryRow.createdAt) ?? readText(row.sourceBrief?.created_at);
+  return (
+    readText(row.deliverable.updated_at)
+    ?? readText(row.deliverable.created_at)
+    ?? readText(row.primaryRow.createdAt)
+    ?? readText(row.sourceBrief?.created_at)
+  );
 }
 
 export function readDeliverableRowMetadata(
@@ -79,9 +82,7 @@ function appendTargetMetadata(
   }
 
   const target = sanitizeDeliverableTarget(row.target);
-  pushMetadata(entries, 'Path', readVisibleDeliverablePath(target));
   pushMetadata(entries, 'Repository', target.repo_ref);
-  pushMetadata(entries, 'URL', readVisibleDeliverableUrl(target));
 }
 
 function appendRelatedTargetMetadata(
@@ -105,37 +106,8 @@ function appendRelatedTargetMetadata(
   pushMetadata(
     entries,
     'Related Target',
-    readVisibleDeliverableUrl(target)
-      ?? readDeliverableTargetDisplayLabel(target, row.label),
+    readDeliverableTargetDisplayLabel(target, row.label),
   );
-}
-
-function readVisibleDeliverablePath(
-  target: DashboardWorkflowDeliverableTarget,
-): string | null {
-  const path = readText(target.path);
-  if (!path || path.startsWith('artifact:')) {
-    return null;
-  }
-  return path;
-}
-
-function readVisibleDeliverableUrl(
-  target: DashboardWorkflowDeliverableTarget,
-): string | null {
-  const resolvedUrl = resolveDeliverableTargetUrl(target);
-  if (!resolvedUrl || isInPlaceArtifactPreviewTarget(resolvedUrl)) {
-    return null;
-  }
-  return resolvedUrl;
-}
-
-function resolveDeliverableTargetUrl(target: DashboardWorkflowDeliverableTarget): string | null {
-  const action = resolveDeliverableTargetAction(target);
-  if (action.action_kind === 'external_link' && typeof action.href === 'string') {
-    return action.href;
-  }
-  return readText(target.url);
 }
 
 function pushMetadata(

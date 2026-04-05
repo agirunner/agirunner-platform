@@ -49,6 +49,7 @@ export interface WorkflowBoardActiveTaskSummary {
   roleLabel: string | null;
   taskTitle: string | null;
   activeTaskCount: number;
+  isOrchestratorTask: boolean;
 }
 
 export function buildWorkflowBoardView(
@@ -205,6 +206,7 @@ export function buildWorkflowBoardActiveTaskSummary(
     roleLabel: humanizeToken(primaryTask.role),
     taskTitle: readSummaryText(primaryTask.title),
     activeTaskCount: activeTasks.length,
+    isOrchestratorTask: primaryTask.isOrchestratorTask === true,
   };
 }
 

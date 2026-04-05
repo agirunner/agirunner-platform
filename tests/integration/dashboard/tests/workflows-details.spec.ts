@@ -5,6 +5,7 @@ import {
   workflowRailButton,
 } from '../lib/workflows-auth.js';
 import { seedWorkflowsScenario } from '../lib/workflows-fixtures.js';
+import { expectPacketFileButton as expectDownloadButton } from '../lib/workflows-downloads.js';
 
 test.use({ viewport: { width: 1280, height: 1100 } });
 
@@ -26,9 +27,7 @@ test('keeps Details as the default workbench tab and scopes it to the selected w
   await expect(workbench.getByText('Basics', { exact: true })).toHaveCount(0);
   await expect(workbench.getByText('Inputs', { exact: true })).toHaveCount(0);
 
-  const workflowPacketDownload = page.waitForEvent('download');
-  await workbench.getByRole('button', { name: 'brief.md' }).click();
-  expect((await workflowPacketDownload).suggestedFilename()).toBe('brief.md');
+  await expectDownloadButton(workbench, 'brief.md');
 
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
 

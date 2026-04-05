@@ -13,6 +13,19 @@ import seed_live_test_environment as seed_env  # noqa: E402
 
 
 class SeedLiveTestEnvironmentTests(unittest.TestCase):
+    def test_clear_assignments_url_encodes_role_names(self) -> None:
+        client = _RecordingAssignmentClient()
+
+        seed_env.clear_assignments(client)
+
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/config/llm/assignments"),
+                ("PUT", "/api/v1/config/llm/assignments/API%20Docs%20Writer"),
+            ],
+            client.calls,
+        )
+
     def test_require_refreshable_oauth_session_normalizes_flat_db_export_payload(self) -> None:
         normalized = seed_env.require_refreshable_oauth_session(
             {
@@ -180,6 +193,19 @@ class _RecordingOauthClient:
         if method == "PUT" and path == "/api/v1/config/llm/assignments/orchestrator":
             return {"data": {}}
 
+        raise AssertionError(f"unexpected request: {method} {path}")
+
+
+class _RecordingAssignmentClient:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def request(self, method: str, path: str, **kwargs):
+        self.calls.append((method, path))
+        if method == "GET" and path == "/api/v1/config/llm/assignments":
+            return {"data": [{"role_name": "API Docs Writer"}]}
+        if method == "PUT":
+            return {"data": {}}
         raise AssertionError(f"unexpected request: {method} {path}")
 
 

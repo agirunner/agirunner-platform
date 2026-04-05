@@ -390,4 +390,48 @@ describe('task platform handoff routes validation', () => {
     expect(response.json().error.details.safetynet_behavior_id).toBe('platform.handoff.schema_guidance');
     expect(response.json().error.details.invalid_fields).toEqual(['recommended_next_actions']);
   });
+
+  it('returns recoverable guidance when summary is used as a full document body', async () => {
+    app = buildTaskPlatformHandoffsApp(async (sql: string) => {
+      if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            activation_id: null,
+            assigned_agent_id: 'agent-1',
+            is_orchestrator_task: false,
+            state: 'in_progress',
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await registerTaskPlatformHandoffsRoutes(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-1',
+        summary: 'Long handoff summary. '.repeat(500),
+        completion: 'full',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.json().error.recovery_hint).toBe('resubmit_handoff_with_concise_text_fields');
+    expect(response.json().error.message).toContain('summary must stay concise');
+    expect(response.json().error.details.reason_code).toBe('submit_handoff_concise_text_required');
+    expect(response.json().error.details.recoverable).toBe(true);
+    expect(response.json().error.details.safetynet_behavior_id).toBe('platform.handoff.schema_guidance');
+    expect(response.json().error.details.invalid_fields).toEqual(['summary']);
+  });
 });

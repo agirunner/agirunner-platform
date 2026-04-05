@@ -14,9 +14,9 @@ export function WorkflowRailRowCard(props: {
     <button
       type="button"
       className={cn(
-        'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
+        'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,color] duration-150',
         props.isSelected
-          ? 'border-sky-700/90 bg-sky-200/95 text-sky-950 shadow-[0_18px_40px_rgba(8,47,73,0.24)] ring-2 ring-sky-500/70 dark:border-sky-200/90 dark:bg-sky-300/20 dark:text-sky-50 dark:ring-sky-300/45'
+          ? 'border-sky-700/90 bg-sky-200/95 text-sky-950 ring-2 ring-sky-500/70 dark:border-sky-200/90 dark:bg-sky-300/20 dark:text-sky-50 dark:ring-sky-300/45'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}

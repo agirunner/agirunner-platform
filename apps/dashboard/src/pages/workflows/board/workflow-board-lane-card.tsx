@@ -165,6 +165,8 @@ function BoardWorkItemCard(props: {
     activeTaskSummary && activeTaskSummary.activeTaskCount > 1
       ? ` +${activeTaskSummary.activeTaskCount - 1} more active`
       : '';
+  const activeTaskLabel =
+    activeTaskSummary?.isOrchestratorTask === true ? 'Active task' : 'Active specialist';
   const isSelected = props.isSelected;
   const titleClassName = isSelected ? 'text-accent' : 'text-foreground';
   const summaryClassName = isSelected ? 'text-accent/90' : 'text-muted-foreground';
@@ -251,7 +253,7 @@ function BoardWorkItemCard(props: {
         {activeTaskSummary ? (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Active specialist
+              {activeTaskLabel}
             </span>
             {activeTaskSummary.roleLabel ? (
               <span className="font-medium text-foreground">{activeTaskSummary.roleLabel}</span>
@@ -307,8 +309,25 @@ function renderLaneEmptyState(message: string): JSX.Element {
 function filterHistoricalTaskSummary(
   taskSummary: WorkflowTaskPreviewSummary,
 ): WorkflowTaskPreviewSummary {
+  const retainedTasks = taskSummary.tasks.filter((task) => isRetainedHistoricalTask(task.state));
   return {
-    hasActiveOrchestratorTask: false,
-    tasks: taskSummary.tasks.filter((task) => task.state === 'completed'),
+    hasActiveOrchestratorTask: retainedTasks.some(
+      (task) => task.isOrchestratorTask === true && isActiveHistoricalTask(task.state),
+    ),
+    tasks: retainedTasks,
   };
+}
+
+function isRetainedHistoricalTask(state: string | null | undefined): boolean {
+  return state === 'completed' || isActiveHistoricalTask(state);
+}
+
+function isActiveHistoricalTask(state: string | null | undefined): boolean {
+  return (
+    state === 'ready'
+    || state === 'claimed'
+    || state === 'in_progress'
+    || state === 'awaiting_approval'
+    || state === 'output_pending_assessment'
+  );
 }

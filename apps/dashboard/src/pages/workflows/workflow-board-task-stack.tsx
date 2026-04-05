@@ -3,6 +3,7 @@ export interface WorkflowTaskPreview {
   title: string;
   role: string | null;
   state: string | null;
+  isOrchestratorTask?: boolean;
   recentUpdate?: string | null;
   operatorSummary?: string[];
   workItemId?: string | null;

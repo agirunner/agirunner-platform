@@ -25,9 +25,8 @@ export function summarizeTaskPreviewsForWorkItem(
 
   return {
     tasks: relatedRecords
-      .filter((entry) => readIsOrchestratorTask(entry) === false)
       .flatMap((entry) => buildTaskPreview(entry, workItemId, context))
-      .sort((left, right) => readTaskPriority(left).localeCompare(readTaskPriority(right))),
+      .sort(compareTaskPreviewPriority),
     hasActiveOrchestratorTask: relatedRecords.some(
       (entry) => readIsOrchestratorTask(entry) && isActiveOrchestratorState(readState(entry)),
     ),
@@ -53,6 +52,7 @@ function buildTaskPreview(
       title: typeof entry.title === 'string' ? entry.title : 'Untitled task',
       role: typeof entry.role === 'string' ? entry.role : null,
       state: readState(entry),
+      isOrchestratorTask: readIsOrchestratorTask(entry),
       recentUpdate: readRecentUpdate(entry),
       ...(operatorSummary.length > 0 ? { operatorSummary } : {}),
       workItemId,
@@ -60,6 +60,17 @@ function buildTaskPreview(
       stageName: context?.stageName ?? null,
     },
   ];
+}
+
+function compareTaskPreviewPriority(left: WorkflowTaskPreview, right: WorkflowTaskPreview): number {
+  const priorityComparison = readTaskPriority(left).localeCompare(readTaskPriority(right));
+  if (priorityComparison !== 0) {
+    return priorityComparison;
+  }
+  if (Boolean(left.isOrchestratorTask) !== Boolean(right.isOrchestratorTask)) {
+    return left.isOrchestratorTask ? 1 : -1;
+  }
+  return left.title.localeCompare(right.title);
 }
 
 function readTaskPriority(task: WorkflowTaskPreview): string {

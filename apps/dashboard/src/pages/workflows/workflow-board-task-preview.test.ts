@@ -31,6 +31,7 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
           title: 'Correct task',
           role: 'analyst',
           state: 'completed',
+          isOrchestratorTask: false,
           recentUpdate: null,
           workItemId: 'work-item-1',
           workItemTitle: null,
@@ -41,7 +42,7 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
     });
   });
 
-  it('filters orchestrator tasks out of the visible stack while surfacing orchestration activity', () => {
+  it('keeps active orchestrator tasks in the visible stack while surfacing orchestration activity', () => {
     const previewSummary = summarizeTaskPreviewsForWorkItem(
       [
         {
@@ -67,10 +68,22 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
     expect(previewSummary).toEqual({
       tasks: [
         {
+          id: 'task-orchestrator',
+          title: 'Orchestrate workflow',
+          role: 'orchestrator',
+          state: 'in_progress',
+          isOrchestratorTask: true,
+          recentUpdate: null,
+          workItemId: 'work-item-1',
+          workItemTitle: null,
+          stageName: null,
+        },
+        {
           id: 'task-specialist',
           title: 'Assess packet',
           role: 'policy-assessor',
           state: 'ready',
+          isOrchestratorTask: false,
           recentUpdate: null,
           workItemId: 'work-item-1',
           workItemTitle: null,
@@ -129,6 +142,7 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
           title: 'Draft operator brief',
           role: 'mixed-reviewer',
           state: 'in_progress',
+          isOrchestratorTask: false,
           recentUpdate: 'Turning the request into a reviewable packet.',
           workItemId: 'work-item-1',
           workItemTitle: null,

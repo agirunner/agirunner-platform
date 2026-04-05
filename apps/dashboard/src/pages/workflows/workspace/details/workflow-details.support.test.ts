@@ -9,53 +9,13 @@ import type {
 } from '../../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../../workflows-page.support.js';
 import {
-  buildCurrentState,
   buildDetailsScope,
   buildWhatExistsNow,
-  buildWhatWasAsked,
 } from './workflow-details.support.js';
 
 describe('workflow-details support', () => {
-  it('summarizes the workflow brief and operator packets in workflow scope', () => {
-    const paragraphs = buildWhatWasAsked({
-      isWorkflowScope: true,
-      workflowParameters: {
-        branch: 'release/2026.03',
-        release_window: 'Friday 17:00',
-      },
-      selectedWorkItem: null,
-      selectedWorkItemTasks: [],
-      workflowPackets: createPackets(),
-      workItemPackets: [],
-    });
-
-    expect(paragraphs).toContain(
-      'Workflow brief: Branch: release/2026.03; Release Window: Friday 17:00.',
-    );
-    expect(paragraphs).toContain(
-      'Launch inputs: Operator Goal: Prepare the release bundle; Target Environment: Production.',
-    );
-  });
-
-  it('summarizes the selected work-item state, tasks, and attached files', () => {
-    const scope = buildDetailsScope({
-      workflow: createWorkflow(),
-      stickyStrip: createStickyStrip(),
-      selectedWorkItemTitle: 'Prepare release bundle',
-      selectedWorkItem: createWorkItem(),
-      selectedWorkItemTasks: [
-        { id: 'task-1', title: 'Verify deliverable', state: 'in_progress', role: 'reviewer' },
-        { id: 'task-2', title: 'Rollback validation', state: 'blocked', role: 'operator' },
-      ],
-      scope: createScope('selected_work_item', 'Prepare release bundle'),
-    });
-    const currentState = buildCurrentState({
-      isWorkflowScope: false,
-      workflow: createWorkflow(),
-      board: createBoard(),
-      selectedWorkItem: createWorkItem(),
-    });
-    const whatExistsNow = buildWhatExistsNow({
+  it('builds compact task rows and work-item files for selected work-item scope', () => {
+    const result = buildWhatExistsNow({
       isWorkflowScope: false,
       board: createBoard(),
       selectedWorkItemTasks: [
@@ -66,11 +26,7 @@ describe('workflow-details support', () => {
       workItemPackets: [createPackets()[1]],
     });
 
-    expect(scope.latestStatus).toBe('1 blocked task need attention.');
-    expect(currentState).toContain(
-      'This work item is in Drafting lane, Release stage, normal priority.',
-    );
-    expect(whatExistsNow.rows).toEqual([
+    expect(result.rows).toEqual([
       {
         id: 'task-1',
         title: 'Verify deliverable',
@@ -84,26 +40,57 @@ describe('workflow-details support', () => {
         status: 'Blocked',
       },
     ]);
-    expect(whatExistsNow.files.map((file) => file.file_name)).toEqual([
-      'rollback.md',
-    ]);
+    expect(result.files.map((file) => file.file_name)).toEqual(['rollback.md']);
   });
 
-  it('frames workflow stage context as active work-item stages instead of a single workflow stage', () => {
-    const currentState = buildCurrentState({
+  it('builds workflow-scope rows from board work items and keeps workflow attachments deduplicated', () => {
+    const board = createBoard();
+    const duplicatedWorkflowPacket = {
+      ...createPackets()[0],
+      id: 'packet-1-duplicate',
+    };
+
+    const result = buildWhatExistsNow({
       isWorkflowScope: true,
-      workflow: createWorkflow(),
-      board: {
-        ...createBoard(),
-        active_stages: ['release', 'approval-gate'],
-      },
-      selectedWorkItem: null,
+      board,
+      selectedWorkItemTasks: [],
+      workflowPackets: [createPackets()[0], duplicatedWorkflowPacket],
+      workItemPackets: [createPackets()[1]],
     });
 
-    expect(currentState).toEqual([
-      'This workflow is Active, Planned lifecycle, Progressing.',
-      'Active work items are currently in Release and Approval Gate stages.',
+    expect(result.rows).toEqual([
+      {
+        id: 'work-item-1',
+        title: 'Prepare release bundle',
+        subtitle: 'Release stage • Drafting lane',
+        status: 'High',
+      },
     ]);
+    expect(result.files.map((file) => file.id)).toEqual(['file-1']);
+  });
+
+  it('keeps workflow names only on selected work-item scope summaries', () => {
+    const selectedScope = buildDetailsScope({
+      workflow: createWorkflow(),
+      stickyStrip: createStickyStrip(),
+      selectedWorkItemTitle: 'Prepare release bundle',
+      selectedWorkItem: createWorkItem(),
+      selectedWorkItemTasks: [
+        { id: 'task-1', title: 'Verify deliverable', state: 'blocked' },
+      ],
+      scope: createScope('selected_work_item', 'Prepare release bundle'),
+    });
+    const workflowScope = buildDetailsScope({
+      workflow: createWorkflow(),
+      stickyStrip: createStickyStrip(),
+      selectedWorkItemTitle: null,
+      selectedWorkItem: null,
+      selectedWorkItemTasks: [],
+      scope: createScope('workflow', 'Release Workflow'),
+    });
+
+    expect(selectedScope.workflowName).toBe('Release Workflow');
+    expect(workflowScope.workflowName).toBeNull();
   });
 });
 
@@ -204,7 +191,7 @@ function createWorkItem(): DashboardWorkflowWorkItemRecord {
     title: 'Prepare release bundle',
     goal: 'Confirm the final release packet is complete and operator-ready.',
     column_id: 'drafting',
-    priority: 'normal',
+    priority: 'high',
   };
 }
 

@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { invalidateSelectedWorkItemRealtimeQueries } from './workflows-realtime.js';
+import {
+  invalidateWorkflowRealtimeProjectionQueries,
+  invalidateWorkflowRealtimeQueriesOnReconnect,
+} from './workflows-realtime.query-invalidation.js';
 
-describe('invalidateSelectedWorkItemRealtimeQueries', () => {
-  it('invalidates the selected work-item detail and task queries when the workspace board refreshes', () => {
+describe('invalidateWorkflowRealtimeProjectionQueries', () => {
+  it('invalidates the workspace and visible work-item queries when the workspace board refreshes', () => {
     const queryClient = {
       invalidateQueries: vi.fn().mockResolvedValue(undefined),
     };
 
-    invalidateSelectedWorkItemRealtimeQueries(queryClient, {
+    invalidateWorkflowRealtimeProjectionQueries(queryClient, {
       workflowId: 'workflow-1',
       selectedWorkItemId: 'work-item-7',
       batch: {
@@ -34,21 +37,24 @@ describe('invalidateSelectedWorkItemRealtimeQueries', () => {
       },
     });
 
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(3);
     expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-      queryKey: ['workflows', 'work-item-detail', 'workflow-1', 'work-item-7'],
+      queryKey: ['workflows', 'workspace', 'workflow-1'],
     });
     expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
-      queryKey: ['workflows', 'work-item-tasks', 'workflow-1', 'work-item-7'],
+      queryKey: ['workflows', 'work-item-detail', 'workflow-1'],
+    });
+    expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
+      queryKey: ['workflows', 'work-item-tasks', 'workflow-1'],
     });
   });
 
-  it('ignores console-only batches because they do not imply selected work-item state drift', () => {
+  it('ignores console-only workflow batches that are not tied to any work item', () => {
     const queryClient = {
       invalidateQueries: vi.fn().mockResolvedValue(undefined),
     };
 
-    invalidateSelectedWorkItemRealtimeQueries(queryClient, {
+    invalidateWorkflowRealtimeProjectionQueries(queryClient, {
       workflowId: 'workflow-1',
       selectedWorkItemId: 'work-item-7',
       batch: {
@@ -75,14 +81,14 @@ describe('invalidateSelectedWorkItemRealtimeQueries', () => {
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it('invalidates the selected work-item queries when incremental live activity targets that work item', () => {
+  it('invalidates the workspace plus the touched work-item detail and task queries when incremental activity targets that work item', () => {
     const queryClient = {
       invalidateQueries: vi.fn().mockResolvedValue(undefined),
     };
 
-    invalidateSelectedWorkItemRealtimeQueries(queryClient, {
+    invalidateWorkflowRealtimeProjectionQueries(queryClient, {
       workflowId: 'workflow-1',
-      selectedWorkItemId: 'work-item-7',
+      selectedWorkItemId: null,
       batch: {
         generated_at: '2026-03-30T12:01:00.000Z',
         latest_event_id: 12,
@@ -118,12 +124,36 @@ describe('invalidateSelectedWorkItemRealtimeQueries', () => {
       },
     });
 
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(3);
     expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
-      queryKey: ['workflows', 'work-item-detail', 'workflow-1', 'work-item-7'],
+      queryKey: ['workflows', 'workspace', 'workflow-1'],
     });
     expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+      queryKey: ['workflows', 'work-item-detail', 'workflow-1', 'work-item-7'],
+    });
+    expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
       queryKey: ['workflows', 'work-item-tasks', 'workflow-1', 'work-item-7'],
+    });
+  });
+});
+
+describe('invalidateWorkflowRealtimeQueriesOnReconnect', () => {
+  it('invalidates the workflow workspace and all work-item projections after a stream gap', () => {
+    const queryClient = {
+      invalidateQueries: vi.fn().mockResolvedValue(undefined),
+    };
+
+    invalidateWorkflowRealtimeQueriesOnReconnect(queryClient, 'workflow-1');
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(1, {
+      queryKey: ['workflows', 'workspace', 'workflow-1'],
+    });
+    expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(2, {
+      queryKey: ['workflows', 'work-item-detail', 'workflow-1'],
+    });
+    expect(queryClient.invalidateQueries).toHaveBeenNthCalledWith(3, {
+      queryKey: ['workflows', 'work-item-tasks', 'workflow-1'],
     });
   });
 });

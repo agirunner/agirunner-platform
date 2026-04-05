@@ -15,6 +15,10 @@ import {
   applyRailStreamBatch,
   applyWorkspaceStreamBatch,
 } from './workflows-realtime.support.js';
+import {
+  invalidateWorkflowRealtimeProjectionQueries,
+  invalidateWorkflowRealtimeQueriesOnReconnect,
+} from './workflows-realtime.query-invalidation.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const AUTH_REFRESH_PATH = '/api/v1/auth/refresh';
@@ -115,17 +119,14 @@ export function useWorkflowWorkspaceRealtime(
           },
           (previous) => applyWorkspaceStreamBatch(previous as never, batch),
         );
-        invalidateSelectedWorkItemRealtimeQueries(queryClient, {
+        invalidateWorkflowRealtimeProjectionQueries(queryClient, {
           workflowId: input.workflowId,
           selectedWorkItemId: input.selectedWorkItemId,
           batch,
         });
       },
       onReconnect: () => {
-        void queryClient.invalidateQueries({
-          queryKey: ['workflows', 'workspace', input.workflowId],
-        });
-        invalidateSelectedWorkItemQueries(queryClient, input.workflowId, input.selectedWorkItemId);
+        invalidateWorkflowRealtimeQueriesOnReconnect(queryClient, input.workflowId);
       },
     });
   }, [
@@ -136,77 +137,6 @@ export function useWorkflowWorkspaceRealtime(
     input.workItemId,
     queryClient,
   ]);
-}
-
-export function invalidateSelectedWorkItemRealtimeQueries(
-  queryClient: Pick<QueryClient, 'invalidateQueries'>,
-  input: {
-    workflowId: string | null;
-    selectedWorkItemId: string | null;
-    batch: DashboardWorkflowOperationsStreamBatch;
-  },
-): void {
-  if (
-    !hasWorkspaceBoardRefresh(input.batch)
-    && !hasSelectedWorkItemActivity(input.batch, input.selectedWorkItemId)
-  ) {
-    return;
-  }
-  invalidateSelectedWorkItemQueries(
-    queryClient,
-    input.workflowId,
-    input.selectedWorkItemId,
-  );
-}
-
-function invalidateSelectedWorkItemQueries(
-  queryClient: Pick<QueryClient, 'invalidateQueries'>,
-  workflowId: string | null,
-  selectedWorkItemId: string | null,
-): void {
-  if (!workflowId || !selectedWorkItemId) {
-    return;
-  }
-  void queryClient.invalidateQueries({
-    queryKey: ['workflows', 'work-item-detail', workflowId, selectedWorkItemId],
-  });
-  void queryClient.invalidateQueries({
-    queryKey: ['workflows', 'work-item-tasks', workflowId, selectedWorkItemId],
-  });
-}
-
-function hasWorkspaceBoardRefresh(batch: DashboardWorkflowOperationsStreamBatch): boolean {
-  return batch.events.some((event) => event.event_type === 'workspace_board_update');
-}
-
-function hasSelectedWorkItemActivity(
-  batch: DashboardWorkflowOperationsStreamBatch,
-  selectedWorkItemId: string | null,
-): boolean {
-  if (!selectedWorkItemId) {
-    return false;
-  }
-  return batch.events.some((event) => eventTouchesSelectedWorkItem(event, selectedWorkItemId));
-}
-
-function eventTouchesSelectedWorkItem(
-  event: DashboardWorkflowOperationsStreamBatch['events'][number],
-  selectedWorkItemId: string,
-): boolean {
-  if (event.event_type === 'deliverable_upsert') {
-    return readOptionalText(readRecord(event.payload)?.work_item_id) === selectedWorkItemId;
-  }
-  if (
-    event.event_type === 'live_console_append'
-    || event.event_type === 'briefs_append'
-    || event.event_type === 'history_append'
-  ) {
-    return readArray(readRecord(event.payload)?.items).some((item) => {
-      const record = readRecord(item);
-      return readOptionalText(record?.work_item_id) === selectedWorkItemId;
-    });
-  }
-  return false;
 }
 
 function subscribeToWorkflowOperationsStream(options: StreamOptions): () => void {
@@ -291,24 +221,6 @@ export function shouldRetryWorkflowOperationsStream(path: string, status: number
 
 function isWorkflowWorkspaceStreamPath(path: string): boolean {
   return /^\/api\/v1\/operations\/workflows\/[^/]+\/stream(?:\?|$)/.test(path);
-}
-
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function readArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function readOptionalText(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 function isWorkflowOperationsBatch(value: unknown): value is DashboardWorkflowOperationsStreamBatch {

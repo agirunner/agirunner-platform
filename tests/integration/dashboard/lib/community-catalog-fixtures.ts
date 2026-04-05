@@ -9,6 +9,7 @@ import {
   COMMUNITY_CATALOG_FIXTURE_REPOSITORY,
 } from './community-catalog-stack.constants.js';
 import { CommunityCatalogSourceService } from '../../../../apps/platform-api/src/services/community-catalog/community-catalog-source.js';
+import { createDefaultPlaybookBoard } from '../../../../packages/sdk/src/playbooks/default-board.js';
 import type {
   CommunityCatalogImportResult,
   CommunityCatalogSelection,
@@ -281,6 +282,9 @@ function normalizeDefinition(definition: Record<string, unknown>): Record<string
   const processInstructions = normalized.process_instructions;
   if (typeof processInstructions === 'string') {
     normalized.process_instructions = processInstructions.trim();
+  }
+  if (!normalized.board || typeof normalized.board !== 'object' || Array.isArray(normalized.board)) {
+    normalized.board = createDefaultPlaybookBoard() as unknown as Record<string, unknown>;
   }
   return normalized;
 }

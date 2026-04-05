@@ -8,6 +8,9 @@ import {
   createSeededWorkflowInputPacket,
   seedWorkflowsScenario,
 } from '../lib/workflows-fixtures.js';
+import {
+  expectPacketFileButton as expectDownloadButton,
+} from '../lib/workflows-downloads.js';
 
 test('shows scope-pure workflow and work-item input files in Details', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
@@ -47,13 +50,12 @@ test('shows scope-pure workflow and work-item input files in Details', async ({ 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
 
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
-  const workflowFileLink = workbench.getByRole('link', { name: 'launch-summary.pdf' });
-  const workItemFileLink = workbench.getByRole('link', { name: 'rollback.md' });
+  const workflowFileButton = workbench.getByRole('button', { name: 'launch-summary.pdf' });
+  const workItemFileButton = workbench.getByRole('button', { name: 'rollback.md' });
 
   await expect(workbench.getByText('What exists now')).toBeVisible();
-  await expect(workflowFileLink).toBeVisible();
-  await expect(workItemFileLink).toHaveCount(0);
-  await expect(workflowFileLink).toHaveAttribute('href', /\/input-packets\/.+\/files\/.+\/content$/);
+  await expectDownloadButton(workbench, 'launch-summary.pdf');
+  await expect(workItemFileButton).toHaveCount(0);
 
   await page
     .locator('[data-work-item-card="true"]')
@@ -63,7 +65,6 @@ test('shows scope-pure workflow and work-item input files in Details', async ({ 
 
   await expect(page).toHaveURL(/work_item_id=/);
   await expect(workbench.getByText('Work item · Triage intake queue')).toBeVisible();
-  await expect(workItemFileLink).toBeVisible();
-  await expect(workItemFileLink).toHaveAttribute('href', /\/input-packets\/.+\/files\/.+\/content$/);
-  await expect(workflowFileLink).toHaveCount(0);
+  await expectDownloadButton(workbench, 'rollback.md');
+  await expect(workflowFileButton).toHaveCount(0);
 });

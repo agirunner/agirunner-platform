@@ -144,14 +144,13 @@ export function WorkflowsPageView(props: WorkflowsPageViewProps): JSX.Element {
           />
         ) : null}
         {!props.isRailHidden ? (
-          <div className="relative hidden lg:flex items-stretch justify-center">
-            <button
-              type="button"
-              aria-label="Resize workflows rail"
-              className="h-full w-full cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
-              onPointerDown={props.onRailResizePointerDown}
-            />
-          </div>
+          <WorkflowResizeHandle
+            axis="vertical"
+            ariaLabel="Resize workflows rail"
+            gutterTestId="data-workflows-rail-resize-gutter"
+            handleTestId="data-workflows-rail-resize-handle"
+            onPointerDown={props.onRailResizePointerDown}
+          />
         ) : null}
         <div className="grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <section data-workflows-top-strip="true" className="grid shrink-0 gap-2.5 sm:gap-3">
@@ -207,14 +206,13 @@ export function WorkflowsPageView(props: WorkflowsPageViewProps): JSX.Element {
                   onWorkItemAction={props.onWorkItemAction}
                 />
               </section>
-              <div className="relative hidden lg:flex items-center justify-center">
-                <button
-                  type="button"
-                  aria-label="Resize workflow workbench"
-                  className="h-full w-full cursor-row-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
-                  onPointerDown={props.onWorkbenchResizePointerDown}
-                />
-              </div>
+              <WorkflowResizeHandle
+                axis="horizontal"
+                ariaLabel="Resize workflow workbench"
+                gutterTestId="data-workflows-workbench-resize-gutter"
+                handleTestId="data-workflows-workbench-resize-handle"
+                onPointerDown={props.onWorkbenchResizePointerDown}
+              />
               <section
                 data-workflows-workbench-frame="true"
                 className="flex h-full min-h-[12rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 p-0 shadow-sm sm:min-h-[16rem] lg:min-h-0"
@@ -330,6 +328,35 @@ function EmptyWorkflowsState(props: { onCreateWorkflow(): void }): JSX.Element {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WorkflowResizeHandle(props: {
+  axis: 'vertical' | 'horizontal';
+  ariaLabel: string;
+  gutterTestId: string;
+  handleTestId: string;
+  onPointerDown(event: PointerEvent<HTMLButtonElement>): void;
+}): JSX.Element {
+  const isVertical = props.axis === 'vertical';
+
+  return (
+    <div
+      {...{ [props.gutterTestId]: 'true' }}
+      className="pointer-events-none relative hidden lg:flex items-center justify-center"
+    >
+      <button
+        {...{ [props.handleTestId]: 'true' }}
+        type="button"
+        aria-label={props.ariaLabel}
+        className={
+          isVertical
+            ? 'pointer-events-auto h-full w-[6px] cursor-col-resize rounded-full border border-border/45 bg-background/55 shadow-sm transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-background/80 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+            : 'pointer-events-auto h-[6px] w-20 cursor-row-resize rounded-full border border-border/45 bg-background/55 shadow-sm transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-background/80 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+        }
+        onPointerDown={props.onPointerDown}
+      />
     </div>
   );
 }

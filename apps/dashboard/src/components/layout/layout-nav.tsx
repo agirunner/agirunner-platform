@@ -182,7 +182,7 @@ const SIDEBAR_SECTION_INACTIVE_CLASSES =
   'text-slate-700 hover:bg-stone-50/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-slate-100';
 
 export const SIDEBAR_SECTION_GROUP_CLASSES =
-  'mt-1 rounded-xl bg-stone-50/85 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
+  'mt-1 grid gap-1 px-1';
 
 const SIDEBAR_ACTIVE_ITEM_CLASSES =
   'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-white dark:text-slate-950 dark:font-semibold';
@@ -276,7 +276,10 @@ export function NavSectionGroup(props: {
     return (
       <div className="mb-3">
         <div className="sr-only">{props.section.label}</div>
-        <div className={cn(SIDEBAR_SECTION_GROUP_CLASSES, 'space-y-1 px-1 py-1.5')}>
+        <div
+          data-sidebar-section-group="true"
+          className={cn(SIDEBAR_SECTION_GROUP_CLASSES, 'py-1.5')}
+        >
           {props.section.items.map((item) => (
             <NavLink
               key={item.href}
@@ -340,7 +343,7 @@ export function NavSectionGroup(props: {
         <ChevronRight size={14} className={cn('transition-transform', expanded && 'rotate-90')} />
       </button>
       {expanded ? (
-        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
+        <div data-sidebar-section-group="true" className={SIDEBAR_SECTION_GROUP_CLASSES}>
           {props.section.items.map((item) => (
             <NavLink
               key={item.href}

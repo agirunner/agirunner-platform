@@ -65,15 +65,7 @@ export function buildCurrentState(props: {
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
 }): string[] {
   if (props.isWorkflowScope) {
-    const stateParts = [
-      humanizeOptionalToken(props.workflow.state),
-      props.workflow.lifecycle
-        ? `${humanizeToken(props.workflow.lifecycle)} lifecycle`
-        : null,
-      humanizeOptionalToken(props.workflow.posture),
-    ].filter((value): value is string => Boolean(value));
-
-    const paragraphs = [joinSentence('This workflow is', stateParts)];
+    const paragraphs = [describeWorkflowCurrentState(props.workflow)];
     const activeWorkItemStages = summarizeActiveWorkItemStages(props.board);
     if (activeWorkItemStages) {
       paragraphs.push(activeWorkItemStages);
@@ -350,8 +342,10 @@ function summarizeEntries(
     return null;
   }
 
-  const body = entries.map(([label, value]) => `${label}: ${value}`).join('; ');
-  return `${prefix}: ${body}.`;
+  const body = entries
+    .map(([label, value]) => ensureSentence(`${label}: ${value}`))
+    .join(' ');
+  return `${ensureSentence(prefix)} ${body}`;
 }
 
 function joinSentence(prefix: string, parts: string[]): string {
@@ -359,6 +353,32 @@ function joinSentence(prefix: string, parts: string[]): string {
     return `${prefix} progress is still loading.`;
   }
   return `${prefix} ${parts.join(', ')}.`;
+}
+
+function describeWorkflowCurrentState(
+  workflow: DashboardMissionControlWorkflowCard,
+): string {
+  const state = humanizeOptionalToken(workflow.state)?.toLowerCase();
+  const posture = humanizeOptionalToken(workflow.posture)?.toLowerCase();
+
+  if (state && posture && posture !== state) {
+    return `This workflow is ${state} and ${posture}.`;
+  }
+  if (state) {
+    return `This workflow is ${state}.`;
+  }
+  if (posture) {
+    return `This workflow is ${posture}.`;
+  }
+  return 'Workflow progress is still loading.';
+}
+
+function ensureSentence(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+  return /[.?!]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 function joinWithAnd(values: string[]): string {

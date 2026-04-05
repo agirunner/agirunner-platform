@@ -7,6 +7,7 @@ import time
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from live_test_api import ApiClient, TraceRecorder, read_json
 from scenario_config import load_scenario
@@ -132,7 +133,7 @@ def clear_assignments(client: ApiClient) -> None:
         role_name = assignment["role_name"]
         client.request(
             "PUT",
-            f"/api/v1/config/llm/assignments/{role_name}",
+            assignment_path(role_name),
             payload={"primaryModelId": None, "reasoningConfig": None},
             expected=(200,),
             label=f"llm.assignments.clear:{role_name}",
@@ -155,6 +156,10 @@ def load_fixture(path: str) -> Any:
     if not fixture_path.is_file():
         raise RuntimeError(f"fixture not found: {path}")
     return read_json(fixture_path)
+
+
+def assignment_path(role_name: str) -> str:
+    return f"/api/v1/config/llm/assignments/{quote(role_name, safe='')}"
 
 
 def model_supports_native_search(provider_type: str | None, model_id: str | None) -> bool:

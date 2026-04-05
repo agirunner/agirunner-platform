@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { loginToWorkflows } from '../lib/workflows-auth.js';
+import { clickPacketFileAndWaitForResponse, expectPacketFileButton } from '../lib/workflows-downloads.js';
 import {
   listWorkflowInputPackets,
   listWorkflows,
@@ -82,7 +83,10 @@ test('creates a workflow with launch attachments and persists the uploaded file'
   ).toBeTruthy();
 
   await page.locator('aside').getByRole('button', { name: workflowName }).click();
-  await expect(page.locator('[data-workflows-workbench-frame="true"]').getByRole('link', { name: 'launch-proof.md' })).toBeVisible();
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await workbench.getByRole('tab', { name: 'Details' }).click();
+  const launchProofButton = await expectPacketFileButton(workbench, 'launch-proof.md');
+  await clickPacketFileAndWaitForResponse(page, launchProofButton);
 });
 
 async function expectLaunchSelectorOptions(page: Page, trigger: Locator): Promise<void> {

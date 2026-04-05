@@ -135,6 +135,7 @@ function spawnDashboard(): ChildProcess {
       env: {
         ...process.env,
         VITE_PLATFORM_API_URL: COMMUNITY_CATALOG_PLATFORM_URL,
+        VITE_DASHBOARD_LOGIN_PREFILL_KEY: COMMUNITY_CATALOG_ADMIN_API_KEY,
       },
       stdio: 'inherit',
     },

@@ -323,7 +323,7 @@ def ensure_specialist_assignments(
     for role in roles:
         client.request(
             "PUT",
-            f"/api/v1/config/llm/assignments/{role['name']}",
+            assignment_path(role["name"]),
             payload={
                 "primaryModelId": specialist_model["id"],
                 "reasoningConfig": reasoning_assignment(specialist_reasoning_effort),

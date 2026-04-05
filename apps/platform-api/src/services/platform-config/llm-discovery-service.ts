@@ -97,11 +97,32 @@ export class LlmDiscoveryService {
     });
 
     const body = await response.json() as {
-      data: Array<{ id: string; display_name: string; created_at: string }>;
+      data: Array<{
+        id: string;
+        display_name: string;
+        created_at: string;
+        max_input_tokens?: number;
+        max_tokens?: number;
+      }>;
     };
     return body.data
       .filter((model) => model.id.includes('claude'))
-      .map((model) => enrichModel(model.id, model.display_name, 'anthropic'));
+      .map((model) => {
+        const known = findCatalogEntry(model.id);
+        return {
+          modelId: model.id,
+          displayName: model.display_name,
+          contextWindow: model.max_input_tokens ?? known?.contextWindow ?? null,
+          maxOutputTokens: model.max_tokens ?? known?.maxOutputTokens ?? null,
+          endpointType: known?.endpointType ?? 'messages',
+          supportsToolUse: known?.supportsToolUse ?? true,
+          supportsVision: known?.supportsVision ?? true,
+          inputCostPerMillionUsd: known?.inputCostPerMillionUsd ?? null,
+          outputCostPerMillionUsd: known?.outputCostPerMillionUsd ?? null,
+          reasoningConfig: known?.reasoningConfig ?? null,
+          nativeSearch: known?.nativeSearch ?? null,
+        };
+      });
   }
 
   private async discoverGoogle(apiKey: string): Promise<DiscoveredModel[]> {

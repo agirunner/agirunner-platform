@@ -49,9 +49,9 @@ describe('WorkflowBoard cards', () => {
       ]),
     });
 
-    expect(html).toContain('>Tasks<');
     expect(html).toContain('Assess packet');
     expect(html).toContain('Write findings');
+    expect(countWorkItemTaskRows(html)).toBe(2);
     expect(html.match(/Review incoming packet/g)?.length ?? 0).toBe(1);
     expect(html).not.toContain('Orchestrate workflow');
   });
@@ -93,12 +93,9 @@ describe('WorkflowBoard cards', () => {
     });
 
     expect(html).toContain('Assess packet');
-    expect(html).toContain('Tasks');
-    expect(html).toContain('<details');
-    expect(html).toContain('open=""');
     expect(html).not.toContain('data-task-selectable="true"');
-    expect(html).toContain('data-work-item-task-area="true"');
-    expect(html).toContain('data-work-item-task-row="true"');
+    expect(countWorkItemTaskAreas(html)).toBe(1);
+    expect(countWorkItemTaskRows(html)).toBe(1);
   });
 
   it('shows recent task update context inside expanded work-item task summaries by default', () => {
@@ -165,9 +162,8 @@ describe('WorkflowBoard cards', () => {
       ]),
     });
 
-    expect(html).toContain(
-      'Working now: Policy Assessor on Approval packet ready for reviewer handoff',
-    );
+    expect(html).toContain('Policy Assessor');
+    expect(html).toContain('Approval packet ready for reviewer handoff');
     expect(html).not.toContain(
       'Compile the full intake record, restate the packet request, and keep the old background visible.',
     );
@@ -197,8 +193,96 @@ describe('WorkflowBoard cards', () => {
       ]),
     });
 
-    expect(html).toContain('Working now: Mixed Architecture Lead on Draft technical design');
-    expect(html).toContain('Orchestrator working');
+    expect(html).toContain('Mixed Architecture Lead');
+    expect(html).toContain('Draft technical design');
+  });
+
+  it('shows the orchestrator task when it becomes the only active task on the card', () => {
+    const html = renderWorkflowBoard({
+      selectedWorkItemId: 'work-item-1',
+      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+        [
+          'work-item-1',
+          {
+            tasks: [
+              {
+                id: 'task-specialist',
+                title: 'Review evidence for what is a quantum computer?',
+                role: 'research-analyst',
+                state: 'completed',
+                isOrchestratorTask: false,
+                workItemId: 'work-item-1',
+                workItemTitle: 'Review sources',
+                stageName: 'source-review',
+              },
+              {
+                id: 'task-orchestrator',
+                title: 'Orchestrate Research Analysis: What is a quantum computer?',
+                role: 'orchestrator',
+                state: 'in_progress',
+                isOrchestratorTask: true,
+                workItemId: 'work-item-1',
+                workItemTitle: 'Review sources',
+                stageName: 'source-review',
+              },
+            ],
+            hasActiveOrchestratorTask: true,
+          },
+        ],
+      ]),
+    });
+
+    expect(html).toContain('Orchestrate Research Analysis: What is a quantum computer?');
+    expect(countWorkItemTaskRows(html)).toBe(2);
+  });
+
+  it('keeps live active tasks visible on completed work-item cards during routing', () => {
+    const board = createBoard();
+    const html = renderWorkflowBoard({
+      board: {
+        ...board,
+        work_items: board.work_items.map((workItem) => ({
+          ...workItem,
+          column_id: 'done',
+          completed_at: '2026-04-04T22:27:54.956Z',
+        })),
+      },
+      selectedWorkItemId: 'work-item-1',
+      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+        [
+          'work-item-1',
+          {
+            tasks: [
+              {
+                id: 'task-specialist',
+                title: 'Compare sources for quantum computer analysis',
+                role: 'research-analyst',
+                state: 'completed',
+                isOrchestratorTask: false,
+                workItemId: 'work-item-1',
+                workItemTitle: 'Review sources',
+                stageName: 'source-review',
+              },
+              {
+                id: 'task-orchestrator',
+                title: 'Orchestrate Research Analysis: What is a quantum computer?',
+                role: 'orchestrator',
+                state: 'in_progress',
+                isOrchestratorTask: true,
+                workItemId: 'work-item-1',
+                workItemTitle: 'Review sources',
+                stageName: 'source-review',
+              },
+            ],
+            hasActiveOrchestratorTask: true,
+          },
+        ],
+      ]),
+    });
+
+    expect(html).toContain('Orchestrate Research Analysis: What is a quantum computer?');
+    expect(html).toContain('Compare sources for quantum computer analysis');
+    expect(countWorkItemTaskRows(html)).toBe(2);
   });
 
   it('makes work-item cards useful by surfacing active ownership and richer task context', () => {
@@ -240,111 +324,13 @@ describe('WorkflowBoard cards', () => {
       ]),
     });
 
-    expect(html).toContain('Active specialist');
     expect(html).toContain('Mixed Architecture Lead');
     expect(html).toContain('Draft technical design');
-    expect(html).toContain('Working now');
     expect(html).toContain('Reviewing integration constraints and outlining the release plan.');
     expect(html).toContain('Requested deliverable: A concise implementation brief for the release reviewers.');
     expect(html).toContain('Success criteria: Call out blockers, dependencies, and the fallback path.');
-    expect(html).toContain('Ready next');
     expect(html).toContain('Queued behind the architecture pass.');
-    expect(html).toContain('data-work-item-task-area="true"');
-  });
-
-  it('styles the selected work item with accent structure instead of amber fill and surfaces local card controls', () => {
-    const board = createBoard();
-    const html = renderWorkflowBoard({
-      board: {
-        ...board,
-        work_items: [
-          {
-            ...board.work_items[0],
-            escalation_status: 'open',
-            gate_status: 'awaiting_approval',
-          },
-        ],
-      },
-      selectedWorkItemId: 'work-item-1',
-      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
-        [
-          'work-item-1',
-          {
-            tasks: [
-              {
-                id: 'task-specialist',
-                title: 'Assess packet',
-                role: 'policy-assessor',
-                state: 'in_progress',
-                workItemId: 'work-item-1',
-                workItemTitle: 'Review incoming packet',
-                stageName: 'intake-triage',
-              },
-            ],
-            hasActiveOrchestratorTask: false,
-          },
-        ],
-      ]),
-    });
-
-    expect(html).toContain('data-work-item-card="true"');
-    expect(html).toContain('data-selected="true"');
-    expect(html).toContain('data-work-item-selection-edge="true"');
-    expect(html).toContain('border-accent/40');
-    expect(html).toContain('ring-1 ring-accent/30');
-    expect(html).toContain('shadow-md');
-    expect(html).toContain('text-accent');
-    expect(html).toContain('data-work-item-local-control="steer"');
-    expect(html).toContain('data-work-item-local-control="pause"');
-    expect(html).toContain('data-work-item-local-control="cancel"');
-    expect(html).toContain('data-work-item-local-control="needs-action"');
-    expect(html).not.toContain('border-amber-300 bg-amber-100/90 shadow-sm');
-  });
-
-  it('renders icon-only local lifecycle controls while keeping Needs Action as the text callout', () => {
-    const board = createBoard();
-    const html = renderWorkflowBoard({
-      board: {
-        ...board,
-        work_items: board.work_items.map((workItem) =>
-          workItem.id === 'work-item-1'
-            ? {
-                ...workItem,
-                gate_status: 'awaiting_approval',
-              }
-            : workItem,
-        ),
-      },
-      selectedWorkItemId: 'work-item-1',
-      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
-        [
-          'work-item-1',
-          {
-            tasks: [
-              {
-                id: 'task-specialist',
-                title: 'Assess packet',
-                role: 'policy-assessor',
-                state: 'in_progress',
-                workItemId: 'work-item-1',
-                workItemTitle: 'Review incoming packet',
-                stageName: 'intake-triage',
-              },
-            ],
-            hasActiveOrchestratorTask: false,
-          },
-        ],
-      ]),
-    });
-
-    expect(html).toContain('aria-label="Steer work item"');
-    expect(html).toContain('aria-label="Pause work item"');
-    expect(html).toContain('aria-label="Cancel work item"');
-    expect(html).toContain('data-work-item-local-control="needs-action"');
-    expect(html).toContain('>Needs Action<');
-    expect(html).not.toContain('>Steer<');
-    expect(html).not.toContain('>Pause<');
-    expect(html).not.toContain('>Cancel<');
+    expect(countWorkItemTaskAreas(html)).toBe(1);
   });
 
   it('keeps blocked context visible on the card without inflating the work-item selection button hitbox', () => {
@@ -388,87 +374,14 @@ describe('WorkflowBoard cards', () => {
     expect(html).toContain('Waiting on rollback guidance');
     expect(html).toContain('data-work-item-card="true"');
     expect(html).toContain('data-work-item-local-control="steer"');
-    expect(html).toContain('rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950');
     expect(html).not.toContain('data-work-item-local-control="needs-action"');
   });
-
-  it('bounds large task stacks inside work-item cards instead of letting the card grow forever', () => {
-    const html = renderWorkflowBoard({
-      selectedWorkItemId: 'work-item-1',
-      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
-        [
-          'work-item-1',
-          {
-            tasks: Array.from({ length: 6 }, (_, index) => ({
-              id: `task-${index + 1}`,
-              title: `Task ${index + 1}`,
-              role: 'policy-assessor',
-              state: index === 0 ? 'in_progress' : 'ready',
-              workItemId: 'work-item-1',
-              workItemTitle: 'Review incoming packet',
-              stageName: 'intake-triage',
-            })),
-            hasActiveOrchestratorTask: false,
-          },
-        ],
-      ]),
-    });
-
-    expect(html).toContain('max-h-[22rem] overflow-y-auto overscroll-contain pr-1');
-    expect(html).not.toContain('rounded-md border border-border/50 bg-background/30');
-  });
-
-  it('bounds dense work-item card bodies so selection stays inside the visible board viewport', () => {
-    const html = renderWorkflowBoard({
-      board: {
-        columns: [
-          { id: 'planned', label: 'Planned' },
-          { id: 'doing', label: 'Doing' },
-          { id: 'blocked', label: 'Blocked', is_blocked: true },
-          { id: 'done', label: 'Done', is_terminal: true },
-        ],
-        work_items: [
-          {
-            id: 'work-item-blocked',
-            workflow_id: 'workflow-1',
-            stage_name: 'delivery',
-            title: 'Prepare blocked release brief',
-            priority: 'critical',
-            column_id: 'blocked',
-            blocked_state: 'blocked',
-            blocked_reason:
-              'Waiting on rollback guidance while the release packet is still pending operator direction.',
-            gate_decision_feedback:
-              'Rollback guidance must be provided before the item can proceed.',
-            task_count: 6,
-          },
-        ],
-        active_stages: ['delivery'],
-        awaiting_gate_count: 0,
-        stage_summary: [],
-      },
-      taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
-        [
-          'work-item-blocked',
-          {
-            tasks: Array.from({ length: 6 }, (_, index) => ({
-              id: `task-${index + 1}`,
-              title: `Task ${index + 1}`,
-              role: 'policy-assessor',
-              state: index === 0 ? 'in_progress' : 'ready',
-              workItemId: 'work-item-blocked',
-              workItemTitle: 'Prepare blocked release brief',
-              stageName: 'delivery',
-            })),
-            hasActiveOrchestratorTask: false,
-          },
-        ],
-      ]),
-    });
-
-    expect(html).toContain('data-work-item-card="true"');
-    expect(html).toContain('max-h-[21rem]');
-    expect(html).toContain('overflow-y-auto overscroll-contain');
-    expect(html).toContain('scrollbar-width:thin');
-  });
 });
+
+function countWorkItemTaskAreas(html: string): number {
+  return html.match(/data-work-item-task-area="true"/g)?.length ?? 0;
+}
+
+function countWorkItemTaskRows(html: string): number {
+  return html.match(/data-work-item-task-row="true"/g)?.length ?? 0;
+}
