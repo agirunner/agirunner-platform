@@ -362,13 +362,19 @@ load_live_test_env() {
 
 configure_live_test_community_catalog_source() {
   local playbooks_repo_path="$1"
+  local manifest_path="${playbooks_repo_path}/catalog/playbooks.yaml"
 
-  if [[ -d "${playbooks_repo_path}" ]]; then
+  if [[ -f "${manifest_path}" ]]; then
     export COMMUNITY_CATALOG_LOCAL_HOST_ROOT="${playbooks_repo_path}"
     export COMMUNITY_CATALOG_LOCAL_ROOT="/community-catalog-source"
     unset COMMUNITY_CATALOG_REF
     log_live_test "using local community catalog repo ${playbooks_repo_path}"
     return 0
+  fi
+
+  if [[ -d "${playbooks_repo_path}" ]]; then
+    echo "[tests/live] local community catalog repo ${playbooks_repo_path} is missing catalog/playbooks.yaml" >&2
+    return 1
   fi
 
   unset COMMUNITY_CATALOG_LOCAL_HOST_ROOT

@@ -63,6 +63,15 @@ EOF
 
 chmod +x "${BIN_DIR}/docker" "${BIN_DIR}/git" "${BIN_DIR}/curl" "${BIN_DIR}/python3"
 
+seed_playbooks_manifest() {
+  local playbooks_root="$1"
+  mkdir -p "${playbooks_root}/catalog"
+  cat >"${playbooks_root}/catalog/playbooks.yaml" <<'EOF'
+catalog_version: 1
+playbooks: []
+EOF
+}
+
 ENV_FILE="${TMP_DIR}/local.env"
 cat >"${ENV_FILE}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=ab_admin_def_local_dev_123456789012345
@@ -85,6 +94,8 @@ mkdir -p \
   "${PLAYBOOKS_REPO_PATH}" \
   "${LIVE_TEST_LIBRARY_ROOT}" \
   "${TMP_DIR}/results/bootstrap/api-trace"
+
+seed_playbooks_manifest "${PLAYBOOKS_REPO_PATH}"
 
 cat >"${PLATFORM_ROOT_FIXTURE}/docker-compose.yml" <<'EOF'
 services: {}
@@ -123,3 +134,28 @@ if grep -Fq "COMMUNITY_CATALOG_REF=v0.1.0-alpha.3" "${TMP_DIR}/docker.env.log"; 
   echo "expected live shared bootstrap to clear COMMUNITY_CATALOG_REF when local playbooks checkout exists" >&2
   exit 1
 fi
+
+INVALID_PLAYBOOKS_REPO_PATH="${TMP_DIR}/invalid-playbooks"
+mkdir -p "${INVALID_PLAYBOOKS_REPO_PATH}"
+
+if DOCKER_ENV_LOG="${TMP_DIR}/invalid-docker.env.log" \
+  PATH="${BIN_DIR}:${PATH}" \
+  LIVE_TEST_ENV_FILE="${ENV_FILE}" \
+  LIVE_TEST_PLATFORM_ROOT="${PLATFORM_ROOT_FIXTURE}" \
+  RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH}" \
+  FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH}" \
+  PLAYBOOKS_REPO_PATH="${INVALID_PLAYBOOKS_REPO_PATH}" \
+  LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT}" \
+  LIVE_TEST_COMPOSE_FILE="${PLATFORM_ROOT_FIXTURE}/docker-compose.yml" \
+  LIVE_TEST_COMPOSE_LIVE_TEST_FILE="${PLATFORM_ROOT_FIXTURE}/tests/live/docker-compose.live-test.yml" \
+  LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT}" \
+  LIVE_TEST_ARTIFACTS_DIR="${TMP_DIR}/results" \
+  LIVE_TEST_BOOTSTRAP_DIR="${TMP_DIR}/results/bootstrap" \
+  LIVE_TEST_SHARED_CONTEXT_FILE="${TMP_DIR}/results/bootstrap/context.json" \
+  LIVE_TEST_TRACE_DIR="${TMP_DIR}/results/bootstrap/api-trace" \
+  "${SCRIPT_UNDER_TEST}" >"${TMP_DIR}/invalid-stdout.log" 2>"${TMP_DIR}/invalid-stderr.log"; then
+  echo "expected live shared bootstrap to reject an invalid local playbooks repo" >&2
+  exit 1
+fi
+
+grep -Fq "missing catalog/playbooks.yaml" "${TMP_DIR}/invalid-stderr.log"

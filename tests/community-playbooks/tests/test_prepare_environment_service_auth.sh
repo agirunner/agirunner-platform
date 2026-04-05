@@ -57,6 +57,15 @@ RUNTIME_REPO_PATH="${TMP_DIR}/runtime"
 FIXTURES_REPO_PATH="${TMP_DIR}/fixtures"
 mkdir -p "${RUNTIME_REPO_PATH}" "${FIXTURES_REPO_PATH}/.git"
 
+seed_playbooks_manifest() {
+  local playbooks_root="$1"
+  mkdir -p "${playbooks_root}/catalog"
+  cat >"${playbooks_root}/catalog/playbooks.yaml" <<'EOF'
+catalog_version: 1
+playbooks: []
+EOF
+}
+
 run_script() {
   local env_file="$1"
   local stdout_file="$2"
@@ -100,6 +109,7 @@ grep -Fq "PLATFORM_SERVICE_API_KEY=ar_service_test-service-key-123456" "${TMP_DI
 
 PLAYBOOKS_REPO_PATH="${TMP_DIR}/playbooks"
 mkdir -p "${PLAYBOOKS_REPO_PATH}"
+seed_playbooks_manifest "${PLAYBOOKS_REPO_PATH}"
 
 LOCAL_OVERRIDE_ENV_FILE="${TMP_DIR}/local-override.env"
 cat >"${LOCAL_OVERRIDE_ENV_FILE}" <<'EOF'
@@ -125,3 +135,20 @@ if grep -Fq "COMMUNITY_CATALOG_REF=v0.1.0-alpha.3" "${TMP_DIR}/local-override.en
   echo "expected local community catalog override to clear COMMUNITY_CATALOG_REF" >&2
   exit 1
 fi
+
+INVALID_PLAYBOOKS_REPO_PATH="${TMP_DIR}/invalid-playbooks"
+mkdir -p "${INVALID_PLAYBOOKS_REPO_PATH}"
+
+if DOCKER_ENV_LOG="${TMP_DIR}/invalid-local.env.log" \
+  PATH="${BIN_DIR}:${PATH}" \
+  LIVE_TEST_ENV_FILE="${LOCAL_OVERRIDE_ENV_FILE}" \
+  COMMUNITY_PLAYBOOKS_RESULTS_DIR="${TMP_DIR}/results" \
+  RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH}" \
+  FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH}" \
+  PLAYBOOKS_REPO_PATH="${INVALID_PLAYBOOKS_REPO_PATH}" \
+  bash "${SCRIPT_PATH}" >"${TMP_DIR}/invalid-local.out" 2>"${TMP_DIR}/invalid-local.err"; then
+  echo "expected community bootstrap script to reject an invalid local playbooks repo" >&2
+  exit 1
+fi
+
+grep -Fq "missing catalog/playbooks.yaml" "${TMP_DIR}/invalid-local.err"
