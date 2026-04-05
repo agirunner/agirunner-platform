@@ -193,7 +193,7 @@ function workItemClosureDiscipline(lifecycle: 'planned' | 'ongoing') {
   return [
     ...lifecycleSpecificLines,
     'Before complete_work_item or close_work_item_with_callouts, confirm closure_context.work_item_can_close_now is yes and no current-work-item specialist tasks remain open.',
-    'When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
+    'When you call complete_workflow or close_workflow_with_callouts, always include summary as a concise closure sentence plus final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
     'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
     'Do not rely on board lane guesses or specialist prose to imply closure. Perform the explicit workflow mutation yourself.',
   ].join('\n');
