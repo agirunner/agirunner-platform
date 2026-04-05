@@ -14,6 +14,8 @@ const HANDOFF_SCHEMA_GUIDANCE_SAFETYNET = mustGetSafetynetEntry(
 const structuredFieldGuidance = {
   role_data:
     'role_data must be an object when provided. Omit it or send native JSON, not a quoted JSON string.',
+  documents:
+    'documents must be an object keyed by logical_name, and each document entry must itself be an object. Omit it or send native JSON, not quoted JSON strings.',
   completion_callouts:
     'completion_callouts must be an object when provided. Omit it or send native JSON, not a quoted JSON string.',
   recommended_next_actions:

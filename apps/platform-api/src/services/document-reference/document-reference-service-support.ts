@@ -120,8 +120,8 @@ export function normalizeDocumentDefinition(
   sourceContext: 'workspace_spec' | 'task_output' | 'workflow_api',
 ): NormalizedDocumentDefinition {
   const entry = requireRecord(value, `Document '${logicalName}' must be an object`);
-  const source = entry.source;
-  if (!isDocumentSource(source)) {
+  const source = resolveDocumentSource(entry);
+  if (!source) {
     throw new ValidationError(`Document '${logicalName}' has unsupported source`);
   }
 
@@ -173,6 +173,23 @@ export function normalizeDocumentDefinition(
     artifact_id: artifactId,
     logical_path: logicalPath,
   };
+}
+
+function resolveDocumentSource(entry: Record<string, unknown>): DocumentSource | null {
+  if (entry.source !== undefined) {
+    return isDocumentSource(entry.source) ? entry.source : null;
+  }
+
+  if (asOptionalString(entry.path)) {
+    return 'repository';
+  }
+  if (asOptionalString(entry.url)) {
+    return 'external';
+  }
+  if (asOptionalString(entry.artifact_id) || asOptionalString(entry.logical_path)) {
+    return 'artifact';
+  }
+  return null;
 }
 
 export function mergeWorkflowDocumentUpdate(

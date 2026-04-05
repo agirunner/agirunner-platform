@@ -126,7 +126,7 @@ export async function loadTask(
   db: DatabaseClient | DatabasePool,
 ) {
   const result = await db.query<TaskContextRow>(
-    `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, state, rework_count,
+    `SELECT id, tenant_id, workflow_id, workspace_id, work_item_id, role, stage_name, state, rework_count,
             is_orchestrator_task, input, metadata
        FROM tasks
       WHERE tenant_id = $1

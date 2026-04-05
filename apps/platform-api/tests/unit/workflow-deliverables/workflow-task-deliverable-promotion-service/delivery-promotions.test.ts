@@ -66,8 +66,6 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
     const pool = {
       query: vi
         .fn()
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [createWorkItemRow('workflows-intake-02')], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [
             {
@@ -78,7 +76,9 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
             },
           ],
           rowCount: 1,
-        }),
+        })
+        .mockResolvedValueOnce({ rows: [createWorkItemRow('workflows-intake-02')], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
     };
     const deliverableService = createDeliverableService();
     const service = createService(pool, deliverableService);
@@ -101,6 +101,7 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
       'tenant-1',
       'workflow-1',
       expect.objectContaining({
+        descriptorId: 'handoff-2',
         workItemId: 'work-item-2',
         descriptorKind: 'deliverable_packet',
         primaryTarget: expect.objectContaining({
@@ -124,9 +125,6 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
     const artifactId = '13e16b95-b515-4112-8f2e-46dae3e1e532';
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM workflow_output_descriptors')) {
-          return { rows: [], rowCount: 0 };
-        }
         if (sql.includes('FROM workflow_work_items')) {
           return { rows: [createWorkItemRow('research-synthesis')], rowCount: 1 };
         }
@@ -170,6 +168,105 @@ describe('WorkflowTaskDeliverablePromotionService delivery promotions', () => {
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE workflow_artifacts'),
       ['tenant-1', 'workflow-1', [artifactId]],
+    );
+  });
+
+  it('keeps distinct artifact-backed handoffs on the same work item as separate deliverables', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_artifacts')) {
+          expect(params).toEqual(
+            expect.arrayContaining(['tenant-1', 'workflow-1']),
+          );
+          const artifactIds = Array.isArray(params?.[2]) ? params[2] : [];
+          if (artifactIds[0] === 'artifact-security') {
+            return {
+              rows: [
+                createArtifactRow({
+                  id: 'artifact-security',
+                  task_id: 'task-security',
+                  logical_path: 'artifact:workflow/output/security-review.md',
+                }),
+              ],
+              rowCount: 1,
+            };
+          }
+          if (artifactIds[0] === 'artifact-qa') {
+            return {
+              rows: [
+                createArtifactRow({
+                  id: 'artifact-qa',
+                  task_id: 'task-qa',
+                  logical_path: 'artifact:workflow/output/qa-review.md',
+                }),
+              ],
+              rowCount: 1,
+            };
+          }
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return { rows: [createWorkItemRow('risk-check-output')], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_artifacts')) {
+          return { rows: [], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const deliverableService = createDeliverableService();
+    const service = createService(pool, deliverableService);
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-security',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-risk',
+      task_id: 'task-security',
+      role: 'security-reviewer',
+      summary: 'Uploaded the security review packet.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: { task_kind: 'analysis' },
+      artifact_ids: ['artifact-security'],
+      created_at: '2026-03-28T20:40:00.000Z',
+    });
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-qa',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-risk',
+      task_id: 'task-qa',
+      role: 'qa-reviewer',
+      summary: 'Uploaded the QA review packet.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: { task_kind: 'analysis' },
+      artifact_ids: ['artifact-qa'],
+      created_at: '2026-03-28T20:45:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        descriptorId: 'handoff-security',
+        workItemId: 'work-item-risk',
+        primaryTarget: expect.objectContaining({
+          artifact_id: 'artifact-security',
+        }),
+      }),
+    );
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenNthCalledWith(
+      2,
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        descriptorId: 'handoff-qa',
+        workItemId: 'work-item-risk',
+        primaryTarget: expect.objectContaining({
+          artifact_id: 'artifact-qa',
+        }),
+      }),
     );
   });
 

@@ -7,6 +7,7 @@ import {
   PLATFORM_HANDOFF_REQUIRED_GUIDANCE_ID,
   mustGetSafetynetEntry,
 } from '../safetynet/registry.js';
+import { registerTaskDocuments } from '../document-reference/document-reference-service.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import type { EventService } from '../event/event-service.js';
 import type { WorkflowTaskDeliverablePromotionService } from '../workflow-deliverables/workflow-task-deliverable-promotion-service.js';
@@ -145,6 +146,7 @@ export class HandoffService {
 
     if (replayMatch) {
       if (matchesHandoffReplay(replayMatch, payload) || canReusePersistedTaskAttemptHandoff(task, replayMatch, payload)) {
+        await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
         await promoteTaskDeliverable(this, tenantId, toTaskHandoffResponse(replayMatch));
         return toTaskHandoffResponse(replayMatch);
       }
@@ -171,6 +173,7 @@ export class HandoffService {
         )
       ) {
         logCurrentAttemptReplayRepair(task, existingTaskAttempt, replayMatch, payload);
+        await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
         await promoteTaskDeliverable(this, tenantId, toTaskHandoffResponse(existingTaskAttempt));
         return toTaskHandoffResponse(existingTaskAttempt);
       }
@@ -192,17 +195,20 @@ export class HandoffService {
     }
     if (existingTaskAttempt) {
       if (matchesHandoffReplay(existingTaskAttempt, payload)) {
+        await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
         await promoteTaskDeliverable(this, tenantId, toTaskHandoffResponse(existingTaskAttempt));
         return toTaskHandoffResponse(existingTaskAttempt);
       }
       if (!isEditableTaskState(task.state)) {
         if (canReusePersistedTaskAttemptHandoff(task, existingTaskAttempt, payload)) {
+          await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
           await promoteTaskDeliverable(this, tenantId, toTaskHandoffResponse(existingTaskAttempt));
           return toTaskHandoffResponse(existingTaskAttempt);
         }
         throw buildReplayConflictError(task, existingTaskAttempt, payload, existingTaskAttempt);
       }
       const updated = await updateExistingHandoff(existingTaskAttempt.id, payload, db);
+      await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
       await promoteTaskDeliverable(this, tenantId, updated);
       await enqueueWorkflowActivation(this, task, payload, db);
       return updated;
@@ -259,6 +265,7 @@ export class HandoffService {
     );
     if (result.rowCount) {
       const handoff = toTaskHandoffResponse(result.rows[0]);
+      await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
       await promoteTaskDeliverable(this, tenantId, handoff);
       await enqueueWorkflowActivation(this, task, payload, db);
       await logSubmittedTaskHandoff(this, tenantId, task, payload, handoff, db);
@@ -270,16 +277,19 @@ export class HandoffService {
       throw new ConflictError('Task handoff conflicted but no matching row could be loaded');
     }
     if (matchesHandoffReplay(existing, payload)) {
+      await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
       return toTaskHandoffResponse(existing);
     }
     if (!isEditableTaskState(task.state)) {
       if (canReusePersistedTaskAttemptHandoff(task, existing, payload)) {
+        await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
         await promoteTaskDeliverable(this, tenantId, toTaskHandoffResponse(existing));
         return toTaskHandoffResponse(existing);
       }
       throw buildReplayConflictError(task, existing, payload);
     }
     const updated = await updateExistingHandoff(existing.id, payload, db);
+    await registerTaskDocuments(db, tenantId, task as unknown as Record<string, unknown>, input.documents);
     await promoteTaskDeliverable(this, tenantId, updated);
     await enqueueWorkflowActivation(this, task, payload, db);
     await logSubmittedTaskHandoff(this, tenantId, task, payload, updated, db);

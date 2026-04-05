@@ -49,6 +49,25 @@ describe('document reference service support', () => {
     });
   });
 
+  it('infers repository source from path-only document definitions', () => {
+    expect(
+      normalizeDocumentDefinition(
+        'plan',
+        {
+          path: 'docs/plan.md',
+        },
+        'task_output',
+      ),
+    ).toEqual({
+      source: 'repository',
+      path: 'docs/plan.md',
+      repository: undefined,
+      metadata: {},
+      title: undefined,
+      description: undefined,
+    });
+  });
+
   it('builds artifact workflow references with a download URL', () => {
     expect(
       buildWorkflowDocumentReference(

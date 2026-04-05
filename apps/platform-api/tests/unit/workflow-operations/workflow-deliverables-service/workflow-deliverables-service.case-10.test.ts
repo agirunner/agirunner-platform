@@ -109,4 +109,114 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.in_progress_deliverables).toEqual([]);
     expect(result.all_deliverables).toEqual(result.final_deliverables);
   });
+
+  it('keeps distinct artifact-backed deliverables from the same work item visible together', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'risk-security',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-risk',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Risk check security review packet',
+          state: 'final',
+          summary_brief: 'Uploaded the security review findings.',
+          preview_capabilities: {
+            can_inline_preview: true,
+            can_download: true,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'markdown',
+          },
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/docs/security-review-export-stabilization.md',
+            artifact_id: 'artifact-security',
+            url: '/api/v1/tasks/task-security/artifacts/artifact-security/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Uploaded the security review findings.',
+            source_role_name: 'Security Reviewer',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-05T19:27:48.000Z',
+          updated_at: '2026-04-05T19:27:48.000Z',
+        },
+        {
+          descriptor_id: 'risk-qa',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-risk',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Risk check QA review packet',
+          state: 'final',
+          summary_brief: 'Uploaded the QA regression findings.',
+          preview_capabilities: {
+            can_inline_preview: true,
+            can_download: true,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'markdown',
+          },
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/docs/qa-risk-export-stabilization.md',
+            artifact_id: 'artifact-qa',
+            url: '/api/v1/tasks/task-qa/artifacts/artifact-qa/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Uploaded the QA regression findings.',
+            source_role_name: 'QA Reviewer',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-05T19:30:39.000Z',
+          updated_at: '2026-04-05T19:30:39.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => []),
+      listExistingWorkItemIds: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'risk-qa',
+        title: 'Qa Risk Export Stabilization',
+        primary_target: expect.objectContaining({
+          artifact_id: 'artifact-qa',
+        }),
+      }),
+      expect.objectContaining({
+        descriptor_id: 'risk-security',
+        title: 'Security Review Export Stabilization',
+        primary_target: expect.objectContaining({
+          artifact_id: 'artifact-security',
+        }),
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.all_deliverables).toEqual(result.final_deliverables);
+  });
 });

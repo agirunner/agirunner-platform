@@ -98,12 +98,21 @@ export async function registerTaskOutputDocuments(
   task: Record<string, unknown>,
   output: unknown,
 ): Promise<void> {
+  await registerTaskDocuments(db, tenantId, task, readOutputDocumentMap(output));
+}
+
+export async function registerTaskDocuments(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+  documentsInput: Record<string, unknown> | null | undefined,
+): Promise<void> {
   const workflowId = asOptionalString(task.workflow_id);
   if (!workflowId) {
     return;
   }
 
-  const documents = readOutputDocumentMap(output);
+  const documents = documentsInput ?? {};
   if (Object.keys(documents).length === 0) {
     return;
   }
@@ -121,7 +130,18 @@ export async function registerTaskOutputDocuments(
       `INSERT INTO workflow_documents (
          tenant_id, workflow_id, workspace_id, task_id, logical_name, source, location,
          artifact_id, content_type, title, description, metadata
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`,
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+       ON CONFLICT (tenant_id, workflow_id, logical_name)
+       DO UPDATE SET
+         workspace_id = EXCLUDED.workspace_id,
+         task_id = EXCLUDED.task_id,
+         source = EXCLUDED.source,
+         location = EXCLUDED.location,
+         artifact_id = EXCLUDED.artifact_id,
+         content_type = EXCLUDED.content_type,
+         title = EXCLUDED.title,
+         description = EXCLUDED.description,
+         metadata = EXCLUDED.metadata`,
       [
         tenantId,
         workflowId,

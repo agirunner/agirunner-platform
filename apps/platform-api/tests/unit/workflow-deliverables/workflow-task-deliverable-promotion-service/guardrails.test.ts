@@ -13,11 +13,11 @@ describe('WorkflowTaskDeliverablePromotionService guardrails', () => {
     const pool = {
       query: vi
         .fn()
+        .mockResolvedValueOnce({ rows: [createWorkItemRow('workflow-intake-03')], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [createDescriptorRow({ id: 'descriptor-3', delivery_stage: 'final', state: 'final' })],
           rowCount: 1,
-        })
-        .mockResolvedValueOnce({ rows: [createWorkItemRow('workflow-intake-03')], rowCount: 1 }),
+        }),
     };
     const deliverableService = createDeliverableService();
     const service = createService(pool, deliverableService);
@@ -57,9 +57,18 @@ describe('WorkflowTaskDeliverablePromotionService guardrails', () => {
     const pool = {
       query: vi
         .fn()
-        .mockResolvedValueOnce({ rows: [createDescriptorRow({ id: 'descriptor-4', delivery_stage: 'in_progress', state: 'draft' })], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            createArtifactRow({
+              id: 'artifact-4',
+              task_id: 'task-4',
+              logical_path: 'artifact:workflow/output/workflow-intake-04-assessment.md',
+            }),
+          ],
+          rowCount: 1,
+        })
         .mockResolvedValueOnce({ rows: [createWorkItemRow('workflow-intake-04')], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [createArtifactRow({ id: 'artifact-4', task_id: 'task-4', logical_path: 'artifact:workflow/output/workflow-intake-04-assessment.md' })], rowCount: 1 }),
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
     };
     const deliverableService = createDeliverableService();
     const service = createService(pool, deliverableService);
@@ -82,7 +91,7 @@ describe('WorkflowTaskDeliverablePromotionService guardrails', () => {
       'tenant-1',
       'workflow-1',
       expect.objectContaining({
-        descriptorId: 'descriptor-4',
+        descriptorId: 'handoff-4',
         workItemId: 'work-item-4',
         descriptorKind: 'deliverable_packet',
         deliveryStage: 'final',

@@ -44,6 +44,7 @@ describe('task platform handoff routes', () => {
             id: 'task-1',
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
             work_item_id: 'work-item-1',
             role: 'developer',
             stage_name: 'implementation',
@@ -162,6 +163,148 @@ describe('task platform handoff routes', () => {
     );
   });
 
+  it('accepts structured document references on handoff submission', async () => {
+    vi
+      .spyOn(WorkflowActivationDispatchService.prototype, 'dispatchActivation')
+      .mockResolvedValue('orchestrator-task-1');
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            activation_id: null,
+            assigned_agent_id: 'agent-1',
+            is_orchestrator_task: false,
+            state: 'in_progress',
+          }],
+        };
+      }
+      if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
+            work_item_id: 'work-item-1',
+            role: 'reviewer',
+            stage_name: 'review',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'review' },
+          }],
+        };
+      }
+      if (sql.includes('SELECT COALESCE(MAX(sequence)')) {
+        return { rowCount: 1, rows: [{ next_sequence: 0 }] };
+      }
+      if (sql.includes('FROM task_handoffs') && sql.includes('request_id')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('INSERT INTO task_handoffs')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'handoff-docs-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            request_id: 'req-docs-1',
+            role: 'reviewer',
+            team_name: 'review',
+            stage_name: 'review',
+            sequence: 0,
+            summary: 'Published the merge review.',
+            completion: 'full',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+        };
+      }
+      if (sql.includes('DELETE FROM workflow_documents')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('INSERT INTO workflow_documents')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.startsWith('SELECT playbook_id FROM workflows')) {
+        return { rowCount: 1, rows: [{ playbook_id: 'playbook-1' }] };
+      }
+      if (sql.includes('INSERT INTO workflow_activations')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'activation-1',
+            workflow_id: 'workflow-1',
+            activation_id: null,
+            request_id: 'task-handoff-submitted:task-1:0:req-docs-1',
+            reason: 'task.handoff_submitted',
+            event_type: 'task.handoff_submitted',
+            payload: { task_id: 'task-1' },
+            state: 'queued',
+            dispatch_attempt: 0,
+            dispatch_token: null,
+            queued_at: new Date('2026-03-17T12:00:00Z'),
+            started_at: null,
+            consumed_at: null,
+            completed_at: null,
+            summary: null,
+            error: null,
+          }],
+        };
+      }
+      const deliverablePromotionQuery = matchDeliverablePromotionQuery(sql);
+      if (deliverablePromotionQuery) {
+        return deliverablePromotionQuery;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    app = buildTaskPlatformHandoffsApp(query);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+
+    await registerTaskPlatformHandoffsRoutes(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-docs-1',
+        summary: 'Published the merge review.',
+        completion: 'full',
+        documents: {
+          merge_review: {
+            path: 'docs/reviews/export-stabilization-merge-review.md',
+            title: 'Merge Review',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(
+      query.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO workflow_documents')),
+    ).toBe(true);
+  });
+
   it('accepts explicit completion_state and decision_state payloads on task handoff submission', async () => {
     vi
       .spyOn(WorkflowActivationDispatchService.prototype, 'dispatchActivation')
@@ -191,6 +334,7 @@ describe('task platform handoff routes', () => {
             id: 'task-1',
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
+            workspace_id: 'workspace-1',
             work_item_id: 'work-item-1',
             role: 'policy-reviewer',
             stage_name: 'verification',

@@ -5,6 +5,7 @@ export function makeTaskRow(overrides: Partial<TaskContextRow> = {}): TaskContex
     id: 'task-1',
     tenant_id: 'tenant-1',
     workflow_id: 'workflow-1',
+    workspace_id: 'workspace-1',
     work_item_id: 'work-item-1',
     role: 'developer',
     stage_name: 'implementation',

@@ -134,6 +134,9 @@ export function renderBrief(
     'If uploaded artifacts support the deliverable or handoff, include their UUIDs in submit_handoff.artifact_ids so downstream work can resolve the exact persisted artifact without guessing.',
   );
   lines.push(
+    'If a repository file, uploaded artifact, or external URL is the actual deliverable and should appear on the Deliverables page, include it in submit_handoff.documents keyed by stable logical names instead of only mentioning it in summary, changes, or successor_context.',
+  );
+  lines.push(
     'artifact_read and artifact_document_read are keyed by artifact id. If you only know a logical path, resolve the artifact id from artifact_list or the provided artifact references first. Prefer artifact_document_read for readable text artifacts.',
   );
   lines.push(

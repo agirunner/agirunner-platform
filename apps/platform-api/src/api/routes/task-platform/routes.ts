@@ -46,6 +46,11 @@ const memoryPatchSchema = z.union([
   }),
 ]);
 
+const handoffDocumentsSchema = z.record(
+  z.string().min(1).max(255),
+  z.record(z.unknown()),
+);
+
 const taskHandoffSchema = z
   .object({
     request_id: z.string().min(1).max(255),
@@ -74,6 +79,7 @@ const taskHandoffSchema = z
       .optional(),
     branch_id: z.string().uuid().optional(),
     artifact_ids: z.array(z.string().uuid()).max(100).optional(),
+    documents: handoffDocumentsSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {

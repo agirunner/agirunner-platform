@@ -19,12 +19,6 @@ interface TaskWorkItemRow {
   work_item_id: string | null;
 }
 
-interface ExistingDescriptorRow {
-  id: string;
-  delivery_stage: string | null;
-  state: string | null;
-}
-
 export interface WorkflowTaskDeliverablePromotionHandoff {
   id: string;
   workflow_id: string;
@@ -59,11 +53,13 @@ export class WorkflowTaskDeliverablePromotionService {
       return null;
     }
 
-    const [existingDescriptor, workItemTitle, artifacts] = await Promise.all([
-      this.loadExistingDescriptor(tenantId, handoff.workflow_id, workItemId),
-      this.loadWorkItemTitle(tenantId, handoff.workflow_id, workItemId),
+    const [artifacts, workItemTitle] = await Promise.all([
       this.loadArtifacts(tenantId, handoff.workflow_id, handoff.artifact_ids ?? []),
+      this.loadWorkItemTitle(tenantId, handoff.workflow_id, workItemId),
     ]);
+    const existingDescriptor = artifacts.length > 0
+      ? null
+      : await this.loadExistingDescriptor(tenantId, handoff.workflow_id, workItemId);
 
     const deliverable = await this.deliverableService.upsertSystemDeliverable(
       tenantId,
@@ -105,11 +101,9 @@ export class WorkflowTaskDeliverablePromotionService {
     tenantId: string,
     workflowId: string,
     workItemId: string,
-  ): Promise<ExistingDescriptorRow | null> {
-    const result = await this.pool.query<ExistingDescriptorRow>(
-      `SELECT id,
-              delivery_stage,
-              state
+  ): Promise<{ id: string } | null> {
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -195,11 +189,11 @@ function shouldPromoteHandoff(handoff: WorkflowTaskDeliverablePromotionHandoff):
 function buildPromotedDeliverableInput(
   handoff: WorkflowTaskDeliverablePromotionHandoff,
   workItemTitle: string | null,
-  existingDescriptor: ExistingDescriptorRow | null,
+  existingDescriptor: { id: string } | null,
   artifacts: ArtifactRow[],
   workItemId: string,
 ): UpsertWorkflowDeliverableInput {
-  const progress = resolveDeliverableProgress(handoff, existingDescriptor);
+  const progress = resolveDeliverableProgress();
   const artifactTargets = artifacts.map((artifact, index) =>
     buildArtifactTarget(artifact, index === 0),
   );
@@ -209,7 +203,7 @@ function buildPromotedDeliverableInput(
   };
   const previewSummary = buildPreviewSummary(handoff);
   return {
-    descriptorId: existingDescriptor?.id,
+    descriptorId: artifacts.length > 0 ? handoff.id : existingDescriptor?.id,
     workItemId,
     descriptorKind: CANONICAL_DELIVERABLE_PACKET_KIND,
     deliveryStage: progress,
@@ -236,16 +230,7 @@ function buildPromotedDeliverableInput(
   };
 }
 
-function resolveDeliverableProgress(
-  handoff: WorkflowTaskDeliverablePromotionHandoff,
-  existingDescriptor: ExistingDescriptorRow | null,
-): DeliverableProgress {
-  if (
-    readOptionalString(existingDescriptor?.delivery_stage) === 'final'
-    || readOptionalString(existingDescriptor?.state) === 'final'
-  ) {
-    return 'final';
-  }
+function resolveDeliverableProgress(): DeliverableProgress {
   return 'final';
 }
 

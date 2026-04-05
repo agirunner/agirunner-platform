@@ -80,6 +80,85 @@ describe('HandoffService submission', () => {
     expect(logSafetynetTriggeredMock).not.toHaveBeenCalled();
   });
 
+  it('registers structured handoff documents as workflow documents', async () => {
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+        return {
+          rows: [makeTaskRow({
+            stage_name: 'review',
+            metadata: { team_name: 'review', task_kind: 'delivery' },
+          })],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('FROM task_handoffs') && sql.includes('request_id')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (sql.includes('SELECT COALESCE(MAX(sequence)')) {
+        return { rows: [{ next_sequence: 0 }], rowCount: 1 };
+      }
+      if (sql.includes('INSERT INTO task_handoffs')) {
+        return {
+          rows: [{
+            ...makeHandoffRow({
+              id: 'handoff-docs-1',
+              request_id: 'req-docs-1',
+              role: 'reviewer',
+              stage_name: 'review',
+              summary: 'Published the merge review.',
+            }),
+          }],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('DELETE FROM workflow_documents')) {
+        return { rows: [], rowCount: 1 };
+      }
+      if (sql.includes('INSERT INTO workflow_documents')) {
+        expect(sql).toContain('ON CONFLICT (tenant_id, workflow_id, logical_name)');
+        expect(params).toEqual([
+          'tenant-1',
+          'workflow-1',
+          'workspace-1',
+          'task-1',
+          'merge_review',
+          'repository',
+          'docs/reviews/export-stabilization-merge-review.md',
+          null,
+          null,
+          'Merge Review',
+          null,
+          {},
+        ]);
+        return { rows: [], rowCount: 1 };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+
+    const service = new HandoffService({ query } as never);
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-docs-1',
+      summary: 'Published the merge review.',
+      completion: 'full',
+      documents: {
+        merge_review: {
+          path: 'docs/reviews/export-stabilization-merge-review.md',
+          title: 'Merge Review',
+          metadata: {},
+        },
+      },
+    });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM workflow_documents'),
+      ['tenant-1', 'task-1'],
+    );
+  });
+
   it('promotes delivery handoffs into canonical work-item deliverables after persistence', async () => {
     const pool = {
       query: vi

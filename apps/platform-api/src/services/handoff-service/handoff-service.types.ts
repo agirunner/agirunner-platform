@@ -29,6 +29,7 @@ export interface SubmitTaskHandoffInput {
   outcome_action_applied?: 'reopen_subject' | 'route_to_role' | 'block_subject' | 'escalate' | 'terminate_branch';
   branch_id?: string;
   artifact_ids?: string[];
+  documents?: Record<string, unknown>;
 }
 
 export type HandoffOutcomeAction =
@@ -42,6 +43,7 @@ export interface TaskContextRow {
   id: string;
   tenant_id: string;
   workflow_id: string | null;
+  workspace_id: string | null;
   work_item_id: string | null;
   role: string | null;
   stage_name: string | null;

@@ -116,6 +116,7 @@ function buildActivationTaskInput(
       'Plans, thoughts, summaries, and failed attempts do not count as successful workflow mutations.',
       'Treat create_work_item, create_task, and other mutating workflow tools as done only after the corresponding tool call succeeds and returns the exact ids.',
       'Every mutating workflow management tool call must include a unique request_id.',
+      'Use assessment tasks only when evaluating an existing subject task or handoff revision with explicit subject linkage; use ordinary delivery task types for fresh investigation or review work that is not judging a prior task output.',
       'Repository-backed specialist tasks must include repository execution context so the runtime can clone, validate, commit, and push safely.',
       'Do not inspect repositories directly from the orchestrator activation. When repository evidence is required, read existing specialist outputs and artifacts or dispatch specialist work that performs the repository inspection.',
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation instead of stopping at a recommendation.',
