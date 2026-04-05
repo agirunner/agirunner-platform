@@ -186,7 +186,7 @@ export function WorkflowsRail(props: {
   }, [props.hasNextPage, props.isLoading, props.onLoadMore, visibleRows.length]);
 
   return (
-    <aside className="flex h-full max-h-[18rem] min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:bg-slate-950/85 sm:max-h-[24rem] lg:max-h-none">
+    <aside className="relative isolate flex h-full max-h-[18rem] min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:border-slate-800/90 dark:bg-slate-950 dark:shadow-none sm:max-h-[24rem] lg:max-h-none">
       <div className="space-y-3 border-b border-border/70 px-3 py-3 sm:px-4 sm:py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -260,7 +260,7 @@ export function WorkflowsRail(props: {
           }
         }}
       >
-        <div className="grid gap-2">
+        <div className="flex flex-col gap-2">
           {shouldShowLoadingState ? (
             <div
               aria-live="polite"
