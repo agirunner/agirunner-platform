@@ -126,4 +126,119 @@ describe('playbook workflow workspace stage projection', () => {
     });
     expect(workspace.workflow?.currentStage).toBe('implement');
   }, 120_000);
+
+  it('falls back to the workflow current stage when planned stage-status rows lag during approval routing', async (context) => {
+    if (!suite.canRunIntegration) {
+      context.skip();
+    }
+
+    const harness = suite.harness!;
+    const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
+      name: 'Hotfix Approval Projection',
+      outcome: 'Keep release approval visible while stage rows catch up',
+      definition: {
+        roles: ['developer'],
+        lifecycle: 'planned',
+        stages: [
+          { name: 'implement', goal: 'Produce the package.' },
+          { name: 'release-approval', goal: 'Record the human approval decision.' },
+          { name: 'close', goal: 'Record the final state.' },
+        ],
+      },
+    });
+
+    const workflow = await harness.workflowService.createWorkflow(identity, {
+      playbook_id: String(playbook.id),
+      name: 'Hotfix Approval Projection Run',
+    });
+
+    await suite.db!.pool.query(
+      `UPDATE workflows
+          SET current_stage = 'release-approval'
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [identity.tenantId, String(workflow.id)],
+    );
+    await suite.db!.pool.query(
+      `UPDATE workflow_stages
+          SET status = CASE
+                         WHEN name = 'implement' THEN 'completed'
+                         ELSE 'pending'
+                       END
+        WHERE tenant_id = $1
+          AND workflow_id = $2`,
+      [identity.tenantId, String(workflow.id)],
+    );
+
+    const liveService = new MissionControlLiveService(suite.db!.pool);
+    const railService = new WorkflowRailService(
+      liveService,
+      { getRecent: async () => ({ version: { generatedAt: new Date().toISOString(), latestEventId: null, token: 'recent:empty' }, packets: [] }) },
+      { getHistory: async () => ({ version: { generatedAt: new Date().toISOString(), latestEventId: null, token: 'history:empty' }, packets: [] }) },
+    );
+    const workspaceService = new WorkflowWorkspaceService(
+      harness.workflowService as never,
+      railService,
+      {
+        getLiveConsole: async () => ({
+          snapshot_version: 'workflow-operations:1',
+          generated_at: new Date().toISOString(),
+          latest_event_id: 1,
+          items: [],
+          total_count: 0,
+          next_cursor: null,
+          live_visibility_mode: 'enhanced',
+        }),
+      } as never,
+      {
+        getHistory: async () => ({
+          snapshot_version: 'workflow-operations:1',
+          generated_at: new Date().toISOString(),
+          latest_event_id: 1,
+          groups: [],
+          items: [],
+          total_count: 0,
+          filters: { available: [], active: [] },
+          next_cursor: null,
+        }),
+      } as never,
+      {
+        getDeliverables: async () => ({
+          final_deliverables: [],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+          all_deliverables: [],
+        }),
+      } as never,
+      { listWorkflowInterventions: async () => [] } as never,
+      { listSessions: async () => [], listMessages: async () => [] } as never,
+      undefined,
+      undefined,
+      {
+        getBriefs: async () => ({
+          snapshot_version: 'workflow-operations:1',
+          generated_at: new Date().toISOString(),
+          latest_event_id: 1,
+          items: [],
+          total_count: 0,
+          next_cursor: null,
+        }),
+      } as never,
+    );
+
+    const workflowCard = await railService.getWorkflowCard(identity.tenantId, String(workflow.id));
+    expect(workflowCard?.currentStage).toBe('release-approval');
+
+    const workspace = await workspaceService.getWorkspace(identity.tenantId, String(workflow.id), {
+      tabScope: 'workflow',
+    });
+    expect(workspace.workflow?.currentStage).toBe('release-approval');
+  }, 120_000);
 });

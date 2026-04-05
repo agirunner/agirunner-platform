@@ -149,7 +149,7 @@ function buildWorkflowListQuery(
 function plannedCurrentStageSql(workflowAlias: string): string {
   return `CASE
             WHEN ${workflowAlias}.lifecycle = 'planned'
-            THEN (
+            THEN COALESCE((
               SELECT ws_active.name
                 FROM workflow_stages ws_active
                WHERE ws_active.tenant_id = ${workflowAlias}.tenant_id
@@ -157,7 +157,7 @@ function plannedCurrentStageSql(workflowAlias: string): string {
                  AND ws_active.status IN ('active', 'awaiting_gate', 'blocked')
                ORDER BY ws_active.position ASC
                LIMIT 1
-            )
+            ), ${workflowAlias}.current_stage)
             ELSE ${workflowAlias}.current_stage
           END AS current_stage`;
 }
