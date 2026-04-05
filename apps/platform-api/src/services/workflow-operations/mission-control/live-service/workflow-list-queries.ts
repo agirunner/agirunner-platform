@@ -17,7 +17,7 @@ export async function loadWorkflowRows(
 ): Promise<WorkflowRow[]> {
   if (input.workflowIds && input.workflowIds.length > 0) {
     const result = await pool.query<WorkflowRow>(
-      `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
+      `SELECT w.id, w.name, w.state, w.lifecycle, ${plannedCurrentStageSql('w')}, w.metadata, w.workspace_id,
               ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
               w.parameters, w.context, w.updated_at
          FROM workflows w
@@ -117,7 +117,7 @@ function buildWorkflowListQuery(
              w.name,
              w.state,
              w.lifecycle,
-             w.current_stage,
+             ${plannedCurrentStageSql('w')},
              w.metadata,
              w.workspace_id,
              ws.name AS workspace_name,
@@ -144,6 +144,22 @@ function buildWorkflowListQuery(
   `;
 
   return { sql, params: builder.params };
+}
+
+function plannedCurrentStageSql(workflowAlias: string): string {
+  return `CASE
+            WHEN ${workflowAlias}.lifecycle = 'planned'
+            THEN (
+              SELECT ws_active.name
+                FROM workflow_stages ws_active
+               WHERE ws_active.tenant_id = ${workflowAlias}.tenant_id
+                 AND ws_active.workflow_id = ${workflowAlias}.id
+                 AND ws_active.status IN ('active', 'awaiting_gate', 'blocked')
+               ORDER BY ws_active.position ASC
+               LIMIT 1
+            )
+            ELSE ${workflowAlias}.current_stage
+          END AS current_stage`;
 }
 
 function buildWorkflowScopeWhereClauses(
