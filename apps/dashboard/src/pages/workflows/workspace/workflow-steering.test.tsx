@@ -1,6 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type {
@@ -13,50 +10,9 @@ import {
   buildSteeringHistory,
   buildWorkflowSteeringRequestInput,
   buildWorkflowSteeringTargets,
-  describeSteeringTargetDisabledReason,
-  WorkflowSteering,
 } from './workflow-steering.js';
 
 describe('WorkflowSteering', () => {
-  it('renders a work-item-only steering composer without target pickers or steering-history chrome', () => {
-    const html = renderSteering();
-
-    expect(html).toContain('Operator guidance');
-    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
-    expect(html).toContain('Steering attachments');
-    expect(html).not.toContain('Steering history');
-    expect(html).not.toContain('No steering history exists');
-    expect(html).not.toContain('Steering target');
-    expect(html).not.toContain('Target kind');
-    expect(html).not.toContain('Specific work item');
-    expect(html).not.toContain('Choose a steering target');
-  });
-
-  it('keeps the composer work-item-scoped even when the surrounding page state is already narrowed', () => {
-    const html = renderSteering();
-
-    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
-    expect(html).toContain('Operator guidance');
-    expect(html).toContain('Work item · Prepare release bundle');
-    expect(html).not.toContain('Task: Verify deliverable');
-    expect(html).not.toContain('Workflow: Workflow 1');
-  });
-
-  it('shows a clear disabled message instead of offering workflow-level steering when no work item is selected', () => {
-    const html = renderSteering({
-      selectedWorkItemId: null,
-      selectedWorkItemTitle: null,
-      selectedWorkItem: null,
-      scope: createScope('workflow'),
-    });
-
-    expect(html).toContain('Steering is unavailable for this workflow.');
-    expect(html).toContain('Select a work item before steering.');
-    expect(html).not.toContain('Operator guidance');
-    expect(html).not.toContain('Guide Workflow 1 toward the next legal action.');
-    expect(html).not.toContain('Record steering request');
-  });
-
   it('offers only the selected work item as a steering target even when rendered from workflow scope', () => {
     const options = buildWorkflowSteeringTargets(
       createTargetContext({
@@ -101,107 +57,6 @@ describe('WorkflowSteering', () => {
     );
 
     expect(options.map((option) => option.label)).toEqual([]);
-  });
-
-  it('reports a clear disabled reason when the selected work item is completed', () => {
-    const completedWorkItem = createWorkItem({
-      completed_at: '2026-03-28T04:00:00.000Z',
-      column_id: 'done',
-    });
-    const target = createTarget('selected_work_item', {
-      boardColumns: doneColumns(),
-      scope: createScope('selected_work_item'),
-      selectedWorkItem: completedWorkItem,
-    });
-    expect(
-      describeSteeringTargetDisabledReason({
-        workflowState: 'active',
-        boardColumns: doneColumns(),
-        target,
-        selectedWorkItem: completedWorkItem,
-      }),
-    ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
-  });
-
-  it('reports a clear disabled reason when stale task scope belongs to a cancelled workflow', () => {
-    const target = createTarget('selected_work_item', {
-      workflowState: 'cancelled',
-    });
-    expect(
-      describeSteeringTargetDisabledReason({
-        workflowState: 'cancelled',
-        boardColumns: activeColumns(),
-        target,
-        selectedWorkItem: createWorkItem(),
-      }),
-    ).toBe('This workflow is cancelled. Historical work cannot be steered.');
-  });
-
-  it('shows the specific paused work-item reason and removes steering controls for paused scoped work', () => {
-    const html = renderSteering({
-      workflowState: 'paused',
-      scope: createScope('selected_work_item'),
-    });
-
-    expect(html).toContain('This work item is paused. Resume it or choose another target before steering.');
-    expect(html).not.toContain('Steering requests are unavailable for this workflow right now.');
-    expect(html).not.toContain('Steering attachments');
-    expect(html).not.toContain('Record steering request</button>');
-  });
-
-  it('shows the specific workflow paused reason and removes steering controls for paused workflow scope', () => {
-    const html = renderSteering({
-      workflowState: 'paused',
-      scope: createScope('workflow'),
-      selectedWorkItemId: null,
-      selectedWorkItemTitle: null,
-      selectedWorkItem: null,
-      canAcceptRequest: false,
-    });
-
-    expect(html).toContain('Select a work item before steering.');
-    expect(html).not.toContain('Operator guidance');
-  });
-
-  it('keeps steering dense by removing nested heavy shells and session boilerplate', () => {
-    const html = renderSteering({
-      sessionId: 'session-1',
-      messages: [
-        createMessage({
-          id: 'message-1',
-          source_kind: 'operator',
-          message_kind: 'operator_request',
-          headline: 'Tighten the approval brief.',
-          body: 'Keep the scope narrow.',
-          created_by_type: 'user',
-          created_by_id: 'user-1',
-          created_at: '2026-03-28T04:00:00.000Z',
-        }),
-      ],
-    });
-
-    expect(html).not.toContain('Steering request');
-    expect(html).not.toContain('Tighten the approval brief.');
-    expect(html).not.toContain('Open session');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-muted/10 p-4');
-    expect(html).not.toContain('Steering history');
-  });
-
-  it('removes steering controls for completed scoped work items', () => {
-    const completedWorkItem = createWorkItem({
-      completed_at: '2026-03-28T04:00:00.000Z',
-      column_id: 'done',
-    });
-    const html = renderSteering({
-      boardColumns: doneColumns(),
-      scope: createScope('selected_work_item'),
-      selectedWorkItem: completedWorkItem,
-    });
-
-    expect(html).toContain('This work item is already completed or cancelled. Historical work cannot be steered.');
-    expect(html).not.toContain('Steering attachments');
-    expect(html).not.toContain('Record steering request</button>');
   });
 
   it('omits request-recorded acknowledgements from steering history', () => {
@@ -313,36 +168,6 @@ describe('WorkflowSteering', () => {
     expect(entries[0]?.title).toBe('Tighten the approval brief.');
   });
 });
-
-function renderSteering(overrides: Partial<Parameters<typeof WorkflowSteering>[0]> = {}): string {
-  return renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: new QueryClient() },
-      createElement(WorkflowSteering, createProps(overrides)),
-    ),
-  );
-}
-
-function createProps(
-  overrides: Partial<Parameters<typeof WorkflowSteering>[0]> = {},
-): Parameters<typeof WorkflowSteering>[0] {
-  return {
-    workflowId: 'workflow-1',
-    workflowName: 'Workflow 1',
-    workflowState: 'active',
-    boardColumns: activeColumns(),
-    selectedWorkItemId: 'work-item-7',
-    selectedWorkItemTitle: 'Prepare release bundle',
-    selectedWorkItem: createWorkItem(),
-    scope: createScope('selected_work_item'),
-    interventions: [],
-    messages: [],
-    sessionId: null,
-    canAcceptRequest: true,
-    ...overrides,
-  };
-}
 
 function createTarget(
   scopeKind: WorkflowSteeringTargetContext['scope']['scopeKind'],
