@@ -28,7 +28,7 @@ const defaultResolvedRoleConfig = {
     providerId: 'provider-default',
     providerType: 'openai',
     authMode: 'api_key',
-    apiKeySecretRef: 'secret:OPENAI_API_KEY',
+    apiKeySecretRef: 'secret:OPENAI_API_KEY', // pragma: allowlist secret
     baseUrl: 'https://api.openai.test/v1',
   },
   model: {
@@ -112,7 +112,7 @@ function createService(
     toTaskResponse: (task) => task,
     getTaskContext: vi.fn(async () => ({})),
     resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
-    claimHandleSecret: 'test-claim-handle-secret',
+    claimHandleSecret: 'test-claim-handle-secret', // pragma: allowlist secret
     ...overrides,
   });
 }
@@ -273,7 +273,7 @@ describe('TaskClaimService', () => {
         },
       })),
       resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
-      claimHandleSecret: 'test-claim-handle-secret',
+      claimHandleSecret: 'test-claim-handle-secret', // pragma: allowlist secret
     });
 
     const claimed = await service.claimTask(identity, {
@@ -288,6 +288,130 @@ describe('TaskClaimService', () => {
         requires_structured_handoff: true,
       },
     });
+  });
+
+  it('normalizes persisted numeric budget fields before returning the claim payload', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-budget-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'release-assessor',
+              title: 'Assess release budget',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: '12.5000',
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-budget-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'release-assessor',
+              title: 'Assess release budget',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: '12.5000',
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT pb.definition')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                version: '1',
+                stages: [],
+                handoff_rules: [],
+              },
+            }],
+          };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({
+        instructions: '',
+        instruction_layers: {},
+      })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret', // pragma: allowlist secret
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['assessment', 'role:release-assessor'],
+    });
+
+    expect(claimed?.cost_cap_usd).toBe(12.5);
   });
 
 });

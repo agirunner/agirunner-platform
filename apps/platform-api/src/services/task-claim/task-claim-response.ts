@@ -5,7 +5,7 @@ import { flattenInstructionLayersForSystemPrompt } from '../task-context-service
 import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 import { readSpecialistRoleCapabilities } from '../specialist/specialist-capability-service.js';
 import { OAuthService } from '../oauth/oauth-service.js';
-import { buildRuntimeTaskCapabilities, buildToolOwnerContract, hydrateClaimGitCredentials, mergeClaimRuntimeBindings, readTaskExecutionBackend, sanitizeClaimRoleTools, stripClaimSecretEchoes, attachClaimCredentials } from './task-claim-task-payload.js';
+import { attachClaimCredentials, buildRuntimeTaskCapabilities, buildToolOwnerContract, hydrateClaimGitCredentials, mergeClaimRuntimeBindings, readNullableFloat, readTaskExecutionBackend, sanitizeClaimRoleTools, stripClaimSecretEchoes } from './task-claim-task-payload.js';
 import { buildClaimLLMFields, buildExecutionContractLogPayload, buildRemoteMcpServerContracts } from './task-claim-llm-contracts.js';
 import { buildMissingTaskModelConfigError, logAssembledPromptWarningIfNeeded, mergeSystemPrompt, readAssembledPromptWarningThreshold } from './task-claim-common.js';
 import { toClaimObjectCredential, toClaimStringCredential } from './task-claim-credential-handles.js';
@@ -136,6 +136,7 @@ function buildClaimTaskBase(task: Record<string, unknown>): Record<string, unkno
     description: metadata.description ?? null,
     parent_id: metadata.parent_id ?? null,
     verification: metadata.verification ?? null,
+    cost_cap_usd: readNullableFloat(rest.cost_cap_usd),
     execution_environment: isRecord(rest.execution_environment_snapshot)
       ? rest.execution_environment_snapshot
       : null,
