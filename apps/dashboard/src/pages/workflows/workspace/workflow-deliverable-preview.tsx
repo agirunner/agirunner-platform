@@ -34,7 +34,7 @@ export function WorkflowDeliverablePreview(props: {
   if (props.row.rowKind === 'inline') {
     return (
       <PreviewCard meta={props.previewLabel}>
-        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-muted/20 px-3 py-3 text-xs text-foreground">
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words px-1 py-1 text-xs text-foreground">
           {props.row.content}
         </pre>
       </PreviewCard>
@@ -163,9 +163,7 @@ function ArtifactPreviewClient(props: {
 
   return (
     <PreviewCard meta={previewSource.meta}>
-      <div className="rounded-lg border border-border/70 bg-background shadow-sm">
-        {previewBody}
-      </div>
+      {previewBody}
     </PreviewCard>
   );
 }
@@ -285,7 +283,7 @@ function buildGenericPreviewSource(
 function PreviewNotice(props: { body: string; meta?: string }): JSX.Element {
   return (
     <PreviewCard meta={props.meta}>
-      <p className="rounded-lg border border-dashed border-border/70 bg-background px-3 py-5 text-sm text-muted-foreground">
+      <p className="px-1 py-2 text-sm text-muted-foreground">
         {props.body}
       </p>
     </PreviewCard>

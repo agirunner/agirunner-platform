@@ -129,6 +129,44 @@ describe('MissionControlLiveService', () => {
     ]);
   });
 
+  it('hydrates workflow-document output descriptors with recorded metadata from the owning task', async () => {
+    const pool = createSequencedPool([
+      { rows: [], rowCount: 0 },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            document_id: 'document-1',
+            logical_name: 'merge_readiness_review',
+            title: 'Export Stabilization Merge-Readiness Review',
+            source: 'repository',
+            location: 'docs/reviews/export-stabilization-merge-readiness.md',
+            artifact_id: null,
+            task_id: 'task-review-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            task_role: 'code_reviewer',
+            created_at: '2026-04-05T20:49:22.717Z',
+          },
+        ],
+        rowCount: 1,
+      },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    const outputs = await service.listWorkflowOutputDescriptors('tenant-1', ['workflow-1'], 1);
+
+    expect(outputs.get('workflow-1')).toEqual([
+      expect.objectContaining({
+        id: 'document:document-1',
+        workItemId: 'work-item-1',
+        taskId: 'task-review-1',
+        producedByRole: 'Code Reviewer',
+        recordedAt: '2026-04-05T20:49:22.717Z',
+      }),
+    ]);
+  });
+
   it('marks artifact output descriptors final when their parent work item is completed', async () => {
     const pool = createSequencedPool([
       {

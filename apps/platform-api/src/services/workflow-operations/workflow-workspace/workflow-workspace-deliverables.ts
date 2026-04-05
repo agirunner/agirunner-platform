@@ -296,13 +296,7 @@ function composeFallbackPrimaryTarget(
         repo_ref: location.branch ?? location.commitSha ?? location.repository,
       };
     case 'workflow_document':
-      return {
-        target_kind: 'workflow_document',
-        label: 'Open workflow document',
-        url: location.location,
-        path: location.logicalName,
-        artifact_id: location.artifactId,
-      };
+      return composeWorkflowDocumentFallbackTarget(location, descriptor.title);
     case 'external_url':
       return {
         target_kind: 'external_url',
@@ -316,6 +310,34 @@ function composeFallbackPrimaryTarget(
         path: location.path,
       };
   }
+}
+
+function composeWorkflowDocumentFallbackTarget(
+  location: Extract<MissionControlOutputDescriptor['primaryLocation'], { kind: 'workflow_document' }>,
+  title: string,
+): Record<string, unknown> {
+  if (location.source === 'artifact' && location.artifactId && location.taskId) {
+    return {
+      target_kind: 'artifact',
+      label: title,
+      url: normalizeArtifactPreviewUrl(null, location.taskId, location.artifactId),
+      path: location.location,
+      artifact_id: location.artifactId,
+    };
+  }
+  if (location.source === 'external') {
+    return {
+      target_kind: 'external_url',
+      label: title,
+      url: location.location,
+    };
+  }
+  return {
+    target_kind: 'repo_reference',
+    label: title,
+    url: '',
+    path: location.location,
+  };
 }
 
 function readFallbackDeliverableTitle(descriptor: MissionControlOutputDescriptor): string {

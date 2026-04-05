@@ -11,6 +11,7 @@ export interface DeliverablesRouteOptions {
   artifactCount?: number;
   inlineSummaryRepeatCount?: number;
   includeStageRetainedScopeMap?: boolean;
+  includeRepositoryWorkflowDocument?: boolean;
 }
 
 interface RoutedArtifactRecord extends DeliverableRouteArtifactRecord {}
@@ -171,6 +172,21 @@ export function patchDeliverablesPayload(
     }
   }
 
+  if (options.includeRepositoryWorkflowDocument) {
+    const repositoryDocumentDeliverable = buildRepositoryWorkflowDocumentDeliverable(
+      workflowId,
+      workItemId,
+    );
+    if (upsertDeliverable(finalDeliverables, repositoryDocumentDeliverable)) {
+      upsertDeliverable(allDeliverables, repositoryDocumentDeliverable);
+    } else if (upsertDeliverable(inProgressDeliverables, repositoryDocumentDeliverable)) {
+      upsertDeliverable(allDeliverables, repositoryDocumentDeliverable);
+    } else if (!upsertDeliverable(allDeliverables, repositoryDocumentDeliverable)) {
+      finalDeliverables.push(repositoryDocumentDeliverable);
+      allDeliverables.push(repositoryDocumentDeliverable);
+    }
+  }
+
   for (const deliverable of missingInProgressDeliverables) {
     if (upsertDeliverable(finalDeliverables, deliverable)) {
       upsertDeliverable(allDeliverables, deliverable);
@@ -288,6 +304,44 @@ function buildArtifactCatalogEntry(deliverable: Record<string, unknown>): Routed
   }
 
   return records;
+}
+
+function buildRepositoryWorkflowDocumentDeliverable(
+  workflowId: string | null,
+  workItemId: string | null,
+): Record<string, unknown> {
+  return {
+    descriptor_id: 'seeded-repository-workflow-document',
+    workflow_id: workflowId,
+    work_item_id: workItemId,
+    descriptor_kind: 'workflow_document',
+    delivery_stage: 'final',
+    title: 'Export Stabilization Merge-Readiness Review',
+    state: 'final',
+    summary_brief: 'Repository-backed review document.',
+    preview_capabilities: {
+      can_inline_preview: false,
+      can_download: false,
+      can_open_external: false,
+      can_copy_path: true,
+      preview_kind: 'structured_summary',
+    },
+    primary_target: {
+      target_kind: 'repo_reference',
+      label: 'Export Stabilization Merge-Readiness Review',
+      url: '',
+      path: 'docs/reviews/export-stabilization-merge-readiness.md',
+      repo_ref: 'origin/main:docs/reviews/export-stabilization-merge-readiness.md',
+    },
+    secondary_targets: [],
+    content_preview: {
+      summary: 'Repository-backed review document.',
+      source_role_name: 'Developer',
+    },
+    source_brief_id: null,
+    created_at: '2026-04-05T20:49:22.717Z',
+    updated_at: '2026-04-05T20:49:22.717Z',
+  };
 }
 
 function buildArtifactContent(fileName: string): {

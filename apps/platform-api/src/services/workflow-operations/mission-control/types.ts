@@ -118,6 +118,7 @@ export interface MissionControlWorkflowDocumentLocation {
   source: 'repository' | 'artifact' | 'external';
   location: string;
   artifactId: string | null;
+  taskId?: string | null;
 }
 
 export interface MissionControlExternalUrlLocation {

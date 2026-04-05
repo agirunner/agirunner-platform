@@ -73,19 +73,44 @@ export async function loadWorkflowOutputRows(
       [tenantId, workflowIds, limitPerWorkflow],
     ),
     pool.query<DocumentOutputRow>(
-      `SELECT workflow_id, document_id, logical_name, title, source, location, artifact_id
+      `SELECT workflow_id,
+              document_id,
+              logical_name,
+              title,
+              source,
+              location,
+              artifact_id,
+              task_id,
+              work_item_id,
+              stage_name,
+              task_role,
+              created_at
          FROM (
-           SELECT workflow_id,
-                  id AS document_id,
-                  logical_name,
-                  title,
-                  source,
-                  location,
-                  artifact_id,
+           SELECT workflow_documents.workflow_id,
+                  workflow_documents.id AS document_id,
+                  workflow_documents.logical_name,
+                  workflow_documents.title,
+                  workflow_documents.source,
+                  workflow_documents.location,
+                  workflow_documents.artifact_id,
+                  workflow_documents.task_id,
+                  task_scope.work_item_id,
+                  task_scope.stage_name,
+                  task_scope.task_role,
+                  workflow_documents.created_at,
                   ROW_NUMBER() OVER (PARTITION BY workflow_id ORDER BY created_at DESC) AS rn
              FROM workflow_documents
-            WHERE tenant_id = $1
-              AND workflow_id = ANY($2::uuid[])
+             LEFT JOIN LATERAL (
+               SELECT t.work_item_id,
+                      t.stage_name,
+                      t.role AS task_role
+                 FROM tasks t
+                WHERE t.tenant_id = workflow_documents.tenant_id
+                  AND t.id = workflow_documents.task_id
+                LIMIT 1
+             ) task_scope ON true
+            WHERE workflow_documents.tenant_id = $1
+              AND workflow_documents.workflow_id = ANY($2::uuid[])
          ) ranked
         WHERE rn <= $3`,
       [tenantId, workflowIds, limitPerWorkflow],

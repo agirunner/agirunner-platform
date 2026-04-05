@@ -50,6 +50,11 @@ interface DocumentOutputRow {
   source: 'repository' | 'artifact' | 'external';
   location: string;
   artifact_id: string | null;
+  task_id: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  task_role: string | null;
+  created_at: Date | string | null;
 }
 
 export type {

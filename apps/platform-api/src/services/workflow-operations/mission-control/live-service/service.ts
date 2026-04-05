@@ -150,6 +150,11 @@ export class MissionControlLiveService {
         source: row.source,
         location: row.location,
         artifactId: row.artifact_id,
+        taskId: row.task_id,
+        workItemId: row.work_item_id,
+        stageName: row.stage_name,
+        recordedAt: toIsoString(row.created_at),
+        producedByRole: humanizeOptionalRole(row.task_role),
         status: 'approved',
       }));
     }

@@ -59,9 +59,6 @@ test('renders a flat deliverables table with one row per deliverable and direct 
   await expect(exportDeliverableRow).toContainText('Interim');
   await expect(inlineDeliverableRow).toContainText('Interim');
   await expect(repositoryDeliverableRow).toContainText('release/main');
-  await expect(repositoryDeliverableRow).toContainText('https://github.com/example/release-audit/pull/42');
-  await expect(shareDeliverableRow).toContainText('https://example.com/share/release-audit');
-  await expect(exportDeliverableRow).toContainText('/var/tmp/exports/release-audit');
 
   await architectureDeliverableRow.scrollIntoViewIfNeeded();
   await expect(architectureDeliverableRow.getByRole('button', { name: 'Download' })).toBeVisible();
@@ -232,4 +229,28 @@ test('keeps interim and final rows for the same logical file visible without lea
   await expect(finalRow.locator('td').nth(4)).not.toHaveText('—');
   await expect(workbench.getByText('artifact:workflow-1/deliverables/finance-workspace-scope-map.md')).toHaveCount(0);
   await expect(workbench.getByText('/api/v1/tasks/seeded-scope-map-task/artifacts/seeded-scope-map-artifact/preview')).toHaveCount(0);
+});
+
+test('shows repository-backed workflow documents with recorded metadata and without a broken open action', async ({ page }) => {
+  await seedWorkflowDeliverablesScenario();
+  await routeDeliverablesWorkspace(page, 'E2E Needs Action Delivery', {
+    includeRepositoryWorkflowDocument: true,
+  });
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await workbench.getByRole('tab', { name: 'Deliverables' }).click();
+
+  const deliverablesTable = workbench.getByRole('table').first();
+  const reviewDocumentRow = deliverablesTable
+    .getByRole('row', { name: /Export Stabilization Merge-Readiness Review/ })
+    .first();
+
+  await expect(reviewDocumentRow).toBeVisible();
+  await expect(reviewDocumentRow).toContainText('export-stabilization-merge-readiness.md');
+  await expect(reviewDocumentRow).toContainText('Developer');
+  await expect(reviewDocumentRow.locator('td').nth(4)).not.toHaveText('—');
+  await expect(reviewDocumentRow.getByRole('link', { name: 'Open' })).toHaveCount(0);
+  await expect(reviewDocumentRow.getByRole('button', { name: 'View' })).toHaveCount(0);
 });

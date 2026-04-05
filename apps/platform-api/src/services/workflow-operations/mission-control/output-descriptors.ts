@@ -147,6 +147,7 @@ function composePrimaryLocation(
         source: input.source,
         location: input.location,
         artifactId: input.artifactId ?? null,
+        ...(input.taskId ? { taskId: input.taskId } : {}),
       };
     case 'external_url':
       return {

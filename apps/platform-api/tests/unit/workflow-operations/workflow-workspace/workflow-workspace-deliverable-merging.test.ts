@@ -285,6 +285,104 @@ describe('buildWorkspaceDeliverablesPacket merging', () => {
     ]);
   });
 
+  it('merges repository-backed workflow documents onto the synthesized repo reference row', () => {
+    const deliverables = {
+      final_deliverables: [
+        {
+          descriptor_id: 'workflow-document:merge_readiness_review',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'workflow_document',
+          delivery_stage: 'final',
+          title: 'Export Stabilization Merge-Readiness Review',
+          state: 'final',
+          summary_brief: 'Repository-backed review document.',
+          preview_capabilities: {
+            can_inline_preview: false,
+            can_download: false,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'structured_summary',
+          },
+          primary_target: {
+            target_kind: 'repo_reference',
+            label: 'Export Stabilization Merge-Readiness Review',
+            url: '',
+            path: 'docs/reviews/export-stabilization-merge-readiness.md',
+            repo_ref: 'origin/main:docs/reviews/export-stabilization-merge-readiness.md',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Repository-backed review document.',
+          },
+          source_brief_id: null,
+          created_at: '',
+          updated_at: '',
+        } satisfies WorkflowDeliverableRecord,
+      ],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+      all_deliverables: [],
+    };
+    const outputDescriptors: MissionControlOutputDescriptor[] = [
+      {
+        id: 'document-1',
+        title: 'Export Stabilization Merge-Readiness Review',
+        summary: 'Repository-backed review document.',
+        status: 'approved',
+        recordedAt: '2026-04-05T20:49:22.717Z',
+        producedByRole: 'Code Reviewer',
+        workItemId: 'work-item-1',
+        taskId: 'task-review-1',
+        stageName: 'review',
+        primaryLocation: {
+          kind: 'workflow_document',
+          workflowId: 'workflow-1',
+          documentId: 'document-1',
+          logicalName: 'merge_readiness_review',
+          source: 'repository',
+          location: 'docs/reviews/export-stabilization-merge-readiness.md',
+          artifactId: null,
+        },
+        secondaryLocations: [],
+      },
+    ];
+
+    const result = buildWorkspaceDeliverablesPacket(
+      deliverables as never,
+      outputDescriptors,
+      'workflow-1',
+      buildWorkflowScope() as never,
+      buildBoard(),
+    );
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'workflow-document:merge_readiness_review',
+        title: 'Export Stabilization Merge-Readiness Review',
+        created_at: '2026-04-05T20:49:22.717Z',
+        updated_at: '2026-04-05T20:49:22.717Z',
+        primary_target: expect.objectContaining({
+          target_kind: 'repo_reference',
+          path: 'docs/reviews/export-stabilization-merge-readiness.md',
+          repo_ref: 'origin/main:docs/reviews/export-stabilization-merge-readiness.md',
+          url: '',
+        }),
+        content_preview: expect.objectContaining({
+          source_role_name: 'Code Reviewer',
+        }),
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
+  });
+
   it('presents a packet-backed artifact as content even when no fallback descriptor is available', () => {
     const deliverables = {
       final_deliverables: [
