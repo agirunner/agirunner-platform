@@ -9,7 +9,7 @@ on:
       image_tag:
         description: Docker tag to use for the platform images built in the GitHub runner
         required: true
-        default: test
+        default: 0.0.0-alpha.0
 
 permissions:
   contents: read

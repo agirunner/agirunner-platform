@@ -27,6 +27,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Validate release tag helpers
+        run: bash .github/scripts/release-tags.test.sh
+
+      - name: Validate release workflow contract
+        run: bash .github/scripts/release-workflow.test.sh
+
+      - name: Validate manual build workflow defaults
+        run: bash .github/scripts/manual-build-workflow.test.sh
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
