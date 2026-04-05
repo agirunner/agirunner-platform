@@ -22,6 +22,28 @@ import runner as community_runner
 
 
 class RunnerContractTests(unittest.TestCase):
+    def test_build_local_playbooks_by_slug_prefers_active_highest_version(self) -> None:
+        indexed = community_runner.build_local_playbooks_by_slug(
+            [
+                {
+                    "id": "pb-v1",
+                    "slug": "research-analysis",
+                    "version": 1,
+                    "is_active": False,
+                    "updated_at": "2026-04-04T23:57:30Z",
+                },
+                {
+                    "id": "pb-v2",
+                    "slug": "research-analysis",
+                    "version": 2,
+                    "is_active": True,
+                    "updated_at": "2026-04-04T23:57:29Z",
+                },
+            ]
+        )
+
+        self.assertEqual("pb-v2", indexed["research-analysis"]["id"])
+
     def test_help_succeeds(self) -> None:
         completed = subprocess.run(
             ["bash", str(RUNNER), "--help"],
@@ -176,6 +198,78 @@ class RunnerContractTests(unittest.TestCase):
         self.assertTrue(payload["selection"]["manual_operator_actions"])
         self.assertEqual(1, len(payload["runs"]))
 
+    def test_execute_prefers_active_playbook_revision_when_duplicate_slugs_exist(self) -> None:
+        args = argparse.Namespace(
+            bootstrap_only=False,
+            import_only=False,
+            batch=["matrix"],
+            playbook="research-analysis",
+            variant="native-search",
+            provider=None,
+            manual_operator_actions=False,
+            failed_only=False,
+        )
+
+        fake_client = type(
+            "FakeClient",
+            (),
+            {
+                "request": lambda self, method, path, payload=None, expected=(200,), label=None: {
+                    "data": [
+                        {
+                            "id": "pb-v2",
+                            "slug": "research-analysis",
+                            "version": 2,
+                            "is_active": True,
+                            "name": "Research Analysis",
+                        },
+                        {
+                            "id": "pb-v1",
+                            "slug": "research-analysis",
+                            "version": 1,
+                            "is_active": False,
+                            "name": "Research Analysis",
+                        },
+                    ]
+                }
+            },
+        )()
+        fake_api = type("FakeApi", (), {"client": fake_client, "list_local_playbooks": lambda self: fake_client.request("GET", "/api/v1/playbooks")["data"]})()
+
+        observed_playbooks_by_slug: dict[str, dict[str, str]] = {}
+
+        with patch("runner.prepare_environment", return_value={"specialist_model_id": "model-1", "specialist_reasoning": "medium"}):
+            with patch("runner.create_catalog_api", return_value=fake_api):
+                with patch("runner.import_full_catalog", return_value={"catalog_playbook_count": 17}):
+                    with patch("runner.assign_specialist_model_to_roles", return_value=[]):
+                        with patch("runner.configure_community_mcp_servers", return_value={"items": [], "by_slug": {}}):
+                            with patch("runner.load_metadata", return_value={"workspace_profiles": {}, "runs": []}):
+                                with patch("runner.validate_metadata"):
+                                    with patch(
+                                        "runner.resolve_run_specs",
+                                        return_value=[
+                                            {
+                                                "id": "research-analysis-native-search",
+                                                "batch": "matrix",
+                                                "playbook_slug": "research-analysis",
+                                                "variant": "native-search",
+                                                "launch_inputs": {},
+                                            }
+                                        ],
+                                    ):
+                                        with patch(
+                                            "runner.execute_runs",
+                                            side_effect=lambda api, playbooks_by_slug, run_specs, **kwargs: observed_playbooks_by_slug.update(playbooks_by_slug) or {
+                                                "runs": [],
+                                                "passed": True,
+                                                "passed_count": 0,
+                                                "failed_count": 0,
+                                            },
+                                        ):
+                                            community_runner.execute(args)
+
+        self.assertEqual("pb-v2", observed_playbooks_by_slug["research-analysis"]["id"])
+
     def test_execute_uses_env_file_as_authoritative_baseline(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             env_file = Path(tmpdir) / "local.env"
@@ -183,8 +277,8 @@ class RunnerContractTests(unittest.TestCase):
                 "\n".join(
                     [
                         "LIVE_TEST_PROVIDER_TYPE=anthropic",
-                        "LIVE_TEST_MODEL_ID=claude-sonnet-4-6",
-                        "LIVE_TEST_ORCHESTRATOR_MODEL_ID=claude-sonnet-4-6",
+                        "LIVE_TEST_MODEL_ID=test-model-alpha",
+                        "LIVE_TEST_ORCHESTRATOR_MODEL_ID=test-model-alpha",  # pragma: allowlist secret
                     ]
                 )
                 + "\n",
@@ -223,5 +317,5 @@ class RunnerContractTests(unittest.TestCase):
                     community_runner.execute(args)
 
             self.assertEqual("anthropic", observed["provider_type"])
-            self.assertEqual("claude-sonnet-4-6", observed["model_id"])
-            self.assertEqual("claude-sonnet-4-6", observed["orchestrator_model_id"])
+            self.assertEqual("test-model-alpha", observed["model_id"])
+            self.assertEqual("test-model-alpha", observed["orchestrator_model_id"])

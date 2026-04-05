@@ -42,6 +42,46 @@ def resolve_failed_only_ids(summary_path: Path) -> set[str]:
     }
 
 
+def build_local_playbooks_by_slug(
+    playbooks: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    for playbook in playbooks:
+        slug = str(playbook.get("slug") or "").strip()
+        if slug == "":
+            continue
+        current = indexed.get(slug)
+        if current is None or should_prefer_local_playbook(playbook, current):
+            indexed[slug] = dict(playbook)
+    return indexed
+
+
+def should_prefer_local_playbook(
+    candidate: dict[str, Any],
+    current: dict[str, Any],
+) -> bool:
+    candidate_active = bool(candidate.get("is_active"))
+    current_active = bool(current.get("is_active"))
+    if candidate_active != current_active:
+        return candidate_active
+
+    candidate_version = normalize_playbook_version(candidate.get("version"))
+    current_version = normalize_playbook_version(current.get("version"))
+    if candidate_version != current_version:
+        return candidate_version > current_version
+
+    candidate_updated_at = str(candidate.get("updated_at") or "").strip()
+    current_updated_at = str(current.get("updated_at") or "").strip()
+    return candidate_updated_at > current_updated_at
+
+
+def normalize_playbook_version(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
 def execute(args: argparse.Namespace) -> dict[str, Any]:
     env_file = Path(os.environ.get("LIVE_TEST_ENV_FILE", live_root() / "env" / "local.env"))
     load_env_file_values(env_file)
@@ -102,11 +142,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         failed_only_ids=failed_only_ids,
     )
     payload["resolved_run_count"] = len(resolved_runs)
-    local_playbooks = {
-        str(playbook.get("slug") or "").strip(): dict(playbook)
-        for playbook in api.list_local_playbooks()
-        if str(playbook.get("slug") or "").strip()
-    }
+    local_playbooks = build_local_playbooks_by_slug(api.list_local_playbooks())
     run_result = execute_runs(
         api,
         local_playbooks,
