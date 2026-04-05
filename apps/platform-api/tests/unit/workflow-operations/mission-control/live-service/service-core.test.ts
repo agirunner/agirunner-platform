@@ -102,10 +102,12 @@ describe('MissionControlLiveService', () => {
             task_id: 'task-1',
             work_item_id: 'work-item-1',
             stage_name: 'review',
+            task_role: 'research_analyst',
             work_item_completed_at: null,
             workflow_state: 'active',
             logical_path: 'deliverables/release-notes.md',
             content_type: 'text/markdown',
+            created_at: '2026-04-04T08:20:00.000Z',
           },
         ],
         rowCount: 1,
@@ -121,6 +123,8 @@ describe('MissionControlLiveService', () => {
         id: 'artifact:artifact-1',
         workItemId: 'work-item-1',
         taskId: 'task-1',
+        producedByRole: 'Research Analyst',
+        recordedAt: '2026-04-04T08:20:00.000Z',
       }),
     ]);
   });

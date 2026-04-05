@@ -14,6 +14,7 @@ import {
   normalizeLifecycleFilter,
   pushOutput,
 } from './presentation.js';
+import { humanizeToken } from '../../workflow-workspace/workflow-workspace-common.js';
 import {
   countWorkflowRows,
   getLatestEventId,
@@ -129,6 +130,8 @@ export class MissionControlLiveService {
         taskId: row.task_id,
         workItemId: row.work_item_id,
         stageName: row.stage_name,
+        recordedAt: toIsoString(row.created_at),
+        producedByRole: humanizeOptionalRole(row.task_role),
         logicalPath: row.logical_path,
         contentType: row.content_type,
         sizeBytes: row.size_bytes,
@@ -184,6 +187,18 @@ function resolveArtifactOutputStatus(row: {
     return 'approved';
   }
   return 'draft';
+}
+
+function toIsoString(value: Date | string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function humanizeOptionalRole(value: string | null | undefined): string | null {
+  const normalized = readOptionalString(value);
+  return normalized ? humanizeToken(normalized) : null;
 }
 
 function readOptionalString(value: unknown): string | null {

@@ -14,12 +14,14 @@ describe('mission control output descriptors', () => {
       taskId: 'task-1',
       logicalPath: 'deliverables/spec.md',
       status: 'draft',
+      recordedAt: '2026-04-04T08:20:00.000Z',
       contentType: 'text/markdown',
     });
 
     expect(descriptor).toEqual(
       expect.objectContaining({
-        title: 'deliverables/spec.md',
+        title: 'Spec',
+        recordedAt: '2026-04-04T08:20:00.000Z',
         primaryLocation: expect.objectContaining({
           kind: 'artifact',
           artifactId: 'artifact-1',
@@ -31,6 +33,20 @@ describe('mission control output descriptors', () => {
         }),
       }),
     );
+  });
+
+  it('humanizes path-backed artifact titles even when the descriptor title echoes the logical path', () => {
+    const descriptor = composeMissionControlOutputDescriptor({
+      kind: 'artifact',
+      id: 'output-1b',
+      artifactId: 'artifact-1b',
+      taskId: 'task-1b',
+      logicalPath: 'artifact:workflow-1/deliverables/quantum-computer-source-review.md',
+      title: 'artifact:workflow-1/deliverables/quantum-computer-source-review.md',
+      status: 'final',
+    });
+
+    expect(descriptor.title).toBe('Quantum Computer Source Review');
   });
 
   it('prefers repository links as the primary typed location', () => {

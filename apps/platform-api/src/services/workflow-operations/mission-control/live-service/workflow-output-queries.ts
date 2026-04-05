@@ -21,23 +21,28 @@ export async function loadWorkflowOutputRows(
               task_id,
               work_item_id,
               stage_name,
+              task_role,
               task_state,
               work_item_completed_at,
               workflow_state,
               logical_path,
-              content_type
+              content_type,
+              size_bytes,
+              created_at
          FROM (
            SELECT workflow_artifacts.workflow_id,
                   workflow_artifacts.id AS artifact_id,
                   workflow_artifacts.task_id,
                   task_scope.work_item_id,
                   task_scope.stage_name,
+                  task_scope.task_role,
                   task_scope.task_state,
                   task_scope.work_item_completed_at,
                   workflow_scope.state AS workflow_state,
                   workflow_artifacts.logical_path,
                   workflow_artifacts.content_type,
                   workflow_artifacts.size_bytes,
+                  workflow_artifacts.created_at,
                   ROW_NUMBER() OVER (
                     PARTITION BY workflow_artifacts.workflow_id
                     ORDER BY workflow_artifacts.created_at DESC
@@ -46,6 +51,7 @@ export async function loadWorkflowOutputRows(
              LEFT JOIN LATERAL (
                SELECT t.work_item_id,
                       t.stage_name,
+                      t.role AS task_role,
                       t.state AS task_state,
                       wi.completed_at AS work_item_completed_at
                  FROM tasks t

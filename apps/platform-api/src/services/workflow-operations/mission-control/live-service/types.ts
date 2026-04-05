@@ -32,12 +32,14 @@ interface ArtifactOutputRow {
   task_id: string;
   work_item_id: string | null;
   stage_name: string | null;
+  task_role: string | null;
   task_state: string | null;
   work_item_completed_at: Date | string | null;
   workflow_state: string | null;
   logical_path: string;
   content_type: string | null;
   size_bytes: number | null;
+  created_at: Date | string | null;
 }
 
 interface DocumentOutputRow {

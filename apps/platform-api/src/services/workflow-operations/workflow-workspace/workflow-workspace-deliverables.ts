@@ -6,6 +6,7 @@ import type { WorkflowWorkspacePacket } from '../workflow-operations-types.js';
 import type { WorkspaceDeliverablesPacket } from './workflow-workspace-types.js';
 import {
   asRecord,
+  humanizeToken,
   isBlockedGateStatus,
   readOptionalString,
 } from './workflow-workspace-common.js';
@@ -222,7 +223,7 @@ function composeFallbackDeliverableFromOutputDescriptor(
     work_item_id: descriptor.workItemId,
     descriptor_kind: descriptor.primaryLocation.kind,
     delivery_stage: isFinalOutputDescriptorStatus(descriptor.status) ? 'final' : 'in_progress',
-    title: descriptor.title,
+    title: readFallbackDeliverableTitle(descriptor),
     state: descriptor.status,
     summary_brief: descriptor.summary,
     preview_capabilities: {},
@@ -230,8 +231,8 @@ function composeFallbackDeliverableFromOutputDescriptor(
     secondary_targets: [],
     content_preview: contentPreview,
     source_brief_id: null,
-    created_at: '',
-    updated_at: '',
+    created_at: descriptor.recordedAt ?? '',
+    updated_at: descriptor.recordedAt ?? '',
   };
 }
 
@@ -315,6 +316,38 @@ function composeFallbackPrimaryTarget(
         path: location.path,
       };
   }
+}
+
+function readFallbackDeliverableTitle(descriptor: MissionControlOutputDescriptor): string {
+  const artifactPathTitle = readFallbackArtifactPathTitle(descriptor);
+  return artifactPathTitle ?? descriptor.title;
+}
+
+function readFallbackArtifactPathTitle(
+  descriptor: MissionControlOutputDescriptor,
+): string | null {
+  if (descriptor.primaryLocation.kind !== 'artifact') {
+    return null;
+  }
+  if (descriptor.title !== descriptor.primaryLocation.logicalPath) {
+    return null;
+  }
+  return humanizeArtifactLogicalPath(descriptor.primaryLocation.logicalPath);
+}
+
+function humanizeArtifactLogicalPath(path: string): string | null {
+  const normalizedPath = path.startsWith('artifact:')
+    ? path.slice(path.indexOf('/') + 1)
+    : path;
+  const finalSegment = normalizedPath.split('/').filter(Boolean).pop();
+  if (!finalSegment) {
+    return null;
+  }
+  const withoutExtension = finalSegment.replace(/\.[A-Za-z0-9]+$/, '');
+  if (!withoutExtension) {
+    return null;
+  }
+  return humanizeToken(withoutExtension);
 }
 
 function normalizeArtifactPreviewUrl(

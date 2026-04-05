@@ -195,6 +195,96 @@ describe('buildWorkspaceDeliverablesPacket merging', () => {
     expect(result.in_progress_deliverables).toEqual([]);
   });
 
+  it('fills sparse live artifact rows with the fallback title, recorded time, and specialist', () => {
+    const deliverables = {
+      final_deliverables: [
+        {
+          descriptor_id: 'deliverable-live-artifact',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'artifact',
+          delivery_stage: 'final',
+          title: 'artifact:workflow-1/deliverables/final-research-synthesis-quantum-computer.md',
+          state: 'final',
+          summary_brief: null,
+          preview_capabilities: {
+            can_inline_preview: true,
+            can_download: true,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'markdown',
+          },
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/deliverables/final-research-synthesis-quantum-computer.md',
+            artifact_id: 'artifact-final',
+            url: '/api/v1/tasks/task-final/artifacts/artifact-final/preview',
+          },
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '',
+          updated_at: '',
+        } satisfies WorkflowDeliverableRecord,
+      ],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+      all_deliverables: [],
+    };
+    const outputDescriptors: MissionControlOutputDescriptor[] = [
+      {
+        id: 'artifact-final',
+        title: 'artifact:workflow-1/deliverables/final-research-synthesis-quantum-computer.md',
+        summary: null,
+        status: 'final',
+        recordedAt: '2026-04-04T23:31:48.398Z',
+        producedByRole: 'Research Analyst',
+        workItemId: 'work-item-1',
+        taskId: 'task-final',
+        stageName: 'synthesis',
+        primaryLocation: {
+          kind: 'artifact',
+          artifactId: 'artifact-final',
+          taskId: 'task-final',
+          logicalPath: 'artifact:workflow-1/deliverables/final-research-synthesis-quantum-computer.md',
+          previewPath: '/api/v1/tasks/task-final/artifacts/artifact-final/preview',
+          downloadPath: '/api/v1/tasks/task-final/artifacts/artifact-final',
+          contentType: 'text/markdown',
+          sizeBytes: 512,
+        },
+        secondaryLocations: [],
+      },
+    ];
+
+    const result = buildWorkspaceDeliverablesPacket(
+      deliverables as never,
+      outputDescriptors,
+      'workflow-1',
+      buildWorkflowScope() as never,
+      buildBoard(),
+    );
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-live-artifact',
+        title: 'Final Research Synthesis Quantum Computer',
+        created_at: '2026-04-04T23:31:48.398Z',
+        updated_at: '2026-04-04T23:31:48.398Z',
+        content_preview: expect.objectContaining({
+          source_role_name: 'Research Analyst',
+        }),
+      }),
+    ]);
+  });
+
   it('presents a packet-backed artifact as content even when no fallback descriptor is available', () => {
     const deliverables = {
       final_deliverables: [
@@ -259,6 +349,250 @@ describe('buildWorkspaceDeliverablesPacket merging', () => {
         primary_target: expect.objectContaining({
           target_kind: 'artifact',
           artifact_id: 'artifact-question-framing',
+        }),
+      }),
+    ]);
+  });
+
+  it('preserves visible timestamps when fallback artifact metadata is sparse', () => {
+    const deliverables = {
+      final_deliverables: [
+        {
+          descriptor_id: 'deliverable-final-synthesis',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Quantum Computer Final Synthesis',
+          state: 'final',
+          summary_brief: 'Synthesized the gathered evidence into a final explainer.',
+          preview_capabilities: {
+            can_inline_preview: true,
+            can_download: true,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'markdown',
+          },
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            path: 'artifact:workflow-1/quantum-computer-final-synthesis.md',
+            artifact_id: 'artifact-final-synthesis',
+            url: '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis/preview',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Synthesized the gathered evidence into a final explainer.',
+            source_role_name: 'Research Analyst',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-04T08:15:00.000Z',
+          updated_at: '2026-04-04T08:15:00.000Z',
+        } satisfies WorkflowDeliverableRecord,
+      ],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+      all_deliverables: [],
+    };
+    const outputDescriptors: MissionControlOutputDescriptor[] = [
+      {
+        id: 'artifact-final-synthesis',
+        title: 'artifact:workflow-1/quantum-computer-final-synthesis.md',
+        summary: null,
+        status: 'final',
+        recordedAt: null,
+        producedByRole: null,
+        workItemId: 'work-item-1',
+        taskId: 'task-final-synthesis',
+        stageName: 'synthesis',
+        primaryLocation: {
+          kind: 'artifact',
+          artifactId: 'artifact-final-synthesis',
+          taskId: 'task-final-synthesis',
+          logicalPath: 'artifact:workflow-1/quantum-computer-final-synthesis.md',
+          previewPath:
+            '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis/preview',
+          downloadPath: '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis',
+          contentType: 'text/markdown',
+          sizeBytes: 512,
+        },
+        secondaryLocations: [],
+      },
+    ];
+
+    const result = buildWorkspaceDeliverablesPacket(
+      deliverables as never,
+      outputDescriptors,
+      'workflow-1',
+      buildWorkflowScope() as never,
+      buildBoard(),
+    );
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        title: 'Quantum Computer Final Synthesis',
+        created_at: '2026-04-04T08:15:00.000Z',
+        updated_at: '2026-04-04T08:15:00.000Z',
+      }),
+    ]);
+  });
+
+  it('humanizes fallback-only artifact titles and keeps recorded metadata when no visible row exists yet', () => {
+    const deliverables = {
+      final_deliverables: [],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+      all_deliverables: [],
+    };
+    const outputDescriptors: MissionControlOutputDescriptor[] = [
+      {
+        id: 'artifact-final-synthesis',
+        title: 'artifact:workflow-1/quantum-computer-final-synthesis.md',
+        summary: 'Final research synthesis.',
+        status: 'final',
+        recordedAt: '2026-04-04T08:20:00.000Z',
+        producedByRole: 'Research Analyst',
+        workItemId: null,
+        taskId: 'task-final-synthesis',
+        stageName: 'synthesis',
+        primaryLocation: {
+          kind: 'artifact',
+          artifactId: 'artifact-final-synthesis',
+          taskId: 'task-final-synthesis',
+          logicalPath: 'artifact:workflow-1/quantum-computer-final-synthesis.md',
+          previewPath:
+            '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis/preview',
+          downloadPath: '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis',
+          contentType: 'text/markdown',
+          sizeBytes: 512,
+        },
+        secondaryLocations: [],
+      },
+    ];
+
+    const result = buildWorkspaceDeliverablesPacket(
+      deliverables as never,
+      outputDescriptors,
+      'workflow-1',
+      buildWorkflowScope() as never,
+      buildBoard(),
+    );
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        title: 'Quantum Computer Final Synthesis',
+        created_at: '2026-04-04T08:20:00.000Z',
+        updated_at: '2026-04-04T08:20:00.000Z',
+        content_preview: expect.objectContaining({
+          source_role_name: 'Research Analyst',
+        }),
+      }),
+    ]);
+  });
+
+  it('prefers a richer artifact-backed title over a later generic packet title for the same deliverable identity', () => {
+    const deliverables = {
+      final_deliverables: [
+        {
+          descriptor_id: 'deliverable-final-summary',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Final synthesis deliverable',
+          state: 'final',
+          summary_brief: 'Path: deliverables/quantum-computer-final-synthesis.md',
+          preview_capabilities: {
+            can_inline_preview: true,
+            can_download: false,
+            can_open_external: false,
+            can_copy_path: true,
+            preview_kind: 'structured_summary',
+          },
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Final synthesis deliverable',
+            path: 'deliverables/quantum-computer-final-synthesis.md',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Path: deliverables/quantum-computer-final-synthesis.md',
+          },
+          source_brief_id: null,
+          created_at: '2026-04-04T08:25:00.000Z',
+          updated_at: '2026-04-04T08:25:00.000Z',
+        } satisfies WorkflowDeliverableRecord,
+      ],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+      all_deliverables: [],
+    };
+    const outputDescriptors: MissionControlOutputDescriptor[] = [
+      {
+        id: 'artifact-final-synthesis',
+        title: 'artifact:workflow-1/deliverables/quantum-computer-final-synthesis.md',
+        summary: 'Completed the final synthesis with source grounding and quality notes.',
+        status: 'final',
+        recordedAt: '2026-04-04T08:24:00.000Z',
+        producedByRole: 'Research Analyst',
+        workItemId: 'work-item-1',
+        taskId: 'task-final-synthesis',
+        stageName: 'synthesis',
+        primaryLocation: {
+          kind: 'artifact',
+          artifactId: 'artifact-final-synthesis',
+          taskId: 'task-final-synthesis',
+          logicalPath: 'artifact:workflow-1/deliverables/quantum-computer-final-synthesis.md',
+          previewPath:
+            '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis/preview',
+          downloadPath: '/api/v1/tasks/task-final-synthesis/artifacts/artifact-final-synthesis',
+          contentType: 'text/markdown',
+          sizeBytes: 512,
+        },
+        secondaryLocations: [],
+      },
+    ];
+
+    const result = buildWorkspaceDeliverablesPacket(
+      deliverables as never,
+      outputDescriptors,
+      'workflow-1',
+      buildWorkflowScope() as never,
+      buildBoard(),
+    );
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        title: 'Quantum Computer Final Synthesis',
+        created_at: '2026-04-04T08:25:00.000Z',
+        updated_at: '2026-04-04T08:25:00.000Z',
+        content_preview: expect.objectContaining({
+          source_role_name: 'Research Analyst',
+        }),
+        primary_target: expect.objectContaining({
+          target_kind: 'artifact',
+          artifact_id: 'artifact-final-synthesis',
         }),
       }),
     ]);

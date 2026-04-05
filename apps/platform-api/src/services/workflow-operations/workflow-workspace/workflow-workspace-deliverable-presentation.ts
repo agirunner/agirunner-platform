@@ -75,6 +75,7 @@ function overlayVisibleDeliverableWithFallback(
     ...visibleDeliverable,
     descriptor_id: fallbackDeliverable.descriptor_id,
     descriptor_kind: fallbackDeliverable.descriptor_kind,
+    title: preferVisibleDeliverableTitle(visibleDeliverable, fallbackDeliverable),
     preview_capabilities: fallbackDeliverable.preview_capabilities,
     primary_target: fallbackDeliverable.primary_target,
     secondary_targets: fallbackDeliverable.secondary_targets,
@@ -86,8 +87,14 @@ function overlayVisibleDeliverableWithFallback(
         ?? readOptionalString(fallbackPreview.source_role_name)
         ?? null,
     },
-    created_at: fallbackDeliverable.created_at,
-    updated_at: fallbackDeliverable.updated_at,
+    created_at: preferNonEmptyTimestamp(
+      visibleDeliverable.created_at,
+      fallbackDeliverable.created_at,
+    ),
+    updated_at: preferNonEmptyTimestamp(
+      visibleDeliverable.updated_at,
+      fallbackDeliverable.updated_at,
+    ),
   };
 }
 
@@ -100,11 +107,28 @@ function mergeVisibleDeliverableMetadata(
   const sourceRoleName =
     readOptionalString(visiblePreview.source_role_name)
     ?? readOptionalString(fallbackPreview.source_role_name);
-  if (!sourceRoleName) {
+  const title = preferVisibleDeliverableTitle(visibleDeliverable, fallbackDeliverable);
+  const createdAt = preferNonEmptyTimestamp(
+    visibleDeliverable.created_at,
+    fallbackDeliverable.created_at,
+  );
+  const updatedAt = preferNonEmptyTimestamp(
+    visibleDeliverable.updated_at,
+    fallbackDeliverable.updated_at,
+  );
+  if (
+    !sourceRoleName
+    && title === visibleDeliverable.title
+    && createdAt === visibleDeliverable.created_at
+    && updatedAt === visibleDeliverable.updated_at
+  ) {
     return visibleDeliverable;
   }
   return {
     ...visibleDeliverable,
+    title,
+    created_at: createdAt,
+    updated_at: updatedAt,
     content_preview: {
       ...visiblePreview,
       source_role_name: sourceRoleName,
@@ -147,4 +171,93 @@ function hasConcreteContentTarget(deliverable: WorkflowDeliverableRecord): boole
     || readOptionalString(primaryTarget.artifact_id) !== null
     || readOptionalString(primaryTarget.url) !== null
     || readOptionalString(primaryTarget.repo_ref) !== null;
+}
+
+function preferNonEmptyTimestamp(primary: string, fallback: string): string {
+  return readOptionalString(primary) ?? readOptionalString(fallback) ?? '';
+}
+
+function preferVisibleDeliverableTitle(
+  visibleDeliverable: WorkflowDeliverableRecord,
+  fallbackDeliverable: WorkflowDeliverableRecord,
+): string {
+  const fallbackTitle = readOptionalString(fallbackDeliverable.title);
+  if (!fallbackTitle) {
+    return visibleDeliverable.title;
+  }
+  const visibleTitle = readOptionalString(visibleDeliverable.title);
+  if (!visibleTitle) {
+    return fallbackTitle;
+  }
+  if (isPathLikeVisibleTitle(visibleDeliverable, visibleTitle)) {
+    return fallbackTitle;
+  }
+  if (shouldPreferFallbackDeliverableTitle(visibleTitle, fallbackTitle)) {
+    return fallbackTitle;
+  }
+  return visibleDeliverable.title;
+}
+
+function shouldPreferFallbackDeliverableTitle(
+  visibleTitle: string,
+  fallbackTitle: string,
+): boolean {
+  return isGenericDeliverableTitle(visibleTitle) && !isGenericDeliverableTitle(fallbackTitle);
+}
+
+function isGenericDeliverableTitle(title: string): boolean {
+  const tokens = title
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  const genericTokens = tokens.filter((token) => GENERIC_DELIVERABLE_TITLE_TOKENS.has(token));
+  if (genericTokens.length === tokens.length) {
+    return true;
+  }
+
+  const trailingToken = tokens.at(-1);
+  return Boolean(
+    trailingToken
+      && GENERIC_DELIVERABLE_TITLE_TOKENS.has(trailingToken)
+      && tokens.length <= 3
+      && genericTokens.length >= tokens.length - 1,
+  );
+}
+
+const GENERIC_DELIVERABLE_TITLE_TOKENS = new Set([
+  'artifact',
+  'brief',
+  'completed',
+  'completion',
+  'deliverable',
+  'draft',
+  'file',
+  'final',
+  'handoff',
+  'initial',
+  'interim',
+  'note',
+  'output',
+  'packet',
+  'report',
+  'result',
+  'results',
+  'summary',
+  'updated',
+]);
+
+function isPathLikeVisibleTitle(
+  deliverable: WorkflowDeliverableRecord,
+  visibleTitle: string,
+): boolean {
+  const primaryTarget = asRecord(deliverable.primary_target);
+  const targetPath = normalizeDeliverableTargetPath(readOptionalString(primaryTarget.path));
+  if (!targetPath) {
+    return visibleTitle.startsWith('artifact:');
+  }
+  return normalizeDeliverableTargetPath(visibleTitle) === targetPath;
 }

@@ -12,6 +12,7 @@ export type MissionControlOutputDescriptorInput =
       taskId: string;
       logicalPath: string;
       status: MissionControlOutputStatus;
+      recordedAt?: string | null;
       contentType?: string | null;
       sizeBytes?: number | null;
       previewPath?: string | null;
@@ -27,6 +28,7 @@ export type MissionControlOutputDescriptorInput =
       id: string;
       repository: string;
       status: MissionControlOutputStatus;
+      recordedAt?: string | null;
       branch?: string | null;
       branchUrl?: string | null;
       commitSha?: string | null;
@@ -44,6 +46,7 @@ export type MissionControlOutputDescriptorInput =
       id: string;
       path: string;
       status: MissionControlOutputStatus;
+      recordedAt?: string | null;
       title?: string | null;
       summary?: string | null;
       producedByRole?: string | null;
@@ -61,6 +64,7 @@ export type MissionControlOutputDescriptorInput =
       location: string;
       artifactId?: string | null;
       status: MissionControlOutputStatus;
+      recordedAt?: string | null;
       title?: string | null;
       summary?: string | null;
       producedByRole?: string | null;
@@ -73,6 +77,7 @@ export type MissionControlOutputDescriptorInput =
       id: string;
       url: string;
       status: MissionControlOutputStatus;
+      recordedAt?: string | null;
       title?: string | null;
       summary?: string | null;
       producedByRole?: string | null;
@@ -90,6 +95,7 @@ export function composeMissionControlOutputDescriptor(
     title: readDescriptorTitle(input),
     summary: input.summary ?? null,
     status: input.status,
+    recordedAt: input.recordedAt ?? null,
     producedByRole: input.producedByRole ?? null,
     workItemId: input.workItemId ?? null,
     taskId: input.taskId ?? null,
@@ -151,11 +157,15 @@ function composePrimaryLocation(
 }
 
 function readDescriptorTitle(input: MissionControlOutputDescriptorInput): string {
-  if (input.title && input.title.trim().length > 0) {
-    return input.title.trim();
+  const explicitTitle = input.title?.trim();
+  if (explicitTitle) {
+    if (input.kind === 'artifact' && explicitTitle === input.logicalPath) {
+      return humanizeArtifactLogicalPath(input.logicalPath) ?? explicitTitle;
+    }
+    return explicitTitle;
   }
   if (input.kind === 'artifact') {
-    return input.logicalPath;
+    return humanizeArtifactLogicalPath(input.logicalPath) ?? input.logicalPath;
   }
   if (input.kind === 'workflow_document') {
     return input.logicalName;
@@ -167,6 +177,23 @@ function readDescriptorTitle(input: MissionControlOutputDescriptorInput): string
     return input.url;
   }
   return input.repository;
+}
+
+function humanizeArtifactLogicalPath(path: string): string | null {
+  const normalizedPath = path.startsWith('artifact:')
+    ? path.slice(path.indexOf('/') + 1)
+    : path;
+  const finalSegment = normalizedPath.split('/').filter(Boolean).pop();
+  if (!finalSegment) {
+    return null;
+  }
+  const withoutExtension = finalSegment.replace(/\.[A-Za-z0-9]+$/, '');
+  if (!withoutExtension) {
+    return null;
+  }
+  return withoutExtension
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function composeSecondaryLocations(

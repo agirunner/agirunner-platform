@@ -137,6 +137,7 @@ export interface MissionControlOutputDescriptor {
   title: string;
   summary: string | null;
   status: MissionControlOutputStatus;
+  recordedAt?: string | null;
   producedByRole: string | null;
   workItemId: string | null;
   taskId: string | null;
