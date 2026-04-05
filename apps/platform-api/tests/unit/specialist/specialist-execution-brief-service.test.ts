@@ -243,6 +243,37 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(rendered).not.toContain('git_token_secret_ref');
   });
 
+  it('includes launch packet context files in likely relevant files', () => {
+    const brief = buildSpecialistExecutionBrief({
+      ...buildInput(),
+      workflow: {
+        ...buildInput().workflow,
+        input_packets: [
+          {
+            id: 'packet-launch-1',
+            work_item_id: null,
+            packet_kind: 'launch',
+            source: 'launch',
+            summary: 'Community workload pr-guardian-smoke',
+            files: [
+              {
+                id: 'packet-file-1',
+                file_name: 'review-evidence-api-diff.md',
+                context_file: {
+                  path: '/workspace/context/input-packets/packet-launch-1/files/packet-file-1/review-evidence-api-diff.md',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(brief?.likely_relevant_files).toContain(
+      '/workspace/context/input-packets/packet-launch-1/files/packet-file-1/review-evidence-api-diff.md',
+    );
+  });
+
   it('changes refresh_key when predecessor handoff changes', () => {
     const base = buildInput();
     const initial = buildSpecialistExecutionBrief(base);

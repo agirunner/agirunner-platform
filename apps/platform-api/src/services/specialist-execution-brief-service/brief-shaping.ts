@@ -12,6 +12,7 @@ import {
   readString,
   readStringArray,
   selectLikelyRelevantFiles,
+  selectWorkflowInputPacketContextFiles,
   selectRelevantArtifactRefs,
   selectRelevantMemoryRefs,
   summarizeRemoteMcpServers,
@@ -157,7 +158,12 @@ export function buildSpecialistExecutionBrief(
     input.role ?? null,
     repoBacked,
   );
-  const likelyRelevantFiles = selectLikelyRelevantFiles(predecessorHandoff);
+  const likelyRelevantFiles = [
+    ...new Set([
+      ...selectLikelyRelevantFiles(predecessorHandoff),
+      ...selectWorkflowInputPacketContextFiles(workflow, readString(workItem.id)),
+    ]),
+  ].sort();
   const relevantMemoryRefs = selectRelevantMemoryRefs(workspace, [
     input.role,
     workflowBrief.goal,

@@ -42,6 +42,29 @@ export function selectLikelyRelevantFiles(predecessorHandoff: Record<string, unk
   ].sort();
 }
 
+export function selectWorkflowInputPacketContextFiles(
+  workflow: Record<string, unknown>,
+  workItemId: string | null,
+) {
+  const packets = Array.isArray(workflow.input_packets) ? workflow.input_packets : [];
+  return [
+    ...new Set(
+      packets.flatMap((packet) => {
+        const packetRecord = asRecord(packet);
+        const packetWorkItemId = readString(packetRecord.work_item_id);
+        if (packetWorkItemId && packetWorkItemId !== workItemId) {
+          return [];
+        }
+
+        const files = Array.isArray(packetRecord.files) ? packetRecord.files : [];
+        return files
+          .map((file) => readString(asRecord(asRecord(file).context_file).path))
+          .filter((path): path is string => Boolean(path));
+      }),
+    ),
+  ].sort();
+}
+
 export function selectRelevantMemoryRefs(
   workspace: Record<string, unknown>,
   hints: Array<string | null | undefined>,
