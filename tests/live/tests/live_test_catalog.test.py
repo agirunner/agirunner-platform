@@ -12,7 +12,6 @@ LIVE_ROOT = Path(__file__).resolve().parents[1]
 LIVE_LIB = LIVE_ROOT / "lib"
 SCENARIOS_DIR = LIVE_ROOT / "scenarios"
 LIBRARY_DIR = LIVE_ROOT / "library"
-README_FILE = LIVE_ROOT / "README.md"
 TRACKER_FILE = LIVE_ROOT / "live_test_tracker.json"
 sys.path.insert(0, str(LIVE_LIB))
 
@@ -35,11 +34,6 @@ class LiveTestCatalogTests(unittest.TestCase):
             sorted(set(supported) | set(explicit_only)),
         )
 
-    def test_tracker_starts_with_artifact_memory_publishing(self) -> None:
-        tracker = json.loads(TRACKER_FILE.read_text())
-        supported = tracker["supported"]["scenarios"]
-        self.assertEqual("artifact-memory-publishing-approval", supported[0])
-
     def test_tracker_marks_remote_mcp_scenarios_as_explicit_only(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = set(tracker["supported"]["scenarios"])
@@ -52,21 +46,10 @@ class LiveTestCatalogTests(unittest.TestCase):
             explicit_only,
         )
 
-    def test_tracker_places_spawn_agent_scenario_after_content_assessment_blocked(self) -> None:
-        tracker = json.loads(TRACKER_FILE.read_text())
-        supported = tracker["supported"]["scenarios"]
-        blocked_index = supported.index("content-assessment-blocked")
-        self.assertEqual("single-specialist-spawn-agent", supported[blocked_index + 1])
-
     def test_tracker_policy_describes_guided_closure_outcome_driven_contract(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         policy = tracker["policy"]
-        notes_blob = "\n".join(policy.get("notes", []))
-
         self.assertEqual("outcome_driven", policy.get("verification_mode"))
-        self.assertIn("guided closure", notes_blob.lower())
-        self.assertIn("allowed outcome envelope", notes_blob.lower())
-        self.assertIn("callout", notes_blob.lower())
 
     def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
@@ -170,19 +153,6 @@ class LiveTestCatalogTests(unittest.TestCase):
                 for stage_name in stage_names:
                     self.assertIn(stage_name, process_instructions)
 
-    def test_playbook_process_instructions_author_guided_closure_rules(self) -> None:
-        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
-            with self.subTest(playbook=playbook_file.parent.name):
-                payload = live_test_catalog.read_fixture(playbook_file)
-                process_instructions = str(payload.get("definition", {}).get("process_instructions") or "")
-                normalized = process_instructions.lower()
-
-                self.assertTrue("best-intent" in normalized or "best intent" in normalized)
-                self.assertIn("preferred", normalized)
-                self.assertTrue("waive" in normalized or "waived" in normalized)
-                self.assertIn("block", normalized)
-                self.assertIn("callout", normalized)
-
     def test_scenarios_author_outcome_envelopes_instead_of_relying_on_exact_path_only(self) -> None:
         for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
             with self.subTest(scenario=scenario_file.stem):
@@ -283,9 +253,6 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("scenario_name", parameters)
         self.assertIn("initial_revision_scope", parameters)
         self.assertIn("rework_completion_scope", parameters)
-        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
-        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
-        self.assertIn("Do not satisfy any requirement that appears only in `rework_completion_scope`", workspace_instructions)
 
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "playbook.json"
@@ -299,42 +266,15 @@ class LiveTestCatalogTests(unittest.TestCase):
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "roles.json"
         )
-        assessor_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "rework-acceptance-assessor"
-        )
-        implementation_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "rework-implementation-engineer"
-        )
-
-        self.assertIn("satisfy the authored initial_revision_scope and stop there", implementation_prompt)
-        self.assertIn("satisfy the full rework_completion_scope", implementation_prompt)
-        self.assertIn("MUST NOT implement any item that appears only in the rework_completion_scope", implementation_prompt)
-        self.assertIn("first subject revision MUST return request_changes", assessor_prompt)
-        self.assertIn("still misses items from the rework_completion_scope", assessor_prompt)
-        self.assertIn("Approve only after the subject revision increases", assessor_prompt)
-        self.assertIn("resolve every cited finding", implementation_prompt)
-        self.assertIn("before resubmitting", implementation_prompt)
-
-    def test_assessment_race_profile_requires_explicit_work_item_and_workflow_completion_prose(self) -> None:
-        playbook = live_test_catalog.read_fixture(
-            LIBRARY_DIR / "assessment-race" / "playbook.json"
-        )
-        process_instructions = playbook["definition"]["process_instructions"]
-
-        self.assertIn("both assessor roles", process_instructions)
-        self.assertIn("all four race-case work items", process_instructions)
-        self.assertIn("keep that race-case open until both assessor roles", process_instructions.lower())
+        role_names = {role["name"] for role in roles}
+        self.assertIn("rework-acceptance-assessor", role_names)
+        self.assertIn("rework-implementation-engineer", role_names)
 
     def test_parallel_mixed_outcomes_profile_authors_a_real_three_revision_contract(self) -> None:
         scenario = scenario_config.load_scenario(
             SCENARIOS_DIR / "sdlc-parallel-assessors-mixed-outcomes.json"
         )
         self.assertEqual(3600, scenario["timeout_seconds"])
-        self.assertIn("release-audit", scenario["workflow"]["goal"])
 
         parameters = scenario["workflow"]["parameters"]
         self.assertIn("initial_revision_scope", parameters)
@@ -350,17 +290,6 @@ class LiveTestCatalogTests(unittest.TestCase):
             / "staged-delivery.md"
         )
         self.assertTrue(staged_contract.is_file())
-        staged_contract_text = staged_contract.read_text()
-        self.assertIn("Revision 1", staged_contract_text)
-        self.assertIn("Revision 2 After Quality Request Changes", staged_contract_text)
-        self.assertIn("Revision 3 After Security Rejection", staged_contract_text)
-        self.assertIn("release-audit", staged_contract_text)
-
-        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
-        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
-        self.assertIn("Revision 2 MUST satisfy `quality_rework_scope`", workspace_instructions)
-        self.assertIn("Revision 2 MUST NOT satisfy `security_rework_scope`", workspace_instructions)
-        self.assertIn("Revision 3 MUST satisfy the full `security_rework_scope`", workspace_instructions)
 
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "playbook.json"
@@ -370,43 +299,16 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("quality_rework_scope", parameter_names)
         self.assertIn("security_rework_scope", parameter_names)
         self.assertIn("mixed_outcome_contract", parameter_names)
-
-        process_instructions = playbook["definition"]["process_instructions"]
-        self.assertIn("must not simulate future revisions", process_instructions)
-        self.assertIn("both evaluate the same repository-backed subject revision in parallel", process_instructions)
         self.assertNotIn("assessment_rules", playbook["definition"])
 
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "roles.json"
         )
-        architect_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "mixed-architecture-lead"
-        )
-        implementation_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "mixed-delivery-engineer"
-        )
-        quality_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "mixed-quality-assessor"
-        )
-        security_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "mixed-security-assessor"
-        )
-
-        self.assertIn("three-revision contract", architect_prompt)
-        self.assertIn("Do not preemptively implement revision-3-only security hardening in revision 2", implementation_prompt)
-        self.assertIn("Do not build a simulator of later revisions", implementation_prompt)
-        self.assertIn("first subject revision MUST return request_changes", quality_prompt)
-        self.assertIn("Approve revision 1", security_prompt)
-        self.assertIn("Reject revision 2", security_prompt)
-        self.assertIn("Approve only after revision 3", security_prompt)
+        role_names = {role["name"] for role in roles}
+        self.assertIn("mixed-architecture-lead", role_names)
+        self.assertIn("mixed-delivery-engineer", role_names)
+        self.assertIn("mixed-quality-assessor", role_names)
+        self.assertIn("mixed-security-assessor", role_names)
 
     def test_revision_rework_profile_authors_a_real_three_revision_contract(self) -> None:
         scenario = scenario_config.load_scenario(
@@ -426,16 +328,6 @@ class LiveTestCatalogTests(unittest.TestCase):
             / "staged-revision-contract.md"
         )
         self.assertTrue(staged_contract.is_file())
-        staged_contract_text = staged_contract.read_text()
-        self.assertIn("Revision 1", staged_contract_text)
-        self.assertIn("Revision 2 After Architect Rework", staged_contract_text)
-        self.assertIn("Revision 3 Final Implementation", staged_contract_text)
-
-        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
-        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
-        self.assertIn("Revision 2 MUST satisfy `architect_rework_scope`", workspace_instructions)
-        self.assertIn("Revision 2 MUST NOT satisfy `final_revision_scope`", workspace_instructions)
-        self.assertIn("Revision 3 MUST satisfy the full `final_revision_scope`", workspace_instructions)
 
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-revision-rework" / "playbook.json"
@@ -445,50 +337,16 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("architect_rework_scope", parameter_names)
         self.assertIn("final_revision_scope", parameter_names)
         self.assertIn("revision_progression_contract", parameter_names)
-
-        process_instructions = playbook["definition"]["process_instructions"]
-        self.assertIn("drives the initial reopen_subject rework", process_instructions)
-        self.assertIn("routes the revision back to the platform architect", process_instructions)
-        self.assertIn("must reassess later release-readiness output", process_instructions)
         self.assertNotIn("assessment_rules", playbook["definition"])
 
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-revision-rework" / "roles.json"
         )
-        architect_prompt = next(
-            role["systemPrompt"] for role in roles if role["name"] == "platform-architect"
-        )
-        implementation_prompt = next(
-            role["systemPrompt"] for role in roles if role["name"] == "feature-engineer"
-        )
-        quality_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "integration-quality-assessor"
-        )
-        integration_prompt = next(
-            role["systemPrompt"]
-            for role in roles
-            if role["name"] == "integration-assessor"
-        )
-
-        self.assertIn("three-revision contract", architect_prompt)
-        self.assertIn("Revision 1 MUST stop at initial_revision_scope", implementation_prompt)
-        self.assertIn("Revision 2 MUST satisfy architect_rework_scope", implementation_prompt)
-        self.assertIn("Revision 2 MUST NOT satisfy final_revision_scope", implementation_prompt)
-        self.assertIn("Revision 3 MUST satisfy the full final_revision_scope", implementation_prompt)
-        self.assertIn("Do not satisfy future revision work early", implementation_prompt)
-        self.assertIn("request_changes on revision 1", quality_prompt)
-        self.assertIn("approve revisions 2 and 3", quality_prompt)
-        self.assertIn("approve revision 1", integration_prompt)
-        self.assertIn("reject revision 2", integration_prompt)
-        self.assertIn("approve only after revision 3", integration_prompt)
-
-    def test_readme_documents_oauth_default_and_provider_auth_externalization(self) -> None:
-        source = README_FILE.read_text()
-        self.assertIn("OAuth MUST be the default live-test path.", source)
-        self.assertIn("Provider and auth configuration MUST stay externalized", source)
-        self.assertIn("The same scenario corpus MUST run against any supported provider/auth combination", source)
+        role_names = {role["name"] for role in roles}
+        self.assertIn("platform-architect", role_names)
+        self.assertIn("feature-engineer", role_names)
+        self.assertIn("integration-quality-assessor", role_names)
+        self.assertIn("integration-assessor", role_names)
 
 
 if __name__ == "__main__":

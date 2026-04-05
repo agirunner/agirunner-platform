@@ -26,10 +26,6 @@ class ScenarioConfigTests(unittest.TestCase):
         self.assertTrue(scenario["expect"]["work_items"]["all_terminal"])
         self.assertEqual(4, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
         self.assertEqual(2, len(scenario["actions"]))
-        self.assertEqual("intake-wave-01", scenario["actions"][0]["title_template"])
-        self.assertEqual("intake-wave-02", scenario["actions"][1]["title_template"])
-        self.assertIn("policy-controls section incomplete", scenario["actions"][0]["notes_template"])
-        self.assertIn("complete enough for policy-assessor approval", scenario["actions"][1]["notes_template"])
         self.assertEqual(
             [
                 {

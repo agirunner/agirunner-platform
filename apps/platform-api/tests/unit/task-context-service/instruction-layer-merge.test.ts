@@ -31,7 +31,7 @@ function buildExecutionEnvironmentRow(
 }
 
 describe('flattenInstructionLayers', () => {
-  it('concatenates layers in order with headers', () => {
+  it('concatenates non-task layers in the authored order', () => {
     const layers = {
       platform: { content: 'Be helpful', format: 'text' },
       workflow: { content: 'Workflow context', format: 'text' },
@@ -42,11 +42,14 @@ describe('flattenInstructionLayers', () => {
 
     const result = flattenInstructionLayers(layers);
 
-    expect(result).toContain('=== Platform Instructions ===\nBe helpful');
-    expect(result).toContain('=== Workflow Context ===\nWorkflow context');
-    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
-    expect(result).toContain('=== Role Instructions ===\nRole rules');
+    expect(result).toContain('Be helpful');
+    expect(result).toContain('Role rules');
+    expect(result).toContain('Workflow context');
+    expect(result).toContain('Workspace rules');
     expect(result).not.toContain('Task instructions');
+    expect(result.indexOf('Be helpful')).toBeLessThan(result.indexOf('Role rules'));
+    expect(result.indexOf('Role rules')).toBeLessThan(result.indexOf('Workflow context'));
+    expect(result.indexOf('Workflow context')).toBeLessThan(result.indexOf('Workspace rules'));
   });
 
   it('excludes the task layer', () => {
@@ -61,9 +64,8 @@ describe('flattenInstructionLayers', () => {
       platform: { content: 'Platform only', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
-    expect(result).toBe('=== Platform Instructions ===\nPlatform only');
-    expect(result).not.toContain('Project');
-    expect(result).not.toContain('Role');
+    expect(result).toContain('Platform only');
+    expect(result.split('\n\n')).toHaveLength(1);
   });
 
   it('skips layers with empty content', () => {
@@ -72,7 +74,8 @@ describe('flattenInstructionLayers', () => {
       workspace: { content: '', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
-    expect(result).not.toContain('Project');
+    expect(result).toContain('Platform only');
+    expect(result.split('\n\n')).toHaveLength(1);
   });
 
   it('returns empty string when no layers present', () => {
@@ -81,16 +84,16 @@ describe('flattenInstructionLayers', () => {
 
   it('preserves layer order regardless of object key order', () => {
     const layers = {
-      role: { content: 'R', format: 'text' },
-      platform: { content: 'P', format: 'text' },
-      workflow: { content: 'W', format: 'text' },
-      workspace: { content: 'J', format: 'text' },
+      role: { content: 'role-content', format: 'text' },
+      platform: { content: 'platform-content', format: 'text' },
+      workflow: { content: 'workflow-content', format: 'text' },
+      workspace: { content: 'workspace-content', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
-    const platformIdx = result.indexOf('Platform');
-    const roleIdx = result.indexOf('Role');
-    const workflowIdx = result.indexOf('Workflow');
-    const workspaceIdx = result.indexOf('Workspace');
+    const platformIdx = result.indexOf('platform-content');
+    const roleIdx = result.indexOf('role-content');
+    const workflowIdx = result.indexOf('workflow-content');
+    const workspaceIdx = result.indexOf('workspace-content');
     expect(platformIdx).toBeLessThan(roleIdx);
     expect(roleIdx).toBeLessThan(workflowIdx);
     expect(workflowIdx).toBeLessThan(workspaceIdx);
@@ -108,11 +111,10 @@ describe('flattenInstructionLayersForSystemPrompt', () => {
 
     const result = flattenInstructionLayersForSystemPrompt(layers);
 
-    expect(result).toContain('=== Platform Instructions ===\nPlatform rules');
-    expect(result).toContain('=== Orchestrator Prompt ===\nOrchestrator rules');
-    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
+    expect(result).toContain('Platform rules');
+    expect(result).toContain('Orchestrator rules');
+    expect(result).toContain('Workspace rules');
     expect(result).not.toContain('Dynamic workflow state');
-    expect(result).not.toContain('=== Workflow Context ===');
   });
 
   it('omits workflow context from specialist system prompts', () => {
@@ -125,11 +127,10 @@ describe('flattenInstructionLayersForSystemPrompt', () => {
 
     const result = flattenInstructionLayersForSystemPrompt(layers);
 
-    expect(result).toContain('=== Platform Instructions ===\nPlatform rules');
-    expect(result).toContain('=== Role Instructions ===\nRole rules');
-    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
+    expect(result).toContain('Platform rules');
+    expect(result).toContain('Role rules');
+    expect(result).toContain('Workspace rules');
     expect(result).not.toContain('Dynamic workflow state');
-    expect(result).not.toContain('=== Workflow Context ===');
   });
 });
 
@@ -139,7 +140,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       name: 'OpenAI',
       providerId: 'provider-default',
       providerType: 'openai',
-      apiKeySecretRef: 'secret:OPENAI_API_KEY',
+      apiKeySecretRef: 'secret:OPENAI_API_KEY', // pragma: allowlist secret
       authMode: 'api_key',
       baseUrl: 'https://api.openai.test/v1',
     },
@@ -273,7 +274,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       toTaskResponse,
       getTaskContext,
       resolveRoleConfig,
-      claimHandleSecret: 'test-claim-handle-secret',
+      claimHandleSecret: 'test-claim-handle-secret', // pragma: allowlist secret
     };
   }
 
@@ -294,11 +295,8 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
 
     expect(result).not.toBeNull();
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
-    expect(roleConfig.system_prompt).toContain('=== Platform Instructions ===');
     expect(roleConfig.system_prompt).toContain('Be safe');
-    expect(roleConfig.system_prompt).toContain('=== Workspace Instructions ===');
     expect(roleConfig.system_prompt).toContain('Use TypeScript');
-    expect(roleConfig.system_prompt).toContain('=== Role Instructions ===');
     expect(roleConfig.system_prompt).toContain('You are a coder');
   });
 
@@ -405,7 +403,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       resolvedRole: {
         provider: {
           providerType: 'openai',
-          apiKeySecretRef: 'sk-test',
+          apiKeySecretRef: 'sk-test', // pragma: allowlist secret
           authMode: 'api_key',
           baseUrl: null,
         },

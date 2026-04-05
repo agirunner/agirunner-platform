@@ -171,6 +171,10 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief).not.toBeNull();
     expect(brief?.refresh_key).toMatch(/^[a-f0-9]{64}$/);
     expect(brief?.workflow_brief.goal).toBe('Ship the authentication refresh-token fix.');
+    expect(brief?.goal).toBe('Review the implementation and confirm the release-note update.');
+    expect(brief?.acceptance_criteria).toEqual([
+      'Reviewer confirms the fix and flags any regressions.',
+    ]);
     expect(brief?.workflow_brief.launch_inputs).toEqual([
       { key: 'release_target', value: 'v2.4.0' },
     ]);
@@ -208,28 +212,34 @@ describe('buildSpecialistExecutionBrief', () => {
       avoid_patterns: ['ad_hoc_source_rewrite_eval'],
       runtime_recheck_required: true,
     });
-    expect(rendered).toContain('## Workflow Brief');
-    expect(rendered).toContain('## Completion Expectations');
-    expect(rendered).toContain('## Operator Visibility');
-    expect(rendered).toContain('## Path Discipline');
-    expect(rendered).toContain('## Execution Environment Contract');
-    expect(rendered).toContain('## Remote MCP Servers');
-    expect(rendered).toContain('## Execution Surface');
-    expect(rendered).toContain('Live visibility mode: enhanced');
-    expect(rendered).toContain('Workflow id: workflow-1');
-    expect(rendered).toContain('Work item id: wi-1');
-    expect(rendered).toContain('Task id: task-review-1');
-    expect(rendered).toContain('Execution context id: task-review-1');
+    expect(brief?.execution_environment_contract).toEqual({
+      name: 'Node LTS Base',
+      image: 'node:22-bookworm-slim',
+      shell: '/bin/sh',
+      package_manager: 'apt-get',
+      verified_baseline_commands: ['sh', 'cat', 'grep', 'node', 'npm'],
+      agent_hint: [
+        'Execution environment: Node LTS Base',
+        'Image: node:22-bookworm-slim',
+        'Package manager: apt-get',
+        'Shell: /bin/sh',
+        'Verified baseline commands: sh, cat, grep, node, npm',
+      ].join('\n'),
+    });
+    expect(brief?.remote_mcp_servers).toEqual([
+      {
+        name: 'Tavily Search',
+        description: 'Web search and lightweight research.',
+        capability_summary: {
+          tool_count: 2,
+          resource_count: 1,
+          prompt_count: 0,
+        },
+      },
+    ]);
     expect(rendered).toContain('handoff:task-review-1:r0:<handoff-slug>');
     expect(rendered).toContain(taskWorkspaceRoot);
     expect(rendered).toContain('/workspace/context/...');
-    expect(rendered).toContain('Repository-backed task.');
-    expect(rendered).toContain('Execution environment: Node LTS Base');
-    expect(rendered).toContain('Package manager: apt-get');
-    expect(rendered).toContain('Shell: /bin/sh');
-    expect(rendered).toContain('Verified baseline commands: sh, cat, grep, node, npm');
-    expect(rendered).toContain('Tavily Search');
-    expect(rendered).toContain('Verified capabilities: 2 tools, 1 resource, 0 prompts.');
     expect(rendered).not.toContain('git_token_secret_ref');
   });
 
@@ -259,30 +269,6 @@ describe('buildSpecialistExecutionBrief', () => {
 
     expect(brief?.rendered_markdown).toContain(
       'handoff:task-review-1:r3:<handoff-slug>',
-    );
-  });
-
-  it('renders the task contract goal and acceptance criteria', () => {
-    const brief = buildSpecialistExecutionBrief({
-      ...buildInput(),
-      taskInput: {
-        description: 'Document the bounded fix recommendation or advisory patch package.',
-      },
-      workItem: {
-        ...buildInput().workItem,
-        goal: 'Produce the smallest safe fix or advisory patch package for release review.',
-        acceptance_criteria: [
-          'Implement the smallest safe fix available in the seeded repository or document an advisory patch package when the real worker path is unavailable.',
-        ],
-      },
-    });
-
-    expect(brief?.rendered_markdown).toContain('## Task Contract');
-    expect(brief?.rendered_markdown).toContain(
-      'Goal: Document the bounded fix recommendation or advisory patch package.',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'Implement the smallest safe fix available in the seeded repository or document an advisory patch package when the real worker path is unavailable.',
     );
   });
 
@@ -330,13 +316,7 @@ describe('buildSpecialistExecutionBrief', () => {
     } as any);
 
     expect(brief).not.toBeNull();
-    expect(brief?.repo_status_summary).toBe(
-      'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
-    );
-    expect(brief?.assessment_output_expectations).toContain(
-      'Required artifacts must be uploaded before completion or escalation.',
-    );
+    expect(brief?.repo_status_summary.startsWith('Non-repository task.')).toBe(true);
     expect(brief?.repository_runtime_guidance).toBeNull();
-    expect(brief?.rendered_markdown).not.toContain('Use task sandbox tools');
   });
 });

@@ -155,11 +155,12 @@ class CommunityRunApiTests(unittest.TestCase):
         self.assertEqual(["full"], second_params["detail"])
 
     def test_read_api_path_fetches_arbitrary_preview_routes(self) -> None:
-        client = FakeApiClient(responses=["# Preview"])
+        payload = {"preview": "ok"}
+        client = FakeApiClient(responses=[payload])
 
         preview = CommunityRunApi(client).read_api_path("/api/v1/tasks/task-1/artifacts/art-1/preview")
 
-        self.assertEqual("# Preview", preview)
+        self.assertEqual(payload, preview)
         self.assertEqual(
             "/api/v1/tasks/task-1/artifacts/art-1/preview",
             client.requests[0]["path"],
