@@ -5,9 +5,14 @@ const CANONICAL_INTERNAL_REFERENCE_PATTERN = new RegExp(
   `^(task|work_item|workflow):\\s*(${UUID_SOURCE})$`,
   'i',
 );
+const OPTIONAL_WORKFLOW_PREFIX = '(?:workflow\\s+)?';
+
 const SHORTHAND_INTERNAL_REFERENCE_PATTERNS = [
-  { kind: 'task', pattern: new RegExp(`^task\\s*:?\\s*(${UUID_SOURCE})$`, 'i') },
-  { kind: 'work_item', pattern: new RegExp(`^work(?:[ _-]?item)\\s*:?\\s*(${UUID_SOURCE})$`, 'i') },
+  { kind: 'task', pattern: new RegExp(`^${OPTIONAL_WORKFLOW_PREFIX}task\\s*:?\\s*(${UUID_SOURCE})$`, 'i') },
+  {
+    kind: 'work_item',
+    pattern: new RegExp(`^${OPTIONAL_WORKFLOW_PREFIX}work(?:[ _-]?item)\\s*:?\\s*(${UUID_SOURCE})$`, 'i'),
+  },
   { kind: 'workflow', pattern: new RegExp(`^workflow\\s*:?\\s*(${UUID_SOURCE})$`, 'i') },
 ] as const;
 
