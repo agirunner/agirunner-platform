@@ -10,8 +10,14 @@
       "uploads": [
         "fixtures/uploads/engineering/bug-report-export-timeout.md"
       ],
+      "operator_actions": [
+        {
+          "kind": "approval",
+          "decision": "approve"
+        }
+      ],
       "expected_outcome": {
-        "kind": "engineering_handoff"
+        "kind": "approved_engineering_handoff"
       }
     },
     "approval": {

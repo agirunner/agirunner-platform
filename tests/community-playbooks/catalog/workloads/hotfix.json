@@ -10,8 +10,14 @@
       "uploads": [
         "fixtures/uploads/ops/runbook-source-notes.md"
       ],
+      "operator_actions": [
+        {
+          "kind": "approval",
+          "decision": "approve"
+        }
+      ],
       "expected_outcome": {
-        "kind": "hotfix_packet"
+        "kind": "approved_hotfix_packet"
       }
     },
     "approval": {

@@ -139,6 +139,32 @@ class ResolveMetadataTests(unittest.TestCase):
         for upload_path in run["uploads"]:
             self.assertTrue(Path(upload_path).is_file(), upload_path)
 
+    def test_engineering_smoke_variants_include_release_approval_actions(self) -> None:
+        metadata = load_metadata(str(METADATA_FILE))
+        validate_metadata(metadata)
+
+        expected_runs = {
+            "bug-fix": "approved_engineering_handoff",
+            "hotfix": "approved_hotfix_packet",
+        }
+
+        for playbook_slug, expected_outcome_kind in expected_runs.items():
+            with self.subTest(playbook_slug=playbook_slug):
+                resolved = resolve_run_specs(
+                    metadata,
+                    selected_batches=["smoke"],
+                    playbook_slug=playbook_slug,
+                    variant="smoke",
+                )
+
+                self.assertEqual(1, len(resolved))
+                run = resolved[0]
+                self.assertEqual(
+                    [{"kind": "approval", "decision": "approve"}],
+                    run["operator_actions"],
+                )
+                self.assertEqual(expected_outcome_kind, run["expected_outcome"]["kind"])
+
     def test_resolve_run_specs_supports_research_native_search_variant_without_uploads(self) -> None:
         metadata = load_metadata(str(METADATA_FILE))
         validate_metadata(metadata)
