@@ -5,7 +5,7 @@
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-97CA00)](./LICENSE)
 
-Control plane, public API, and operator surface for governed agent workflows.
+The control plane behind Agirunner's repeatable AI jobs.
 
 > Looking for the full Agirunner product, quick start, and deployment
 > path? Start with
@@ -13,19 +13,46 @@ Control plane, public API, and operator surface for governed agent workflows.
 > [docs.agirunner.dev](https://docs.agirunner.dev). This repository is
 > the public implementation repo for the platform itself.
 
-The Agirunner Platform is the control plane behind Agirunner. It turns
-playbooks, workflow state, approvals, and operator actions into the
-contracts that runtimes execute next.
+Agirunner Platform is the layer that turns reusable work recipes, live
+workflow state, approvals, and operator actions into explicit execution
+contracts for runtimes.
 
-Developers build on this layer today through the platform API.
-Operators supervise the same layer through the dashboard. If
-`agirunner-runtime` is the execution plane, `agirunner-platform` is the
-place where workflow intent, workflow records, and control surfaces
-live.
+If the full product runs AI jobs against repos, tickets, documents, and
+research briefs, the platform is the part that keeps those runs durable,
+visible, and governed instead of leaving them buried in prompt history
+or ad hoc background jobs.
 
-This is the layer that matters when agent work needs to be repeatable,
-reviewable, and governed instead of buried in prompt history or ad hoc
-background jobs.
+In Agirunner:
+
+- a `playbook` is a reusable recipe for a kind of work
+- a `workflow` is one live run of that recipe on real inputs
+- the `orchestrator` is the control agent that decides what should happen next
+- `specialists` are focused agents the orchestrator dispatches for concrete tasks
+
+The platform owns the meaning and control surface of the work:
+
+- workflow, work-item, task, approval, and artifact records
+- the dashboard and public API as twin surfaces over the same control plane
+- playbook, workspace, model, tool, MCP, and environment policy
+- operator-visible logs, artifacts, review paths, and system state
+
+The runtime owns execution mechanics:
+
+- claiming tasks
+- preparing bounded workspaces
+- running agent loops
+- exposing allowed tools
+- capturing outputs and artifacts
+- reporting results back to the platform
+
+That separation is the point. The platform decides what work means,
+what the current state is, what approvals are required, and what should
+happen next. The runtime safely performs the work inside the contract
+the platform issued.
+
+Developers build on the platform API today, with a first-class CLI and
+public SDKs coming next across the broader product to complete the
+developer experience.
 
 Available today:
 
@@ -41,10 +68,10 @@ Coming next:
 
 Builders are welcome here.
 
-If you care about workflow orchestration, operator UX, playbook-driven
-work systems, approvals and assessments, runtime fleet management, or
-the platform/runtime boundary, this is the public implementation repo
-where those product surfaces live.
+If you care about workflow orchestration, operator UX, public API
+behavior, durable workflow state, approvals and assessments, runtime
+fleet management, or the platform/runtime boundary, this is the public
+implementation repo where those product surfaces live.
 
 ## Documentation
 
