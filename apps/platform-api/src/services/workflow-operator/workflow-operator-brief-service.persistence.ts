@@ -19,6 +19,7 @@ import {
 } from './workflow-operator-brief-service.domain.js';
 import {
   isInternalReferenceLinkedDeliverable,
+  isPathOnlyPlaceholderLinkedDeliverable,
   normalizeLinkedDeliverablePrimaryTarget,
 } from './workflow-operator-linked-deliverables.js';
 import type {
@@ -89,7 +90,8 @@ async function materializeLinkedDeliverables(
       : [];
   const explicitDeliverables = rawExplicitDeliverables
     .map((deliverable) => normalizeLinkedDeliverablePrimaryTarget(deliverable))
-    .filter((deliverable) => !isInternalReferenceLinkedDeliverable(deliverable));
+    .filter((deliverable) => !isInternalReferenceLinkedDeliverable(deliverable))
+    .filter((deliverable) => !isPathOnlyPlaceholderLinkedDeliverable(deliverable));
   const hasExplicitLinkedDeliverables = rawExplicitDeliverables.length > 0;
   const shouldSynthesizePacket = shouldMaterializeDeliverablePacket(briefRow);
   if (hasExplicitLinkedDeliverables && explicitDeliverables.length === 0) {

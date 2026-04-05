@@ -47,6 +47,25 @@ export function isInternalReferenceLinkedDeliverable(
   );
 }
 
+export function isPathOnlyPlaceholderLinkedDeliverable(
+  deliverable: { primaryTarget: Record<string, unknown> },
+): boolean {
+  const target = asRecord(deliverable.primaryTarget);
+  const targetKind = sanitizeOptionalText(target.target_kind);
+  if (targetKind !== 'inline_summary') {
+    return false;
+  }
+
+  const path = sanitizeOptionalText(target.path);
+  if (!path) {
+    return false;
+  }
+
+  return !sanitizeOptionalText(target.artifact_id)
+    && !sanitizeOptionalText(target.url)
+    && !sanitizeOptionalText(target.repo_ref);
+}
+
 export function normalizeLinkedDeliverablePrimaryTarget<T extends { primaryTarget: Record<string, unknown> }>(
   deliverable: T,
 ): T {
